@@ -1,8 +1,3 @@
-<changes>
-  <files>
-    <file path=".github/workflows/deploy.yml">
-      <content>
-        <![CDATA[
 name: Deploy React App to GitHub Pages
 
 on:
