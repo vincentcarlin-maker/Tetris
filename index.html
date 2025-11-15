@@ -5,26 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>React Tetris</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-      // This shim is required for esm.sh to understand JSX files.
-      import { install } from 'https://esm.sh/esbuild-xdg';
-      await install();
-
-      // Now, import the main application module.
-      import 'https://esm.sh/run?path=./index.tsx';
-    </script>
   <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0"
   }
 }
 </script>
 </head>
   <body class="bg-gray-900 text-white">
     <div id="root"></div>
+    <!-- 
+      This single script tag does everything:
+      1. Fetches your index.tsx file.
+      2. Transpiles the TypeScript and JSX code into standard JavaScript.
+      3. Automatically finds and loads dependencies like React and lucide-react.
+      4. Runs the final application.
+    -->
+    <script type="module" src="https://esm.sh/run?path=./index.tsx"></script>
   </body>
 </html>
