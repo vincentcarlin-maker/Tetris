@@ -6,19 +6,19 @@ import { usePlayer } from './hooks/usePlayer';
 import { useBoard } from './hooks/useBoard';
 import { useGameStatus } from './hooks/useGameStatus';
 import { createBoard, checkCollision } from './gameHelpers';
-import { TetrominoShape } from './types';
 import { useGameLoop } from './hooks/useGameLoop';
 import { NextPiece } from './components/NextPiece';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCw, Play } from 'lucide-react';
+import type { Player } from './types';
 
 const App: React.FC = () => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState(true);
 
-    const { player, updatePlayerPos, resetPlayer, playerRotate } = usePlayer();
-    const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer);
+    const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino } = usePlayer();
+    const [ghostPlayer, setGhostPlayer] = useState<Player | null>(null);
+    const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, ghostPlayer);
     const { score, setScore, rows, setRows, level, setLevel } = useGameStatus(rowsCleared);
-    const { nextTetromino, getNextTetromino } = usePlayer();
     
     const movePlayer = (dir: -1 | 1) => {
         if (!checkCollision(player, board, { x: dir, y: 0 })) {
@@ -29,12 +29,12 @@ const App: React.FC = () => {
     const startGame = useCallback(() => {
         setBoard(createBoard());
         setDropTime(1000);
-        resetPlayer(getNextTetromino());
+        resetPlayer();
         setGameOver(false);
         setScore(0);
         setRows(0);
         setLevel(0);
-    }, [setBoard, resetPlayer, setGameOver, setScore, setRows, setLevel, getNextTetromino]);
+    }, [setBoard, resetPlayer, setGameOver, setScore, setRows, setLevel]);
 
     const drop = useCallback(() => {
         if (rows > (level + 1) * 10) {
@@ -92,6 +92,24 @@ const App: React.FC = () => {
             }
         }
     };
+
+    useEffect(() => {
+        if (gameOver || !player.tetromino || player.tetromino[0][0] === 0) {
+            setGhostPlayer(null);
+            return;
+        }
+
+        let newY = player.pos.y;
+        while (!checkCollision(player, board, { x: 0, y: newY - player.pos.y + 1 })) {
+            newY++;
+        }
+        
+        setGhostPlayer({
+            ...player,
+            pos: { x: player.pos.x, y: newY }
+        });
+
+    }, [player, board, gameOver]);
 
     useEffect(() => {
         window.addEventListener('keydown', move);

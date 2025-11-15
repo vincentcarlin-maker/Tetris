@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createBoard } from '../gameHelpers';
 import { Board, Player, TetrominoKey } from '../types';
 
-export const useBoard = (player: Player, resetPlayer: (tetromino: {shape: any}) => void) => {
+export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: Player | null) => {
     const [board, setBoard] = useState(createBoard());
     const [rowsCleared, setRowsCleared] = useState(0);
 
@@ -23,9 +23,32 @@ export const useBoard = (player: Player, resetPlayer: (tetromino: {shape: any}) 
 
         const updateBoard = (prevBoard: Board): Board => {
             const newBoard = prevBoard.map(
-                row => row.map(cell => (cell[1] === 'clear' ? ['0', 'clear'] : cell)) as typeof row
+                row => row.map(cell => (cell[1] === 'clear' || cell[1] === 'ghost' ? ['0', 'clear'] : cell)) as typeof row
             );
 
+            // Draw the ghost piece
+            if (ghostPlayer) {
+                ghostPlayer.tetromino.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            if (
+                                y + ghostPlayer.pos.y >= 0 &&
+                                newBoard[y + ghostPlayer.pos.y] &&
+                                newBoard[y + ghostPlayer.pos.y][x + ghostPlayer.pos.x] &&
+                                newBoard[y + ghostPlayer.pos.y][x + ghostPlayer.pos.x][1] !== 'merged'
+                            ) {
+                                newBoard[y + ghostPlayer.pos.y][x + ghostPlayer.pos.x] = [
+                                    value as TetrominoKey,
+                                    'ghost',
+                                ];
+                            }
+                        }
+                    });
+                });
+            }
+
+
+            // Draw the player piece
             player.tetromino.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value !== 0) {
@@ -38,15 +61,14 @@ export const useBoard = (player: Player, resetPlayer: (tetromino: {shape: any}) 
             });
 
             if (player.collided) {
-                // @ts-ignore - a bit of a hack to get the next tetromino
-                resetPlayer(undefined); 
+                resetPlayer(); 
                 return sweepRows(newBoard);
             }
             return newBoard;
         };
 
         setBoard(prev => updateBoard(prev));
-    }, [player, resetPlayer]);
+    }, [player, resetPlayer, ghostPlayer]);
 
     return { board, setBoard, rowsCleared };
 };
