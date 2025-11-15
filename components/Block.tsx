@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { TETROMINOS } from '../gameHelpers.ts';
-import { TetrominoKey } from '../types.ts';
+import { TETROMINOS } from '../gameHelpers';
+import { TetrominoKey } from '../types';
 
 interface BlockProps {
   type: TetrominoKey;

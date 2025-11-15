@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
-import { TETROMINOS, randomTetromino, BOARD_WIDTH, checkCollision } from '../gameHelpers.ts';
-import { Player, TetrominoShape, Board, NextTetromino } from '../types.ts';
+import { TETROMINOS, randomTetromino, BOARD_WIDTH, checkCollision } from '../gameHelpers';
+import { Player, TetrominoShape, Board, NextTetromino } from '../types';
 
 export const usePlayer = () => {
     const [player, setPlayer] = useState<Player>({

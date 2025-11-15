@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Block } from './Block.tsx';
-import { TetrominoShape, TetrominoKey } from '../types.ts';
+import { Block } from './Block';
+import { TetrominoShape, TetrominoKey } from '../types';
 
 interface NextPieceProps {
   tetromino: { shape: TetrominoShape };

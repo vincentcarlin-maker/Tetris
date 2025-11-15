@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { createBoard } from '../gameHelpers.ts';
-import { Board, Player, TetrominoKey } from '../types.ts';
+import { createBoard } from '../gameHelpers';
+import { Board, Player, TetrominoKey } from '../types';
 
 export const useBoard = (player: Player, resetPlayer: (tetromino?: {shape: any}) => void) => {
     const [board, setBoard] = useState(createBoard());
