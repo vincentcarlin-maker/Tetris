@@ -28,7 +28,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Set up Node.js 
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -43,7 +43,7 @@ jobs:
         # A build step is required to compile TSX to JavaScript for production.
         # This is a placeholder that copies source files. The deployed site will not
         # run correctly until a proper build tool (like Vite or Webpack) is configured.
-        run: | 
+        run: |
           mkdir dist
           cp -r ./* dist/
           
