@@ -15,9 +15,10 @@ const App: React.FC = () => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState(true);
 
-    const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, getNextTetromino } = usePlayer();
+    const { player, updatePlayerPos, resetPlayer, playerRotate } = usePlayer();
     const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer);
     const { score, setScore, rows, setRows, level, setLevel } = useGameStatus(rowsCleared);
+    const { nextTetromino, getNextTetromino } = usePlayer();
     
     const movePlayer = (dir: -1 | 1) => {
         if (!checkCollision(player, board, { x: dir, y: 0 })) {
