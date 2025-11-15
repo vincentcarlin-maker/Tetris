@@ -1,24 +1,23 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Board } from './components/Board';
-import { GameInfo } from './components/GameInfo';
-import { usePlayer } from './hooks/usePlayer';
-import { useBoard } from './hooks/useBoard';
-import { useGameStatus } from './hooks/useGameStatus';
-import { createBoard, checkCollision } from './gameHelpers';
-import { TetrominoShape } from './types';
-import { useGameLoop } from './hooks/useGameLoop';
-import { NextPiece } from './components/NextPiece';
+import { Board } from './components/Board.tsx';
+import { GameInfo } from './components/GameInfo.tsx';
+import { usePlayer } from './hooks/usePlayer.ts';
+import { useBoard } from './hooks/useBoard.ts';
+import { useGameStatus } from './hooks/useGameStatus.ts';
+import { createBoard, checkCollision } from './gameHelpers.ts';
+import { TetrominoShape } from './types.ts';
+import { useGameLoop } from './hooks/useGameLoop.ts';
+import { NextPiece } from './components/NextPiece.tsx';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCw, Play } from 'lucide-react';
 
 const App: React.FC = () => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState(true);
 
-    const { player, updatePlayerPos, resetPlayer, playerRotate } = usePlayer();
+    const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, getNextTetromino } = usePlayer();
     const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer);
     const { score, setScore, rows, setRows, level, setLevel } = useGameStatus(rowsCleared);
-    const { nextTetromino, getNextTetromino } = usePlayer();
     
     const movePlayer = (dir: -1 | 1) => {
         if (!checkCollision(player, board, { x: dir, y: 0 })) {

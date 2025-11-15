@@ -1,5 +1,5 @@
 
-import { Board, Player, Tetromino, Tetrominos, TetrominoKey } from './types';
+import { Board, Player, Tetromino, Tetrominos, TetrominoKey } from './types.ts';
 
 export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 20;

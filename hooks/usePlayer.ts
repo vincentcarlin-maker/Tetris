@@ -1,8 +1,7 @@
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { TETROMINOS, randomTetromino, BOARD_WIDTH } from '../gameHelpers';
-import { Player, TetrominoShape, Board, NextTetromino } from '../types';
-import { checkCollision } from '../gameHelpers';
+import { useState, useCallback } from 'react';
+import { TETROMINOS, randomTetromino, BOARD_WIDTH, checkCollision } from '../gameHelpers.ts';
+import { Player, TetrominoShape, Board, NextTetromino } from '../types.ts';
 
 export const usePlayer = () => {
     const [player, setPlayer] = useState<Player>({
@@ -55,13 +54,21 @@ export const usePlayer = () => {
         }));
     }, []);
 
-    const resetPlayer = useCallback((newTetromino: {shape: TetrominoShape}) => {
+    const resetPlayer = useCallback((newTetromino?: {shape: TetrominoShape}) => {
+        let pieceToUse;
+        if (newTetromino) {
+            pieceToUse = newTetromino;
+        } else {
+            // If no tetromino is provided, use the one from state and generate a new "next".
+            pieceToUse = nextTetromino;
+            getNextTetromino();
+        }
         setPlayer({
             pos: { x: BOARD_WIDTH / 2 - 1, y: 0 },
-            tetromino: newTetromino.shape,
+            tetromino: pieceToUse.shape,
             collided: false,
         });
-    }, []);
+    }, [getNextTetromino, nextTetromino]);
 
     return { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, getNextTetromino };
 };

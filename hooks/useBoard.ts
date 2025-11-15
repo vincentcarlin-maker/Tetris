@@ -1,9 +1,9 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { createBoard } from '../gameHelpers';
-import { Board, Player, TetrominoKey } from '../types';
+import { useState, useEffect } from 'react';
+import { createBoard } from '../gameHelpers.ts';
+import { Board, Player, TetrominoKey } from '../types.ts';
 
-export const useBoard = (player: Player, resetPlayer: (tetromino: {shape: any}) => void) => {
+export const useBoard = (player: Player, resetPlayer: (tetromino?: {shape: any}) => void) => {
     const [board, setBoard] = useState(createBoard());
     const [rowsCleared, setRowsCleared] = useState(0);
 
@@ -38,8 +38,7 @@ export const useBoard = (player: Player, resetPlayer: (tetromino: {shape: any}) 
             });
 
             if (player.collided) {
-                // @ts-ignore - a bit of a hack to get the next tetromino
-                resetPlayer(undefined); 
+                resetPlayer(); 
                 return sweepRows(newBoard);
             }
             return newBoard;

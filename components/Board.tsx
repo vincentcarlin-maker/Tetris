@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Block } from './Block';
-import { Board as BoardType } from '../types';
+import { Block } from './Block.tsx';
+import { Board as BoardType } from '../types.ts';
 
 interface BoardProps {
   board: BoardType;
