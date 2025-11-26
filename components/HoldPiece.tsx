@@ -2,20 +2,22 @@ import React from 'react';
 import { Block } from './Block';
 import { TetrominoShape, TetrominoKey } from '../types';
 
-interface NextPieceProps {
-  tetromino: { shape: TetrominoShape };
+interface HoldPieceProps {
+  tetromino: { shape: TetrominoShape | null };
 }
 
-export const NextPiece: React.FC<NextPieceProps> = ({ tetromino }) => {
+export const HoldPiece: React.FC<HoldPieceProps> = ({ tetromino }) => {
   const grid = Array.from({ length: 4 }, () => Array(4).fill('0'));
 
-  tetromino.shape.forEach((row, y) => {
-    row.forEach((value, x) => {
-      if (value !== 0) {
-        grid[y][x] = value;
-      }
+  if (tetromino.shape) {
+    tetromino.shape.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value !== 0) {
+          grid[y][x] = value;
+        }
+      });
     });
-  });
+  }
 
   return (
     <div className="w-full aspect-square flex items-center justify-center">
