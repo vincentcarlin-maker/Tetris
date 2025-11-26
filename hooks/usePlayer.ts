@@ -14,6 +14,8 @@ export const usePlayer = () => {
     const [nextTetrominoShape, setNextTetrominoShape] = useState<TetrominoShape>(
         randomTetromino().shape
     );
+    const [heldTetrominoShape, setHeldTetrominoShape] = useState<TetrominoShape | null>(null);
+    const [canHold, setCanHold] = useState(true);
 
     const rotate = (matrix: TetrominoShape, dir: number) => {
         const rotatedTetro = matrix.map((_, index) =>
@@ -44,7 +46,7 @@ export const usePlayer = () => {
     const updatePlayerPos = useCallback(({ x, y, collided }: { x: number; y: number; collided: boolean }): void => {
         setPlayer(prev => ({
             ...prev,
-            pos: { x: (prev.pos.x += x), y: (prev.pos.y += y) },
+            pos: { x: prev.pos.x + x, y: prev.pos.y + y },
             collided,
         }));
     }, []);
@@ -56,7 +58,30 @@ export const usePlayer = () => {
             collided: false,
         });
         setNextTetrominoShape(randomTetromino().shape);
+        setCanHold(true);
     }, [nextTetrominoShape]);
 
-    return { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino: { shape: nextTetrominoShape } };
+    const playerHold = useCallback(() => {
+        if (!canHold) return;
+
+        const newHeldTetromino = player.tetromino;
+        const pieceToSet = heldTetrominoShape || nextTetrominoShape;
+
+        setPlayer(prev => ({
+            ...prev,
+            pos: { x: BOARD_WIDTH / 2 - 1, y: 0 },
+            tetromino: pieceToSet,
+            collided: false,
+        }));
+        setHeldTetrominoShape(newHeldTetromino);
+        
+        if (!heldTetrominoShape) {
+             setNextTetrominoShape(randomTetromino().shape);
+        }
+        
+        setCanHold(false);
+    }, [canHold, player.tetromino, heldTetrominoShape, nextTetrominoShape]);
+
+
+    return { player, updatePlayerPos, resetPlayer, playerRotate, playerHold, nextTetromino: { shape: nextTetrominoShape }, heldTetromino: { shape: heldTetrominoShape } };
 };
