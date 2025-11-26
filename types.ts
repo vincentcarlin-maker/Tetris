@@ -11,7 +11,7 @@ export type Tetrominos = {
   [key in TetrominoKey]: Tetromino;
 };
 
-export type Cell = [TetrominoKey, 'clear' | 'merged' | 'ghost'];
+export type Cell = [TetrominoKey, 'clear' | 'merged' | 'ghost' | 'clearing'];
 export type Board = Cell[][];
 
 export type Player = {
@@ -22,4 +22,8 @@ export type Player = {
 
 export type NextTetromino = {
   shape: TetrominoShape;
+}
+
+export type HeldTetromino = {
+    shape: TetrominoShape | null;
 }
