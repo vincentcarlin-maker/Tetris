@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket } from 'lucide-react';
+import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull } from 'lucide-react';
 
 export interface Badge {
   id: string;
@@ -9,6 +9,15 @@ export interface Badge {
   icon: any;
   description: string;
   color: string;
+}
+
+export interface Avatar {
+    id: string;
+    name: string;
+    price: number;
+    icon: any;
+    color: string;
+    bgGradient: string;
 }
 
 export const BADGES_CATALOG: Badge[] = [
@@ -26,16 +35,43 @@ export const BADGES_CATALOG: Badge[] = [
   { id: 'b_king', name: 'Roi Néon', price: 50000, icon: Crown, description: 'Tu possèdes l\'arcade.', color: 'text-amber-400' },
 ];
 
+export const AVATARS_CATALOG: Avatar[] = [
+    { id: 'av_bot', name: 'Néon Bot', price: 0, icon: Bot, color: 'text-cyan-400', bgGradient: 'from-cyan-900/50 to-blue-900/50' },
+    { id: 'av_human', name: 'Humain', price: 0, icon: User, color: 'text-gray-200', bgGradient: 'from-gray-800/50 to-slate-800/50' },
+    { id: 'av_smile', name: 'Good Vibes', price: 500, icon: Smile, color: 'text-yellow-400', bgGradient: 'from-yellow-900/50 to-orange-900/50' },
+    { id: 'av_zap', name: 'Voltage', price: 1000, icon: Zap, color: 'text-blue-400', bgGradient: 'from-blue-900/50 to-cyan-900/50' },
+    { id: 'av_game', name: 'Pro Gamer', price: 2000, icon: Gamepad2, color: 'text-purple-400', bgGradient: 'from-purple-900/50 to-pink-900/50' },
+    { id: 'av_music', name: 'DJ Néon', price: 3000, icon: Headphones, color: 'text-pink-400', bgGradient: 'from-pink-900/50 to-rose-900/50' },
+    { id: 'av_skull', name: 'Hardcore', price: 5000, icon: Skull, color: 'text-red-500', bgGradient: 'from-red-900/50 to-orange-900/50' },
+    { id: 'av_ghost', name: 'Spectre', price: 7500, icon: Ghost, color: 'text-indigo-400', bgGradient: 'from-indigo-900/50 to-violet-900/50' },
+    { id: 'av_rocket', name: 'Cosmique', price: 10000, icon: Rocket, color: 'text-emerald-400', bgGradient: 'from-emerald-900/50 to-teal-900/50' },
+    { id: 'av_king', name: 'Le King', price: 25000, icon: Crown, color: 'text-amber-400', bgGradient: 'from-amber-900/50 to-yellow-900/50' },
+];
+
 export const useCurrency = () => {
     const [coins, setCoins] = useState(0);
     const [inventory, setInventory] = useState<string[]>([]);
+    
+    // User Identity
+    const [username, setUsername] = useState("Joueur Néon");
+    const [currentAvatarId, setCurrentAvatarId] = useState("av_bot");
+    const [ownedAvatars, setOwnedAvatars] = useState<string[]>(["av_bot", "av_human"]);
 
     useEffect(() => {
+        // Load Economy
         const storedCoins = localStorage.getItem('neon-coins');
         const storedInv = localStorage.getItem('neon-inventory');
-        
         if (storedCoins) setCoins(parseInt(storedCoins, 10));
         if (storedInv) setInventory(JSON.parse(storedInv));
+
+        // Load Identity
+        const storedName = localStorage.getItem('neon-username');
+        const storedAvatar = localStorage.getItem('neon-avatar');
+        const storedOwnedAvatars = localStorage.getItem('neon-owned-avatars');
+
+        if (storedName) setUsername(storedName);
+        if (storedAvatar) setCurrentAvatarId(storedAvatar);
+        if (storedOwnedAvatars) setOwnedAvatars(JSON.parse(storedOwnedAvatars));
     }, []);
 
     const addCoins = useCallback((amount: number) => {
@@ -64,6 +100,35 @@ export const useCurrency = () => {
         });
     }, []);
 
+    const updateUsername = useCallback((name: string) => {
+        setUsername(name);
+        localStorage.setItem('neon-username', name);
+    }, []);
+
+    const buyAvatar = useCallback((avatarId: string, cost: number) => {
+        setCoins(prev => {
+            if (prev >= cost) {
+                const newBalance = prev - cost;
+                localStorage.setItem('neon-coins', newBalance.toString());
+                
+                setOwnedAvatars(prevOwned => {
+                    const newOwned = [...prevOwned, avatarId];
+                    localStorage.setItem('neon-owned-avatars', JSON.stringify(newOwned));
+                    return newOwned;
+                });
+                return newBalance;
+            }
+            return prev;
+        });
+    }, []);
+
+    const selectAvatar = useCallback((avatarId: string) => {
+        if (ownedAvatars.includes(avatarId)) {
+            setCurrentAvatarId(avatarId);
+            localStorage.setItem('neon-avatar', avatarId);
+        }
+    }, [ownedAvatars]);
+
     // Système de Rangs basé sur le nombre de badges
     const playerRank = useMemo(() => {
         const count = inventory.length;
@@ -74,5 +139,20 @@ export const useCurrency = () => {
         return { title: 'VAGABOND NÉON', color: 'text-gray-400', glow: 'shadow-gray-400/20' };
     }, [inventory]);
 
-    return { coins, inventory, addCoins, buyBadge, catalog: BADGES_CATALOG, playerRank };
+    return { 
+        coins, 
+        inventory, 
+        addCoins, 
+        buyBadge, 
+        catalog: BADGES_CATALOG, 
+        playerRank,
+        // Identity Exports
+        username,
+        updateUsername,
+        currentAvatarId,
+        selectAvatar,
+        buyAvatar,
+        ownedAvatars,
+        avatarsCatalog: AVATARS_CATALOG
+    };
 };

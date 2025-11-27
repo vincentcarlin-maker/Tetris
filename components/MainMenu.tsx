@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -49,20 +49,45 @@ const ArcadeLogo = () => {
 
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency }) => {
-    const { coins, inventory, catalog, playerRank } = currency;
+    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
+    
+    // Username editing state
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [tempName, setTempName] = useState(username);
+    const inputRef = useRef<HTMLInputElement>(null);
     
     useEffect(() => {
         audio.resumeAudio(); // Déverrouille le contexte audio, crucial pour iOS
     }, [audio]);
 
+    useEffect(() => {
+        if (isEditingName && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isEditingName]);
+
     const handleReload = () => {
         window.location.reload();
+    };
+
+    const handleNameSubmit = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (tempName.trim()) {
+            updateUsername(tempName.trim());
+        } else {
+            setTempName(username); // Revert if empty
+        }
+        setIsEditingName(false);
     };
     
     // Récupération des badges possédés
     const ownedBadges = catalog.filter(b => inventory.includes(b.id));
+
+    // Current Avatar
+    const currentAvatar = avatarsCatalog.find(a => a.id === currentAvatarId) || avatarsCatalog[0];
+    const AvatarIcon = currentAvatar.icon;
 
     // Calcul des stats pour affichage
     const rushLevelsCompleted = Object.keys(highScores.rush || {}).length;
@@ -115,37 +140,76 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  <ArcadeLogo />
 
                  {/* CARTE DE PROFIL DU JOUEUR */}
-                 <div className="w-full bg-gray-900/40 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-3 backdrop-blur-md relative overflow-hidden group">
+                 <div className="w-full bg-gray-900/40 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-4 backdrop-blur-md relative overflow-hidden group">
                      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
                      
-                     <div className="flex flex-col items-center z-10">
-                         <span className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">Rang Actuel</span>
-                         <h2 className={`text-2xl font-black italic tracking-wider ${playerRank.color} drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-colors duration-500`}>
-                             {playerRank.title}
-                         </h2>
+                     <div className="flex items-center w-full gap-4 z-10">
+                        {/* Avatar */}
+                        <div 
+                            onClick={() => onSelectGame('shop')}
+                            className={`relative w-20 h-20 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 shadow-lg cursor-pointer hover:scale-105 transition-transform border border-white/10`}
+                        >
+                            <div className="w-full h-full bg-black/40 rounded-[10px] flex items-center justify-center backdrop-blur-sm">
+                                <AvatarIcon size={40} className={currentAvatar.color} />
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20">
+                                EDIT
+                            </div>
+                        </div>
+
+                        {/* Player Info */}
+                        <div className="flex-1 flex flex-col justify-center">
+                            {/* Username Editing */}
+                            <div className="flex items-center gap-2 mb-1">
+                                {isEditingName ? (
+                                    <form onSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
+                                        <input
+                                            ref={inputRef}
+                                            type="text"
+                                            value={tempName}
+                                            onChange={(e) => setTempName(e.target.value)}
+                                            onBlur={() => handleNameSubmit()}
+                                            maxLength={12}
+                                            className="bg-black/50 border border-neon-blue rounded px-2 py-1 text-white font-bold text-lg w-full outline-none focus:ring-2 ring-neon-blue/50"
+                                        />
+                                        <button type="submit" className="text-green-400"><Check size={20} /></button>
+                                    </form>
+                                ) : (
+                                    <button 
+                                        onClick={() => { setTempName(username); setIsEditingName(true); }}
+                                        className="flex items-center gap-2 group/edit"
+                                    >
+                                        <h2 className="text-2xl font-black text-white italic tracking-wide truncate max-w-[180px]">{username}</h2>
+                                        <Edit2 size={14} className="text-gray-500 group-hover/edit:text-white transition-colors" />
+                                    </button>
+                                )}
+                            </div>
+
+                            <span className={`text-xs font-bold tracking-widest uppercase ${playerRank.color}`}>
+                                {playerRank.title}
+                            </span>
+                        </div>
                      </div>
+
+                     {/* Divider */}
+                     <div className="w-full h-px bg-white/10" />
 
                      {/* Mini Galerie des badges */}
                      {ownedBadges.length > 0 ? (
-                         <div className="flex gap-3 overflow-x-auto w-full justify-center py-2 no-scrollbar z-10 mask-linear">
-                             {ownedBadges.slice(-5).reverse().map(badge => { // Affiche les 5 derniers
+                         <div className="flex gap-3 overflow-x-auto w-full justify-start py-2 no-scrollbar z-10 mask-linear">
+                             {ownedBadges.slice().reverse().map(badge => {
                                  const Icon = badge.icon;
                                  return (
                                      <div key={badge.id} className="relative shrink-0 animate-in fade-in zoom-in duration-300">
-                                         <div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center shadow-lg">
+                                         <div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center shadow-lg" title={badge.name}>
                                              <Icon size={20} className={badge.color} />
                                          </div>
                                      </div>
                                  );
                              })}
-                             {ownedBadges.length > 5 && (
-                                 <div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center text-xs text-gray-400 font-bold shrink-0">
-                                     +{ownedBadges.length - 5}
-                                 </div>
-                             )}
                          </div>
                      ) : (
-                         <div className="text-xs text-gray-600 italic py-2">Joue pour gagner des badges !</div>
+                         <div className="text-xs text-gray-600 italic py-2 w-full text-center">Joue pour gagner des badges !</div>
                      )}
                  </div>
 
@@ -216,7 +280,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                          </div>
                          <div className="text-left">
                              <h3 className="text-xl font-black text-yellow-100 italic">BOUTIQUE</h3>
-                             <p className="text-xs text-yellow-400/70 font-mono">BADGES: {inventory.length}/{catalog.length}</p>
+                             <p className="text-xs text-yellow-400/70 font-mono">BADGES & AVATARS</p>
                          </div>
                      </div>
                      <div className="px-4 py-1.5 bg-yellow-500 text-black text-xs font-bold rounded-full group-hover:scale-105 transition-transform">
@@ -336,8 +400,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      </button>
                  </div>
                  
-                 <div className="mt-8 text-white/10 text-[10px] tracking-widest pb-6">
-                    v1.6.0 • BREAKER UPDATE
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
+                    v1.7.0 • AVATAR UPDATE
                  </div>
              </div>
         </div>
