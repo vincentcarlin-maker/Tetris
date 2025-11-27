@@ -13,7 +13,6 @@ const App: React.FC = () => {
     const audio = useGameAudio();
 
     const handleSelectGame = (game: string) => {
-        audio.stopMenuMusic();
         if (game === 'tetris') {
             setCurrentView('tetris');
         } else if (game === 'rush') {

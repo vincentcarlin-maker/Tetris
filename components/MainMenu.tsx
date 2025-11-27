@@ -44,14 +44,7 @@ const ArcadeLogo = () => {
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
     
     useEffect(() => {
-        audio.resumeAudio(); // Important for iOS
-        audio.playMenuMusic();
-        
-        // The cleanup is handled by App.tsx's onSelectGame to be more immediate
-        // This is a safety net in case the component unmounts for other reasons
-        return () => {
-            audio.stopMenuMusic();
-        }
+        audio.resumeAudio(); // Déverrouille le contexte audio, crucial pour iOS
     }, [audio]);
 
     return (

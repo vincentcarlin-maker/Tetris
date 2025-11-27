@@ -373,9 +373,11 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedCarId, cars, moveCar, resumeAudio]);
 
+  const selectedCar = cars.find(c => c.id === selectedCarId);
+
   return (
     <div 
-        className="h-full w-full flex flex-col items-center justify-between bg-[#0a0a12] relative overflow-hidden p-4"
+        className="min-h-full w-full flex flex-col items-center justify-start bg-[#0a0a12] relative overflow-y-auto p-4 gap-4"
         onTouchStart={resumeAudio} // FORCE iOS AUDIO UNLOCK
         onMouseDown={resumeAudio}
     >
@@ -383,7 +385,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black pointer-events-none"></div>
 
       {/* Header */}
-      <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2">
+      <div className="w-full max-w-lg flex items-center justify-between z-10 shrink-0">
         <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
           <Home size={20} />
         </button>
@@ -405,7 +407,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
       </div>
 
       {/* Game Board */}
-      <div className="relative w-full max-w-md aspect-square bg-gray-950 border-4 border-gray-800 rounded-xl shadow-2xl overflow-hidden z-10 ring-1 ring-white/10">
+      <div className="relative w-full max-w-md aspect-square bg-gray-950 border-4 border-gray-800 rounded-xl shadow-2xl overflow-hidden z-10 ring-1 ring-white/10 shrink-0">
         {/* Grille de fond */}
         <div className="absolute inset-0 opacity-20" 
             style={{ 
@@ -467,7 +469,57 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
       </div>
 
       {/* Controls Area */}
-      <div className="w-full max-w-lg mt-4 z-10 flex flex-col gap-4">
+      <div className="w-full max-w-lg z-10 flex flex-col gap-4 shrink-0 pb-6">
+
+        {/* --- MOVEMENT CONTROLS (Only visible if car selected) --- */}
+        {selectedCar && !isWon && (
+            <div className="flex items-center justify-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                {selectedCar.orientation === 'h' ? (
+                    <>
+                        <button 
+                            onMouseDown={(e) => { e.preventDefault(); moveCar(-1); }}
+                            onTouchStart={(e) => { e.preventDefault(); moveCar(-1); }}
+                            className="w-16 h-16 rounded-full bg-gray-800 border-2 border-white/20 flex items-center justify-center active:bg-neon-blue active:border-white active:scale-95 transition-all shadow-lg"
+                        >
+                            <ArrowLeft size={32} className="text-white" />
+                        </button>
+                        
+                        {/* Car Indicator */}
+                        <div className={`w-12 h-8 rounded-md border border-white/30 shadow-inner bg-gradient-to-br ${selectedCar.color}`}></div>
+
+                        <button 
+                             onMouseDown={(e) => { e.preventDefault(); moveCar(1); }}
+                             onTouchStart={(e) => { e.preventDefault(); moveCar(1); }}
+                            className="w-16 h-16 rounded-full bg-gray-800 border-2 border-white/20 flex items-center justify-center active:bg-neon-blue active:border-white active:scale-95 transition-all shadow-lg"
+                        >
+                            <ArrowRight size={32} className="text-white" />
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <button 
+                             onMouseDown={(e) => { e.preventDefault(); moveCar(-1); }}
+                             onTouchStart={(e) => { e.preventDefault(); moveCar(-1); }}
+                            className="w-16 h-16 rounded-full bg-gray-800 border-2 border-white/20 flex items-center justify-center active:bg-neon-blue active:border-white active:scale-95 transition-all shadow-lg"
+                        >
+                            <ArrowUp size={32} className="text-white" />
+                        </button>
+
+                        {/* Car Indicator */}
+                         <div className={`h-12 w-8 rounded-md border border-white/30 shadow-inner bg-gradient-to-br ${selectedCar.color}`}></div>
+
+                        <button 
+                             onMouseDown={(e) => { e.preventDefault(); moveCar(1); }}
+                             onTouchStart={(e) => { e.preventDefault(); moveCar(1); }}
+                            className="w-16 h-16 rounded-full bg-gray-800 border-2 border-white/20 flex items-center justify-center active:bg-neon-blue active:border-white active:scale-95 transition-all shadow-lg"
+                        >
+                            <ArrowDown size={32} className="text-white" />
+                        </button>
+                    </>
+                )}
+            </div>
+        )}
+
         {/* Navigation Niveaux */}
         <div className="flex items-center justify-center gap-6 bg-gray-900/50 p-2 rounded-xl border border-white/5">
             <button 

@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const useGameAudio = () => {
     const audioCtx = useRef<AudioContext | null>(null);
-    const musicNodes = useRef<{ osc: OscillatorNode; gain: GainNode; interval: number } | null>(null);
     const [isMuted, setIsMuted] = useState(false);
 
     useEffect(() => {
@@ -23,12 +22,7 @@ export const useGameAudio = () => {
     }, []);
 
     const toggleMute = useCallback(() => {
-        setIsMuted(prev => {
-            if (!prev) { // If we are about to mute
-                stopMenuMusic(); // Stop music immediately
-            }
-            return !prev;
-        });
+        setIsMuted(prev => !prev);
     }, []);
 
     const playTone = useCallback((freq: number, type: OscillatorType, duration: number, gainVal: number) => {
@@ -54,53 +48,6 @@ export const useGameAudio = () => {
             console.error("Audio play failed", e);
         }
     }, [isMuted, resume]);
-    
-    const stopMenuMusic = useCallback(() => {
-        if (musicNodes.current && audioCtx.current) {
-            const now = audioCtx.current.currentTime;
-            musicNodes.current.gain.gain.cancelScheduledValues(now);
-            musicNodes.current.gain.gain.setValueAtTime(musicNodes.current.gain.gain.value, now);
-            musicNodes.current.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
-            musicNodes.current.osc.stop(now + 0.5);
-            clearInterval(musicNodes.current.interval);
-            musicNodes.current = null;
-        }
-    }, []);
-
-    const playMenuMusic = useCallback(() => {
-        if (isMuted || !audioCtx.current || musicNodes.current) return;
-        resume();
-
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-
-        osc.type = 'square';
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.04, now + 0.5);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        osc.start();
-
-        // C Minor Arpeggio
-        const sequence = [261.63, 311.13, 392.00, 311.13, 261.63, 311.13, 392.00, 523.25];
-        let noteIndex = 0;
-        osc.frequency.setValueAtTime(sequence[noteIndex], now);
-        noteIndex++;
-
-        const interval = window.setInterval(() => {
-            if (audioCtx.current) {
-                const noteTime = audioCtx.current.currentTime;
-                osc.frequency.setValueAtTime(sequence[noteIndex], noteTime);
-                noteIndex = (noteIndex + 1) % sequence.length;
-            }
-        }, 180);
-
-        musicNodes.current = { osc, gain, interval };
-
-    }, [isMuted, resume]);
-
 
     const playMove = useCallback(() => playTone(300, 'square', 0.05, 0.03), [playTone]);
     
@@ -227,8 +174,6 @@ export const useGameAudio = () => {
         playCarExit, 
         isMuted, 
         toggleMute,
-        resumeAudio: resume,
-        playMenuMusic,
-        stopMenuMusic
+        resumeAudio: resume
     };
 };
