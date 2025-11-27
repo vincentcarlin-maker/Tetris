@@ -78,23 +78,23 @@ const RAW_LEVELS = [
     c(6, 0, 3, 2, 'h'),
     c(7, 4, 4, 2, 'h')
   ],
-  // --- NIVEAU 7 (Moyen) ---
+  // --- NIVEAU 7 (Moyen - Corrigé) ---
   [
-    c(0, 2, 2, 2, 'h', true),
-    c(1, 1, 0, 2, 'v'),
-    c(2, 4, 0, 2, 'v'),
-    c(3, 0, 1, 2, 'h'),
-    c(4, 2, 1, 2, 'v'),
-    c(5, 0, 3, 2, 'h'),
-    c(6, 3, 3, 2, 'h'),
-    c(7, 4, 4, 2, 'h')
+    c(0, 1, 2, 2, 'h', true),
+    c(1, 3, 1, 3, 'v'), // Mur bloquant la sortie
+    c(2, 0, 0, 2, 'h'),
+    c(3, 2, 0, 2, 'v'),
+    c(4, 0, 3, 3, 'v'),
+    c(5, 1, 5, 3, 'h'),
+    c(6, 4, 4, 2, 'v'),
+    c(7, 5, 0, 3, 'v')
   ],
   // --- NIVEAU 8 (Moyen +) ---
   [
-    c(0, 0, 2, 2, 'h', true), // Target à gauche
+    c(0, 0, 2, 2, 'h', true), 
     c(1, 0, 0, 2, 'h'),
-    c(2, 2, 0, 2, 'v'), // Bloque le haut
-    c(3, 3, 1, 3, 'v'), // Mur vertical
+    c(2, 2, 0, 2, 'v'), 
+    c(3, 3, 1, 3, 'v'), 
     c(4, 0, 3, 2, 'v'),
     c(5, 1, 4, 2, 'h'),
     c(6, 4, 0, 2, 'h'),
@@ -113,31 +113,31 @@ const RAW_LEVELS = [
     c(8, 4, 4, 2, 'h'),
     c(9, 0, 5, 2, 'h')
   ],
-  // --- NIVEAU 10 (Difficile - Dense) ---
+  // --- NIVEAU 10 (Difficile - Corrigé) ---
   [
-    c(0, 1, 2, 2, 'h', true),
-    c(1, 0, 0, 2, 'h'),
-    c(2, 2, 0, 2, 'h'),
-    c(3, 4, 0, 2, 'v'),
-    c(4, 2, 1, 3, 'v'), // Le pilier central
-    c(5, 5, 2, 2, 'v'),
-    c(6, 0, 3, 2, 'v'),
-    c(7, 1, 5, 2, 'h'),
-    c(8, 3, 4, 2, 'h'),
-    c(9, 0, 2, 1, 'v') // Petit bloqueur
-  ],
-  // --- NIVEAU 11 (Expert - Soluble) ---
-  [
-    c(0, 1, 2, 2, 'h', true),
-    c(1, 0, 0, 3, 'v'),
-    c(2, 3, 0, 3, 'v'),
-    c(3, 1, 1, 2, 'h'),
-    c(4, 4, 1, 2, 'v'),
-    c(5, 0, 3, 2, 'h'),
-    c(6, 2, 3, 2, 'v'),
-    c(7, 4, 3, 2, 'h'),
+    c(0, 0, 2, 2, 'h', true), // Target à gauche
+    c(1, 2, 0, 2, 'v'),       // Bloqueur vertical
+    c(2, 3, 0, 2, 'h'),       // Bloqueur horizontal
+    c(3, 5, 0, 3, 'v'),       // Long vertical droite
+    c(4, 2, 2, 2, 'v'),       // Bloqueur milieu
+    c(5, 3, 3, 2, 'h'),
+    c(6, 0, 4, 2, 'h'),
+    c(7, 2, 4, 2, 'v'),
     c(8, 0, 5, 2, 'h'),
-    c(9, 3, 4, 2, 'v')
+    c(9, 3, 5, 2, 'h')
+  ],
+  // --- NIVEAU 11 (Expert - Soluble - Corrigé) ---
+  [
+    c(0, 0, 2, 2, 'h', true), // Target (0,2)
+    c(1, 2, 0, 2, 'v'),
+    c(2, 3, 0, 3, 'h'),
+    c(3, 2, 2, 2, 'v'),
+    c(4, 3, 2, 2, 'h'),
+    c(5, 5, 1, 3, 'v'),
+    c(6, 0, 4, 2, 'h'),
+    c(7, 2, 4, 2, 'v'),
+    c(8, 0, 5, 2, 'h'),
+    c(9, 4, 4, 2, 'h')
   ],
   // --- NIVEAU 12 (Expert - Parking Saturé) ---
   [
@@ -184,7 +184,7 @@ const RAW_LEVELS = [
     c(11, 2, 5, 2, 'h'),
     c(12, 4, 4, 2, 'v')
   ],
-  // --- NIVEAU 15 (Impossible ?) ---
+  // --- NIVEAU 15 (Grand Maître - Corrigé) ---
   [
     c(0, 1, 2, 2, 'h', true),
     c(1, 0, 0, 2, 'h'),
