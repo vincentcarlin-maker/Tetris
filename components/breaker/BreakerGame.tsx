@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Heart, Trophy, Play, Coins, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -18,7 +19,7 @@ const PADDLE_DEFAULT_WIDTH = 100;
 
 export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoins }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const gameLoopRef = useRef<number>();
+    const gameLoopRef = useRef<number>(0);
     
     const [gameState, setGameState] = useState<GameState>('start');
     const [score, setScore] = useState(0);
@@ -29,7 +30,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.breaker || 0;
     
-    const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver } = audio;
+    const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver, playPowerUpSpawn, playPowerUpCollect } = audio;
     
     // Game objects refs
     const paddleRef = useRef<Paddle>({ x: (GAME_WIDTH / 2) - PADDLE_DEFAULT_WIDTH / 2, width: PADDLE_DEFAULT_WIDTH, height: 15 });
@@ -115,9 +116,12 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
 
         const type = weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
         powerUpsRef.current.push({ x, y, width: 30, height: 15, type, dy: 2 });
+        playPowerUpSpawn(); // Trigger spawn sound
     };
     
     const activatePowerUp = (type: PowerUpType) => {
+        playPowerUpCollect(type); // Trigger collect sound specific to type
+
         if (type === 'PADDLE_GROW' || type === 'PADDLE_SHRINK') {
             clearTimeout(paddleEffectTimeoutRef.current);
             paddleRef.current.width = type === 'PADDLE_GROW' ? 150 : 50;
@@ -268,7 +272,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             }
         }
 
-    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel]);
+    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect]);
 
     // Game Loop
     useEffect(() => {

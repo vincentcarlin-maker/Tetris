@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Board } from './Board';
 import { GameInfo } from './GameInfo';
@@ -10,7 +9,7 @@ import { useGameLoop } from '../hooks/useGameLoop';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { NextPiece } from './NextPiece';
 import { HoldPiece } from './HoldPiece';
-import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home, Coins } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home, Coins, Zap, Skull } from 'lucide-react';
 import type { Player } from '../types';
 
 interface TetrisGameProps {
@@ -65,20 +64,26 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
         }
     };
 
-    const startGame = useCallback(() => {
+    const startGame = useCallback((startLevel: number = 0) => {
         setBoard(createBoard());
-        setDropTime(1000);
+        // Calcul de la vitesse initiale basée sur le niveau choisi
+        // Formule ajustée pour être jouable mais progressive
+        const initialSpeed = Math.max(100, 1000 / (startLevel + 1) + 200);
+        
+        setDropTime(initialSpeed);
         resetPlayer();
         setGameOver(false);
         setIsPaused(false);
         setScore(0);
         setRows(0);
-        setLevel(0);
+        setLevel(startLevel);
         setEarnedCoins(0);
         playClear(); // Play a start sound
     }, [setBoard, resetPlayer, playClear]);
 
     const drop = useCallback(() => {
+        // Logique de montée de niveau : Augmente le niveau si on dépasse le seuil de lignes
+        // Si on commence au niveau 5 (Moyen), on reste à cette vitesse jusqu'à ce qu'on "rattrape" le nombre de lignes requis pour le niveau 6
         if (rows > (level + 1) * 10) {
             setLevel(prev => prev + 1);
             setDropTime(1000 / (level + 1) + 200);
@@ -208,34 +213,31 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
         };
     }, []);
 
-    const DirectionBtn = ({ onClick, icon, className }: { onClick: () => void, icon: React.ReactNode, className?: string }) => (
+    const DirectionBtn = ({ onClick, icon, className, active = true }: { onClick: () => void, icon: React.ReactNode, className?: string, active?: boolean }) => (
         <button 
-            className={`flex items-center justify-center bg-gray-800/80 active:bg-neon-blue/50 active:shadow-[0_0_15px_#00f3ff] backdrop-blur-md border border-white/10 transition-all duration-75 touch-manipulation ${className}`}
+            className={`flex items-center justify-center rounded-lg transition-all duration-75 touch-manipulation
+                ${active 
+                    ? 'bg-gray-800/80 border border-white/10 active:bg-neon-blue/50 active:shadow-[0_0_15px_#00f3ff] active:border-neon-blue active:scale-95' 
+                    : 'bg-transparent border-none cursor-default'
+                }
+                ${className}`}
             onClick={(e) => { 
                 e.preventDefault(); 
                 e.stopPropagation(); 
-                if (!isPaused && !gameOver) onClick(); 
+                if (!isPaused && !gameOver && active) onClick(); 
             }}
         >
             {icon}
         </button>
     );
 
-    const ActionBtn = ({ onClick, icon, label, colorClass, sizeClass }: { onClick: () => void, icon: React.ReactNode, label: string, colorClass: string, sizeClass: string }) => (
-        <button 
-            className={`relative rounded-full flex flex-col items-center justify-center border-2 backdrop-blur-xl shadow-lg active:scale-95 transition-all duration-100 touch-manipulation ${colorClass} ${sizeClass}`}
-            onClick={(e) => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                // Actions allowed even if paused/game over
-                const alwaysAllowed = ['PAUSE', 'REPRENDRE', 'RÉINIT.', 'MUET', 'SON', 'MENU'];
-                if (alwaysAllowed.includes(label) || (!isPaused && !gameOver)) {
-                    onClick();
-                }
-            }}
+    const MetaBtn = ({ onClick, icon, label, active = true }: { onClick: () => void, icon: React.ReactNode, label?: string, active?: boolean }) => (
+        <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
+            className={`flex flex-col items-center justify-center p-2 rounded-lg bg-gray-900 border border-white/10 hover:bg-gray-800 active:scale-95 transition-all w-14 h-12 ${active ? 'opacity-100' : 'opacity-50'}`}
         >
             {icon}
-            {label && <span className="absolute -bottom-6 text-[10px] font-bold tracking-wider text-white/60">{label}</span>}
+            {label && <span className="text-[8px] text-gray-400 font-bold mt-1">{label}</span>}
         </button>
     );
 
@@ -257,8 +259,8 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
 
                 {/* Center: Stats */}
                 <div className="flex gap-1 flex-1 justify-center">
+                    <GameInfo text="NIVEAU" value={level} />
                     <GameInfo text="SCORE" value={score} />
-                    <GameInfo text="GAINS" value={earnedCoins} />
                     <GameInfo text="RECORD" value={highScore} />
                 </div>
 
@@ -292,7 +294,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
                      )}
 
                      {/* Game Over Overlay */}
-                    {gameOver && (
+                    {gameOver && score > 0 && (
                         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm rounded-lg animate-in fade-in duration-300 border border-white/10">
                             <h2 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-neon-blue to-purple-600 mb-4 italic tracking-tighter drop-shadow-[0_0_10px_rgba(0,243,255,0.5)] leading-tight text-center">
                                 FIN DE<br/>PARTIE
@@ -300,12 +302,12 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
                             
                             <div className="grid grid-cols-2 gap-8 mb-4">
                                 <div className="text-center">
-                                    <p className="text-gray-400 text-[10px] tracking-[0.2em] mb-1">SCORE</p>
-                                    <p className="text-2xl font-mono text-white">{score}</p>
+                                    <p className="text-gray-400 text-sm tracking-[0.2em] mb-1">SCORE</p>
+                                    <p className="text-3xl font-mono text-white">{score}</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-neon-pink text-[10px] tracking-[0.2em] mb-1">RECORD</p>
-                                    <p className="text-2xl font-mono text-neon-pink glow">{highScore}</p>
+                                    <p className="text-neon-pink text-sm tracking-[0.2em] mb-1">RECORD</p>
+                                    <p className="text-3xl font-mono text-neon-pink glow">{highScore}</p>
                                 </div>
                             </div>
 
@@ -318,7 +320,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
                             )}
 
                             <button
-                                onClick={(e) => { e.preventDefault(); startGame(); }}
+                                onClick={(e) => { e.preventDefault(); startGame(0); }}
                                 className="relative px-8 py-3 overflow-hidden group bg-neon-blue text-black font-black tracking-widest text-xl skew-x-[-10deg] hover:bg-white transition-colors touch-manipulation mb-4"
                             >
                                 <span className="block skew-x-[10deg]">REJOUER</span>
@@ -335,7 +337,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
 
                     {/* Start Overlay (Initial) */}
                     {gameOver && score === 0 && (
-                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md rounded-lg">
+                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md rounded-lg">
                             <div className="absolute top-4 left-4">
                                 <button onClick={onBack} className="text-gray-500 hover:text-white transition-colors flex items-center gap-1 text-xs">
                                     <ArrowLeft size={14} /> MENU
@@ -345,12 +347,27 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
                                 TETRIS<br/><span className="text-neon-blue">NÉON</span>
                             </h1>
                             <p className="text-gray-400 mb-8 text-xs tracking-widest">RECORD : {highScore}</p>
-                            <button
-                                onClick={(e) => { e.preventDefault(); startGame(); }}
-                                className="animate-pulse px-8 py-4 bg-transparent border-2 border-neon-pink text-neon-pink font-bold rounded-full shadow-[0_0_20px_rgba(188,19,254,0.4)] hover:bg-neon-pink hover:text-white transition-all touch-manipulation"
-                            >
-                                TOUCHER POUR JOUER
-                            </button>
+                            
+                            <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                                <button
+                                    onClick={(e) => { e.preventDefault(); startGame(0); }}
+                                    className="px-6 py-3 border border-green-500 text-green-400 font-bold rounded hover:bg-green-500 hover:text-black transition-all text-sm tracking-widest"
+                                >
+                                    FACILE (NIV 1)
+                                </button>
+                                <button
+                                    onClick={(e) => { e.preventDefault(); startGame(5); }}
+                                    className="px-6 py-3 border border-yellow-500 text-yellow-400 font-bold rounded hover:bg-yellow-500 hover:text-black transition-all text-sm tracking-widest flex items-center justify-center gap-2"
+                                >
+                                    MOYEN (NIV 5)
+                                </button>
+                                <button
+                                    onClick={(e) => { e.preventDefault(); startGame(10); }}
+                                    className="px-6 py-3 border border-red-500 text-red-500 font-bold rounded hover:bg-red-500 hover:text-white transition-all text-sm tracking-widest flex items-center justify-center gap-2"
+                                >
+                                    DIFFICILE (NIV 10)
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -358,117 +375,96 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
 
             {/* --- CONTROLS (Mobile) --- */}
             {!gameOver && (
-                <div className="w-full max-w-md px-6 pb-6 pt-2 flex justify-between items-end gap-4 z-30 shrink-0">
+                <div className="w-full max-w-md px-4 pb-6 pt-2 flex flex-col justify-end gap-3 z-30 shrink-0 select-none">
                     
-                    {/* D-PAD (Left Side) */}
-                    <div className="relative w-40 h-40">
-                        {/* Cross Background */}
-                        <div className="absolute inset-0 bg-gray-900/50 rounded-full blur-xl"></div>
-                        
-                        {/* Up (Hard Drop) */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2">
-                            <DirectionBtn 
-                                onClick={hardDrop} 
-                                icon={<div className="flex flex-col -space-y-1"><ChevronDown size={20} /><ChevronDown size={20} /></div>}
-                                className="w-12 h-12 rounded-lg bg-gray-800 border-b-0 rounded-b-none" 
-                            />
-                        </div>
-                        
-                        {/* Left */}
-                        <div className="absolute top-12 left-0">
-                            <DirectionBtn 
-                                onClick={() => movePlayer(-1)} 
-                                icon={<ArrowLeft size={24} />}
-                                className="w-12 h-12 rounded-lg rounded-r-none border-r-0" 
-                            />
-                        </div>
-
-                        {/* Center (Decor) */}
-                        <div className="absolute top-12 left-12 w-16 h-12 bg-gray-800 flex items-center justify-center border border-white/5">
-                             <div className="w-4 h-4 rounded-full bg-black/50 shadow-inner"></div>
-                        </div>
-
-                        {/* Right */}
-                        <div className="absolute top-12 right-0">
-                            <DirectionBtn 
-                                onClick={() => movePlayer(1)} 
-                                icon={<ArrowRight size={24} />}
-                                className="w-12 h-12 rounded-lg rounded-l-none border-l-0" 
-                            />
-                        </div>
-
-                        {/* Down (Soft Drop) */}
-                        <div className="absolute top-24 left-1/2 -translate-x-1/2">
-                             <DirectionBtn 
-                                onClick={() => drop()} 
-                                icon={<ArrowDown size={24} />}
-                                className="w-12 h-12 rounded-lg rounded-t-none border-t-0" 
-                            />
-                        </div>
+                    {/* META CONTROLS ROW (Moved up to prevent overlap) */}
+                    <div className="flex justify-between items-center w-full px-2">
+                         <MetaBtn 
+                            onClick={onBack} 
+                            icon={<Home size={18} className="text-gray-300"/>} 
+                            label="MENU"
+                        />
+                         <MetaBtn 
+                            onClick={toggleMute} 
+                            icon={isMuted ? <VolumeX size={18} className="text-gray-400"/> : <Volume2 size={18} className="text-gray-300"/>} 
+                            label={isMuted ? "MUET" : "SON"}
+                        />
+                        <MetaBtn 
+                            onClick={() => startGame(level)} 
+                            icon={<RotateCcw size={18} className="text-gray-300"/>} 
+                            label="RESET"
+                        />
+                        <MetaBtn 
+                            onClick={togglePause} 
+                            icon={isPaused ? <Play size={18} className="text-green-400 fill-green-400"/> : <Pause size={18} className="text-yellow-400 fill-yellow-400"/>} 
+                            label={isPaused ? "GO" : "PAUSE"}
+                            active
+                        />
                     </div>
 
-                    {/* ACTIONS (Right Side) */}
-                    <div className="flex flex-col items-end gap-3 mb-2">
+                    {/* MAIN GAME CONTROLS ROW */}
+                    <div className="flex justify-between items-end w-full">
                         
-                        {/* Meta Controls Row */}
-                        <div className="flex items-center gap-3">
-                             {/* Menu Button */}
-                             <ActionBtn 
-                                onClick={onBack}
-                                icon={<Home size={16} className="text-gray-400" />}
-                                label="MENU"
-                                colorClass="bg-gray-800 border-gray-600 active:bg-gray-700"
-                                sizeClass="w-10 h-10"
-                            />
+                        {/* D-PAD GRID (Aligned) */}
+                        <div className="grid grid-cols-3 gap-2 w-36 h-36">
+                             {/* Row 1 */}
+                             <div className="w-full h-full"/>
+                             <DirectionBtn 
+                                onClick={hardDrop} 
+                                icon={<div className="flex flex-col -space-y-1"><ChevronDown size={24} /><ChevronDown size={24} /></div>}
+                                className="w-full h-full"
+                             />
+                             <div className="w-full h-full"/>
 
-                            {/* Mute Button */}
-                            <ActionBtn 
-                                onClick={toggleMute}
-                                icon={isMuted ? <VolumeX size={16} className="text-gray-400" /> : <Volume2 size={16} className="text-white" />}
-                                label={isMuted ? "SON" : "MUET"}
-                                colorClass="bg-gray-800 border-gray-600 active:bg-gray-700"
-                                sizeClass="w-10 h-10"
-                            />
+                             {/* Row 2 */}
+                             <DirectionBtn 
+                                onClick={() => movePlayer(-1)} 
+                                icon={<ArrowLeft size={28} />}
+                                className="w-full h-full"
+                             />
+                             <div className="w-full h-full bg-gray-800/50 rounded-full border border-white/5 flex items-center justify-center shadow-inner">
+                                <div className="w-2 h-2 rounded-full bg-neon-blue/50 blur-[1px]"></div>
+                             </div>
+                             <DirectionBtn 
+                                onClick={() => movePlayer(1)} 
+                                icon={<ArrowRight size={28} />}
+                                className="w-full h-full"
+                             />
 
-                            {/* Restart Button */}
-                            <ActionBtn 
-                                onClick={startGame}
-                                icon={<RotateCcw size={16} className="text-white" />}
-                                label="RÉINIT."
-                                colorClass="bg-gray-800 border-gray-600 active:bg-gray-700"
-                                sizeClass="w-10 h-10"
-                            />
-
-                            {/* Pause Button */}
-                            <ActionBtn 
-                                onClick={togglePause}
-                                icon={isPaused ? <Play size={16} className="text-white fill-white" /> : <Pause size={16} className="text-white fill-white" />}
-                                label={isPaused ? "REPR." : "PAUSE"}
-                                colorClass="bg-gray-800 border-gray-600 active:bg-gray-700"
-                                sizeClass="w-10 h-10"
-                            />
+                             {/* Row 3 */}
+                             <div className="w-full h-full"/>
+                             <DirectionBtn 
+                                onClick={() => drop()} 
+                                icon={<ArrowDown size={28} />}
+                                className="w-full h-full"
+                             />
+                             <div className="w-full h-full"/>
                         </div>
 
-                        {/* Hold Button */}
-                        <ActionBtn 
-                            onClick={playerHold}
-                            icon={<RefreshCw size={20} className="text-white" />}
-                            label="RÉSERVE"
-                            colorClass="bg-gray-800 border-gray-600 active:bg-gray-700"
-                            sizeClass="w-14 h-14"
-                        />
+                        {/* RIGHT ACTIONS */}
+                        <div className="flex flex-col gap-3 pb-2 items-center">
+                            {/* Hold Button */}
+                            <button 
+                                onClick={(e) => { e.preventDefault(); playerHold(); }}
+                                className="w-16 h-12 rounded-xl bg-gray-800 border border-white/10 flex flex-col items-center justify-center active:scale-95 transition-all text-gray-300 active:text-white"
+                            >
+                                <RefreshCw size={20} />
+                                <span className="text-[9px] font-bold mt-0.5">RÉSERVE</span>
+                            </button>
 
-                        {/* Rotate Button (Main Action) */}
-                        <ActionBtn 
-                            onClick={() => {
-                                playerRotate(board, 1);
-                                playRotate();
-                            }}
-                            icon={<RotateCw size={32} className="text-white drop-shadow-md" />}
-                            label="PIVOTER"
-                            colorClass="bg-gradient-to-br from-neon-pink to-purple-600 border-neon-pink shadow-[0_0_20px_rgba(188,19,254,0.4)]"
-                            sizeClass="w-20 h-20"
-                        />
+                            {/* Rotate Button (Big) */}
+                            <button 
+                                onClick={(e) => { 
+                                    e.preventDefault(); 
+                                    playerRotate(board, 1);
+                                    playRotate();
+                                }}
+                                className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-pink to-purple-700 border-2 border-neon-pink/50 shadow-[0_0_20px_rgba(188,19,254,0.4)] flex flex-col items-center justify-center active:scale-95 active:shadow-[0_0_10px_rgba(188,19,254,0.6)] transition-all"
+                            >
+                                <RotateCw size={40} className="text-white drop-shadow-md" />
+                                <span className="text-[10px] font-black text-white mt-1 tracking-widest">PIVOTER</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

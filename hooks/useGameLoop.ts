@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 
 export const useGameLoop = (callback: () => void, delay: number | null) => {
-    const savedCallback = useRef<() => void>();
+    const savedCallback = useRef<() => void>(callback);
 
     useEffect(() => {
         savedCallback.current = callback;
