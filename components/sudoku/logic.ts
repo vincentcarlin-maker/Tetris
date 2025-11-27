@@ -36,33 +36,36 @@ const fillDiagonal = (grid: Grid) => {
 
 const fillBox = (grid: Grid, row: number, col: number) => {
     let num: number;
+    // For diagonal boxes, any number placement is valid as long as it's not in the box itself.
+    // They are independent of each other initially.
+    const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    // Shuffle
+    for (let i = nums.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [nums[i], nums[j]] = [nums[j], nums[i]];
+    }
+    
+    let idx = 0;
     for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
-            do {
-                num = Math.floor(Math.random() * 9) + 1;
-            } while (!isSafeInBox(grid, row, col, num));
-            grid[row + i][col + j] = num;
+            grid[row + i][col + j] = nums[idx++];
         }
     }
 };
 
-const isSafeInBox = (grid: Grid, rowStart: number, colStart: number, num: number) => {
-    for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-            if (grid[rowStart + i][colStart + j] === num) return false;
-        }
-    }
-    return true;
-};
+let recursionCount = 0;
 
 const fillRemaining = (grid: Grid, i: number, j: number): boolean => {
+    recursionCount++;
+    if (recursionCount > 50000) return false; // Safety break
+
     if (j >= GRID_SIZE) {
         i += 1;
         j = 0;
     }
     if (i >= GRID_SIZE) return true;
 
-    // Skip diagonal boxes (already filled)
+    // Skip diagonal boxes
     if (i < 3) {
         if (j < 3) j = 3;
     } else if (i < 6) {
@@ -85,9 +88,7 @@ const fillRemaining = (grid: Grid, i: number, j: number): boolean => {
     return false;
 };
 
-// Robust removal function that cannot infinite loop
 const removeDigits = (grid: Grid, count: number) => {
-    // 1. Get all filled cell coordinates
     const cells: {r: number, c: number}[] = [];
     for(let r=0; r<GRID_SIZE; r++){
         for(let c=0; c<GRID_SIZE; c++){
@@ -95,13 +96,12 @@ const removeDigits = (grid: Grid, count: number) => {
         }
     }
     
-    // 2. Shuffle cells array
+    // Shuffle cells array
     for (let i = cells.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [cells[i], cells[j]] = [cells[j], cells[i]];
     }
 
-    // 3. Remove the first 'count' cells (or all if count > available)
     const toRemove = Math.min(count, cells.length);
     for(let i=0; i<toRemove; i++){
         const {r, c} = cells[i];
@@ -110,22 +110,17 @@ const removeDigits = (grid: Grid, count: number) => {
 };
 
 export const generateSudoku = (difficulty: Difficulty) => {
-    let grid: Grid = [];
-    let success = false;
+    recursionCount = 0;
+    let grid: Grid = Array.from({ length: 9 }, () => Array(9).fill(null));
     
-    // Retry mechanism to ensure valid grid generation
-    // (Backtracking can sometimes fail depending on initial diagonal seed)
-    for(let attempt=0; attempt<5; attempt++){
+    fillDiagonal(grid);
+    
+    if (!fillRemaining(grid, 0, 3)) {
+        // Should rarely happen with diagonal filling first
+        // Return a default grid or retry logic if needed, but safe fallback here
+        // Just clear it to be safe
         grid = Array.from({ length: 9 }, () => Array(9).fill(null));
-        fillDiagonal(grid);
-        if (fillRemaining(grid, 0, 3)) {
-            success = true;
-            break;
-        }
     }
-    
-    // Even if generation failed (unlikely), we proceed safely to avoid crash.
-    // The grid will be partially filled or empty, but the app won't freeze.
     
     const solution = grid.map(row => [...row]);
     

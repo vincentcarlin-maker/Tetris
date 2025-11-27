@@ -77,6 +77,34 @@ export const useGameAudio = () => {
         });
     }, [isMuted, resume]);
 
+    const playVictory = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+        
+        // Fanfare "Ta-da-da-daaa!" (Triade majeure)
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C E G C
+        const times = [0, 0.15, 0.3, 0.6];
+        const durations = [0.15, 0.15, 0.3, 0.8];
+
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.current!.createOscillator();
+            const gain = audioCtx.current!.createGain();
+            
+            osc.type = 'triangle'; // Son plus brillant
+            osc.frequency.setValueAtTime(freq, now + times[i]);
+            
+            gain.gain.setValueAtTime(0.1, now + times[i]);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + times[i] + durations[i]);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.current!.destination);
+            
+            osc.start(now + times[i]);
+            osc.stop(now + times[i] + durations[i]);
+        });
+    }, [isMuted, resume]);
+
     const playGameOver = useCallback(() => {
         if (isMuted || !audioCtx.current) return;
         resume();
@@ -169,6 +197,7 @@ export const useGameAudio = () => {
         playRotate, 
         playLand, 
         playClear, 
+        playVictory,
         playGameOver, 
         playCarMove, 
         playCarExit, 

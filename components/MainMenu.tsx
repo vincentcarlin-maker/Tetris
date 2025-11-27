@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 
 interface MainMenuProps {
@@ -51,6 +51,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
         audio.resumeAudio(); // Déverrouille le contexte audio, crucial pour iOS
     }, [audio]);
 
+    const handleReload = () => {
+        window.location.reload();
+    };
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12] overflow-y-auto">
              {/* Background effects */}
@@ -62,8 +66,18 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                  }}>
             </div>
             
-            {/* Mute Button */}
-            <div className="absolute top-6 right-6 z-20">
+            {/* Top Right Controls */}
+            <div className="absolute top-6 right-6 z-20 flex gap-3">
+                {/* Reload Button */}
+                <button 
+                    onClick={handleReload} 
+                    className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                    title="Actualiser l'application"
+                >
+                    <RefreshCw size={20} />
+                </button>
+
+                {/* Mute Button */}
                 <button 
                     onClick={audio.toggleMute} 
                     className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
@@ -163,7 +177,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                  </div>
                  
                  <div className="mt-8 text-white/10 text-[10px] tracking-widest pb-6">
-                    v1.3.0 • READY TO PLAY
+                    v1.3.1 • READY TO PLAY
                  </div>
              </div>
         </div>

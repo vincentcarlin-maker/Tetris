@@ -5,9 +5,9 @@ export type Grid = CellValue[][];
 export type CellCoords = { r: number; c: number };
 
 export interface GameState {
-  initialGrid: Grid; // The puzzle with holes (immutable for a game)
-  playerGrid: Grid;  // The grid the player fills
-  solution: Grid;    // The solved grid for validation
+  initialGrid: Grid;
+  playerGrid: Grid;
+  solution: Grid;
   difficulty: Difficulty;
   selectedCell: CellCoords | null;
   mistakes: number;

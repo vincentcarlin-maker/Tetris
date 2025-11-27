@@ -68,7 +68,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio }) => 
   const [isAiThinking, setIsAiThinking] = useState(false);
   
   // Audio
-  const { playMove, playGameOver } = audio;
+  const { playMove, playGameOver, playVictory } = audio;
 
   // Reset Game
   const resetGame = useCallback(() => {
@@ -119,12 +119,18 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio }) => 
     const result = checkWinFull(newBoard);
     if (result.winner) {
       setWinState(result);
-      playGameOver();
+      if (result.winner === 1 || (gameMode === 'PVP' && result.winner === 2)) {
+          playVictory();
+      } else if (result.winner === 2 && gameMode === 'PVE') {
+          playGameOver();
+      } else {
+          playGameOver(); // Draw
+      }
     } else {
       setCurrentPlayer(prev => prev === 1 ? 2 : 1);
     }
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode]);
 
   // AI Turn Handling - Split into two effects to prevent cleanup race conditions
   
