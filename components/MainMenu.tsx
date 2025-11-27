@@ -1,11 +1,13 @@
 
 import React, { useEffect } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
+import { useCurrency } from '../hooks/useCurrency';
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
     audio: ReturnType<typeof useGameAudio>;
+    currency: ReturnType<typeof useCurrency>;
 }
 
 // Composant pour le logo stylisé
@@ -45,7 +47,8 @@ const ArcadeLogo = () => {
 };
 
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency }) => {
+    const { coins, inventory, catalog, playerRank } = currency;
     
     useEffect(() => {
         audio.resumeAudio(); // Déverrouille le contexte audio, crucial pour iOS
@@ -54,6 +57,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
     const handleReload = () => {
         window.location.reload();
     };
+    
+    // Récupération des badges possédés
+    const ownedBadges = catalog.filter(b => inventory.includes(b.id));
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12] overflow-y-auto">
@@ -66,29 +72,91 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                  }}>
             </div>
             
-            {/* Top Right Controls */}
-            <div className="absolute top-6 right-6 z-20 flex gap-3">
-                {/* Reload Button */}
-                <button 
-                    onClick={handleReload} 
-                    className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
-                    title="Actualiser l'application"
-                >
-                    <RefreshCw size={20} />
-                </button>
+            {/* Top Bar */}
+            <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
+                {/* Coin Display */}
+                <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                    <Coins className="text-yellow-400" size={20} />
+                    <span className="text-yellow-100 font-mono font-bold text-lg">{coins.toLocaleString()}</span>
+                </div>
 
-                {/* Mute Button */}
-                <button 
-                    onClick={audio.toggleMute} 
-                    className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
-                >
-                    {audio.isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </button>
+                <div className="flex gap-3">
+                    {/* Reload Button */}
+                    <button 
+                        onClick={handleReload} 
+                        className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                        title="Actualiser l'application"
+                    >
+                        <RefreshCw size={20} />
+                    </button>
+
+                    {/* Mute Button */}
+                    <button 
+                        onClick={audio.toggleMute} 
+                        className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                    >
+                        {audio.isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                    </button>
+                </div>
             </div>
 
-             <div className="z-10 flex flex-col items-center max-w-md w-full gap-8 py-10">
+             <div className="z-10 flex flex-col items-center max-w-md w-full gap-6 py-10 mt-12">
                  
                  <ArcadeLogo />
+
+                 {/* CARTE DE PROFIL DU JOUEUR */}
+                 <div className="w-full bg-gray-900/40 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-3 backdrop-blur-md relative overflow-hidden group">
+                     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
+                     
+                     <div className="flex flex-col items-center z-10">
+                         <span className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">Rang Actuel</span>
+                         <h2 className={`text-2xl font-black italic tracking-wider ${playerRank.color} drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-colors duration-500`}>
+                             {playerRank.title}
+                         </h2>
+                     </div>
+
+                     {/* Mini Galerie des badges */}
+                     {ownedBadges.length > 0 ? (
+                         <div className="flex gap-3 overflow-x-auto w-full justify-center py-2 no-scrollbar z-10 mask-linear">
+                             {ownedBadges.slice(-5).reverse().map(badge => { // Affiche les 5 derniers
+                                 const Icon = badge.icon;
+                                 return (
+                                     <div key={badge.id} className="relative shrink-0 animate-in fade-in zoom-in duration-300">
+                                         <div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center shadow-lg">
+                                             <Icon size={20} className={badge.color} />
+                                         </div>
+                                     </div>
+                                 );
+                             })}
+                             {ownedBadges.length > 5 && (
+                                 <div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center text-xs text-gray-400 font-bold shrink-0">
+                                     +{ownedBadges.length - 5}
+                                 </div>
+                             )}
+                         </div>
+                     ) : (
+                         <div className="text-xs text-gray-600 italic py-2">Joue pour gagner des badges !</div>
+                     )}
+                 </div>
+
+                 {/* Shop Button */}
+                 <button
+                    onClick={() => onSelectGame('shop')}
+                    className="w-full bg-gradient-to-r from-yellow-600/10 to-orange-600/10 border border-yellow-500/40 rounded-xl p-4 flex items-center justify-between hover:bg-yellow-600/20 transition-all group active:scale-95 hover:border-yellow-500/80"
+                 >
+                     <div className="flex items-center gap-4">
+                         <div className="p-3 bg-yellow-500/20 rounded-lg text-yellow-400 group-hover:text-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                             <ShoppingBag size={24} />
+                         </div>
+                         <div className="text-left">
+                             <h3 className="text-xl font-black text-yellow-100 italic">BOUTIQUE</h3>
+                             <p className="text-xs text-yellow-400/70 font-mono">BADGES: {inventory.length}/{catalog.length}</p>
+                         </div>
+                     </div>
+                     <div className="px-4 py-1.5 bg-yellow-500 text-black text-xs font-bold rounded-full group-hover:scale-105 transition-transform">
+                         OUVRIR
+                     </div>
+                 </button>
 
                  <div className="w-full grid gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                      {/* Tetris Button */}
@@ -104,6 +172,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-blue transition-colors italic">TETRIS NÉON</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                 </div>
                             </div>
                             <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-blue group-hover:text-black transition-all">
@@ -125,6 +194,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-purple-400 transition-colors italic">NEON RUSH</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Niveau</span>
                                  </div>
                             </div>
                             <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all">
@@ -146,6 +216,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic">NEON CONNECT</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 30 Pièces / Victoire</span>
                                  </div>
                             </div>
                             <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all">
@@ -167,6 +238,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-cyan-400 transition-colors italic">NEON SUDOKU</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Victoire</span>
                                  </div>
                             </div>
                             <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-cyan-500 group-hover:text-white transition-all">
@@ -177,7 +249,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
                  </div>
                  
                  <div className="mt-8 text-white/10 text-[10px] tracking-widest pb-6">
-                    v1.3.1 • READY TO PLAY
+                    v1.5.0 • PROGRESSION UPDATE
                  </div>
              </div>
         </div>

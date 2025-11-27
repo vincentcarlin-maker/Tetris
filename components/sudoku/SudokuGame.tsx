@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, RefreshCw, Eraser, Trophy, AlertCircle } from 'lucide-react';
+import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { generateSudoku } from './logic';
 import { Difficulty, Grid } from './types';
@@ -8,9 +8,10 @@ import { Difficulty, Grid } from './types';
 interface SudokuGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
+    addCoins: (amount: number) => void;
 }
 
-export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio }) => {
+export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins }) => {
     const [difficulty, setDifficulty] = useState<Difficulty>('EASY');
     const [initialGrid, setInitialGrid] = useState<Grid>([]);
     const [playerGrid, setPlayerGrid] = useState<Grid>([]);
@@ -78,6 +79,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio }) => {
             if (filled) {
                 setIsWon(true);
                 playClear();
+                addCoins(50);
             }
 
         } else {
@@ -171,7 +173,13 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio }) => {
                 {isWon && (
                     <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in">
                         <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]" />
-                        <h2 className="text-4xl font-black italic text-white mb-8">VICTOIRE !</h2>
+                        <h2 className="text-4xl font-black italic text-white mb-2">VICTOIRE !</h2>
+                        
+                        <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                            <Coins className="text-yellow-400" size={20} />
+                            <span className="text-yellow-100 font-bold">+50 PIÈCES</span>
+                        </div>
+
                         <button 
                             onClick={startNewGame}
                             className="px-8 py-3 bg-cyan-500 text-black font-bold rounded-full hover:bg-white transition-colors shadow-lg active:scale-95"

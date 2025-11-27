@@ -10,18 +10,20 @@ import { useGameLoop } from '../hooks/useGameLoop';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { NextPiece } from './NextPiece';
 import { HoldPiece } from './HoldPiece';
-import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home, Coins } from 'lucide-react';
 import type { Player } from '../types';
 
 interface TetrisGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
+    addCoins: (amount: number) => void;
 }
 
-export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio }) => {
+export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins }) => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
+    const [earnedCoins, setEarnedCoins] = useState(0);
 
     const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, heldTetromino, playerHold } = usePlayer();
     const [ghostPlayer, setGhostPlayer] = useState<Player | null>(null);
@@ -57,6 +59,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio }) => {
         setScore(0);
         setRows(0);
         setLevel(0);
+        setEarnedCoins(0);
         playClear(); // Play a start sound
     }, [setBoard, resetPlayer, setGameOver, setScore, setRows, setLevel, playClear]);
 
@@ -73,12 +76,19 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio }) => {
                 setGameOver(true);
                 setDropTime(null);
                 playGameOver();
+                
+                // Calcul des gains
+                const coinsWon = Math.floor(score / 50); // 1 pièce pour 50 points
+                if (coinsWon > 0) {
+                    addCoins(coinsWon);
+                    setEarnedCoins(coinsWon);
+                }
             } else {
                 playLand();
             }
             updatePlayerPos({ x: 0, y: 0, collided: true });
         }
-    }, [board, level, player, resetPlayer, rows, setLevel, updatePlayerPos, playGameOver, playLand]);
+    }, [board, level, player, resetPlayer, rows, setLevel, updatePlayerPos, playGameOver, playLand, score, addCoins]);
     
     // Pause the game loop if isPaused is true
     useGameLoop(drop, isPaused || gameOver ? null : dropTime);
@@ -273,7 +283,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio }) => {
                                 FIN DE<br/>PARTIE
                             </h2>
                             
-                            <div className="grid grid-cols-2 gap-8 mb-8">
+                            <div className="grid grid-cols-2 gap-8 mb-4">
                                 <div className="text-center">
                                     <p className="text-gray-400 text-[10px] tracking-[0.2em] mb-1">SCORE</p>
                                     <p className="text-2xl font-mono text-white">{score}</p>
@@ -283,6 +293,14 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio }) => {
                                     <p className="text-2xl font-mono text-neon-pink glow">{highScore}</p>
                                 </div>
                             </div>
+
+                            {/* Reward Display */}
+                            {earnedCoins > 0 && (
+                                <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                                    <Coins className="text-yellow-400" size={20} />
+                                    <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
+                                </div>
+                            )}
 
                             <button
                                 onClick={(e) => { e.preventDefault(); startGame(); }}

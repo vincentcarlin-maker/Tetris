@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock } from 'lucide-react';
+import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins } from 'lucide-react';
 import { CarData, LevelData } from './types';
 import { getLevel, TOTAL_LEVELS } from './levels';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -8,6 +8,7 @@ import { useGameAudio } from '../../hooks/useGameAudio';
 interface RushGameProps {
   onBack: () => void;
   audio: ReturnType<typeof useGameAudio>;
+  addCoins: (amount: number) => void;
 }
 
 const GRID_SIZE = 6;
@@ -226,7 +227,7 @@ const CarVisual: React.FC<{ car: CarData, isSelected: boolean }> = ({ car, isSel
 };
 
 
-export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
+export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) => {
   const [currentLevelId, setCurrentLevelId] = useState(1);
   const [maxUnlockedLevel, setMaxUnlockedLevel] = useState(1);
   const [cars, setCars] = useState<CarData[]>([]);
@@ -235,6 +236,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
   const [isWon, setIsWon] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [difficulty, setDifficulty] = useState('FACILE');
+  const [rewardClaimed, setRewardClaimed] = useState(false);
   
   const { playCarExit, playCarMove, resumeAudio } = audio;
 
@@ -270,6 +272,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
     setMoveCount(0);
     setIsWon(false);
     setIsExiting(false);
+    setRewardClaimed(false);
   };
 
   const handleLevelChange = (direction: -1 | 1) => {
@@ -352,6 +355,15 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
       return newCars;
     });
   }, [selectedCarId, isWon, isExiting, currentLevelId, maxUnlockedLevel, playCarExit, playCarMove, resumeAudio]);
+
+  // Give reward on win
+  useEffect(() => {
+      if (isWon && !rewardClaimed) {
+          addCoins(50);
+          setRewardClaimed(true);
+      }
+  }, [isWon, rewardClaimed, addCoins]);
+
 
   // Gestion clavier
   useEffect(() => {
@@ -450,6 +462,12 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
             <h3 className="text-4xl font-black text-green-400 italic mb-4 drop-shadow-[0_0_10px_rgba(34,197,94,0.8)] text-center relative z-10">
                 VOIE<br/>LIBRE !
             </h3>
+            
+            <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse relative z-10">
+                <Coins className="text-yellow-400" size={20} />
+                <span className="text-yellow-100 font-bold">+50 PIÈCES</span>
+            </div>
+
             <div className="flex gap-4 relative z-10">
               <button 
                 onClick={() => loadLevel(currentLevelId)} 

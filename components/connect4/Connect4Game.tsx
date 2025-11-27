@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove, checkWin } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -8,6 +8,7 @@ import { useGameAudio } from '../../hooks/useGameAudio';
 interface Connect4GameProps {
   onBack: () => void;
   audio: ReturnType<typeof useGameAudio>;
+  addCoins: (amount: number) => void;
 }
 
 const ROWS = 6;
@@ -59,7 +60,7 @@ const checkWinFull = (board: BoardState): WinState => {
 };
 
 
-export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio }) => {
+export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
   const [currentPlayer, setCurrentPlayer] = useState<Player>(1);
   const [winState, setWinState] = useState<WinState>({ winner: null, line: [] });
@@ -121,6 +122,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio }) => 
       setWinState(result);
       if (result.winner === 1 || (gameMode === 'PVP' && result.winner === 2)) {
           playVictory();
+          // Récompense seulement si joueur 1 gagne (contre IA ou PVP)
+          if (result.winner === 1) addCoins(30);
+          if (gameMode === 'PVP' && result.winner === 2) addCoins(30);
       } else if (result.winner === 2 && gameMode === 'PVE') {
           playGameOver();
       } else {
@@ -130,7 +134,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio }) => 
       setCurrentPlayer(prev => prev === 1 ? 2 : 1);
     }
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode, addCoins]);
 
   // AI Turn Handling - Split into two effects to prevent cleanup race conditions
   
@@ -286,7 +290,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio }) => 
 
         {/* Victory/Draw Actions */}
         {winState.winner && (
-             <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500">
+             <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
+                 {/* Reward Display */}
+                 {(winState.winner === 1 || (gameMode === 'PVP' && winState.winner === 2)) && (
+                    <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                        <Coins className="text-yellow-400" size={20} />
+                        <span className="text-yellow-100 font-bold">+30 PIÈCES</span>
+                    </div>
+                 )}
+
                 <button
                     onClick={resetGame}
                     className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"
