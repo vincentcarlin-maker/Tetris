@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Home, RefreshCw, Eraser, Trophy, AlertCircle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { generateSudoku } from './logic';
-import { Difficulty, Grid, CellValue } from './types';
+import { Difficulty, Grid } from './types';
 
 interface SudokuGameProps {
     onBack: () => void;
@@ -22,14 +22,21 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio }) => {
     const { playMove, playClear, playGameOver, resumeAudio } = audio;
 
     const startNewGame = useCallback(() => {
-        const { initial, solution: sol } = generateSudoku(difficulty);
-        setInitialGrid(initial);
-        // Deep copy for player grid
-        setPlayerGrid(initial.map(row => [...row]));
-        setSolution(sol);
-        setIsWon(false);
-        setMistakes(0);
-        setSelectedCell(null);
+        try {
+            const { initial, solution: sol } = generateSudoku(difficulty);
+            setInitialGrid(initial);
+            // Deep copy for player grid
+            setPlayerGrid(initial.map(row => [...row]));
+            setSolution(sol);
+            setIsWon(false);
+            setMistakes(0);
+            setSelectedCell(null);
+        } catch (error) {
+            console.error("Sudoku generation failed:", error);
+            // Fallback to prevent crash loop
+            setInitialGrid([]);
+            setPlayerGrid([]);
+        }
     }, [difficulty]);
 
     useEffect(() => {
@@ -116,7 +123,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio }) => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedCell, isWon, initialGrid, playerGrid, solution]); // deps needed for handleInput context
 
-    if (playerGrid.length === 0) return null;
+    if (playerGrid.length === 0) return <div className="text-white text-center mt-20">Chargement...</div>;
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-[#0a0a12] relative overflow-hidden text-white font-sans p-4">
