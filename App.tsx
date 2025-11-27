@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
 import { RushGame } from './components/rush/RushGame';
@@ -15,6 +15,25 @@ const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
     const audio = useGameAudio();
     const currency = useCurrency();
+
+    useEffect(() => {
+        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku'];
+        const isGameView = gameViews.includes(currentView);
+
+        if (isGameView) {
+            document.body.classList.add('overflow-hidden');
+            document.body.style.touchAction = 'none';
+        } else {
+            document.body.classList.remove('overflow-hidden');
+            document.body.style.touchAction = 'auto';
+        }
+
+        // Cleanup function to restore default on component unmount
+        return () => {
+            document.body.classList.remove('overflow-hidden');
+            document.body.style.touchAction = 'auto';
+        };
+    }, [currentView]);
 
     const handleSelectGame = (game: string) => {
         if (game === 'tetris') setCurrentView('tetris');

@@ -62,7 +62,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const ownedBadges = catalog.filter(b => inventory.includes(b.id));
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12] overflow-y-auto">
+        <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12] overflow-y-auto">
              {/* Background effects */}
              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-black z-0 pointer-events-none"></div>
              <div className="absolute inset-0 opacity-20 pointer-events-none" 
