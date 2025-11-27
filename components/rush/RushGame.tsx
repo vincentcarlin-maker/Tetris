@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock } from 'lucide-react';
 import { CarData, LevelData } from './types';
@@ -472,4 +471,24 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack }) => {
             <button 
                 disabled={currentLevelId === 1}
                 onClick={() => handleLevelChange(-1)} 
-                className="p-3 bg-
+                className="p-3 bg-gray-800/80 border border-white/10 rounded-lg disabled:opacity-30 transition-opacity"
+            >
+                <ChevronLeft size={24} />
+            </button>
+            <div className="text-center w-24">
+                <span className={`text-xs font-bold ${difficulty === 'FACILE' ? 'text-green-400' : difficulty === 'MOYEN' ? 'text-yellow-400' : 'text-red-500'}`}>{difficulty}</span>
+                <p className="text-lg font-black text-white leading-tight">NIVEAU {currentLevelId}</p>
+            </div>
+            <button 
+                disabled={currentLevelId >= maxUnlockedLevel}
+                onClick={() => handleLevelChange(1)} 
+                className="p-3 bg-gray-800/80 border border-white/10 rounded-lg disabled:opacity-30 transition-opacity flex items-center gap-2"
+            >
+                {currentLevelId >= maxUnlockedLevel && currentLevelId < TOTAL_LEVELS && <Lock size={18}/>}
+                <ChevronRight size={24} />
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
