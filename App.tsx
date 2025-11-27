@@ -4,9 +4,10 @@ import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
 import { RushGame } from './components/rush/RushGame';
 import { Connect4Game } from './components/connect4/Connect4Game';
+import { SudokuGame } from './components/sudoku/SudokuGame';
 import { useGameAudio } from './hooks/useGameAudio';
 
-type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4';
+type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -19,6 +20,8 @@ const App: React.FC = () => {
             setCurrentView('rush');
         } else if (game === 'connect4') {
             setCurrentView('connect4');
+        } else if (game === 'sudoku') {
+            setCurrentView('sudoku');
         }
     };
 
@@ -36,6 +39,10 @@ const App: React.FC = () => {
 
     if (currentView === 'connect4') {
         return <Connect4Game onBack={handleBackToMenu} audio={audio} />;
+    }
+
+    if (currentView === 'sudoku') {
+        return <SudokuGame onBack={handleBackToMenu} audio={audio} />;
     }
 
     return <MainMenu onSelectGame={handleSelectGame} audio={audio} />;
