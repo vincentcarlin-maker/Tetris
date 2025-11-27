@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Heart, Trophy, Play, Coins, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
-import { GameState, Block, Ball, Paddle } from './types';
+import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType } from './types';
 import { getLevelLayout, TOTAL_BREAKER_LEVELS } from './levels';
-import { drawBall, drawBlocks, drawPaddle, drawParticles, createParticles, BLOCK_COLORS, INDESTRUCTIBLE_COLOR } from './helpers';
+import { drawBall, drawBlocks, drawPaddle, drawParticles, createParticles, BLOCK_COLORS, INDESTRUCTIBLE_COLOR, drawPowerUp } from './helpers';
 
 interface BreakerGameProps {
     onBack: () => void;
@@ -15,6 +14,7 @@ interface BreakerGameProps {
 
 const GAME_WIDTH = 400;
 const GAME_HEIGHT = 600;
+const PADDLE_DEFAULT_WIDTH = 100;
 
 export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoins }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,20 +32,32 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver } = audio;
     
     // Game objects refs
-    const paddleRef = useRef<Paddle>({ x: (GAME_WIDTH / 2) - 50, width: 100, height: 15 });
-    const ballRef = useRef<Ball>({ x: GAME_WIDTH / 2, y: GAME_HEIGHT - 60, dx: 3, dy: -3, radius: 8 });
+    const paddleRef = useRef<Paddle>({ x: (GAME_WIDTH / 2) - PADDLE_DEFAULT_WIDTH / 2, width: PADDLE_DEFAULT_WIDTH, height: 15 });
+    const ballsRef = useRef<Ball[]>([]);
     const blocksRef = useRef<Block[]>([]);
     const particlesRef = useRef<any[]>([]);
+    const powerUpsRef = useRef<PowerUp[]>([]);
+
+    // Refs for power-up timers
+    const paddleEffectTimeoutRef = useRef<any>(null);
+    const ballSpeedEffectTimeoutRef = useRef<any>(null);
 
     const resetBallAndPaddle = useCallback(() => {
-        paddleRef.current.x = (GAME_WIDTH - paddleRef.current.width) / 2;
-        ballRef.current = {
-            ...ballRef.current,
+        // Clear any active power-up timers
+        if (paddleEffectTimeoutRef.current) clearTimeout(paddleEffectTimeoutRef.current);
+        if (ballSpeedEffectTimeoutRef.current) clearTimeout(ballSpeedEffectTimeoutRef.current);
+
+        paddleRef.current.width = PADDLE_DEFAULT_WIDTH;
+        paddleRef.current.x = (GAME_WIDTH - PADDLE_DEFAULT_WIDTH) / 2;
+        
+        ballsRef.current = [{
             x: GAME_WIDTH / 2,
             y: GAME_HEIGHT - 60,
             dx: 3,
             dy: -3,
-        };
+            radius: 8,
+            status: 'normal',
+        }];
     }, []);
 
     const loadLevel = useCallback((level: number) => {
@@ -83,6 +95,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         loadLevel(1);
         resetBallAndPaddle();
         setEarnedCoins(0);
+        powerUpsRef.current = [];
         setGameState('waitingToServe');
     };
 
@@ -92,62 +105,133 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         }
     };
 
+    const spawnPowerUp = (x: number, y: number) => {
+        const types: PowerUpType[] = ['PADDLE_GROW', 'PADDLE_SHRINK', 'MULTI_BALL', 'BALL_FAST', 'BALL_SLOW', 'EXTRA_LIFE'];
+        const weights = [3, 2, 2, 2, 3, 1]; // Grow/Slow are more common, Life is rare
+        const weightedTypes: PowerUpType[] = [];
+        types.forEach((type, i) => {
+            for(let j=0; j<weights[i]; j++) weightedTypes.push(type);
+        });
+
+        const type = weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
+        powerUpsRef.current.push({ x, y, width: 30, height: 15, type, dy: 2 });
+    };
+    
+    const activatePowerUp = (type: PowerUpType) => {
+        if (type === 'PADDLE_GROW' || type === 'PADDLE_SHRINK') {
+            clearTimeout(paddleEffectTimeoutRef.current);
+            paddleRef.current.width = type === 'PADDLE_GROW' ? 150 : 50;
+            paddleEffectTimeoutRef.current = setTimeout(() => { paddleRef.current.width = PADDLE_DEFAULT_WIDTH; }, 10000);
+        } else if (type === 'BALL_FAST' || type === 'BALL_SLOW') {
+            clearTimeout(ballSpeedEffectTimeoutRef.current);
+            const speedFactor = type === 'BALL_FAST' ? 1.3 : 0.7;
+            ballsRef.current.forEach(b => { 
+                if (b.status === 'normal') { // Prevents stacking effects
+                    b.dx *= speedFactor; b.dy *= speedFactor;
+                }
+                b.status = type === 'BALL_FAST' ? 'fast' : 'slow';
+            });
+            ballSpeedEffectTimeoutRef.current = setTimeout(() => {
+                 ballsRef.current.forEach(b => {
+                     if (b.status !== 'normal') {
+                        b.dx /= speedFactor; b.dy /= speedFactor;
+                        b.status = 'normal';
+                     }
+                 });
+            }, 8000);
+        } else if (type === 'MULTI_BALL') {
+            const sourceBall = ballsRef.current[0] || { x: paddleRef.current.x + paddleRef.current.width / 2, y: GAME_HEIGHT - 60, radius: 8, status: 'normal' };
+            ballsRef.current.push({ ...sourceBall, dx: 2, dy: -3 });
+            ballsRef.current.push({ ...sourceBall, dx: -2, dy: -3 });
+        } else if (type === 'EXTRA_LIFE') {
+            setLives(l => l + 1);
+        }
+    };
+
+
     const gameTick = useCallback(() => {
         if (gameState !== 'playing') return;
 
-        const ball = ballRef.current;
         const paddle = paddleRef.current;
         const blocks = blocksRef.current;
+        const balls = ballsRef.current;
+        const powerUps = powerUpsRef.current;
 
-        // Move ball
-        ball.x += ball.dx;
-        ball.y += ball.dy;
+        // Move and check collisions for power-ups
+        for (let i = powerUps.length - 1; i >= 0; i--) {
+            const powerUp = powerUps[i];
+            powerUp.y += powerUp.dy;
 
-        // Wall collision
-        if (ball.x + ball.radius > GAME_WIDTH || ball.x - ball.radius < 0) {
-            ball.dx = -ball.dx;
-            playWallHit();
+            const paddleY = GAME_HEIGHT - 40;
+            if (powerUp.y + powerUp.height / 2 > paddleY &&
+                powerUp.y - powerUp.height / 2 < paddleY + paddle.height &&
+                powerUp.x > paddle.x &&
+                powerUp.x < paddle.x + paddle.width) {
+                activatePowerUp(powerUp.type);
+                powerUps.splice(i, 1);
+            } else if (powerUp.y - powerUp.height / 2 > GAME_HEIGHT) {
+                powerUps.splice(i, 1);
+            }
         }
-        if (ball.y - ball.radius < 0) {
-            ball.dy = -ball.dy;
-            playWallHit();
-        }
+        
+        const ballsToRemove: number[] = [];
+        balls.forEach((ball, ballIndex) => {
+            ball.x += ball.dx;
+            ball.y += ball.dy;
 
-        // Paddle collision
-        const paddleY = GAME_HEIGHT - 40;
-        if (ball.y + ball.radius > paddleY && ball.y - ball.radius < paddleY + paddle.height &&
-            ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
-            
-            ball.dy = -ball.dy;
-            // Change angle based on where it hits the paddle
-            let collidePoint = ball.x - (paddle.x + paddle.width / 2);
-            ball.dx = collidePoint * 0.1;
-            playPaddleHit();
-        }
+            // Wall collision
+            if (ball.x + ball.radius > GAME_WIDTH || ball.x - ball.radius < 0) { ball.dx = -ball.dx; playWallHit(); }
+            if (ball.y - ball.radius < 0) { ball.dy = -ball.dy; playWallHit(); }
 
-        // Block collision
-        blocks.forEach((block, index) => {
-            if (ball.x > block.x && ball.x < block.x + block.width &&
-                ball.y > block.y && ball.y < block.y + block.height) {
-                
+            // Paddle collision
+            const paddleY = GAME_HEIGHT - 40;
+            if (ball.y + ball.radius > paddleY && ball.y - ball.radius < paddleY + paddle.height &&
+                ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
                 ball.dy = -ball.dy;
-                playBlockHit();
-                
-                if (!block.isIndestructible) {
-                    block.health--;
-                    setScore(s => s + block.points);
-                    createParticles(particlesRef.current, ball.x, ball.y, block.color);
-                    if (block.health <= 0) {
-                        blocks.splice(index, 1);
-                    } else {
-                        block.color = BLOCK_COLORS[String(block.health)];
+                let collidePoint = ball.x - (paddle.x + paddle.width / 2);
+                ball.dx = collidePoint * 0.1;
+                playPaddleHit();
+            }
+
+            // Block collision
+            for (let i = blocks.length - 1; i >= 0; i--) {
+                const block = blocks[i];
+                if (ball.x > block.x && ball.x < block.x + block.width &&
+                    ball.y > block.y && ball.y < block.y + block.height) {
+                    
+                    ball.dy = -ball.dy;
+                    playBlockHit();
+                    
+                    if (!block.isIndestructible) {
+                        block.health--;
+                        setScore(s => s + block.points);
+                        createParticles(particlesRef.current, ball.x, ball.y, block.color);
+                        if (block.health <= 0) {
+                            if (Math.random() < 0.25) { // 25% chance
+                                spawnPowerUp(block.x + block.width / 2, block.y + block.height / 2);
+                            }
+                            blocks.splice(i, 1);
+                        } else {
+                            block.color = BLOCK_COLORS[String(block.health)];
+                        }
                     }
+                    break; // Prevent hitting multiple blocks in one frame
                 }
             }
+            
+            // Bottom wall (lose ball)
+            if (ball.y + ball.radius > GAME_HEIGHT) {
+                ballsToRemove.push(ballIndex);
+            }
         });
+        
+        // Remove lost balls
+        for (let i = ballsToRemove.length - 1; i >= 0; i--) {
+            balls.splice(ballsToRemove[i], 1);
+        }
 
-        // Bottom wall (lose life)
-        if (ball.y + ball.radius > GAME_HEIGHT) {
+        // Check for life loss if all balls are gone
+        if (balls.length === 0) {
             playLoseLife();
             setLives(l => {
                 const newLives = l - 1;
@@ -196,14 +280,14 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         const render = () => {
             ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
             
-            // Draw a subtle grid background
             ctx.strokeStyle = 'rgba(0, 243, 255, 0.07)';
             for(let i=0; i<GAME_WIDTH; i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke(); }
             for(let i=0; i<GAME_HEIGHT; i+=20) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
 
             drawBlocks(ctx, blocksRef.current);
             drawPaddle(ctx, paddleRef.current, GAME_HEIGHT);
-            drawBall(ctx, ballRef.current);
+            ballsRef.current.forEach(ball => drawBall(ctx, ball));
+            powerUpsRef.current.forEach(powerUp => drawPowerUp(ctx, powerUp));
             drawParticles(ctx, particlesRef.current);
         };
 
@@ -227,7 +311,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         const handleMouseMove = (e: MouseEvent) => {
             const rect = canvas.getBoundingClientRect();
             let relativeX = e.clientX - rect.left;
-            // Scale mouse position to canvas resolution
             relativeX *= (GAME_WIDTH / rect.width);
             paddleRef.current.x = Math.max(0, Math.min(GAME_WIDTH - paddleRef.current.width, relativeX - paddleRef.current.width / 2));
         };
@@ -290,6 +373,12 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                     )}
                     <button onClick={startGame} className="px-8 py-3 bg-neon-pink text-black font-black tracking-widest text-xl skew-x-[-10deg] hover:bg-white transition-colors">
                         <span className="block skew-x-[10deg]">REJOUER</span>
+                    </button>
+                    <button
+                        onClick={onBack}
+                        className="mt-4 text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all"
+                    >
+                        RETOUR AU MENU
                     </button>
                 </div>
             );

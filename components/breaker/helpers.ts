@@ -1,5 +1,4 @@
-
-import { Ball, Block, Paddle } from './types';
+import { Ball, Block, Paddle, PowerUp } from './types';
 
 // Block Colors
 export const BLOCK_COLORS: { [key: string]: string } = {
@@ -77,4 +76,35 @@ export function drawParticles(ctx: CanvasRenderingContext2D, particles: any[]) {
         }
     });
     ctx.globalAlpha = 1.0;
+}
+
+export function drawPowerUp(ctx: CanvasRenderingContext2D, powerUp: PowerUp) {
+    const { x, y, width, height, type } = powerUp;
+    let color = '#fff';
+    let text = '';
+
+    switch (type) {
+        case 'PADDLE_GROW': color = '#22c55e'; text = '+'; break;
+        case 'PADDLE_SHRINK': color = '#ef4444'; text = '-'; break;
+        case 'MULTI_BALL': color = '#3b82f6'; text = 'MB'; break;
+        case 'BALL_FAST': color = '#ec4899'; text = 'F'; break;
+        case 'BALL_SLOW': color = '#06b6d4'; text = 'S'; break;
+        case 'EXTRA_LIFE': color = '#facc15'; text = '♥'; break;
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x - width / 2, y - height / 2, width, height);
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 15;
+    ctx.fill();
+    ctx.closePath();
+    
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 12px Rajdhani';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+    ctx.restore();
 }

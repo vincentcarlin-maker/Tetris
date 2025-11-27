@@ -1,4 +1,3 @@
-
 export interface Block {
   x: number;
   y: number;
@@ -22,6 +21,19 @@ export interface Ball {
   dx: number;
   dy: number;
   radius: number;
+  status: 'normal' | 'fast' | 'slow';
 }
+
+export type PowerUpType = 'PADDLE_GROW' | 'PADDLE_SHRINK' | 'MULTI_BALL' | 'BALL_FAST' | 'BALL_SLOW' | 'EXTRA_LIFE';
+
+export interface PowerUp {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: PowerUpType;
+  dy: number;
+}
+
 
 export type GameState = 'start' | 'playing' | 'paused' | 'levelComplete' | 'gameOver' | 'waitingToServe';
