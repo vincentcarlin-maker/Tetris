@@ -6,6 +6,39 @@ interface MainMenuProps {
     onSelectGame: (game: string) => void;
 }
 
+// Composant pour le logo stylisé
+const ArcadeLogo = () => {
+    // Le "A" est remplacé par un joystick d'arcade
+    const JoystickA = () => (
+        <div className="relative w-[4.5rem] h-[5rem] flex items-center justify-center -mb-2">
+            {/* Base du joystick (forme du A) */}
+            <div 
+                className="w-full h-full bg-gradient-to-t from-neon-blue/50 to-white"
+                style={{ clipPath: 'polygon(50% 0%, 0% 100%, 15% 100%, 50% 25%, 85% 100%, 100% 100%)' }}
+            />
+            {/* Bâton */}
+            <div className="absolute top-[35%] w-1.5 h-1/2 bg-gray-300 rounded-t-full" />
+            {/* Boule */}
+            <div className="absolute top-[20%] w-6 h-6 rounded-full bg-neon-pink border-2 border-white shadow-[0_0_10px_#ff00ff]" />
+        </div>
+    );
+
+    return (
+        <div className="text-center space-y-2 animate-in fade-in slide-in-from-top-8 duration-700 flex flex-col items-center">
+            <div 
+                className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_15px_rgba(0,243,255,0.5)] animate-glitch-main"
+            >
+                <span className="glitch" data-text="NEON">NEON</span>
+            </div>
+            <div className="flex items-end justify-center -mt-4 animate-glitch-main">
+                <JoystickA />
+                <span className="glitch text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_15px_rgba(0,243,255,0.5)]" data-text="RCADE">RCADE</span>
+            </div>
+        </div>
+    );
+};
+
+
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame }) => {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12]">
@@ -19,16 +52,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame }) => {
             </div>
 
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-8">
-                 <div className="text-center space-y-2 animate-in fade-in slide-in-from-top-8 duration-700">
-                     <h1 className="text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_15px_rgba(0,243,255,0.5)]">
-                         NEON<br/>ARCADE
-                     </h1>
-                     <p className="text-neon-blue/60 tracking-[0.3em] text-xs font-bold flex items-center justify-center gap-2">
-                        <Zap size={12} className="fill-current" />
-                        SÉLECTION DU JEU
-                        <Zap size={12} className="fill-current" />
-                     </p>
-                 </div>
+                 
+                 <ArcadeLogo />
 
                  <div className="w-full grid gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                      {/* Tetris Button */}
