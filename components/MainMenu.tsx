@@ -26,15 +26,19 @@ const ArcadeLogo = () => {
     );
 
     return (
-        <div className="text-center space-y-2 animate-in fade-in slide-in-from-top-8 duration-700 flex flex-col items-center">
+        <div className="text-center space-y-0 animate-in fade-in slide-in-from-top-8 duration-700 flex flex-col items-center mb-6">
+            {/* NEON: Très lisible, style "Tube Néon Blanc" */}
             <div 
-                className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_15px_rgba(0,243,255,0.5)] animate-glitch-main"
+                className="text-8xl font-black italic tracking-widest text-white drop-shadow-[0_0_10px_#00f3ff] relative z-10"
+                style={{ textShadow: '0 0 20px rgba(0, 243, 255, 0.8), 0 0 40px rgba(0, 243, 255, 0.4)' }}
             >
-                <span className="glitch" data-text="NEON">NEON</span>
+                NEON
             </div>
-            <div className="flex items-end justify-center -mt-4 animate-glitch-main">
+            
+            {/* ARCADE: Style Glitch dynamique */}
+            <div className="flex items-end justify-center -mt-6 animate-glitch-main opacity-90">
                 <JoystickA />
-                <span className="glitch text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_15px_rgba(0,243,255,0.5)]" data-text="RCADE">RCADE</span>
+                <span className="glitch text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink via-white to-neon-purple drop-shadow-[0_0_15px_rgba(255,0,255,0.5)]" data-text="RCADE">RCADE</span>
             </div>
         </div>
     );
