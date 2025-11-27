@@ -404,12 +404,20 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
             {/* Header */}
-            <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4">
+            <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative">
+                {/* Left: Score & Highscore */}
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1 text-white"><Trophy size={16} className="text-yellow-400" /> {score}</div>
                     <div className="text-gray-500">|</div>
-                    <div className="text-gray-400">MEILLEUR: {highScore}</div>
+                    <div className="text-gray-400 text-sm">RECORD: {highScore}</div>
                 </div>
+
+                {/* Center: Level */}
+                <div className="absolute left-1/2 -translate-x-1/2">
+                    <div className="text-lg font-bold text-neon-pink drop-shadow-[0_0_8px_#ff00ff]">NIVEAU {currentLevel}</div>
+                </div>
+
+                {/* Right: Lives */}
                 <div className="flex items-center gap-2 text-red-400 font-bold">
                     {Array.from({ length: lives }).map((_, i) => <Heart key={i} size={18} fill="currentColor"/>)}
                 </div>
