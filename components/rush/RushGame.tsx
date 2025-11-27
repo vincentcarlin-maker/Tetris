@@ -4,6 +4,7 @@ import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft
 import { CarData, LevelData } from './types';
 import { getLevel, TOTAL_LEVELS } from './levels';
 import { useGameAudio } from '../../hooks/useGameAudio';
+import { useHighScores } from '../../hooks/useHighScores';
 
 interface RushGameProps {
   onBack: () => void;
@@ -237,8 +238,10 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
   const [isExiting, setIsExiting] = useState(false);
   const [difficulty, setDifficulty] = useState('FACILE');
   const [rewardClaimed, setRewardClaimed] = useState(false);
+  const [earnedCoins, setEarnedCoins] = useState(0);
   
   const { playCarExit, playCarMove, resumeAudio } = audio;
+  const { highScores, updateHighScore } = useHighScores();
 
   // Pour empêcher le spam (Throttling)
   const lastMoveTime = useRef<number>(0);
@@ -356,13 +359,15 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
     });
   }, [selectedCarId, isWon, isExiting, currentLevelId, maxUnlockedLevel, playCarExit, playCarMove, resumeAudio]);
 
-  // Give reward on win
+  // Give reward and update high score on win
   useEffect(() => {
       if (isWon && !rewardClaimed) {
           addCoins(50);
           setRewardClaimed(true);
+          setEarnedCoins(prev => prev + 50);
+          updateHighScore('rush', moveCount, currentLevelId);
       }
-  }, [isWon, rewardClaimed, addCoins]);
+  }, [isWon, rewardClaimed, addCoins, updateHighScore, moveCount, currentLevelId]);
 
 
   // Gestion clavier
@@ -386,6 +391,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
   }, [selectedCarId, cars, moveCar, resumeAudio]);
 
   const selectedCar = cars.find(c => c.id === selectedCarId);
+  const bestScore = highScores.rush?.[currentLevelId];
 
   return (
     <div 
@@ -405,12 +411,18 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
           <h2 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
             NEON RUSH
           </h2>
-          <div className="flex gap-4 text-xs font-mono text-cyan-500">
+          <div className="flex gap-4 text-xs font-mono text-cyan-500 items-center">
             <span className="flex items-center gap-1">
                 {currentLevelId === maxUnlockedLevel ? <Unlock size={10} /> : <Lock size={10} />}
                 NIVEAU {currentLevelId}
             </span>
             <span>COUPS: {moveCount}</span>
+            {bestScore !== undefined && <span className="text-yellow-400">MEILLEUR: {bestScore}</span>}
+            {earnedCoins > 0 && (
+                <span className="flex items-center gap-1 text-yellow-400">
+                    <Coins size={12} /> +{earnedCoins}
+                </span>
+            )}
           </div>
         </div>
         <button onClick={() => loadLevel(currentLevelId)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">

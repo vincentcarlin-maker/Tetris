@@ -1,0 +1,44 @@
+
+// Block types: 0 = empty, 1 = blue, 2 = purple, 3 = pink, I = indestructible
+const levelLayouts = [
+  // Level 1: Simple
+  [
+    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+  ],
+  // Level 2: Gaps
+  [
+    [2, 2, 0, 2, 2, 2, 2, 0, 2, 2],
+    [1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
+    [1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
+  ],
+  // Level 3: With Indestructible blocks
+  [
+    [0, 3, 3, 3, 3, 3, 3, 3, 3, 0],
+    [0, 'I', 2, 2, 2, 2, 2, 2, 'I', 0],
+    [0, 0, 'I', 1, 1, 1, 1, 'I', 0, 0],
+  ],
+    // Level 4
+  [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    [3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    [0, 0, 0, 0, 'I', 'I', 0, 0, 0, 0],
+  ],
+    // Level 5
+  [
+    [0, 0, 3, 0, 0, 0, 0, 3, 0, 0],
+    [0, 3, 2, 3, 0, 0, 3, 2, 3, 0],
+    [3, 2, 1, 2, 3, 3, 2, 1, 2, 3],
+    [0, 3, 2, 3, 0, 0, 3, 2, 3, 0],
+    [0, 0, 3, 0, 0, 0, 0, 3, 0, 0],
+  ],
+];
+
+export const TOTAL_BREAKER_LEVELS = levelLayouts.length;
+
+export const getLevelLayout = (level: number) => {
+  const index = (level - 1) % TOTAL_BREAKER_LEVELS;
+  return levelLayouts[index];
+};

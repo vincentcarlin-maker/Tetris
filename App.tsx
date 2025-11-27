@@ -8,8 +8,9 @@ import { SudokuGame } from './components/sudoku/SudokuGame';
 import { Shop } from './components/Shop';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
+import { BreakerGame } from './components/breaker/BreakerGame';
 
-type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -17,7 +18,7 @@ const App: React.FC = () => {
     const currency = useCurrency();
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku'];
+        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -40,6 +41,7 @@ const App: React.FC = () => {
         else if (game === 'rush') setCurrentView('rush');
         else if (game === 'connect4') setCurrentView('connect4');
         else if (game === 'sudoku') setCurrentView('sudoku');
+        else if (game === 'breaker') setCurrentView('breaker');
         else if (game === 'shop') setCurrentView('shop');
     };
 
@@ -65,6 +67,10 @@ const App: React.FC = () => {
 
     if (currentView === 'sudoku') {
         return <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+    }
+
+    if (currentView === 'breaker') {
+        return <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
     }
 
     return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} />;

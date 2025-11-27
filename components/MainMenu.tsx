@@ -1,8 +1,9 @@
 
-import React, { useEffect } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
+import { useHighScores } from '../hooks/useHighScores';
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
@@ -49,6 +50,8 @@ const ArcadeLogo = () => {
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency }) => {
     const { coins, inventory, catalog, playerRank } = currency;
+    const { highScores } = useHighScores();
+    const [showScores, setShowScores] = useState(false);
     
     useEffect(() => {
         audio.resumeAudio(); // Déverrouille le contexte audio, crucial pour iOS
@@ -60,6 +63,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     
     // Récupération des badges possédés
     const ownedBadges = catalog.filter(b => inventory.includes(b.id));
+
+    // Calcul des stats pour affichage
+    const rushLevelsCompleted = Object.keys(highScores.rush || {}).length;
+    const sudokuEasyBest = highScores.sudoku?.easy;
+    const sudokuMediumBest = highScores.sudoku?.medium;
+    const sudokuHardBest = highScores.sudoku?.hard;
+    const breakerHighScore = highScores.breaker || 0;
 
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12] overflow-y-auto">
@@ -100,7 +110,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 </div>
             </div>
 
-             <div className="z-10 flex flex-col items-center max-w-md w-full gap-6 py-10 mt-12">
+             <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-10 mt-12">
                  
                  <ArcadeLogo />
 
@@ -139,6 +149,62 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      )}
                  </div>
 
+                 {/* High Scores Panel */}
+                 <div className="w-full bg-gray-900/40 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300">
+                    <button 
+                        onClick={() => setShowScores(s => !s)}
+                        className="w-full p-4 flex items-center justify-between"
+                    >
+                        <div className="flex items-center gap-3">
+                            <Trophy size={20} className="text-yellow-400" />
+                            <h3 className="text-lg font-bold text-white italic">MEILLEURS SCORES</h3>
+                        </div>
+                        <ChevronDown size={20} className={`transition-transform ${showScores ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {showScores && (
+                        <div className="px-4 pb-4 border-t border-white/10 animate-in fade-in duration-300">
+                            <div className="py-2">
+                                <h4 className="font-bold text-neon-blue">TETRIS NÉON</h4>
+                                <p className="text-2xl font-mono">{highScores.tetris?.toLocaleString() || 0}</p>
+                            </div>
+                            <div className="py-2 border-t border-white/5">
+                                <h4 className="font-bold text-neon-pink">NEON BREAKER</h4>
+                                <p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p>
+                            </div>
+                            <div className="py-2 border-t border-white/5">
+                                <h4 className="font-bold text-purple-400">NEON RUSH</h4>
+                                {rushLevelsCompleted > 0 ? (
+                                    <p className="text-sm text-gray-300">{rushLevelsCompleted} niveaux terminés</p>
+                                ) : (
+                                    <p className="text-sm text-gray-500">Aucun record</p>
+                                )}
+                            </div>
+                            <div className="py-2 border-t border-white/5">
+                                <h4 className="font-bold text-cyan-400">NEON SUDOKU</h4>
+                                {sudokuEasyBest !== undefined || sudokuMediumBest !== undefined || sudokuHardBest !== undefined ? (
+                                    <div className="flex justify-around text-center text-xs mt-1">
+                                        <div>
+                                            <p className="text-green-400">FACILE</p>
+                                            <p className="font-mono text-lg">{sudokuEasyBest ?? '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-yellow-400">MOYEN</p>
+                                            <p className="font-mono text-lg">{sudokuMediumBest ?? '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-red-500">DIFFICILE</p>
+                                            <p className="font-mono text-lg">{sudokuHardBest ?? '-'}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500">Aucun record</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                  {/* Shop Button */}
                  <button
                     onClick={() => onSelectGame('shop')}
@@ -176,6 +242,28 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 </div>
                             </div>
                             <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-blue group-hover:text-black transition-all">
+                                <Play size={16} className="ml-1" />
+                            </div>
+                        </div>
+                     </button>
+                     
+                     {/* Breaker Button */}
+                     <button 
+                        onClick={() => onSelectGame('breaker')}
+                        className="group relative w-full h-24 bg-gray-900/60 border border-neon-pink/30 hover:border-neon-pink rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,0,255,0.2)] active:scale-[0.98]"
+                     >
+                        <div className="absolute inset-0 bg-gradient-to-r from-neon-pink/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="flex items-center justify-between px-6 h-full relative z-10">
+                             <div className="flex items-center gap-5">
+                                 <div className="p-3 bg-gray-800 rounded-lg text-neon-pink group-hover:bg-neon-pink group-hover:text-white transition-colors shadow-lg">
+                                    <Layers size={28} />
+                                 </div>
+                                 <div className="text-left">
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic">NEON BREAKER</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
+                                 </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all">
                                 <Play size={16} className="ml-1" />
                             </div>
                         </div>
@@ -249,7 +337,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white/10 text-[10px] tracking-widest pb-6">
-                    v1.5.0 • PROGRESSION UPDATE
+                    v1.6.0 • BREAKER UPDATE
                  </div>
              </div>
         </div>

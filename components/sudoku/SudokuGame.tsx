@@ -4,6 +4,7 @@ import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins } from 'lucide-reac
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { generateSudoku } from './logic';
 import { Difficulty, Grid } from './types';
+import { useHighScores } from '../../hooks/useHighScores';
 
 interface SudokuGameProps {
     onBack: () => void;
@@ -19,8 +20,10 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
     const [selectedCell, setSelectedCell] = useState<{r: number, c: number} | null>(null);
     const [isWon, setIsWon] = useState(false);
     const [mistakes, setMistakes] = useState(0);
+    const [earnedCoins, setEarnedCoins] = useState(0);
 
     const { playMove, playClear, playGameOver, resumeAudio } = audio;
+    const { highScores, updateHighScore } = useHighScores();
 
     const startNewGame = useCallback(() => {
         try {
@@ -32,6 +35,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
             setIsWon(false);
             setMistakes(0);
             setSelectedCell(null);
+            setEarnedCoins(0);
         } catch (error) {
             console.error("Sudoku generation failed:", error);
             // Fallback to prevent crash loop
@@ -80,6 +84,8 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
                 setIsWon(true);
                 playClear();
                 addCoins(50);
+                setEarnedCoins(50);
+                updateHighScore('sudoku', mistakes, difficulty);
             }
 
         } else {
@@ -125,6 +131,8 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedCell, isWon, initialGrid, playerGrid, solution]); // deps needed for handleInput context
 
+    const bestScore = highScores.sudoku?.[difficulty.toLowerCase()];
+
     if (playerGrid.length === 0) return <div className="text-white text-center mt-20">Chargement...</div>;
 
     return (
@@ -145,9 +153,19 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
 
             {/* Stats / Controls */}
             <div className="w-full max-w-lg flex justify-between items-center mb-4 z-10 px-2">
-                 <div className="flex items-center gap-2 text-red-400 font-mono text-sm">
-                    <AlertCircle size={16} /> ERREURS: {mistakes}
-                 </div>
+                 <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 text-yellow-400 font-mono text-sm">
+                        <Coins size={16} /> GAINS: {earnedCoins}
+                    </div>
+                    <div className="flex items-center gap-2 text-red-400 font-mono text-sm">
+                        <AlertCircle size={16} /> ERREURS: {mistakes}
+                    </div>
+                    {bestScore !== undefined && (
+                        <div className="flex items-center gap-2 text-green-400 font-mono text-sm">
+                            <Trophy size={16} /> RECORD: {bestScore}
+                        </div>
+                    )}
+                </div>
                  
                  <div className="flex bg-gray-900 rounded-full border border-white/10 overflow-hidden">
                     {(['EASY', 'MEDIUM', 'HARD'] as Difficulty[]).map(d => (

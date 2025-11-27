@@ -192,6 +192,28 @@ export const useGameAudio = () => {
         osc.stop(now + 0.8);
     }, [isMuted, resume]);
 
+    // Breaker sounds
+    const playPaddleHit = useCallback(() => playTone(120, 'square', 0.05, 0.1), [playTone]);
+    const playBlockHit = useCallback(() => playTone(440, 'triangle', 0.05, 0.05), [playTone]);
+    const playWallHit = useCallback(() => playTone(200, 'sine', 0.05, 0.04), [playTone]);
+    const playLoseLife = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+        osc.start();
+        osc.stop(now + 0.5);
+    }, [isMuted, resume]);
+
+
     return { 
         playMove, 
         playRotate, 
@@ -201,6 +223,10 @@ export const useGameAudio = () => {
         playGameOver, 
         playCarMove, 
         playCarExit, 
+        playPaddleHit,
+        playBlockHit,
+        playWallHit,
+        playLoseLife,
         isMuted, 
         toggleMute,
         resumeAudio: resume

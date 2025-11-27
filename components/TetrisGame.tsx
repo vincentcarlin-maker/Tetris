@@ -4,7 +4,7 @@ import { Board } from './Board';
 import { GameInfo } from './GameInfo';
 import { usePlayer } from '../hooks/usePlayer';
 import { useBoard } from '../hooks/useBoard';
-import { useGameStatus } from '../hooks/useGameStatus';
+import { useHighScores } from '../hooks/useHighScores';
 import { createBoard, checkCollision } from '../gameHelpers';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -19,6 +19,8 @@ interface TetrisGameProps {
     addCoins: (amount: number) => void;
 }
 
+const linePoints = [40, 100, 300, 1200];
+
 export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins }) => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState(true);
@@ -28,14 +30,27 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
     const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, heldTetromino, playerHold } = usePlayer();
     const [ghostPlayer, setGhostPlayer] = useState<Player | null>(null);
     const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, ghostPlayer);
-    const { score, setScore, rows, setRows, level, setLevel, highScore } = useGameStatus(rowsCleared);
+    
+    const [score, setScore] = useState(0);
+    const [rows, setRows] = useState(0);
+    const [level, setLevel] = useState(0);
+    const { highScores, updateHighScore } = useHighScores();
+    const highScore = highScores.tetris || 0;
+    
     const { playMove, playRotate, playLand, playClear, playGameOver, isMuted, toggleMute } = audio;
     
     useEffect(() => {
         if (rowsCleared > 0) {
             playClear();
+            setScore(prev => prev + linePoints[rowsCleared - 1] * (level + 1));
+            setRows(prev => prev + rowsCleared);
         }
-    }, [rowsCleared, playClear]);
+    }, [rowsCleared, level, playClear]);
+
+    useEffect(() => {
+        const coins = Math.floor(score / 50);
+        setEarnedCoins(coins);
+    }, [score]);
 
     const togglePause = useCallback(() => {
         if (!gameOver) {
@@ -61,7 +76,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
         setLevel(0);
         setEarnedCoins(0);
         playClear(); // Play a start sound
-    }, [setBoard, resetPlayer, setGameOver, setScore, setRows, setLevel, playClear]);
+    }, [setBoard, resetPlayer, playClear]);
 
     const drop = useCallback(() => {
         if (rows > (level + 1) * 10) {
@@ -76,19 +91,18 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
                 setGameOver(true);
                 setDropTime(null);
                 playGameOver();
+                updateHighScore('tetris', score);
                 
                 // Calcul des gains
-                const coinsWon = Math.floor(score / 50); // 1 pièce pour 50 points
-                if (coinsWon > 0) {
-                    addCoins(coinsWon);
-                    setEarnedCoins(coinsWon);
+                if (earnedCoins > 0) {
+                    addCoins(earnedCoins);
                 }
             } else {
                 playLand();
             }
             updatePlayerPos({ x: 0, y: 0, collided: true });
         }
-    }, [board, level, player, resetPlayer, rows, setLevel, updatePlayerPos, playGameOver, playLand, score, addCoins]);
+    }, [board, level, player, updatePlayerPos, rows, playGameOver, playLand, score, addCoins, updateHighScore, earnedCoins]);
     
     // Pause the game loop if isPaused is true
     useGameLoop(drop, isPaused || gameOver ? null : dropTime);
@@ -244,6 +258,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
                 {/* Center: Stats */}
                 <div className="flex gap-1 flex-1 justify-center">
                     <GameInfo text="SCORE" value={score} />
+                    <GameInfo text="GAINS" value={earnedCoins} />
                     <GameInfo text="RECORD" value={highScore} />
                 </div>
 

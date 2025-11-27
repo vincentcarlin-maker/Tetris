@@ -67,6 +67,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const [gameMode, setGameMode] = useState<GameMode>('PVE');
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [earnedCoins, setEarnedCoins] = useState(0);
   
   // Audio
   const { playMove, playGameOver, playVictory } = audio;
@@ -77,6 +78,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setCurrentPlayer(1);
     setWinState({ winner: null, line: [] });
     setIsAiThinking(false);
+    setEarnedCoins(0);
   }, []);
 
   // Handle Mode Change
@@ -123,8 +125,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       if (result.winner === 1 || (gameMode === 'PVP' && result.winner === 2)) {
           playVictory();
           // Récompense seulement si joueur 1 gagne (contre IA ou PVP)
-          if (result.winner === 1) addCoins(30);
-          if (gameMode === 'PVP' && result.winner === 2) addCoins(30);
+          if (result.winner === 1) {
+              addCoins(30);
+              setEarnedCoins(30);
+          }
+          if (gameMode === 'PVP' && result.winner === 2) {
+              addCoins(30);
+              setEarnedCoins(30);
+          }
       } else if (result.winner === 2 && gameMode === 'PVE') {
           playGameOver();
       } else {
@@ -191,13 +199,21 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        {/* Game Controls / Status */}
        <div className="w-full max-w-lg flex justify-between items-center mb-6 z-10 px-2">
           {/* Left: Mode Switch */}
-          <button 
-            onClick={toggleMode}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors"
-          >
-            {gameMode === 'PVE' ? <Cpu size={14} className="text-neon-blue"/> : <User size={14} className="text-neon-pink"/>}
-            {gameMode === 'PVE' ? 'VS ORDI' : 'VS JOUEUR'}
-          </button>
+          <div className="flex items-center gap-4">
+            <button 
+                onClick={toggleMode}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors"
+            >
+                {gameMode === 'PVE' ? <Cpu size={14} className="text-neon-blue"/> : <User size={14} className="text-neon-pink"/>}
+                {gameMode === 'PVE' ? 'VS ORDI' : 'VS JOUEUR'}
+            </button>
+            {earnedCoins > 0 && (
+                <div className="flex items-center gap-1 text-yellow-400 font-mono text-sm animate-pulse">
+                    <Coins size={16} /> +{earnedCoins}
+                </div>
+            )}
+          </div>
+
 
           {/* Center: Turn Indicator */}
           <div className={`px-4 py-1.5 rounded-full border flex items-center gap-2 text-sm font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] ${
