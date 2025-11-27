@@ -7,6 +7,7 @@ import { useGameAudio } from '../../hooks/useGameAudio';
 
 interface Connect4GameProps {
   onBack: () => void;
+  audio: ReturnType<typeof useGameAudio>;
 }
 
 const ROWS = 6;
@@ -58,7 +59,7 @@ const checkWinFull = (board: BoardState): WinState => {
 };
 
 
-export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack }) => {
+export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
   const [currentPlayer, setCurrentPlayer] = useState<Player>(1);
   const [winState, setWinState] = useState<WinState>({ winner: null, line: [] });
@@ -67,7 +68,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack }) => {
   const [isAiThinking, setIsAiThinking] = useState(false);
   
   // Audio
-  const { playMove, playLand, playGameOver } = useGameAudio();
+  const { playMove, playGameOver } = audio;
 
   // Reset Game
   const resetGame = useCallback(() => {
@@ -292,4 +293,3 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack }) => {
     </div>
   );
 };
-    

@@ -15,9 +15,10 @@ import type { Player } from '../types';
 
 interface TetrisGameProps {
     onBack: () => void;
+    audio: ReturnType<typeof useGameAudio>;
 }
 
-export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack }) => {
+export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio }) => {
     const [dropTime, setDropTime] = useState<number | null>(null);
     const [gameOver, setGameOver] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
@@ -26,7 +27,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack }) => {
     const [ghostPlayer, setGhostPlayer] = useState<Player | null>(null);
     const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, ghostPlayer);
     const { score, setScore, rows, setRows, level, setLevel, highScore } = useGameStatus(rowsCleared);
-    const { playMove, playRotate, playLand, playClear, playGameOver, isMuted, toggleMute } = useGameAudio();
+    const { playMove, playRotate, playLand, playClear, playGameOver, isMuted, toggleMute } = audio;
     
     useEffect(() => {
         if (rowsCleared > 0) {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock } from 'lucide-react';
 import { CarData, LevelData } from './types';
@@ -6,6 +7,7 @@ import { useGameAudio } from '../../hooks/useGameAudio';
 
 interface RushGameProps {
   onBack: () => void;
+  audio: ReturnType<typeof useGameAudio>;
 }
 
 const GRID_SIZE = 6;
@@ -224,7 +226,7 @@ const CarVisual: React.FC<{ car: CarData, isSelected: boolean }> = ({ car, isSel
 };
 
 
-export const RushGame: React.FC<RushGameProps> = ({ onBack }) => {
+export const RushGame: React.FC<RushGameProps> = ({ onBack, audio }) => {
   const [currentLevelId, setCurrentLevelId] = useState(1);
   const [maxUnlockedLevel, setMaxUnlockedLevel] = useState(1);
   const [cars, setCars] = useState<CarData[]>([]);
@@ -234,7 +236,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack }) => {
   const [isExiting, setIsExiting] = useState(false);
   const [difficulty, setDifficulty] = useState('FACILE');
   
-  const { playCarExit, playCarMove, resumeAudio } = useGameAudio();
+  const { playCarExit, playCarMove, resumeAudio } = audio;
 
   // Pour empêcher le spam (Throttling)
   const lastMoveTime = useRef<number>(0);

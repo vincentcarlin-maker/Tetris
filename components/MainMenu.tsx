@@ -1,9 +1,11 @@
 
-import React from 'react';
-import { Play, Grid3X3, Gamepad2, Hammer, Zap, Car, CircleDot } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX } from 'lucide-react';
+import { useGameAudio } from '../hooks/useGameAudio';
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
+    audio: ReturnType<typeof useGameAudio>;
 }
 
 // Composant pour le logo stylisé
@@ -39,7 +41,19 @@ const ArcadeLogo = () => {
 };
 
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio }) => {
+    
+    useEffect(() => {
+        audio.resumeAudio(); // Important for iOS
+        audio.playMenuMusic();
+        
+        // The cleanup is handled by App.tsx's onSelectGame to be more immediate
+        // This is a safety net in case the component unmounts for other reasons
+        return () => {
+            audio.stopMenuMusic();
+        }
+    }, [audio]);
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12]">
              {/* Background effects */}
@@ -49,6 +63,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame }) => {
                      backgroundImage: 'linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px)', 
                      backgroundSize: '40px 40px' 
                  }}>
+            </div>
+            
+            {/* Mute Button */}
+            <div className="absolute top-6 right-6 z-20">
+                <button 
+                    onClick={audio.toggleMute} 
+                    className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                >
+                    {audio.isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                </button>
             </div>
 
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-8">
