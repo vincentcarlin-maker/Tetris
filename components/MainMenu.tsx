@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -425,6 +425,27 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             </div>
                         </div>
                      </button>
+
+                     {/* Memory (Coming Soon) */}
+                     <button 
+                        disabled
+                        className="group relative w-full h-24 bg-gray-900/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
+                     >
+                        <div className="flex items-center justify-between px-6 h-full relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-3 bg-gray-800 rounded-lg text-gray-400 shadow-lg">
+                                    <Sparkles size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">NEON MEMORY</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                        <Lock size={10} /> BIENTÔT DISPONIBLE
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                     </button>
+
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">

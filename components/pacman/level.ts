@@ -1,4 +1,3 @@
-
 import { TileType } from './types';
 
 // 0: Empty, 1: Wall, 2: Dot, 3: Power Pellet, 4: Gate
@@ -38,5 +37,5 @@ export const ROWS = LEVEL_MAP.length;
 
 // Starting positions
 export const PACMAN_START = { x: 9, y: 16 };
-export const GHOST_START = { x: 9, y: 8 }; // Just above house for simplicity in this version
-export const GHOST_HOUSE = { x: 9, y: 10 };
+export const GHOST_HOUSE_EXIT = { x: 9, y: 8 };
+export const GHOST_HOUSE_CENTER = { x: 9, y: 10 };

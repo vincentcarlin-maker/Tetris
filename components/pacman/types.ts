@@ -1,4 +1,3 @@
-
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'NONE';
 
 export interface Position {
@@ -7,7 +6,7 @@ export interface Position {
 }
 
 export type GhostColor = 'red' | 'pink' | 'cyan' | 'orange';
-export type GhostMode = 'CHASE' | 'SCATTER' | 'FRIGHTENED' | 'EATEN';
+export type GhostMode = 'CHASE' | 'SCATTER' | 'FRIGHTENED' | 'EATEN' | 'AT_HOME';
 
 export interface Ghost {
     id: number;

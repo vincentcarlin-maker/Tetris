@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, RefreshCw, Trophy, Ghost } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { Direction, Position, Pacman, Ghost as GhostType, Grid, TileType, GhostMode } from './types';
-import { LEVEL_MAP, PACMAN_START, COLS, ROWS } from './level';
+import { LEVEL_MAP, PACMAN_START, COLS, ROWS, GHOST_HOUSE_EXIT, GHOST_HOUSE_CENTER } from './level';
 
 interface PacmanGameProps {
     onBack: () => void;
@@ -13,12 +14,35 @@ interface PacmanGameProps {
 
 const GAME_SPEED_BASE = 0.15; // Vitesse de déplacement
 
+// --- GHOST AI CONSTANTS ---
+const SCATTER_TARGETS = [
+    { x: COLS - 2, y: 1 }, // Blinky (red) -> top-right
+    { x: 1, y: 1 },        // Pinky (pink) -> top-left
+    { x: COLS - 2, y: ROWS - 2 }, // Inky (cyan) -> bottom-right
+    { x: 1, y: ROWS - 2 }, // Clyde (orange) -> bottom-left
+];
+const GHOST_FRIGHTENED_TIME = 8000; // 8 seconds
+const GHOST_EATEN_SPEED_MULTIPLIER = 2.5;
+
+// Mode timings in frames (assuming 60fps)
+const MODE_SWITCH_TIMES = [
+    7 * 60,   // Scatter for 7s
+    20 * 60,  // Chase for 20s
+    7 * 60,   // Scatter for 7s
+    20 * 60,  // Chase for 20s
+    5 * 60,   // Scatter for 5s
+    20 * 60,  // Chase for 20s
+    5 * 60,   // Scatter for 5s
+    Infinity  // Final chase
+];
+// Ghost release timers in frames
+const GHOST_RELEASE_TIMES = [0, 4 * 60, 8 * 60, 12 * 60];
+
 const INITIAL_GHOSTS: GhostType[] = [
-    // Fantômes positionnés hors de la maison pour garantir qu'ils puissent bouger
-    { id: 0, pos: { x: 9, y: 8 }, dir: 'LEFT', color: 'red', mode: 'CHASE', startPos: { x: 9, y: 8 }, speed: GAME_SPEED_BASE * 0.7 },
-    { id: 1, pos: { x: 8, y: 8 }, dir: 'UP', color: 'pink', mode: 'CHASE', startPos: { x: 8, y: 8 }, speed: GAME_SPEED_BASE * 0.65 },
-    { id: 2, pos: { x: 10, y: 8 }, dir: 'UP', color: 'cyan', mode: 'CHASE', startPos: { x: 10, y: 8 }, speed: GAME_SPEED_BASE * 0.6 },
-    { id: 3, pos: { x: 9, y: 7 }, dir: 'UP', color: 'orange', mode: 'CHASE', startPos: { x: 9, y: 7 }, speed: GAME_SPEED_BASE * 0.55 }
+    { id: 0, pos: { ...GHOST_HOUSE_EXIT }, dir: 'LEFT', color: 'red', mode: 'SCATTER', startPos: { x: 9, y: 10 }, speed: GAME_SPEED_BASE * 0.45 },
+    { id: 1, pos: { x: 9, y: 10 }, dir: 'UP', color: 'pink', mode: 'AT_HOME', startPos: { x: 9, y: 10 }, speed: GAME_SPEED_BASE * 0.42 },
+    { id: 2, pos: { x: 8, y: 10 }, dir: 'UP', color: 'cyan', mode: 'AT_HOME', startPos: { x: 8, y: 10 }, speed: GAME_SPEED_BASE * 0.40 },
+    { id: 3, pos: { x: 10, y: 10 }, dir: 'UP', color: 'orange', mode: 'AT_HOME', startPos: { x: 10, y: 10 }, speed: GAME_SPEED_BASE * 0.38 }
 ];
 
 
@@ -36,49 +60,52 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.pacman || 0;
 
-    // Game Logic Refs (Mutable state for game loop)
-    const pacmanRef = useRef<Pacman>({
-        pos: { ...PACMAN_START },
-        dir: 'LEFT',
-        nextDir: 'LEFT',
-        speed: GAME_SPEED_BASE,
-        isPowered: false
-    });
-
+    // Game Logic Refs
+    const pacmanRef = useRef<Pacman>({ pos: { ...PACMAN_START }, dir: 'LEFT', nextDir: 'LEFT', speed: GAME_SPEED_BASE, isPowered: false });
     const ghostsRef = useRef<GhostType[]>(JSON.parse(JSON.stringify(INITIAL_GHOSTS)));
-
     const gridRef = useRef<Grid>(JSON.parse(JSON.stringify(LEVEL_MAP)));
     const dotsCountRef = useRef(0);
     const powerTimerRef = useRef<any>(null);
     const animationFrameRef = useRef<number>(0);
     const wakaTimerRef = useRef<any>(null);
+    const gameTimerRef = useRef(0);
+    const gameModeIndexRef = useRef(0);
+    const gameModeRef = useRef<'CHASE' | 'SCATTER'>('SCATTER');
     
-    // Joystick state
-    const [joystick, setJoystick] = useState({ x: 0, y: 0 });
-    const joystickActive = useRef(false);
-    const joystickBaseRef = useRef<HTMLDivElement>(null);
-
-
-    // Force re-render for UI updates
     const [, setTick] = useState(0);
 
-    // Initial Setup
     useEffect(() => {
         resetGame();
         return () => cancelAnimationFrame(animationFrameRef.current);
     }, []);
 
+    // Gestion du clavier pour Desktop / Test
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (gameOver || gameWon) return;
+            const key = e.key;
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
+                e.preventDefault();
+                resumeAudio();
+                if (!isPlaying) setIsPlaying(true);
+                
+                if (key === 'ArrowUp') pacmanRef.current.nextDir = 'UP';
+                if (key === 'ArrowDown') pacmanRef.current.nextDir = 'DOWN';
+                if (key === 'ArrowLeft') pacmanRef.current.nextDir = 'LEFT';
+                if (key === 'ArrowRight') pacmanRef.current.nextDir = 'RIGHT';
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [gameOver, gameWon, isPlaying, resumeAudio]);
+
     const resetGame = () => {
         gridRef.current = JSON.parse(JSON.stringify(LEVEL_MAP));
-        
-        // Count dots
         let dots = 0;
-        gridRef.current.forEach(row => row.forEach(cell => {
-            if (cell === 2 || cell === 3) dots++;
-        }));
+        gridRef.current.forEach(row => row.forEach(cell => { if (cell === 2 || cell === 3) dots++; }));
         dotsCountRef.current = dots;
 
-        resetActors();
+        resetActors(true);
         setScore(0);
         setLives(3);
         setGameOver(false);
@@ -87,84 +114,37 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         setEarnedCoins(0);
     };
 
-    const resetActors = () => {
-        pacmanRef.current = {
-            pos: { ...PACMAN_START },
-            dir: 'LEFT',
-            nextDir: 'LEFT',
-            speed: GAME_SPEED_BASE,
-            isPowered: false
-        };
+    const resetActors = (fullReset = false) => {
+        pacmanRef.current = { pos: { ...PACMAN_START }, dir: 'LEFT', nextDir: 'LEFT', speed: GAME_SPEED_BASE, isPowered: false };
         ghostsRef.current = JSON.parse(JSON.stringify(INITIAL_GHOSTS));
-    };
-
-    const handleJoystickMove = (e: React.PointerEvent) => {
-        if (!joystickActive.current || !joystickBaseRef.current) return;
-
-        const rect = joystickBaseRef.current.getBoundingClientRect();
-        const baseX = rect.left + rect.width / 2;
-        const baseY = rect.top + rect.height / 2;
-
-        let dx = e.clientX - baseX;
-        let dy = e.clientY - baseY;
-        const maxDist = rect.width / 4; // Max distance for the handle from center
-
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > maxDist) {
-            dx = (dx / dist) * maxDist;
-            dy = (dy / dist) * maxDist;
-        }
-
-        setJoystick({ x: dx, y: dy });
-
-        // Determine direction
-        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-        if (angle > -45 && angle <= 45) {
-            pacmanRef.current.nextDir = 'RIGHT';
-        } else if (angle > 45 && angle <= 135) {
-            pacmanRef.current.nextDir = 'DOWN';
-        } else if (angle > 135 || angle <= -135) {
-            pacmanRef.current.nextDir = 'LEFT';
-        } else if (angle > -135 && angle <= -45) {
-            pacmanRef.current.nextDir = 'UP';
+        if (fullReset) {
+            gameTimerRef.current = 0;
+            gameModeIndexRef.current = 0;
+            gameModeRef.current = 'SCATTER';
         }
     };
 
-    const handleJoystickDown = (e: React.PointerEvent) => {
+    const handleDirBtn = (dir: Direction) => {
         resumeAudio();
         if (!isPlaying && !gameOver && !gameWon) setIsPlaying(true);
-        joystickActive.current = true;
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
-        handleJoystickMove(e);
+        pacmanRef.current.nextDir = dir;
     };
-
-    const handleJoystickUp = (e: React.PointerEvent) => {
-        joystickActive.current = false;
-        setJoystick({ x: 0, y: 0 });
-        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    };
-
-
-    // --- HELPERS ---
 
     const isWall = (x: number, y: number): boolean => {
-        // Tunnel logic: Outside grid bounds is NOT a wall (it's the tunnel)
-        if (x < 0 || x >= COLS) return false;
-        if (y < 0 || y >= ROWS) return false;
-        
+        // Special Tunnel handling: Tunnel row is usually index 10
+        if (y === 10 && (x < 0 || x >= COLS)) return false;
+
+        // Out of bounds are walls (except tunnel)
+        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return true;
+
         const cell = gridRef.current[Math.floor(y)][Math.floor(x)];
-        return cell === 1 || cell === 4; // 1=Wall, 4=Gate
+        return cell === 1 || cell === 4;
     };
 
     const isGhostWall = (x: number, y: number): boolean => {
-        // Tunnel logic: Outside grid bounds is NOT a wall (it's the tunnel)
-        if (x < 0 || x >= COLS) return false;
-        if (y < 0 || y >= ROWS) return false;
-        
+        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
         const cell = gridRef.current[Math.floor(y)][Math.floor(x)];
-        return cell === 1; // Ghosts can pass gates (4), but not walls (1)
+        return cell === 1;
     };
 
     const checkWin = () => {
@@ -180,78 +160,90 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     const enablePowerMode = () => {
         pacmanRef.current.isPowered = true;
         playPacmanPower();
-        ghostsRef.current.forEach(g => {
-            if (g.mode !== 'EATEN') g.mode = 'FRIGHTENED';
-        });
-
+        ghostsRef.current.forEach(g => { if (g.mode !== 'EATEN') g.mode = 'FRIGHTENED'; });
         if (powerTimerRef.current) clearTimeout(powerTimerRef.current);
         powerTimerRef.current = setTimeout(() => {
             pacmanRef.current.isPowered = false;
-            ghostsRef.current.forEach(g => {
-                if (g.mode === 'FRIGHTENED') g.mode = 'CHASE';
-            });
-        }, 8000);
+            ghostsRef.current.forEach(g => { if (g.mode === 'FRIGHTENED') g.mode = gameModeRef.current; });
+        }, GHOST_FRIGHTENED_TIME);
     };
 
     const movePacman = useCallback(() => {
         const p = pacmanRef.current;
         const speed = p.speed;
 
-        // 1. Turning Logic: At intersections, check if we can switch to the queued direction.
-        const onGridCenter = Math.abs(p.pos.x - Math.round(p.pos.x)) < speed * 0.5 &&
-                             Math.abs(p.pos.y - Math.round(p.pos.y)) < speed * 0.5;
+        // 1. Gestion du demi-tour immédiat (plus réactif)
+        if (
+            (p.dir === 'LEFT' && p.nextDir === 'RIGHT') ||
+            (p.dir === 'RIGHT' && p.nextDir === 'LEFT') ||
+            (p.dir === 'UP' && p.nextDir === 'DOWN') ||
+            (p.dir === 'DOWN' && p.nextDir === 'UP')
+        ) {
+            p.dir = p.nextDir;
+        }
 
-        if (onGridCenter) {
-            const snappedX = Math.round(p.pos.x);
-            const snappedY = Math.round(p.pos.y);
-            
-            // Check if the next queued direction is a valid move
-            let canTurn = false;
-            if (p.nextDir === 'UP' && !isWall(snappedX, snappedY - 1)) canTurn = true;
-            if (p.nextDir === 'DOWN' && !isWall(snappedX, snappedY + 1)) canTurn = true;
-            if (p.nextDir === 'LEFT' && !isWall(snappedX - 1, snappedY)) canTurn = true;
-            if (p.nextDir === 'RIGHT' && !isWall(snappedX + 1, snappedY)) canTurn = true;
-            
-            if (canTurn) {
-                p.pos.x = snappedX; // Snap to grid for perfect alignment
-                p.pos.y = snappedY;
-                p.dir = p.nextDir;
+        // 2. Calculs de position sur la grille
+        // On considère que le centre d'une case est un entier (ex: 9, 10).
+        const center = { x: Math.round(p.pos.x), y: Math.round(p.pos.y) };
+        const distToCenter = Math.abs(p.pos.x - center.x) + Math.abs(p.pos.y - center.y);
+
+        // 3. Logique de virage et d'alignement
+        // Si on est proche du centre de la case (dans la marge de vitesse), on peut prendre une décision
+        if (distToCenter < speed) {
+            // TENTATIVE DE VIRAGE
+            if (p.nextDir !== p.dir) {
+                let canTurn = false;
+                if (p.nextDir === 'UP' && !isWall(center.x, center.y - 1)) canTurn = true;
+                if (p.nextDir === 'DOWN' && !isWall(center.x, center.y + 1)) canTurn = true;
+                if (p.nextDir === 'LEFT' && !isWall(center.x - 1, center.y)) canTurn = true;
+                if (p.nextDir === 'RIGHT' && !isWall(center.x + 1, center.y)) canTurn = true;
+
+                if (canTurn) {
+                    // Snapping: On s'aligne parfaitement au centre pour tourner proprement
+                    p.pos.x = center.x;
+                    p.pos.y = center.y;
+                    p.dir = p.nextDir;
+                }
+            }
+
+            // DETECTION DE MUR FACE À NOUS
+            let blocked = false;
+            if (p.dir === 'UP' && isWall(center.x, center.y - 1)) blocked = true;
+            if (p.dir === 'DOWN' && isWall(center.x, center.y + 1)) blocked = true;
+            if (p.dir === 'LEFT' && isWall(center.x - 1, center.y)) blocked = true;
+            if (p.dir === 'RIGHT' && isWall(center.x + 1, center.y)) blocked = true;
+
+            if (blocked) {
+                // Si on est bloqué, on s'arrête pile au centre pour éviter de rentrer dans le mur
+                p.pos.x = center.x;
+                p.pos.y = center.y;
+                return; // Stop movement
             }
         }
 
-        // 2. Movement Logic: Move in the current direction if not blocked.
-        let dx = 0, dy = 0;
-        if (p.dir === 'UP') dy = -1;
-        if (p.dir === 'DOWN') dy = 1;
-        if (p.dir === 'LEFT') dx = -1;
-        if (p.dir === 'RIGHT') dx = 1;
+        // 4. Application du mouvement
+        if (p.dir === 'UP') p.pos.y -= speed;
+        else if (p.dir === 'DOWN') p.pos.y += speed;
+        else if (p.dir === 'LEFT') p.pos.x -= speed;
+        else if (p.dir === 'RIGHT') p.pos.x += speed;
 
-        // Check for a wall in front before moving
-        const currentGridX = Math.round(p.pos.x);
-        const currentGridY = Math.round(p.pos.y);
+        // 5. Gestion du Tunnel (Wrapping)
+        if (p.pos.x < -0.5) p.pos.x = COLS - 0.5;
+        if (p.pos.x > COLS - 0.5) p.pos.x = -0.5;
 
-        let isBlocked = false;
-        if (onGridCenter && isWall(currentGridX + dx, currentGridY + dy)) {
-            isBlocked = true;
-        }
-        
-        if (!isBlocked) {
-            p.pos.x += dx * speed;
-            p.pos.y += dy * speed;
-            const now = Date.now();
-            if (!wakaTimerRef.current || now - wakaTimerRef.current > 250) {
-                playPacmanWaka();
-                wakaTimerRef.current = now;
-            }
-        }
-
-        // 3. Tunneling Logic
-        if (p.pos.x < -1) p.pos.x = COLS;
-        else if (p.pos.x > COLS) p.pos.x = -1;
-
-        // 4. Eating Logic
+        // 6. Manger les points (basé sur la position arrondie)
         const gridX = Math.round(p.pos.x);
         const gridY = Math.round(p.pos.y);
+        
+        // Waka Sound Throttling
+        const now = Date.now();
+        if (!wakaTimerRef.current || now - wakaTimerRef.current > 250) {
+             // Only play if moving
+             if (Math.abs(p.pos.x - center.x) > 0.01 || Math.abs(p.pos.y - center.y) > 0.01) {
+                playPacmanWaka();
+                wakaTimerRef.current = now;
+             }
+        }
 
         if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
             const tile = gridRef.current[gridY][gridX];
@@ -270,90 +262,68 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         }
     }, [playPacmanWaka]);
 
-
-    const moveGhosts = () => {
+    const moveGhosts = useCallback(() => {
         ghostsRef.current.forEach(g => {
-            if (g.mode === 'EATEN') {
-                // Return to house logic (Simplified: Teleport for now or fast travel)
-                // For this arcade version, we just respawn them after a delay
-                return; 
-            }
-
-            const isFrightened = g.mode === 'FRIGHTENED';
-            const speed = isFrightened ? g.speed * 0.6 : g.speed;
+            const speed = g.mode === 'FRIGHTENED' ? g.speed * 0.6 : g.mode === 'EATEN' ? g.speed * GHOST_EATEN_SPEED_MULTIPLIER : g.speed;
+            const onGridCenter = Math.abs(g.pos.x - Math.round(g.pos.x)) < speed * 0.9 && Math.abs(g.pos.y - Math.round(g.pos.y)) < speed * 0.9;
             
-            // Only make decisions at intersections (centers of tiles)
-            const xInt = Math.round(g.pos.x);
-            const yInt = Math.round(g.pos.y);
-            
-            if (Math.abs(g.pos.x - xInt) < 0.1 && Math.abs(g.pos.y - yInt) < 0.1) {
-                // Snap to grid
+            if (onGridCenter) {
+                const xInt = Math.round(g.pos.x);
+                const yInt = Math.round(g.pos.y);
                 g.pos.x = xInt;
                 g.pos.y = yInt;
+                
+                if (g.mode === 'AT_HOME') {
+                    if (g.pos.y <= g.startPos.y - 0.5) g.dir = 'DOWN';
+                    if (g.pos.y >= g.startPos.y + 0.5) g.dir = 'UP';
+                    if (g.dir === 'UP') g.pos.y -= 0.05; else g.pos.y += 0.05;
+                    return;
+                }
 
-                // Decide direction
-                const options: Direction[] = [];
-                if (!isGhostWall(xInt, yInt - 1) && g.dir !== 'DOWN') options.push('UP');
-                if (!isGhostWall(xInt, yInt + 1) && g.dir !== 'UP') options.push('DOWN');
-                if (!isGhostWall(xInt - 1, yInt) && g.dir !== 'RIGHT') options.push('LEFT');
-                if (!isGhostWall(xInt + 1, yInt) && g.dir !== 'LEFT') options.push('RIGHT');
+                if (g.mode === 'EATEN' && xInt === GHOST_HOUSE_EXIT.x && yInt === GHOST_HOUSE_EXIT.y) {
+                    g.mode = 'AT_HOME';
+                    g.pos = { ...g.startPos };
+                    return;
+                }
 
-                if (options.length === 0) {
-                    // Dead end, reverse
+                let target = pacmanRef.current.pos;
+                if (g.mode === 'SCATTER') target = SCATTER_TARGETS[g.id];
+                else if (g.mode === 'FRIGHTENED') target = { x: Math.random() * COLS, y: Math.random() * ROWS };
+                else if (g.mode === 'EATEN') target = GHOST_HOUSE_EXIT;
+
+                const options: { dir: Direction, dist: number }[] = [];
+                if (!isGhostWall(xInt, yInt - 1) && g.dir !== 'DOWN') options.push({ dir: 'UP', dist: Math.hypot(xInt - target.x, (yInt - 1) - target.y) });
+                if (!isGhostWall(xInt, yInt + 1) && g.dir !== 'UP') options.push({ dir: 'DOWN', dist: Math.hypot(xInt - target.x, (yInt + 1) - target.y) });
+                if (!isGhostWall(xInt - 1, yInt) && g.dir !== 'RIGHT') options.push({ dir: 'LEFT', dist: Math.hypot((xInt - 1) - target.x, yInt - target.y) });
+                if (!isGhostWall(xInt + 1, yInt) && g.dir !== 'LEFT') options.push({ dir: 'RIGHT', dist: Math.hypot((xInt + 1) - target.x, yInt - target.y) });
+                
+                if (options.length > 0) {
+                    options.sort((a, b) => a.dist - b.dist);
+                    g.dir = options[0].dir;
+                } else {
                     if (g.dir === 'UP') g.dir = 'DOWN';
                     else if (g.dir === 'DOWN') g.dir = 'UP';
                     else if (g.dir === 'LEFT') g.dir = 'RIGHT';
                     else g.dir = 'LEFT';
-                } else {
-                    if (isFrightened) {
-                        // Random
-                        g.dir = options[Math.floor(Math.random() * options.length)];
-                    } else {
-                        // Basic Chase Logic (Target Pacman)
-                        let bestDir = options[0];
-                        let minDist = Infinity;
-                        
-                        options.forEach(opt => {
-                            let tx = xInt;
-                            let ty = yInt;
-                            if (opt === 'UP') ty--;
-                            if (opt === 'DOWN') ty++;
-                            if (opt === 'LEFT') tx--;
-                            if (opt === 'RIGHT') tx++;
-                            
-                            // Euclidean distance to pacman
-                            const dist = Math.sqrt(Math.pow(tx - pacmanRef.current.pos.x, 2) + Math.pow(ty - pacmanRef.current.pos.y, 2));
-                            if (dist < minDist) {
-                                minDist = dist;
-                                bestDir = opt;
-                            }
-                        });
-                        g.dir = bestDir;
-                    }
                 }
             }
-
-            // Apply movement
+            
             if (g.dir === 'UP') g.pos.y -= speed;
             if (g.dir === 'DOWN') g.pos.y += speed;
             if (g.dir === 'LEFT') g.pos.x -= speed;
             if (g.dir === 'RIGHT') g.pos.x += speed;
 
-             // Tunnel Wrap for Ghosts
-             if (g.pos.x < -0.5) g.pos.x = COLS - 0.5;
-             if (g.pos.x > COLS - 0.5) g.pos.x = -0.5;
+            if (g.pos.x < -0.5) g.pos.x = COLS - 0.5;
+            if (g.pos.x > COLS - 0.5) g.pos.x = -0.5;
         });
-    };
+    }, []);
 
     const handleDeath = () => {
         setIsPlaying(false);
         if (lives > 1) {
             setLives(l => l - 1);
-            playGameOver(); // Death sound
-            setTimeout(() => {
-                resetActors();
-                setIsPlaying(false); // Wait for user to start again
-            }, 1500);
+            playGameOver();
+            setTimeout(() => { resetActors(); setIsPlaying(true); }, 1500);
         } else {
             setLives(0);
             setGameOver(true);
@@ -367,52 +337,63 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         }
     };
 
-    const checkCollisions = () => {
+    const checkCollisions = useCallback(() => {
         const p = pacmanRef.current;
-        const P_RADIUS = 0.5; 
-
         ghostsRef.current.forEach(g => {
-            const dx = p.pos.x - g.pos.x;
-            const dy = p.pos.y - g.pos.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-
-            if (dist < 0.8) { // Collision
+            const dist = Math.hypot(p.pos.x - g.pos.x, p.pos.y - g.pos.y);
+            if (dist < 0.8) {
                 if (g.mode === 'FRIGHTENED') {
-                    // Eat Ghost
                     g.mode = 'EATEN';
-                    // Reset ghost pos immediately for arcade pace
-                    g.pos = { ...g.startPos };
-                    g.mode = 'CHASE'; // Respawn immediately in this version
                     setScore(s => s + 200);
                     playPacmanEatGhost();
                 } else if (g.mode === 'CHASE' || g.mode === 'SCATTER') {
-                    // Die
                     handleDeath();
                 }
             }
         });
-    };
+    }, [playPacmanEatGhost]);
+    
+    const updateGameTimers = useCallback(() => {
+        gameTimerRef.current++;
+        ghostsRef.current.forEach((g, i) => {
+            if (g.mode === 'AT_HOME' && gameTimerRef.current > GHOST_RELEASE_TIMES[i]) {
+                g.pos = { ...GHOST_HOUSE_EXIT };
+                g.mode = gameModeRef.current;
+            }
+        });
 
-    // --- CORE GAME LOOP ---
+        if (gameTimerRef.current > MODE_SWITCH_TIMES[gameModeIndexRef.current]) {
+            gameTimerRef.current = 0;
+            gameModeIndexRef.current++;
+            gameModeRef.current = gameModeRef.current === 'SCATTER' ? 'CHASE' : 'SCATTER';
+            ghostsRef.current.forEach(g => {
+                if (g.mode === 'CHASE' || g.mode === 'SCATTER') {
+                    g.mode = gameModeRef.current;
+                    if (g.dir === 'UP') g.dir = 'DOWN';
+                    else if (g.dir === 'DOWN') g.dir = 'UP';
+                    else if (g.dir === 'LEFT') g.dir = 'RIGHT';
+                    else if (g.dir === 'RIGHT') g.dir = 'LEFT';
+                }
+            });
+        }
+    }, []);
+
     useEffect(() => {
         const update = () => {
             if (isPlaying && !gameOver && !gameWon) {
+                updateGameTimers();
                 movePacman();
                 moveGhosts();
                 checkCollisions();
-                setTick(t => t + 1); // Trigger render
+                setTick(t => t + 1);
             }
             animationFrameRef.current = requestAnimationFrame(update);
         };
         animationFrameRef.current = requestAnimationFrame(update);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [isPlaying, gameOver, gameWon, movePacman]);
+    }, [isPlaying, gameOver, gameWon, movePacman, moveGhosts, checkCollisions, updateGameTimers]);
 
-
-    // --- RENDER HELPERS ---
-    
-    // Style for entities
-    const getStyle = (x: number, y: number, color?: string) => ({
+    const getStyle = (x: number, y: number) => ({
         left: `${(x / COLS) * 100}%`,
         top: `${(y / ROWS) * 100}%`,
         width: `${(1 / COLS) * 100}%`,
@@ -421,166 +402,97 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-[#0a0a12] relative overflow-hidden text-white font-sans touch-none select-none">
-             {/* Background */}
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-black pointer-events-none"></div>
-
-            {/* HEADER */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-black pointer-events-none"></div>
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
-                    <Home size={20} />
-                </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">
-                    NEON PAC
-                </h1>
-                <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
-                    <RefreshCw size={20} />
-                </button>
+                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">NEON PAC</h1>
+                <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
-
-            {/* STATS */}
             <div className="w-full max-w-lg flex justify-between items-center px-6 mb-2 z-10">
-                <div className="flex flex-col">
-                    <span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span>
-                    <span className="text-xl font-mono font-bold text-white">{score}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                     <span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span>
-                     <span className="text-xl font-mono font-bold text-yellow-400">{Math.max(score, highScore)}</span>
-                </div>
+                <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-xl font-mono font-bold text-white">{score}</span></div>
+                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-xl font-mono font-bold text-yellow-400">{Math.max(score, highScore)}</span></div>
             </div>
-
-            {/* LIVES */}
             <div className="w-full max-w-lg flex gap-2 px-6 mb-4 z-10">
-                 {Array.from({ length: 3 }).map((_, i) => (
-                     <div key={i} className={`w-4 h-4 rounded-full bg-yellow-400 ${i < lives ? 'opacity-100' : 'opacity-20'}`} />
-                 ))}
+                 {Array.from({ length: 3 }).map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full bg-yellow-400 ${i < lives ? 'opacity-100' : 'opacity-20'}`} />))}
             </div>
-
-            {/* GAME AREA WRAPPER */}
             <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg relative z-10 min-h-0 pb-6">
-                {/* GAME BOARD CONTAINER */}
-                <div 
-                    className="relative w-full h-auto aspect-[19/21] bg-black border-2 border-blue-900/50 rounded-lg shadow-[0_0_20px_rgba(30,58,138,0.3)] overflow-hidden"
-                >
-                    
-                    {/* 1. GRID (Walls & Dots) */}
-                    {gridRef.current.map((row, r) => (
-                        row.map((cell, c) => {
-                            if (cell === 0) return null;
-                            
-                            const style = getStyle(c, r);
-                            
-                            // Wall
-                            if (cell === 1) return (
-                                <div key={`${r}-${c}`} className="absolute bg-blue-900/30 border border-blue-500/30 rounded-sm" style={style} />
-                            );
-                            
-                            // Dot
-                            if (cell === 2) return (
-                                <div key={`${r}-${c}`} className="absolute flex items-center justify-center" style={style}>
-                                    <div className="w-[15%] h-[15%] bg-yellow-200/50 rounded-full" />
-                                </div>
-                            );
-
-                            // Power Pellet
-                            if (cell === 3) return (
-                                <div key={`${r}-${c}`} className="absolute flex items-center justify-center" style={style}>
-                                    <div className="w-[40%] h-[40%] bg-yellow-400 rounded-full animate-pulse shadow-[0_0_10px_#facc15]" />
-                                </div>
-                            );
-                            
-                            // Gate
-                            if (cell === 4) return (
-                                <div key={`${r}-${c}`} className="absolute flex items-center justify-center" style={style}>
-                                    <div className="w-full h-[10%] bg-pink-500/50" />
-                                </div>
-                            );
-                            return null;
-                        })
-                    ))}
-
-                    {/* 2. GHOSTS */}
+                <div className="relative w-full h-auto aspect-[19/21] bg-black border-2 border-blue-900/50 rounded-lg shadow-[0_0_20px_rgba(30,58,138,0.3)] overflow-hidden">
+                    {gridRef.current.map((row, r) => (row.map((cell, c) => {
+                        if (cell === 0) return null;
+                        const style = getStyle(c, r);
+                        if (cell === 1) return (<div key={`${r}-${c}`} className="absolute bg-blue-900/30 border border-blue-500/30 rounded-sm" style={style} />);
+                        if (cell === 2) return (<div key={`${r}-${c}`} className="absolute flex items-center justify-center" style={style}><div className="w-[15%] h-[15%] bg-yellow-200/50 rounded-full" /></div>);
+                        if (cell === 3) return (<div key={`${r}-${c}`} className="absolute flex items-center justify-center" style={style}><div className="w-[40%] h-[40%] bg-yellow-400 rounded-full animate-pulse shadow-[0_0_10px_#facc15]" /></div>);
+                        if (cell === 4) return (<div key={`${r}-${c}`} className="absolute flex items-center justify-center" style={style}><div className="w-full h-[10%] bg-pink-500/50" /></div>);
+                        return null;
+                    })))}
                     {ghostsRef.current.map(g => {
                         const style = getStyle(g.pos.x, g.pos.y);
                         const isFrightened = g.mode === 'FRIGHTENED';
-                        const colorClass = isFrightened ? 'text-blue-300' : 
-                                        g.color === 'red' ? 'text-red-500' :
-                                        g.color === 'pink' ? 'text-pink-400' :
-                                        g.color === 'cyan' ? 'text-cyan-400' : 'text-orange-400';
-                        
-                        return (
-                            <div key={g.id} className={`absolute flex items-center justify-center transition-transform duration-75`} style={{...style, transform: 'scale(1.2)'}}>
-                                <Ghost size={24} className={`${colorClass} ${isFrightened ? 'animate-pulse' : ''} drop-shadow-[0_0_5px_currentColor]`} fill="currentColor" />
-                            </div>
-                        );
+                        const isEaten = g.mode === 'EATEN';
+                        const colorClass = isFrightened ? 'text-blue-300' : g.color === 'red' ? 'text-red-500' : g.color === 'pink' ? 'text-pink-400' : g.color === 'cyan' ? 'text-cyan-400' : 'text-orange-400';
+                        // REMOVED transition-transform duration-75 to fix visual trails
+                        return (<div key={g.id} className={`absolute flex items-center justify-center`} style={{...style, transform: 'scale(1.2)'}}>
+                            {isEaten ? (<div className="relative w-full h-full flex items-center justify-center"><div className="w-1/3 h-1/3 bg-white rounded-full absolute -translate-x-1/4" /><div className="w-1/3 h-1/3 bg-white rounded-full absolute translate-x-1/4" /></div>)
+                            : (<Ghost size={24} className={`${colorClass} ${isFrightened ? 'animate-pulse' : ''} drop-shadow-[0_0_5px_currentColor]`} fill="currentColor" />)}
+                        </div>);
                     })}
-
-                    {/* 3. PACMAN */}
-                    <div 
-                        className="absolute flex items-center justify-center transition-transform duration-75"
-                        style={{
-                            ...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y),
-                            transform: `scale(1.1) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`
-                        }}
-                    >
+                    {/* REMOVED transition-transform duration-75 from pacman as well */}
+                    <div className="absolute flex items-center justify-center" style={{...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y), transform: `scale(1.1) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`}}>
                         <div className="w-[80%] h-[80%] bg-yellow-400 rounded-full relative overflow-hidden shadow-[0_0_10px_#facc15]">
-                            {/* Mouth Animation */}
-                            <div className="absolute top-0 right-0 w-full h-1/2 bg-black origin-bottom-right animate-[chomp_0.2s_infinite_alternate]" 
-                                style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 0, 100% 50%)' }} />
-                            <div className="absolute bottom-0 right-0 w-full h-1/2 bg-black origin-top-right animate-[chomp_0.2s_infinite_alternate]"
-                                style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 100%, 100% 50%)' }} />
+                            <div className="absolute top-0 right-0 w-full h-1/2 bg-black origin-bottom-right animate-[chomp_0.2s_infinite_alternate]" style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 0, 100% 50%)' }} />
+                            <div className="absolute bottom-0 right-0 w-full h-1/2 bg-black origin-top-right animate-[chomp_0.2s_infinite_alternate]" style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 100%, 100% 50%)' }} />
                         </div>
                     </div>
-
-                    {/* OVERLAYS */}
-                    {!isPlaying && !gameOver && !gameWon && (
-                        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none">
-                            <p className="text-white font-bold animate-pulse tracking-widest">UTILISEZ LE JOYSTICK</p>
-                        </div>
-                    )}
-                    
-                    {gameOver && (
-                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in">
-                            <h2 className="text-4xl font-black text-red-500 italic mb-2">GAME OVER</h2>
-                            {earnedCoins > 0 && (
-                                <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500">
-                                    <Trophy className="text-yellow-400" size={20} />
-                                    <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
-                                </div>
-                            )}
-                            <button onClick={resetGame} className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-500">REJOUER</button>
-                        </div>
-                    )}
-
-                    {gameWon && (
-                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in">
-                            <h2 className="text-4xl font-black text-green-400 italic mb-2">VICTOIRE !</h2>
-                            {earnedCoins > 0 && (
-                                <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500">
-                                    <Trophy className="text-yellow-400" size={20} />
-                                    <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
-                                </div>
-                            )}
-                            <button onClick={resetGame} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">REJOUER</button>
-                        </div>
-                    )}
+                    {!isPlaying && !gameOver && !gameWon && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">UTILISEZ LES FLÈCHES</p></div>)}
+                    {gameOver && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-red-500 italic mb-2">GAME OVER</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-500">REJOUER</button></div>)}
+                    {gameWon && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-green-400 italic mb-2">VICTOIRE !</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">REJOUER</button></div>)}
                 </div>
                 
-                {/* JOYSTICK CONTROLS */}
-                <div className="mt-6 flex justify-center items-center h-40 shrink-0">
-                    <div
-                        ref={joystickBaseRef}
-                        className="w-32 h-32 rounded-full bg-gray-800/50 border-2 border-white/10 flex items-center justify-center shadow-lg cursor-pointer"
-                        onPointerDown={handleJoystickDown}
-                        onPointerMove={handleJoystickMove}
-                        onPointerUp={handleJoystickUp}
-                        onPointerLeave={handleJoystickUp}
-                    >
-                        <div
-                            className="w-16 h-16 rounded-full bg-neon-blue/80 shadow-[0_0_15px_#00f3ff] pointer-events-none transition-transform duration-75"
-                            style={{ transform: `translate(${joystick.x}px, ${joystick.y}px)` }}
-                        />
-                    </div>
+                {/* CROSS D-PAD - REDESIGNED */}
+                <div className="mt-6 relative w-48 h-48 shrink-0 z-20">
+                     {/* Background Shadow for the Cross Shape */}
+                     {/* Vertical Arm BG */}
+                     <div className="absolute top-0 left-[35%] w-[30%] h-full bg-gray-900 rounded-lg transform scale-105" />
+                     {/* Horizontal Arm BG */}
+                     <div className="absolute top-[35%] left-0 w-full h-[30%] bg-gray-900 rounded-lg transform scale-105" />
+
+                     {/* UP */}
+                     <button
+                        className="absolute top-0 left-[35%] w-[30%] h-[35%] bg-gray-800 border-t border-x border-gray-600 rounded-t-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
+                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('UP'); }}
+                     >
+                        <ArrowUp size={32} className="text-gray-300" />
+                     </button>
+
+                     {/* DOWN */}
+                     <button
+                        className="absolute bottom-0 left-[35%] w-[30%] h-[35%] bg-gray-800 border-b border-x border-gray-600 rounded-b-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
+                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('DOWN'); }}
+                     >
+                        <ArrowDown size={32} className="text-gray-300" />
+                     </button>
+
+                     {/* LEFT */}
+                     <button
+                        className="absolute top-[35%] left-0 w-[35%] h-[30%] bg-gray-800 border-l border-y border-gray-600 rounded-l-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
+                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('LEFT'); }}
+                     >
+                        <ArrowLeft size={32} className="text-gray-300" />
+                     </button>
+
+                     {/* RIGHT */}
+                     <button
+                        className="absolute top-[35%] right-0 w-[35%] h-[30%] bg-gray-800 border-r border-y border-gray-600 rounded-r-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
+                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('RIGHT'); }}
+                     >
+                        <ArrowRight size={32} className="text-gray-300" />
+                     </button>
+
+                     {/* CENTER PIVOT */}
+                     <div className="absolute top-[35%] left-[35%] w-[30%] h-[30%] bg-gray-800 flex items-center justify-center z-10 pointer-events-none">
+                        <div className="w-1/2 h-1/2 rounded-full bg-black/40 shadow-inner" />
+                     </div>
                 </div>
             </div>
         </div>

@@ -193,15 +193,35 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             ball.x += ball.dx;
             ball.y += ball.dy;
 
-            // Wall collision
-            if (ball.x + ball.radius > GAME_WIDTH || ball.x - ball.radius < 0) { ball.dx = -ball.dx; playWallHit(); }
-            if (ball.y - ball.radius < 0) { ball.dy = -ball.dy; playWallHit(); }
+            // Wall collision - CORRECTION BUG BLOCAGE
+            if (ball.x + ball.radius >= GAME_WIDTH) { 
+                ball.x = GAME_WIDTH - ball.radius; // Push out
+                ball.dx = -Math.abs(ball.dx); // Force Left
+                playWallHit(); 
+            } else if (ball.x - ball.radius <= 0) { 
+                ball.x = ball.radius; // Push out
+                ball.dx = Math.abs(ball.dx); // Force Right
+                playWallHit(); 
+            }
+
+            if (ball.y - ball.radius <= 0) { 
+                ball.y = ball.radius; // Push out
+                ball.dy = Math.abs(ball.dy); // Force Down
+                playWallHit(); 
+            }
 
             // Paddle collision
             const paddleY = GAME_HEIGHT - 40;
-            if (ball.y + ball.radius > paddleY && ball.y - ball.radius < paddleY + paddle.height &&
-                ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
-                ball.dy = -ball.dy;
+            if (ball.dy > 0 && // Only check if ball is moving down
+                ball.y + ball.radius >= paddleY && 
+                ball.y - ball.radius < paddleY + paddle.height &&
+                ball.x >= paddle.x && 
+                ball.x <= paddle.x + paddle.width) {
+                
+                // Push out of paddle
+                ball.y = paddleY - ball.radius;
+                ball.dy = -Math.abs(ball.dy); // Force Up
+
                 let collidePoint = ball.x - (paddle.x + paddle.width / 2);
                 ball.dx = collidePoint * 0.1;
                 playPaddleHit();
