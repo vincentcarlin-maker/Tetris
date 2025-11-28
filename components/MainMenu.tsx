@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -398,6 +398,27 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             </div>
                         </div>
                      </button>
+                     
+                     {/* Pac-Man Coming Soon */}
+                     <div className="group relative w-full h-24 bg-gray-900/40 border border-yellow-500/20 rounded-xl overflow-hidden grayscale-[0.5] opacity-80 cursor-not-allowed">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-500/5 to-transparent"></div>
+                        <div className="flex items-center justify-between px-6 h-full relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-3 bg-gray-800 rounded-lg text-yellow-500 shadow-lg relative overflow-hidden">
+                                    <Ghost size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="text-2xl font-black text-gray-300 italic tracking-wide">NEON PAC</h3>
+                                    <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest bg-yellow-900/30 px-2 py-0.5 rounded border border-yellow-500/30">
+                                        BIENTÔT DISPONIBLE
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center text-gray-500">
+                                <Lock size={16} />
+                            </div>
+                        </div>
+                     </div>
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">

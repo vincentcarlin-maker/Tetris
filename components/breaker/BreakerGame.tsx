@@ -116,11 +116,11 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
 
         const type = weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
         powerUpsRef.current.push({ x, y, width: 30, height: 15, type, dy: 2 });
-        playPowerUpSpawn(); // Trigger spawn sound
+        playPowerUpSpawn(); // Play spawn sound
     };
     
     const activatePowerUp = (type: PowerUpType) => {
-        playPowerUpCollect(type); // Trigger collect sound specific to type
+        playPowerUpCollect(type); // Play collect sound
 
         if (type === 'PADDLE_GROW' || type === 'PADDLE_SHRINK') {
             clearTimeout(paddleEffectTimeoutRef.current);

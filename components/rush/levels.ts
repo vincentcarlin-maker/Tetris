@@ -1,3 +1,4 @@
+
 import { LevelData, CarData } from './types';
 
 // Palette de couleurs néon
@@ -88,7 +89,7 @@ const RAW_LEVELS = [
     c(6, 0, 3, 3, 'h'),
     c(7, 1, 4, 2, 'v'),
     c(8, 2, 5, 2, 'h'),
-    c(9, 5, 3, 3, 'v')
+    c(9, 5, 3, 2, 'v')
   ],
   // --- NIVEAU 8 (Moyen +) ---
   [
@@ -115,7 +116,7 @@ const RAW_LEVELS = [
   ],
   // --- NIVEAU 10 (Difficile - Certifié Soluble) ---
   [
-    c(0, 2, 2, 2, 'h', true),
+    c(0, 1, 2, 2, 'h', true), // CORRECTION: x=1 (was 2) to avoid collision with C4
     c(1, 2, 0, 2, 'v'),
     c(2, 3, 0, 2, 'h'),
     c(3, 5, 0, 3, 'v'),
@@ -128,7 +129,7 @@ const RAW_LEVELS = [
   ],
   // --- NIVEAU 11 (Expert - Certifié Soluble) ---
   [
-    c(0, 1, 2, 2, 'h', true),
+    c(0, 2, 2, 2, 'h', true), // CORRECTION: x=2 (was 1) to avoid collision with C6
     c(1, 0, 0, 3, 'v'),
     c(2, 1, 0, 2, 'h'),
     c(3, 3, 0, 2, 'v'),
@@ -162,7 +163,7 @@ const RAW_LEVELS = [
     c(1, 0, 0, 3, 'h'),
     c(2, 3, 0, 2, 'h'),
     c(3, 5, 0, 2, 'v'),
-    c(4, 1, 1, 2, 'v'), // Position corrigée
+    c(4, 1, 1, 2, 'v'),
     c(5, 4, 2, 2, 'v'),
     c(6, 0, 1, 3, 'v'),
     c(7, 1, 3, 2, 'h'),
@@ -193,7 +194,7 @@ const RAW_LEVELS = [
     c(3, 3, 0, 2, 'h'),
     c(4, 5, 0, 3, 'v'),
     c(5, 3, 1, 2, 'v'),
-    c(6, 4, 1, 2, 'h'),
+    c(6, 4, 1, 2, 'v'), // CORRECTION: Orientation 'v' (was 'h') to avoid collision with C4
     c(7, 0, 3, 2, 'v'),
     c(8, 1, 4, 2, 'v'),
     c(9, 2, 4, 2, 'h'),
