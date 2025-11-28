@@ -1,4 +1,3 @@
-
 import { LevelData, CarData } from './types';
 
 // Palette de couleurs néon
@@ -186,7 +185,7 @@ const RAW_LEVELS = [
     c(10, 5, 4, 2, 'v'),
     c(11, 0, 5, 2, 'h')
   ],
-  // --- NIVEAU 15 (Légende) ---
+  // --- NIVEAU 15 (Légende - Corrigé) ---
   [
     c(0, 1, 2, 2, 'h', true),
     c(1, 0, 0, 2, 'v'),
@@ -199,7 +198,7 @@ const RAW_LEVELS = [
     c(8, 1, 4, 2, 'v'),
     c(9, 2, 4, 2, 'h'),
     c(10, 2, 5, 2, 'h'),
-    c(11, 4, 4, 2, 'v')
+    c(11, 4, 4, 2, 'h') // CORRECTION: v -> h pour résoudre le blocage de la colonne 4
   ]
 ];
 
