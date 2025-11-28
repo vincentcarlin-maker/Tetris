@@ -20,7 +20,7 @@ export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: P
             const uniqueBlocks = new Set<string>();
             clearingRowsIndices.forEach(rowIndex => {
                 board[rowIndex].forEach(cell => {
-                    if (cell[0] !== '0' && cell[0] !== 0) {
+                    if (cell[0] !== '0') {
                         uniqueBlocks.add(String(cell[0]));
                     }
                 });
