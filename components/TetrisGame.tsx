@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Board } from './Board';
 import { GameInfo } from './GameInfo';
@@ -28,15 +29,17 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
 
     const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, heldTetromino, playerHold } = usePlayer();
     const [ghostPlayer, setGhostPlayer] = useState<Player | null>(null);
-    const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, ghostPlayer);
+    
+    // Destructuring audio functions
+    const { playMove, playRotate, playLand, playClear, playBlockDestroy, playGameOver, isMuted, toggleMute } = audio;
+
+    const { board, setBoard, rowsCleared } = useBoard(player, resetPlayer, ghostPlayer, playBlockDestroy);
     
     const [score, setScore] = useState(0);
     const [rows, setRows] = useState(0);
     const [level, setLevel] = useState(0);
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.tetris || 0;
-    
-    const { playMove, playRotate, playLand, playClear, playGameOver, isMuted, toggleMute } = audio;
     
     useEffect(() => {
         if (rowsCleared > 0) {
@@ -280,15 +283,35 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
 
                      {/* Pause Overlay */}
                      {!gameOver && isPaused && (
-                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-lg border border-white/10 animate-in fade-in duration-200">
-                            <h2 className="text-4xl font-bold text-white mb-8 tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md rounded-lg border border-white/10 animate-in fade-in duration-200 gap-4">
+                            <h2 className="text-4xl font-bold text-white mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
                                 PAUSE
                             </h2>
                             <button
                                 onClick={(e) => { e.preventDefault(); togglePause(); }}
-                                className="px-8 py-3 bg-neon-blue/20 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition-all touch-manipulation"
+                                className="w-56 py-3 bg-neon-blue/20 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition-all touch-manipulation flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.2)]"
                             >
-                                REPRENDRE
+                                <Play size={20} fill="currentColor" /> REPRENDRE
+                            </button>
+                            
+                             <button
+                                onClick={(e) => { 
+                                    e.preventDefault(); 
+                                    // Retour écran titre Tetris pour choisir difficulté
+                                    setScore(0);
+                                    setGameOver(true);
+                                    setIsPaused(false);
+                                }}
+                                className="w-56 py-3 bg-gray-800 border border-white/20 text-white font-bold rounded hover:bg-white hover:text-black transition-all touch-manipulation flex items-center justify-center gap-2"
+                            >
+                                <RotateCcw size={20} /> NOUVEAU JEU
+                            </button>
+
+                            <button
+                                onClick={(e) => { e.preventDefault(); onBack(); }}
+                                className="w-56 py-3 bg-gray-900 border border-red-500/50 text-red-400 font-bold rounded hover:bg-red-500 hover:text-white transition-all touch-manipulation flex items-center justify-center gap-2"
+                            >
+                                <Home size={20} /> RETOUR AU MENU
                             </button>
                         </div>
                      )}

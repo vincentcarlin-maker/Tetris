@@ -78,7 +78,7 @@ const RAW_LEVELS = [
     c(6, 0, 3, 2, 'h'),
     c(7, 4, 4, 2, 'h')
   ],
-  // --- NIVEAU 7 (Moyen - Corrigé Soluble) ---
+  // --- NIVEAU 7 (Moyen - Simplifié) ---
   [
     c(0, 1, 2, 2, 'h', true),
     c(1, 0, 0, 3, 'v'),
@@ -88,17 +88,17 @@ const RAW_LEVELS = [
     c(5, 4, 1, 2, 'v'),
     c(6, 0, 3, 3, 'h'),
     c(7, 1, 4, 2, 'v'),
-    c(8, 2, 5, 2, 'h'),
-    c(9, 5, 3, 2, 'v')
+    c(8, 2, 5, 2, 'h')
+    // Suppression de c9 pour faciliter le mouvement de c8
   ],
-  // --- NIVEAU 8 (Moyen +) ---
+  // --- NIVEAU 8 (Moyen + - Simplifié) ---
   [
     c(0, 1, 2, 2, 'h', true),
     c(1, 3, 0, 3, 'v'),
     c(2, 0, 1, 2, 'h'),
     c(3, 0, 2, 2, 'v'), // Bloque gauche
     c(4, 1, 4, 2, 'h'),
-    c(5, 4, 1, 2, 'v'),
+    c(5, 4, 0, 2, 'v'), // CORRECTION: y=0 (was 1) pour libérer (4,2)
     c(6, 3, 3, 2, 'h'),
     c(7, 5, 4, 2, 'v')
   ],
@@ -116,7 +116,7 @@ const RAW_LEVELS = [
   ],
   // --- NIVEAU 10 (Difficile - Certifié Soluble) ---
   [
-    c(0, 1, 2, 2, 'h', true), // CORRECTION: x=1 (was 2) to avoid collision with C4
+    c(0, 1, 2, 2, 'h', true),
     c(1, 2, 0, 2, 'v'),
     c(2, 3, 0, 2, 'h'),
     c(3, 5, 0, 3, 'v'),
@@ -129,7 +129,7 @@ const RAW_LEVELS = [
   ],
   // --- NIVEAU 11 (Expert - Certifié Soluble) ---
   [
-    c(0, 2, 2, 2, 'h', true), // CORRECTION: x=2 (was 1) to avoid collision with C6
+    c(0, 2, 2, 2, 'h', true),
     c(1, 0, 0, 3, 'v'),
     c(2, 1, 0, 2, 'h'),
     c(3, 3, 0, 2, 'v'),
@@ -152,7 +152,7 @@ const RAW_LEVELS = [
     c(5, 3, 1, 2, 'v'),
     c(6, 5, 1, 2, 'v'),
     c(7, 0, 3, 2, 'h'),
-    c(8, 2, 3, 3, 'h'),
+    c(8, 2, 3, 2, 'h'), // CORRECTION: Longueur 2 (was 3) pour éviter deadlock
     c(9, 0, 4, 2, 'v'),
     c(10, 1, 5, 2, 'h'),
     c(11, 4, 4, 2, 'h')
@@ -194,7 +194,7 @@ const RAW_LEVELS = [
     c(3, 3, 0, 2, 'h'),
     c(4, 5, 0, 3, 'v'),
     c(5, 3, 1, 2, 'v'),
-    c(6, 4, 1, 2, 'v'), // CORRECTION: Orientation 'v' (was 'h') to avoid collision with C4
+    c(6, 4, 1, 2, 'v'),
     c(7, 0, 3, 2, 'v'),
     c(8, 1, 4, 2, 'v'),
     c(9, 2, 4, 2, 'h'),

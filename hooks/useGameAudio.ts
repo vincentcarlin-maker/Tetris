@@ -55,6 +55,7 @@ export const useGameAudio = () => {
     
     const playLand = useCallback(() => playTone(100, 'sawtooth', 0.1, 0.05), [playTone]);
     
+    // Son général d'effacement de ligne (Arpège montant)
     const playClear = useCallback(() => {
         if (isMuted || !audioCtx.current) return;
         resume();
@@ -75,6 +76,73 @@ export const useGameAudio = () => {
             osc.start(startTime);
             osc.stop(startTime + 0.3);
         });
+    }, [isMuted, resume]);
+
+    // Son spécifique pour chaque type de bloc détruit
+    const playBlockDestroy = useCallback((blockType: string) => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+        
+        // Paramètres par défaut
+        let freq = 400;
+        let type: OscillatorType = 'triangle';
+        let duration = 0.1;
+        let vol = 0.05;
+
+        // Signature sonore par pièce
+        switch (blockType) {
+            case 'I': // Cyan: Cristallin, aigu
+                freq = 1200;
+                type = 'sine';
+                break;
+            case 'J': // Bleu: Profond
+                freq = 200;
+                type = 'square';
+                break;
+            case 'L': // Orange: Bois/Medium
+                freq = 400;
+                type = 'sawtooth';
+                break;
+            case 'O': // Jaune: Lourd, basse
+                freq = 100;
+                type = 'square';
+                vol = 0.08;
+                break;
+            case 'S': // Vert: Electrique, Zappy
+                freq = 800;
+                type = 'sawtooth';
+                break;
+            case 'T': // Violet: Magique
+                freq = 600;
+                type = 'sine';
+                break;
+            case 'Z': // Rouge: Agressif, crunch
+                freq = 250;
+                type = 'sawtooth';
+                break;
+            default:
+                freq = 300;
+        }
+
+        osc.type = type;
+        
+        // Petit effet de "pitch drop" pour l'effet destruction
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq / 2, now + duration);
+
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+
     }, [isMuted, resume]);
 
     const playVictory = useCallback(() => {
@@ -293,7 +361,8 @@ export const useGameAudio = () => {
         playMove, 
         playRotate, 
         playLand, 
-        playClear, 
+        playClear,
+        playBlockDestroy, // NEW
         playVictory,
         playGameOver, 
         playCarMove, 

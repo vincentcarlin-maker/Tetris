@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb } from 'lucide-react';
+import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb, PlayCircle, Loader2 } from 'lucide-react';
 import { CarData, LevelData } from './types';
 import { getLevel, TOTAL_LEVELS } from './levels';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useCurrency } from '../../hooks/useCurrency';
+import { solveLevel } from './solver';
 
 interface RushGameProps {
   onBack: () => void;
@@ -250,6 +251,10 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [earnedCoins, setEarnedCoins] = useState(0);
   
+  // Solver State
+  const [isSolving, setIsSolving] = useState(false);
+  const [solverStatus, setSolverStatus] = useState<'idle' | 'calculating' | 'playing'>('idle');
+  
   const { playCarExit, playCarMove, resumeAudio } = audio;
   const { highScores, updateHighScore } = useHighScores();
 
@@ -278,9 +283,12 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
     setIsWon(false);
     setIsExiting(false);
     setRewardClaimed(false);
+    setIsSolving(false);
+    setSolverStatus('idle');
   };
 
   const handleLevelChange = (direction: -1 | 1) => {
+    if (isSolving) return; // Block level change during solution
     const newId = currentLevelId + direction;
     // Vérifie les limites ET si le niveau est débloqué
     if (newId > 0 && newId <= TOTAL_LEVELS && newId <= maxUnlockedLevel) {
@@ -288,15 +296,57 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
     }
   };
 
-  // Use Solution Effect
-  const useSolution = () => {
-    if (isWon || isExiting) return;
-    setIsExiting(true);
-    playCarExit();
+  // --- AUTOMATIC SOLVER ---
+  const useSolution = async () => {
+    if (isWon || isExiting || isSolving) return;
+    
+    setIsSolving(true);
+    setSolverStatus('calculating');
+    setSelectedCarId(null); // Deselect user car
+
+    // Give UI a moment to render "Calculating"
     setTimeout(() => {
-        setIsWon(true);
-        saveProgress(currentLevelId);
-    }, 800);
+        const moves = solveLevel(cars);
+        
+        if (moves) {
+            setSolverStatus('playing');
+            let moveIndex = 0;
+            
+            const interval = setInterval(() => {
+                if (moveIndex >= moves.length) {
+                    clearInterval(interval);
+                    // Trigger win sequence
+                    setIsExiting(true);
+                    playCarExit();
+                    setTimeout(() => {
+                        setIsWon(true);
+                        saveProgress(currentLevelId);
+                        setIsSolving(false);
+                        setSolverStatus('idle');
+                    }, 800);
+                    return;
+                }
+
+                const move = moves[moveIndex];
+                
+                // Update specific car
+                setCars(prevCars => prevCars.map(c => {
+                    if (c.id === move.carId) {
+                        if (c.orientation === 'h') return { ...c, x: c.x + move.steps };
+                        return { ...c, y: c.y + move.steps };
+                    }
+                    return c;
+                }));
+                
+                playCarMove();
+                moveIndex++;
+            }, 300); // 300ms per move for nice visibility
+        } else {
+            setSolverStatus('idle');
+            setIsSolving(false);
+            alert("Erreur: Impossible de trouver une solution pour cette configuration.");
+        }
+    }, 100);
   };
 
   // Vérifie si une position est libre sur la grille
@@ -318,6 +368,8 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
   };
 
   const moveCar = useCallback((dir: -1 | 1) => {
+    if (isSolving) return; // Block manual moves during solution
+
     // 1. Force Audio Unlock agressif à chaque interaction
     resumeAudio();
 
@@ -370,23 +422,26 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
       });
       return newCars;
     });
-  }, [selectedCarId, isWon, isExiting, currentLevelId, maxUnlockedLevel, playCarExit, playCarMove, resumeAudio]);
+  }, [selectedCarId, isWon, isExiting, currentLevelId, maxUnlockedLevel, playCarExit, playCarMove, resumeAudio, isSolving]);
 
   // Give reward and update high score on win
   useEffect(() => {
       if (isWon && !rewardClaimed) {
-          addCoins(50);
+          // Don't give full reward if solved by AI (maybe reduced or none? kept full for now as purchased)
+          if (!isSolving) {
+            addCoins(50);
+            setEarnedCoins(50);
+            updateHighScore('rush', moveCount, currentLevelId);
+          }
           setRewardClaimed(true);
-          setEarnedCoins(prev => prev + 50);
-          updateHighScore('rush', moveCount, currentLevelId);
       }
-  }, [isWon, rewardClaimed, addCoins, updateHighScore, moveCount, currentLevelId]);
+  }, [isWon, rewardClaimed, addCoins, updateHighScore, moveCount, currentLevelId, isSolving]);
 
 
   // Gestion clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!selectedCarId) return;
+      if (!selectedCarId || isSolving) return;
       resumeAudio(); // Ensure audio is unlocked on keypress too
       const car = cars.find(c => c.id === selectedCarId);
       if (!car) return;
@@ -401,7 +456,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCarId, cars, moveCar, resumeAudio]);
+  }, [selectedCarId, cars, moveCar, resumeAudio, isSolving]);
 
   const selectedCar = cars.find(c => c.id === selectedCarId);
   const bestScore = highScores.rush?.[currentLevelId];
@@ -418,7 +473,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
 
       {/* Header */}
       <div className="w-full max-w-lg flex items-center justify-between z-10 shrink-0">
-        <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
+        <button onClick={onBack} disabled={isSolving} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform disabled:opacity-50">
           <Home size={20} />
         </button>
         <div className="flex flex-col items-center">
@@ -439,7 +494,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
             )}
           </div>
         </div>
-        <button onClick={() => loadLevel(currentLevelId)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
+        <button onClick={() => loadLevel(currentLevelId)} disabled={isSolving} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform disabled:opacity-50">
           <RefreshCw size={20} />
         </button>
       </div>
@@ -464,8 +519,8 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
             return (
               <div
                 key={car.id}
-                onClick={() => setSelectedCarId(car.id)}
-                className={`absolute cursor-pointer`}
+                onClick={() => !isSolving && setSelectedCarId(car.id)}
+                className={`absolute ${isSolving ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 style={{
                   left: `${car.x * CELL_SIZE}%`,
                   top: `${car.y * CELL_SIZE}%`,
@@ -481,6 +536,25 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
             );
         })}
 
+        {/* Solving Overlay */}
+        {isSolving && (
+             <div className="absolute inset-x-0 top-4 z-40 flex justify-center pointer-events-none">
+                 <div className="bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-purple-500/50 flex items-center gap-3 text-purple-300 shadow-lg">
+                    {solverStatus === 'calculating' ? (
+                        <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span className="text-xs font-bold tracking-widest">CALCUL...</span>
+                        </>
+                    ) : (
+                        <>
+                            <PlayCircle size={16} className="animate-pulse" />
+                            <span className="text-xs font-bold tracking-widest">DÉMONSTRATION...</span>
+                        </>
+                    )}
+                 </div>
+             </div>
+        )}
+
         {/* Victory Overlay */}
         {isWon && (
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-30 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
@@ -489,10 +563,13 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
                 VOIE<br/>LIBRE !
             </h3>
             
-            <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse relative z-10">
-                <Coins className="text-yellow-400" size={20} />
-                <span className="text-yellow-100 font-bold">+50 PIÈCES</span>
-            </div>
+            {/* Show coin reward only if played manually */}
+            {!isSolving && (
+                <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse relative z-10">
+                    <Coins className="text-yellow-400" size={20} />
+                    <span className="text-yellow-100 font-bold">+50 PIÈCES</span>
+                </div>
+            )}
 
             <div className="flex gap-4 relative z-10">
               <button 
@@ -516,7 +593,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
       <div className="w-full max-w-lg z-10 flex flex-col gap-4 shrink-0 pb-6">
 
         {/* --- MOVEMENT CONTROLS (Only visible if car selected) --- */}
-        {selectedCar && !isWon && (
+        {selectedCar && !isWon && !isSolving && (
             <div className="flex items-center justify-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {selectedCar.orientation === 'h' ? (
                     <>
@@ -567,7 +644,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
         {/* Navigation Niveaux */}
         <div className="flex items-center justify-center gap-6 bg-gray-900/50 p-2 rounded-xl border border-white/5">
             <button 
-                disabled={currentLevelId === 1}
+                disabled={currentLevelId === 1 || isSolving}
                 onClick={() => handleLevelChange(-1)} 
                 className="p-3 bg-gray-800/80 border border-white/10 rounded-lg disabled:opacity-30 transition-opacity"
             >
@@ -578,7 +655,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
                 <p className="text-lg font-black text-white leading-tight">NIVEAU {currentLevelId}</p>
             </div>
             <button 
-                disabled={currentLevelId >= maxUnlockedLevel}
+                disabled={currentLevelId >= maxUnlockedLevel || isSolving}
                 onClick={() => handleLevelChange(1)} 
                 className="p-3 bg-gray-800/80 border border-white/10 rounded-lg disabled:opacity-30 transition-opacity flex items-center gap-2"
             >
@@ -588,12 +665,12 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
         </div>
         
         {/* Solution Button */}
-        {hasBoughtSolution && !isWon && (
+        {hasBoughtSolution && !isWon && !isSolving && (
             <button 
                 onClick={useSolution}
                 className="mx-auto flex items-center gap-2 px-6 py-2 bg-purple-600/20 border border-purple-500/50 text-purple-300 rounded-full font-bold text-sm hover:bg-purple-600/40 transition-colors animate-pulse"
             >
-                <Lightbulb size={16} /> UTILISER LA SOLUTION
+                <Lightbulb size={16} /> VOIR LA SOLUTION
             </button>
         )}
 

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { createBoard, BOARD_WIDTH } from '../gameHelpers';
 import { Board, Player, TetrominoKey, Cell } from '../types';
 
-export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: Player | null) => {
+export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: Player | null, playBlockDestroy: (type: string) => void) => {
     const [board, setBoard] = useState(createBoard());
     const [rowsCleared, setRowsCleared] = useState(0);
 
@@ -15,6 +15,26 @@ export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: P
         }, [] as number[]);
 
         if (clearingRowsIndices.length > 0) {
+            
+            // 1. Identifier les types de blocs qui sont détruits pour jouer les sons
+            const uniqueBlocks = new Set<string>();
+            clearingRowsIndices.forEach(rowIndex => {
+                board[rowIndex].forEach(cell => {
+                    if (cell[0] !== '0' && cell[0] !== 0) {
+                        uniqueBlocks.add(String(cell[0]));
+                    }
+                });
+            });
+
+            // 2. Jouer un son pour chaque type de bloc unique présent dans les lignes détruites
+            uniqueBlocks.forEach((type) => {
+                // Petit délai aléatoire pour éviter que tous les sons se superposent parfaitement (phasing)
+                setTimeout(() => {
+                    playBlockDestroy(type);
+                }, Math.random() * 50);
+            });
+
+
             const timer = setTimeout(() => {
                 // Remove the clearing rows
                 setBoard(prev => {
@@ -32,7 +52,7 @@ export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: P
 
             return () => clearTimeout(timer);
         }
-    }, [board]);
+    }, [board, playBlockDestroy]);
 
     useEffect(() => {
         setRowsCleared(0);
