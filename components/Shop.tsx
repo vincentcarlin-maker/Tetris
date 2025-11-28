@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle } from 'lucide-react';
-import { useCurrency, Badge, Avatar } from '../hooks/useCurrency';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb } from 'lucide-react';
+import { useCurrency, Badge, Avatar, SOLUTION_COST } from '../hooks/useCurrency';
+import { TOTAL_LEVELS } from './rush/levels';
 
 interface ShopProps {
     onBack: () => void;
@@ -9,8 +10,11 @@ interface ShopProps {
 }
 
 export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
-    const { coins, inventory, buyBadge, catalog, avatarsCatalog, ownedAvatars, buyAvatar, selectAvatar, currentAvatarId } = currency;
-    const [activeTab, setActiveTab] = useState<'avatars' | 'badges'>('avatars');
+    const { coins, inventory, buyBadge, catalog, avatarsCatalog, ownedAvatars, buyAvatar, selectAvatar, currentAvatarId, unlockedSolutions, buySolution } = currency;
+    const [activeTab, setActiveTab] = useState<'avatars' | 'badges' | 'helps'>('avatars');
+
+    // Récupérer le niveau max débloqué pour savoir quelles solutions afficher
+    const maxUnlockedLevel = parseInt(localStorage.getItem('rush-unlocked-level') || '1', 10);
 
     const handleBuyBadge = (badge: Badge) => {
         if (!inventory.includes(badge.id) && coins >= badge.price) {
@@ -26,6 +30,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
             if (coins >= avatar.price) {
                 buyAvatar(avatar.id, avatar.price);
             }
+        }
+    };
+
+    const handleBuySolution = (levelId: number) => {
+        if (!unlockedSolutions.includes(levelId) && coins >= SOLUTION_COST) {
+            buySolution(levelId);
         }
     };
 
@@ -52,18 +62,24 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex px-4 pb-2 gap-4">
+                <div className="flex px-4 pb-2 gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                     <button 
                         onClick={() => setActiveTab('avatars')}
-                        className={`flex-1 py-3 text-sm font-bold tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 ${activeTab === 'avatars' ? 'border-neon-blue text-white bg-white/5' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                        className={`flex-1 py-3 px-2 text-sm font-bold tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'avatars' ? 'border-neon-blue text-white bg-white/5' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                     >
                         <User size={16} /> Avatars
                     </button>
                     <button 
                         onClick={() => setActiveTab('badges')}
-                        className={`flex-1 py-3 text-sm font-bold tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 ${activeTab === 'badges' ? 'border-neon-pink text-white bg-white/5' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                        className={`flex-1 py-3 px-2 text-sm font-bold tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'badges' ? 'border-neon-pink text-white bg-white/5' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                     >
                         <Shield size={16} /> Badges
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('helps')}
+                        className={`flex-1 py-3 px-2 text-sm font-bold tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'helps' ? 'border-purple-500 text-white bg-white/5' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                    >
+                        <Lightbulb size={16} /> Aides
                     </button>
                 </div>
             </div>
@@ -191,6 +207,64 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             );
                         })}
                     </div>
+                )}
+
+                {activeTab === 'helps' && (
+                     <div className="grid grid-cols-1 gap-4 p-4">
+                        <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-4 flex items-center gap-4 mb-4">
+                            <div className="p-3 bg-purple-900/40 rounded-full">
+                                <Lightbulb className="text-purple-400" size={24} />
+                            </div>
+                            <div className="text-sm text-gray-300">
+                                Achète la solution d'un niveau pour le passer instantanément si tu es bloqué.
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                             {Array.from({ length: TOTAL_LEVELS }).map((_, idx) => {
+                                 const levelId = idx + 1;
+                                 const isUnlocked = levelId <= maxUnlockedLevel;
+                                 const isBought = unlockedSolutions.includes(levelId);
+                                 const canBuy = coins >= SOLUTION_COST && isUnlocked && !isBought;
+
+                                 return (
+                                     <button
+                                         key={levelId}
+                                         disabled={!isUnlocked || isBought || !canBuy}
+                                         onClick={() => handleBuySolution(levelId)}
+                                         className={`
+                                             relative flex flex-col items-center justify-between p-3 rounded-lg border transition-all
+                                             ${isBought 
+                                                 ? 'bg-gray-900/80 border-purple-500/50' 
+                                                 : canBuy 
+                                                     ? 'bg-gray-800 border-white/10 hover:border-yellow-400 hover:bg-gray-700'
+                                                     : 'bg-black/40 border-white/5 opacity-50 cursor-not-allowed'
+                                             }
+                                         `}
+                                     >
+                                         <div className="flex items-center justify-between w-full mb-2">
+                                             <span className="font-bold text-gray-300">NIVEAU {levelId}</span>
+                                             {!isUnlocked && <Lock size={14} className="text-gray-600"/>}
+                                         </div>
+
+                                         {isBought ? (
+                                             <div className="w-full text-center bg-purple-500/20 text-purple-300 text-xs font-bold py-1 rounded border border-purple-500/30">
+                                                 ACQUIS
+                                             </div>
+                                         ) : (
+                                              <div className={`
+                                                 flex items-center justify-center gap-1 text-xs font-mono font-bold px-2 py-1.5 rounded w-full
+                                                 ${canBuy ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-500'}
+                                             `}>
+                                                 <Coins size={12} fill={canBuy ? 'black' : 'currentColor'} />
+                                                 {SOLUTION_COST}
+                                             </div>
+                                         )}
+                                     </button>
+                                 );
+                             })}
+                        </div>
+                     </div>
                 )}
             </div>
         </div>

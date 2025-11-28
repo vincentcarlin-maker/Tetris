@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins } from 'lucide-react';
+import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb } from 'lucide-react';
 import { CarData, LevelData } from './types';
 import { getLevel, TOTAL_LEVELS } from './levels';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
+import { useCurrency } from '../../hooks/useCurrency';
 
 interface RushGameProps {
   onBack: () => void;
   audio: ReturnType<typeof useGameAudio>;
-  addCoins: (amount: number) => void;
+  currency: ReturnType<typeof useCurrency>;
 }
 
 const GRID_SIZE = 6;
@@ -228,9 +229,18 @@ const CarVisual: React.FC<{ car: CarData, isSelected: boolean }> = ({ car, isSel
 };
 
 
-export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) => {
-  const [currentLevelId, setCurrentLevelId] = useState(1);
-  const [maxUnlockedLevel, setMaxUnlockedLevel] = useState(1);
+export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) => {
+  const { addCoins, unlockedSolutions } = currency;
+  
+  // Helper pour initialiser l'état avec la valeur sauvegardée
+  const getSavedLevel = () => {
+    const saved = localStorage.getItem('rush-unlocked-level');
+    return saved ? parseInt(saved, 10) : 1;
+  };
+
+  const [maxUnlockedLevel, setMaxUnlockedLevel] = useState(getSavedLevel);
+  const [currentLevelId, setCurrentLevelId] = useState(getSavedLevel);
+  
   const [cars, setCars] = useState<CarData[]>([]);
   const [selectedCarId, setSelectedCarId] = useState<number | null>(null);
   const [moveCount, setMoveCount] = useState(0);
@@ -245,14 +255,6 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
 
   // Pour empêcher le spam (Throttling)
   const lastMoveTime = useRef<number>(0);
-
-  // Chargement de la progression
-  useEffect(() => {
-    const savedLevel = localStorage.getItem('rush-unlocked-level');
-    if (savedLevel) {
-        setMaxUnlockedLevel(parseInt(savedLevel, 10));
-    }
-  }, []);
 
   // Initialisation du niveau
   useEffect(() => {
@@ -284,6 +286,17 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
     if (newId > 0 && newId <= TOTAL_LEVELS && newId <= maxUnlockedLevel) {
       setCurrentLevelId(newId);
     }
+  };
+
+  // Use Solution Effect
+  const useSolution = () => {
+    if (isWon || isExiting) return;
+    setIsExiting(true);
+    playCarExit();
+    setTimeout(() => {
+        setIsWon(true);
+        saveProgress(currentLevelId);
+    }, 800);
   };
 
   // Vérifie si une position est libre sur la grille
@@ -392,6 +405,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
 
   const selectedCar = cars.find(c => c.id === selectedCarId);
   const bestScore = highScores.rush?.[currentLevelId];
+  const hasBoughtSolution = unlockedSolutions.includes(currentLevelId);
 
   return (
     <div 
@@ -572,6 +586,17 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, addCoins }) =
                 <ChevronRight size={24} />
             </button>
         </div>
+        
+        {/* Solution Button */}
+        {hasBoughtSolution && !isWon && (
+            <button 
+                onClick={useSolution}
+                className="mx-auto flex items-center gap-2 px-6 py-2 bg-purple-600/20 border border-purple-500/50 text-purple-300 rounded-full font-bold text-sm hover:bg-purple-600/40 transition-colors animate-pulse"
+            >
+                <Lightbulb size={16} /> UTILISER LA SOLUTION
+            </button>
+        )}
+
       </div>
     </div>
   );

@@ -48,6 +48,8 @@ export const AVATARS_CATALOG: Avatar[] = [
     { id: 'av_king', name: 'Le King', price: 25000, icon: Crown, color: 'text-amber-400', bgGradient: 'from-amber-900/50 to-yellow-900/50' },
 ];
 
+export const SOLUTION_COST = 200;
+
 export const useCurrency = () => {
     const [coins, setCoins] = useState(0);
     const [inventory, setInventory] = useState<string[]>([]);
@@ -56,6 +58,9 @@ export const useCurrency = () => {
     const [username, setUsername] = useState("Joueur Néon");
     const [currentAvatarId, setCurrentAvatarId] = useState("av_bot");
     const [ownedAvatars, setOwnedAvatars] = useState<string[]>(["av_bot", "av_human"]);
+
+    // Game Unlocks
+    const [unlockedSolutions, setUnlockedSolutions] = useState<number[]>([]);
 
     useEffect(() => {
         // Load Economy
@@ -72,6 +77,10 @@ export const useCurrency = () => {
         if (storedName) setUsername(storedName);
         if (storedAvatar) setCurrentAvatarId(storedAvatar);
         if (storedOwnedAvatars) setOwnedAvatars(JSON.parse(storedOwnedAvatars));
+
+        // Load Solutions
+        const storedSolutions = localStorage.getItem('neon-rush-solutions');
+        if (storedSolutions) setUnlockedSolutions(JSON.parse(storedSolutions));
     }, []);
 
     const addCoins = useCallback((amount: number) => {
@@ -129,6 +138,24 @@ export const useCurrency = () => {
         }
     }, [ownedAvatars]);
 
+    const buySolution = useCallback((levelId: number) => {
+        setCoins(prev => {
+            if (prev >= SOLUTION_COST) {
+                const newBalance = prev - SOLUTION_COST;
+                localStorage.setItem('neon-coins', newBalance.toString());
+                
+                setUnlockedSolutions(prevSol => {
+                    if (prevSol.includes(levelId)) return prevSol;
+                    const newSol = [...prevSol, levelId];
+                    localStorage.setItem('neon-rush-solutions', JSON.stringify(newSol));
+                    return newSol;
+                });
+                return newBalance;
+            }
+            return prev;
+        });
+    }, []);
+
     // Système de Rangs basé sur le nombre de badges
     const playerRank = useMemo(() => {
         const count = inventory.length;
@@ -153,6 +180,9 @@ export const useCurrency = () => {
         selectAvatar,
         buyAvatar,
         ownedAvatars,
-        avatarsCatalog: AVATARS_CATALOG
+        avatarsCatalog: AVATARS_CATALOG,
+        // Game Unlocks
+        unlockedSolutions,
+        buySolution
     };
 };

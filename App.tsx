@@ -58,7 +58,7 @@ const App: React.FC = () => {
     }
 
     if (currentView === 'rush') {
-        return <RushGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+        return <RushGame onBack={handleBackToMenu} audio={audio} currency={currency} />;
     }
 
     if (currentView === 'connect4') {
