@@ -5,12 +5,14 @@ import { TetrisGame } from './components/TetrisGame';
 import { RushGame } from './components/rush/RushGame';
 import { Connect4Game } from './components/connect4/Connect4Game';
 import { SudokuGame } from './components/sudoku/SudokuGame';
+import { BreakerGame } from './components/breaker/BreakerGame';
+import { PacmanGame } from './components/pacman/PacmanGame';
 import { Shop } from './components/Shop';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
-import { BreakerGame } from './components/breaker/BreakerGame';
 
-type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'shop';
+
+type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -18,7 +20,7 @@ const App: React.FC = () => {
     const currency = useCurrency();
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker'];
+        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -42,6 +44,7 @@ const App: React.FC = () => {
         else if (game === 'connect4') setCurrentView('connect4');
         else if (game === 'sudoku') setCurrentView('sudoku');
         else if (game === 'breaker') setCurrentView('breaker');
+        else if (game === 'pacman') setCurrentView('pacman');
         else if (game === 'shop') setCurrentView('shop');
     };
 
@@ -71,6 +74,10 @@ const App: React.FC = () => {
 
     if (currentView === 'breaker') {
         return <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+    }
+    
+    if (currentView === 'pacman') {
+        return <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
     }
 
     return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} />;

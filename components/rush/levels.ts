@@ -171,15 +171,15 @@ const RAW_LEVELS = [
     c(9, 2, 4, 2, 'v'),
     c(10, 3, 5, 3, 'h')
   ],
-  // --- NIVEAU 14 (Grand Maître 2) ---
+  // --- NIVEAU 14 (Grand Maître 2 - Corrigé) ---
   [
     c(0, 0, 2, 2, 'h', true),
     c(1, 0, 0, 2, 'v'),
-    c(2, 1, 0, 2, 'h'),
+    c(2, 1, 0, 2, 'v'), // CORRECTION: Orientation 'h' -> 'v' pour débloquer la colonne 2
     c(3, 3, 0, 3, 'v'),
     c(4, 4, 0, 2, 'h'),
     c(5, 5, 1, 2, 'v'),
-    c(6, 0, 3, 3, 'h'),
+    c(6, 0, 3, 2, 'h'), // CORRECTION: Longueur 3 -> 2 pour éviter collision avec C8
     c(7, 2, 1, 2, 'v'),
     c(8, 2, 3, 2, 'v'),
     c(9, 3, 4, 2, 'h'),

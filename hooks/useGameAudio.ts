@@ -204,8 +204,6 @@ export const useGameAudio = () => {
         const gain = audioCtx.current.createGain();
         const filter = audioCtx.current.createBiquadFilter();
 
-        // Bruit de friction/moteur court
-        // MODIF IPHONE: Fréquence BEAUCOUP plus haute (400-600Hz) pour être audible sur petits haut-parleurs
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(400, now);
         osc.frequency.linearRampToValueAtTime(600, now + 0.15);
@@ -214,7 +212,6 @@ export const useGameAudio = () => {
         filter.frequency.setValueAtTime(1000, now);
         filter.frequency.linearRampToValueAtTime(500, now + 0.15);
 
-        // Volume boosté pour mobile
         gain.gain.setValueAtTime(0.25, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
 
@@ -231,24 +228,18 @@ export const useGameAudio = () => {
         resume();
         const now = audioCtx.current.currentTime;
 
-        // Création de l'effet moteur (Sawtooth wave pour le côté mécanique)
         const osc = audioCtx.current.createOscillator();
         const gain = audioCtx.current.createGain();
         const filter = audioCtx.current.createBiquadFilter();
 
         osc.type = 'sawtooth';
-        
-        // Simulation d'accélération (pitch qui monte)
-        // MODIF IPHONE: Départ à 600Hz, monte à 1200Hz. Très audible.
         osc.frequency.setValueAtTime(600, now); 
         osc.frequency.exponentialRampToValueAtTime(1200, now + 0.8); 
 
-        // Filtre très ouvert
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(2000, now);
         filter.frequency.linearRampToValueAtTime(4000, now + 0.8);
 
-        // Volume boosté
         gain.gain.setValueAtTime(0.5, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
 
@@ -281,7 +272,6 @@ export const useGameAudio = () => {
         osc.stop(now + 0.5);
     }, [isMuted, resume]);
 
-    // Power Up Spawn (Petit son aigu "magique")
     const playPowerUpSpawn = useCallback(() => {
         if (isMuted || !audioCtx.current) return;
         resume();
@@ -302,7 +292,6 @@ export const useGameAudio = () => {
         osc.stop(now + 0.1);
     }, [isMuted, resume]);
 
-    // Power Up Collect (Distinct selon le type)
     const playPowerUpCollect = useCallback((type: string) => {
         if (isMuted || !audioCtx.current) return;
         resume();
@@ -318,34 +307,26 @@ export const useGameAudio = () => {
         gain.connect(audioCtx.current.destination);
         
         if (type === 'PADDLE_GROW') {
-            // Son montant (positif)
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(400, now);
             osc.frequency.linearRampToValueAtTime(800, now + 0.3);
         } else if (type === 'PADDLE_SHRINK') {
-            // Son descendant (négatif)
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(800, now);
             osc.frequency.linearRampToValueAtTime(300, now + 0.3);
         } else if (type === 'EXTRA_LIFE') {
-            // Son "1-Up" très aigu et joyeux
             osc.type = 'square';
             osc.frequency.setValueAtTime(1046.5, now); // C6
             osc.frequency.setValueAtTime(1318.5, now + 0.1); // E6
             gain.gain.setValueAtTime(0.1, now + 0.1);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-            // On triche un peu pour le 1-up, on fait juste un saut ici
         } else if (type === 'MULTI_BALL') {
-            // Son rapide vibrant
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, now);
-            // Modulation simple par arpege rapide
             osc.frequency.setValueAtTime(600, now);
             osc.frequency.linearRampToValueAtTime(1200, now + 0.05);
             osc.frequency.linearRampToValueAtTime(600, now + 0.1);
             osc.frequency.linearRampToValueAtTime(1200, now + 0.15);
         } else {
-            // Default (Speed change) - Sci-fi sweep
             osc.type = 'sine';
             osc.frequency.setValueAtTime(800, now);
             osc.frequency.exponentialRampToValueAtTime(1500, now + 0.2);
@@ -356,13 +337,76 @@ export const useGameAudio = () => {
 
     }, [isMuted, resume]);
 
+    // PACMAN SOUNDS
+    const playPacmanWaka = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.linearRampToValueAtTime(400, now + 0.1);
+        osc.frequency.linearRampToValueAtTime(200, now + 0.2);
+
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }, [isMuted, resume]);
+
+    const playPacmanEatGhost = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(1600, now + 0.1);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    }, [isMuted, resume]);
+    
+    const playPacmanPower = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.linearRampToValueAtTime(1200, now + 0.4);
+
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }, [isMuted, resume]);
+
 
     return { 
         playMove, 
         playRotate, 
         playLand, 
         playClear,
-        playBlockDestroy, // NEW
+        playBlockDestroy,
         playVictory,
         playGameOver, 
         playCarMove, 
@@ -373,6 +417,9 @@ export const useGameAudio = () => {
         playLoseLife,
         playPowerUpSpawn,
         playPowerUpCollect,
+        playPacmanWaka,
+        playPacmanEatGhost,
+        playPacmanPower,
         isMuted, 
         toggleMute,
         resumeAudio: resume

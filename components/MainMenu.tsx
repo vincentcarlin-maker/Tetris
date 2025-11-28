@@ -95,6 +95,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const sudokuMediumBest = highScores.sudoku?.medium;
     const sudokuHardBest = highScores.sudoku?.hard;
     const breakerHighScore = highScores.breaker || 0;
+    const pacmanHighScore = highScores.pacman || 0;
 
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12] overflow-y-auto">
@@ -235,6 +236,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             <div className="py-2 border-t border-white/5">
                                 <h4 className="font-bold text-neon-pink">NEON BREAKER</h4>
                                 <p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p>
+                            </div>
+                            <div className="py-2 border-t border-white/5">
+                                <h4 className="font-bold text-yellow-400">NEON PAC</h4>
+                                <p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p>
                             </div>
                             <div className="py-2 border-t border-white/5">
                                 <h4 className="font-bold text-purple-400">NEON RUSH</h4>
@@ -399,30 +404,31 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         </div>
                      </button>
                      
-                     {/* Pac-Man Coming Soon */}
-                     <div className="group relative w-full h-24 bg-gray-900/40 border border-yellow-500/20 rounded-xl overflow-hidden grayscale-[0.5] opacity-80 cursor-not-allowed">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-500/5 to-transparent"></div>
+                     {/* Pac-Man (UNLOCKED) */}
+                     <button 
+                        onClick={() => onSelectGame('pacman')}
+                        className="group relative w-full h-24 bg-gray-900/60 border border-yellow-500/30 hover:border-yellow-500 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(234,179,8,0.2)] active:scale-[0.98]"
+                     >
+                        <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                             <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-yellow-500 shadow-lg relative overflow-hidden">
+                                <div className="p-3 bg-gray-800 rounded-lg text-yellow-500 group-hover:bg-yellow-500 group-hover:text-black transition-colors shadow-lg">
                                     <Ghost size={28} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-gray-300 italic tracking-wide">NEON PAC</h3>
-                                    <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest bg-yellow-900/30 px-2 py-0.5 rounded border border-yellow-500/30">
-                                        BIENTÔT DISPONIBLE
-                                    </span>
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-yellow-400 transition-colors italic">NEON PAC</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                 </div>
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center text-gray-500">
-                                <Lock size={16} />
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-black transition-all">
+                                <Play size={16} className="ml-1" />
                             </div>
                         </div>
-                     </div>
+                     </button>
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.7.0 • AVATAR UPDATE
+                    v1.8.0 • NEON PAC UPDATE
                  </div>
              </div>
         </div>
