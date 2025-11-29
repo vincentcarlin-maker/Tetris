@@ -35,6 +35,12 @@ interface ChatMessage {
     timestamp: number;
 }
 
+interface GameSession {
+    id: string;
+    opponentId: string;
+    isGameHost: boolean; // True if I challenged, false if I was challenged
+}
+
 // Helpers
 const createBoard = (): BoardState => Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
 
@@ -82,7 +88,7 @@ const checkWinFull = (board: BoardState): WinState => {
 interface SalonPlayerCardProps {
     player: PlayerInfo;
     myId: string | null;
-    outgoingInvite: string | null;
+    outgoingInvite: { targetId: string; gameId: string } | null;
     onInvite: (id: string) => void;
     onCancel: () => void;
 }
@@ -92,7 +98,7 @@ const SalonPlayerCard: React.FC<SalonPlayerCardProps> = ({ player, myId, outgoin
     const AvatarIcon = av ? av.icon : User;
     const isMe = player.id === myId;
     const isBusy = player.status === 'PLAYING';
-    const isInvited = outgoingInvite === player.id;
+    const isInvited = outgoingInvite?.targetId === player.id;
     
     return (
         <div className={`flex items-center justify-between p-3 rounded-xl border mb-2 transition-all ${isMe ? 'bg-gray-800/50 border-white/20' : 'bg-black/50 border-white/10 hover:bg-white/5'}`}>
@@ -145,12 +151,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Multiplayer Hook
   const mp = useMultiplayer();
-  const [isLobbyOpen, setIsLobbyOpen] = useState(false);
   
-  // MATCHMAKING STATE
-  const [opponentId, setOpponentId] = useState<string | null>(null); // If set, we are IN GAME
-  const [incomingInvite, setIncomingInvite] = useState<{from: string, name: string} | null>(null);
-  const [outgoingInvite, setOutgoingInvite] = useState<string | null>(null); // ID of player we invited
+  // MATCHMAKING & GAME STATE
+  const [isLobbyOpen, setIsLobbyOpen] = useState(false);
+  const [gameSession, setGameSession] = useState<GameSession | null>(null);
+  const [incomingInvite, setIncomingInvite] = useState<{from: string, name: string, gameId: string} | null>(null);
+  const [outgoingInvite, setOutgoingInvite] = useState<{ targetId: string; gameId: string } | null>(null);
   
   // Identity
   const { username, currentAvatarId } = useCurrency();
@@ -181,14 +187,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  const isPlayer1 = gameMode === 'ONLINE' && opponentId && outgoingInvite === opponentId;
-  const isPlayer2 = gameMode === 'ONLINE' && opponentId && !isPlayer1;
-
-  // Ref to hold a copy of state for stable callbacks, preventing stale closures.
-  const multiplayerStateRef = useRef({ opponentId, outgoingInvite, incomingInvite, isPlayer1, isPlayer2, currentPlayer });
+  const multiplayerStateRef = useRef({ gameSession, outgoingInvite, incomingInvite, currentPlayer });
   useEffect(() => {
-      multiplayerStateRef.current = { opponentId, outgoingInvite, incomingInvite, isPlayer1, isPlayer2, currentPlayer };
-  }, [opponentId, outgoingInvite, incomingInvite, isPlayer1, isPlayer2, currentPlayer]);
+      multiplayerStateRef.current = { gameSession, outgoingInvite, incomingInvite, currentPlayer };
+  }, [gameSession, outgoingInvite, incomingInvite, currentPlayer]);
 
 
   // Sync Self Info to Multiplayer State
@@ -215,10 +217,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         setChatHistory([]);
     }
 
-    if (sendSync && gameMode === 'ONLINE' && opponentId) {
-        mp.sendTo(opponentId, { type: 'RESET' });
+    if (sendSync && gameMode === 'ONLINE' && gameSession) {
+        mp.sendTo(gameSession.opponentId, { type: 'RESET' });
     }
-  }, [mp, gameMode, opponentId]);
+  }, [mp, gameMode, gameSession]);
 
   // Handle Mode Change
   const cycleMode = () => {
@@ -227,13 +229,13 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         setGameMode('ONLINE');
         mp.initializePeer();
         setIsLobbyOpen(true);
-        setOpponentId(null); // No opponent yet
+        setGameSession(null);
     }
     else {
         setGameMode('PVE');
         mp.disconnect();
         setIsLobbyOpen(false);
-        setOpponentId(null);
+        setGameSession(null);
     }
     resetGame();
   };
@@ -241,7 +243,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // --- AUTO CONNECT LOGIC ---
   useEffect(() => {
     if (gameMode === 'ONLINE' && isLobbyOpen) {
-        // Only try to connect if we're in a clean state with no errors.
         const shouldConnect = !mp.isConnected && !mp.isHost && !mp.isLoading && !mp.connectionErrorType;
         if (shouldConnect) {
              mp.connectToPeer(mp.GLOBAL_ROOM_ID);
@@ -281,9 +282,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     if (gameMode === 'PVE' && !isAi && isAiThinking) return;
 
     if (gameMode === 'ONLINE') {
-        if (!state.opponentId) return;
-        if (state.isPlayer1 && state.currentPlayer !== 1 && !isRemote) return;
-        if (state.isPlayer2 && state.currentPlayer !== 2 && !isRemote) return;
+        if (!state.gameSession) return;
+        const isMyTurn = (state.gameSession.isGameHost && state.currentPlayer === 1) || (!state.gameSession.isGameHost && state.currentPlayer === 2);
+        if (!isMyTurn && !isRemote) return;
     }
     
     let rowIndex = -1;
@@ -305,8 +306,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setAnimatingCell({ r: rowIndex, c: colIndex });
     playMove(); 
 
-    if (gameMode === 'ONLINE' && !isRemote && state.opponentId) {
-        mp.sendTo(state.opponentId, { type: 'MOVE', col: colIndex });
+    if (gameMode === 'ONLINE' && !isRemote && state.gameSession) {
+        mp.sendTo(state.gameSession.opponentId, { type: 'MOVE', col: colIndex });
     }
 
     animationTimerRef.current = setTimeout(() => {
@@ -317,8 +318,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         if (result.winner) {
           setWinState(result);
           
-          const isMyWin = (gameMode === 'ONLINE' && ((state.isPlayer1 && result.winner === 1) || (state.isPlayer2 && result.winner === 2))) ||
-                          (gameMode !== 'ONLINE' && result.winner === 1);
+          const isMyWin = gameMode === 'ONLINE' && state.gameSession && (
+              (state.gameSession.isGameHost && result.winner === 1) || (!state.gameSession.isGameHost && result.winner === 2)
+          ) || (gameMode !== 'ONLINE' && result.winner === 1);
 
           if (isMyWin) {
               playVictory();
@@ -337,17 +339,17 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
-      if (gameMode === 'ONLINE' && opponentId) {
+      if (gameMode === 'ONLINE' && gameSession) {
           setActiveReaction({ id: reactionId, isMe: true });
-          mp.sendTo(opponentId, { type: 'REACTION', id: reactionId });
+          mp.sendTo(gameSession.opponentId, { type: 'REACTION', id: reactionId });
           setTimeout(() => setActiveReaction(null), 3000);
       }
-  }, [gameMode, opponentId, mp]);
+  }, [gameMode, gameSession, mp]);
 
   // Send Chat
   const sendChat = (e?: React.FormEvent) => {
       if (e) e.preventDefault();
-      if (!chatInput.trim() || !opponentId) return;
+      if (!chatInput.trim() || !gameSession) return;
       
       const msg: ChatMessage = {
           id: Date.now(),
@@ -358,30 +360,29 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       };
       
       setChatHistory(prev => [...prev, msg]);
-      mp.sendTo(opponentId, { type: 'CHAT', text: msg.text, senderName: username });
+      mp.sendTo(gameSession.opponentId, { type: 'CHAT', text: msg.text, senderName: username });
       setChatInput('');
   };
 
   // Invite Logic
   const sendInvite = useCallback((targetId: string) => {
-      setOutgoingInvite(targetId);
-      // Manually sync ref to prevent race condition where ACCEPT arrives before state update
-      multiplayerStateRef.current.outgoingInvite = targetId; 
-      mp.sendTo(targetId, { type: 'INVITE', name: username });
+      const gameId = Math.random().toString(36).substring(2, 9);
+      setOutgoingInvite({ targetId, gameId });
+      mp.sendTo(targetId, { type: 'INVITE', name: username, gameId });
   }, [mp, username]);
 
   const acceptInvite = useCallback(() => {
     if (!incomingInvite) return;
+    const { from, gameId } = incomingInvite;
+
+    mp.sendTo(from, { type: 'ACCEPT_INVITE', gameId });
+    mp.updateStatus('PLAYING');
     
-    const fromId = incomingInvite.from;
-    
-    setOutgoingInvite(null);
-    setOpponentId(fromId);
+    setGameSession({ id: gameId, opponentId: from, isGameHost: false });
     setIsLobbyOpen(false);
     resetGame(false);
-    mp.sendTo(fromId, { type: 'ACCEPT_INVITE' });
-    mp.updateStatus('PLAYING');
     setIncomingInvite(null);
+    setOutgoingInvite(null);
     
   }, [mp, resetGame, incomingInvite]);
 
@@ -393,10 +394,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   
   const cancelInvite = useCallback(() => {
       if (!outgoingInvite) return;
-      // Future: send a CANCEL message to the other player.
+      mp.sendTo(outgoingInvite.targetId, { type: 'DECLINE_INVITE' });
       setOutgoingInvite(null);
-      multiplayerStateRef.current.outgoingInvite = null; // Manually sync ref
-  }, [outgoingInvite]);
+  }, [outgoingInvite, mp]);
 
 
   // SEND REQUEST INFO (HOST to GUEST) or GUEST INFO (GUEST to HOST)
@@ -417,7 +417,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             const state = multiplayerStateRef.current;
             const sender = data.sender || data.from;
 
-            if (sender === state.opponentId) {
+            if (state.gameSession && sender === state.gameSession.opponentId) {
                 if (data.type === 'MOVE') handleColumnClick(data.col, false, true);
                 if (data.type === 'RESET') resetGame(false);
                 if (data.type === 'REACTION') {
@@ -428,32 +428,33 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
                 }
                 if (data.type === 'QUIT_GAME') {
-                    setOpponentId(null); setIsLobbyOpen(true); setChatHistory([]); mp.updateStatus('AVAILABLE'); alert("L'adversaire a quitté la partie.");
+                    setGameSession(null); setIsLobbyOpen(true); setChatHistory([]); mp.updateStatus('AVAILABLE'); alert("L'adversaire a quitté la partie.");
                 }
             }
 
             if (data.type === 'INVITE') {
-                if (!state.opponentId && !state.incomingInvite) {
-                    setIncomingInvite({ from: sender, name: data.name });
+                if (!state.gameSession && !state.incomingInvite) {
+                    setIncomingInvite({ from: sender, name: data.name, gameId: data.gameId });
                 } else {
                     mp.sendTo(sender, { type: 'BUSY' });
                 }
             }
             if (data.type === 'ACCEPT_INVITE') {
-                if (state.outgoingInvite === sender) {
-                    setOpponentId(sender);
+                if (state.outgoingInvite && state.outgoingInvite.targetId === sender && state.outgoingInvite.gameId === data.gameId) {
+                    mp.updateStatus('PLAYING');
+                    setGameSession({ id: data.gameId, opponentId: sender, isGameHost: true });
                     setIsLobbyOpen(false);
                     resetGame();
-                    mp.updateStatus('PLAYING');
+                    setOutgoingInvite(null);
                 }
             }
             if (data.type === 'DECLINE_INVITE') {
-                if (state.outgoingInvite === sender) {
+                if (state.outgoingInvite && state.outgoingInvite.targetId === sender) {
                     setOutgoingInvite(null); alert("Invitation refusée.");
                 }
             }
             if (data.type === 'BUSY') {
-                 if (state.outgoingInvite === sender) {
+                 if (state.outgoingInvite && state.outgoingInvite.targetId === sender) {
                     setOutgoingInvite(null); alert("Ce joueur est déjà en partie.");
                 }
             }
@@ -493,10 +494,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
 
   const quitOnlineGame = () => {
-      if (opponentId) {
-          mp.sendTo(opponentId, { type: 'QUIT_GAME' });
+      if (gameSession) {
+          mp.sendTo(gameSession.opponentId, { type: 'QUIT_GAME' });
       }
-      setOpponentId(null);
+      setGameSession(null);
       setIsLobbyOpen(true);
       setChatHistory([]);
       mp.updateStatus('AVAILABLE');
@@ -592,7 +593,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
          </div>
 
          <div className="z-20 relative min-w-[40px] flex justify-end">
-            {(gameMode !== 'ONLINE' || opponentId) && (
+            {(gameMode !== 'ONLINE' || gameSession) && (
                 <button onClick={() => resetGame(true)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
                     <RefreshCw size={20} />
                 </button>
@@ -605,7 +606,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           <div className="flex items-center gap-4">
             <button 
                 onClick={cycleMode}
-                disabled={gameMode === 'ONLINE' && !!opponentId} // Lock mode change during online game
+                disabled={gameMode === 'ONLINE' && !!gameSession} // Lock mode change during online game
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[110px] disabled:opacity-50"
             >
                 {gameMode === 'PVE' && <Cpu size={14} className="text-neon-blue"/>}
@@ -713,8 +714,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             }`}>
                 <CircleDot size={12} className={isAiThinking ? 'animate-spin' : ''} /> 
                 {gameMode === 'ONLINE' ? (
-                    opponentId ? (
-                        (isPlayer1 && currentPlayer === 1) || (isPlayer2 && currentPlayer === 2) 
+                    gameSession ? (
+                        (gameSession.isGameHost && currentPlayer === 1) || (!gameSession.isGameHost && currentPlayer === 2) 
                         ? "C'EST TON TOUR !" 
                         : "L'ADVERSAIRE RÉFLÉCHIT..."
                     ) : "EN ATTENTE..."
@@ -725,7 +726,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        )}
 
        {/* Game Board */}
-       <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md transition-opacity duration-500 ${(gameMode === 'ONLINE' && !opponentId) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+       <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md transition-opacity duration-500 ${(gameMode === 'ONLINE' && !gameSession) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
            
            {activeReaction && (() => {
                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
@@ -781,7 +782,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        </div>
 
        {/* REACTION & CHAT BAR (Only for Online & In Game) */}
-       {gameMode === 'ONLINE' && opponentId && !winState.winner && (
+       {gameMode === 'ONLINE' && gameSession && !winState.winner && (
             <div className="w-full max-w-lg mt-4 flex flex-col gap-3 animate-in slide-in-from-bottom-4 z-20">
                 <div className="flex justify-between items-center gap-2 p-2 bg-gray-900/80 rounded-2xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] overflow-x-auto no-scrollbar">
                     {REACTIONS.map(reaction => {
@@ -826,7 +827,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        )}
        
        {/* Quit Button (In Game) */}
-       {gameMode === 'ONLINE' && opponentId && (
+       {gameMode === 'ONLINE' && gameSession && (
             <button onClick={quitOnlineGame} className="mt-2 text-xs text-red-400 underline hover:text-red-300 z-10">
                 Quitter la partie
             </button>
@@ -835,7 +836,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         {/* Victory/Draw Actions */}
         {winState.winner && (
              <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
-                 {(winState.winner !== 'DRAW' && ((isPlayer1 && winState.winner === 1) || (isPlayer2 && winState.winner === 2) || (gameMode !== 'ONLINE' && winState.winner === 1))) && (
+                 {(winState.winner !== 'DRAW' && gameMode === 'ONLINE' && gameSession && ((gameSession.isGameHost && winState.winner === 1) || (!gameSession.isGameHost && winState.winner === 2)) || (gameMode !== 'ONLINE' && winState.winner === 1)) && (
                     <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
                         <Coins className="text-yellow-400" size={20} />
                         <span className="text-yellow-100 font-bold">+30 PIÈCES</span>
@@ -845,13 +846,13 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     <span className="text-xl font-black italic">
                         {winState.winner === 'DRAW' 
                             ? "MATCH NUL" 
-                            : gameMode === 'ONLINE'
-                                ? ((isPlayer1 && winState.winner === 1) || (isPlayer2 && winState.winner === 2) ? "TU AS GAGNÉ !" : "TU AS PERDU...")
+                            : gameMode === 'ONLINE' && gameSession
+                                ? ((gameSession.isGameHost && winState.winner === 1) || (!gameSession.isGameHost && winState.winner === 2) ? "TU AS GAGNÉ !" : "TU AS PERDU...")
                                 : `VICTOIRE JOUEUR ${winState.winner} !`
                         }
                     </span>
                 </div>
-                {(gameMode !== 'ONLINE' || mp.isHost) && (
+                {(gameMode !== 'ONLINE' || (gameSession && gameSession.isGameHost)) && (
                     <button
                         onClick={() => resetGame(true)}
                         className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"
@@ -859,7 +860,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                         <Play size={20} fill="black"/> REJOUER
                     </button>
                 )}
-                {gameMode === 'ONLINE' && !mp.isHost && (
+                {gameMode === 'ONLINE' && gameSession && !gameSession.isGameHost && (
                     <div className="text-xs text-gray-500 animate-pulse">
                         En attente de l'hôte pour rejouer...
                     </div>
