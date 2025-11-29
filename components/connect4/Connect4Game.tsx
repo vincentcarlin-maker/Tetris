@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Users, Hand, Smile, Frown, ThumbsUp, Heart, Zap, MessageSquare, Send } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Users, Hand, Smile, Frown, ThumbsUp, Heart, Zap, MessageSquare, Send, Flame } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
+import { useCurrency } from '../../hooks/useCurrency';
 
 interface Connect4GameProps {
   onBack: () => void;
@@ -20,6 +21,7 @@ const REACTIONS = [
     { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500' },
     { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
+    { id: 'angry', icon: Flame, color: 'text-red-500', bg: 'bg-red-500/20', border: 'border-red-500' }, // Colère ajoutée
     { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500' },
     { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500' },
     { id: 'shock', icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500' },
@@ -91,6 +93,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // Multiplayer Hook
   const mp = useMultiplayer();
   const [remoteCodeInput, setRemoteCodeInput] = useState('');
+  const [isLobbyOpen, setIsLobbyOpen] = useState(false);
+  
+  // Identity
+  const { username } = useCurrency();
   
   // Interaction State
   const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
@@ -129,10 +135,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     else if (gameMode === 'PVP') {
         setGameMode('ONLINE');
         mp.initializePeer();
+        setIsLobbyOpen(true);
     }
     else {
         setGameMode('PVE');
         mp.disconnect();
+        setIsLobbyOpen(false);
     }
     resetGame();
   };
@@ -218,7 +226,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       if (gameMode === 'ONLINE' && mp.isConnected) {
           setActiveReaction({ id: reactionId, isMe: true });
           mp.sendData({ type: 'REACTION', id: reactionId });
-          setTimeout(() => setActiveReaction(null), 2000);
+          setTimeout(() => setActiveReaction(null), 3000);
       }
   }, [gameMode, mp.isConnected, mp]);
 
@@ -239,6 +247,13 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       setChatInput('');
   };
 
+  // Exchange Names on connection
+  useEffect(() => {
+      if (gameMode === 'ONLINE' && mp.isConnected) {
+          mp.sendData({ type: 'NAME', name: username });
+      }
+  }, [gameMode, mp.isConnected, username]);
+
   // Multiplayer Data Handling
   useEffect(() => {
     if (gameMode === 'ONLINE') {
@@ -251,7 +266,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             }
             if (data.type === 'REACTION') {
                 setActiveReaction({ id: data.id, isMe: false });
-                setTimeout(() => setActiveReaction(null), 2000);
+                setTimeout(() => setActiveReaction(null), 3000);
             }
             if (data.type === 'CHAT') {
                 const msg: ChatMessage = {
@@ -346,48 +361,90 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 {difficulty === 'HARD' && <span className="text-red-500">DIFFICILE</span>}
               </button>
           ) : gameMode === 'ONLINE' ? (
-              <div className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 ${mp.isConnected ? 'bg-green-900/30 border-green-500 text-green-400' : 'bg-red-900/30 border-red-500 text-red-400'}`}>
-                  {mp.isConnected ? 'CONNECTÉ' : 'DÉCONNECTÉ'}
-              </div>
+              <button 
+                onClick={() => setIsLobbyOpen(true)}
+                className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 ${mp.isConnected ? 'bg-green-900/30 border-green-500 text-green-400 animate-pulse' : 'bg-red-900/30 border-red-500 text-red-400'}`}
+              >
+                  {mp.isConnected ? 'SALON CONNECTÉ' : 'SALON DÉCONNECTÉ'}
+              </button>
           ) : <div className="w-[80px]"></div>}
        </div>
 
-       {/* ONLINE LOBBY OVERLAY */}
-       {gameMode === 'ONLINE' && !mp.isConnected && (
-           <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-8 pb-20">
-               <h2 className="text-3xl font-black italic text-white mb-2 text-center">SALON ONLINE</h2>
-               {mp.error && <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded-lg mb-4 text-xs">{mp.error}</div>}
+       {/* ONLINE LOBBY OVERLAY (REFINED) */}
+       {gameMode === 'ONLINE' && isLobbyOpen && (
+           <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-8 pb-20 animate-in fade-in duration-300">
+               <h2 className="text-3xl font-black italic text-white mb-6 text-center">SALON MULTIJOUEUR</h2>
                
-               <div className="w-full max-w-sm px-4 grid gap-6">
-                   <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
-                       <h3 className="text-neon-pink font-bold tracking-widest text-[10px] mb-2 uppercase">Votre Code Joueur</h3>
-                       {mp.isLoading ? (
-                           <div className="flex items-center gap-2 text-gray-400 text-xs h-12"><Loader2 size={16} className="animate-spin" /> Connexion...</div>
-                       ) : (
-                           <div className="text-4xl font-mono font-bold text-neon-pink tracking-widest drop-shadow-[0_0_10px_#ff00ff]">{mp.shortId || '----'}</div>
-                       )}
+               {/* STATUS INDICATOR (DOT) */}
+               <div className="flex flex-col items-center mb-8 gap-4">
+                   <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${mp.isConnected ? 'bg-green-500 shadow-[0_0_50px_#22c55e]' : 'bg-red-500 shadow-[0_0_50px_#ef4444]'}`}>
+                        <div className={`absolute inset-0 rounded-full border-4 border-white/20 ${mp.isConnected ? 'animate-ping' : ''}`}></div>
+                        {mp.isConnected ? <Users size={40} className="text-white" /> : <Loader2 size={40} className="text-white animate-spin" />}
                    </div>
-
-                   <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
-                       <h3 className="text-neon-blue font-bold tracking-widest text-[10px] mb-3 uppercase">Code Adversaire</h3>
-                       <div className="flex items-center gap-2 mb-4">
-                           <div className="h-12 w-32 bg-black/50 border-2 border-neon-blue rounded-lg flex items-center justify-center text-2xl font-mono font-bold text-white tracking-widest">{remoteCodeInput}<span className="animate-pulse text-neon-blue ml-1">_</span></div>
-                           <button onClick={() => mp.connectToPeer(remoteCodeInput)} disabled={remoteCodeInput.length !== 4} className="h-12 px-6 bg-neon-blue text-black font-bold rounded-lg hover:bg-white disabled:opacity-50 transition-all">REJOINDRE</button>
-                       </div>
-                       <div className="grid grid-cols-3 gap-2 w-full max-w-[200px]">
-                           {[1,2,3,4,5,6,7,8,9].map(n => <button key={n} onClick={() => handleNumpad(n.toString())} className="h-10 bg-gray-800 rounded text-white font-bold">{n}</button>)}
-                           <button onClick={() => setRemoteCodeInput('')} className="h-10 bg-gray-800 rounded text-red-400 font-bold text-xs">C</button>
-                           <button onClick={() => handleNumpad('0')} className="h-10 bg-gray-800 rounded text-white font-bold">0</button>
-                           <button onClick={() => handleNumpad('DEL')} className="h-10 bg-gray-800 rounded text-gray-300 font-bold text-xs">DEL</button>
-                       </div>
+                   
+                   <div className="text-center">
+                        <h3 className={`text-xl font-bold ${mp.isConnected ? 'text-green-400' : 'text-red-400'}`}>
+                            {mp.isConnected ? 'CONNEXION ÉTABLIE' : 'EN ATTENTE...'}
+                        </h3>
+                        {mp.isConnected ? (
+                            <p className="text-white mt-1">
+                                Adversaire : <span className="font-mono text-neon-pink font-bold">{mp.opponentName || 'Inconnu'}</span>
+                            </p>
+                        ) : (
+                            <p className="text-gray-400 mt-1 text-sm">Le point passera au vert quand un joueur rejoindra.</p>
+                        )}
                    </div>
                </div>
-               <button onClick={() => { setGameMode('PVE'); mp.disconnect(); }} className="mt-6 text-gray-500 text-xs underline">Retour au menu</button>
+
+               {/* SHOW CODES ONLY IF NOT CONNECTED (OR FOR INFO) */}
+               {!mp.isConnected && (
+                   <div className="w-full max-w-sm px-4 grid gap-6">
+                       <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
+                           <h3 className="text-neon-pink font-bold tracking-widest text-[10px] mb-2 uppercase">Votre Code (Partager)</h3>
+                           {mp.isLoading ? (
+                               <div className="flex items-center gap-2 text-gray-400 text-xs h-12"><Loader2 size={16} className="animate-spin" /> Connexion...</div>
+                           ) : (
+                               <div className="text-4xl font-mono font-bold text-neon-pink tracking-widest drop-shadow-[0_0_10px_#ff00ff]">{mp.shortId || '----'}</div>
+                           )}
+                       </div>
+
+                       <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
+                           <h3 className="text-neon-blue font-bold tracking-widest text-[10px] mb-3 uppercase">Rejoindre un Salon</h3>
+                           <div className="flex items-center gap-2 mb-4">
+                               <div className="h-12 w-32 bg-black/50 border-2 border-neon-blue rounded-lg flex items-center justify-center text-2xl font-mono font-bold text-white tracking-widest">{remoteCodeInput}<span className="animate-pulse text-neon-blue ml-1">_</span></div>
+                               <button onClick={() => mp.connectToPeer(remoteCodeInput)} disabled={remoteCodeInput.length !== 4} className="h-12 px-6 bg-neon-blue text-black font-bold rounded-lg hover:bg-white disabled:opacity-50 transition-all">OK</button>
+                           </div>
+                           <div className="grid grid-cols-3 gap-2 w-full max-w-[200px]">
+                               {[1,2,3,4,5,6,7,8,9].map(n => <button key={n} onClick={() => handleNumpad(n.toString())} className="h-10 bg-gray-800 rounded text-white font-bold">{n}</button>)}
+                               <button onClick={() => setRemoteCodeInput('')} className="h-10 bg-gray-800 rounded text-red-400 font-bold text-xs">C</button>
+                               <button onClick={() => handleNumpad('0')} className="h-10 bg-gray-800 rounded text-white font-bold">0</button>
+                               <button onClick={() => handleNumpad('DEL')} className="h-10 bg-gray-800 rounded text-gray-300 font-bold text-xs">DEL</button>
+                           </div>
+                       </div>
+                   </div>
+               )}
+
+               {/* JOIN BUTTON (Only if connected) */}
+               {mp.isConnected && (
+                   <button 
+                        onClick={() => setIsLobbyOpen(false)}
+                        className="mt-8 px-8 py-4 bg-green-500 text-black font-black text-xl rounded-full shadow-[0_0_20px_#22c55e] hover:bg-white hover:scale-105 transition-all animate-pulse"
+                    >
+                        REJOINDRE LE MATCH
+                   </button>
+               )}
+
+               {/* CLOSE / ERROR */}
+               {mp.error && <div className="mt-4 bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded-lg text-xs">{mp.error}</div>}
+               
+               <button onClick={() => { setGameMode('PVE'); mp.disconnect(); setIsLobbyOpen(false); }} className="mt-8 text-gray-500 text-xs underline">
+                   Quitter le mode en ligne
+               </button>
            </div>
        )}
 
        {/* Turn Indicator */}
-       {!winState.winner && (
+       {!winState.winner && !isLobbyOpen && (
             <div className={`mb-2 px-6 py-1.5 rounded-full border flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors ${
                 currentPlayer === 1 
                     ? 'bg-neon-pink/10 border-neon-pink text-neon-pink' 
@@ -409,16 +466,22 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        {/* Game Board */}
        <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md transition-opacity duration-500 ${gameMode === 'ONLINE' && !mp.isConnected ? 'opacity-0' : 'opacity-100'}`}>
            
-           {/* REACTION OVERLAY - Fixed Rendering */}
+           {/* REACTION OVERLAY - Positioned specifically */}
            {activeReaction && (() => {
                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                if (!reaction) return null;
                const Icon = reaction.icon;
+               
+               // Dynamic Positioning based on who sent it
+               const positionClass = activeReaction.isMe 
+                    ? 'bottom-[5%] right-[-10%] sm:right-[-20%]' 
+                    : 'top-[5%] left-[-10%] sm:left-[-20%]';
+
                return (
-                   <div className={`absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce ${
-                       activeReaction.isMe ? 'bottom-20' : 'top-20'
-                   }`}>
-                       <Icon size={80} className={`${reaction.color} drop-shadow-[0_0_25px_currentColor]`} />
+                   <div className={`absolute z-50 pointer-events-none animate-bounce ${positionClass}`}>
+                       <div className="bg-black/80 rounded-full p-2 border border-white/20 backdrop-blur-sm">
+                            <Icon size={64} className={`${reaction.color} drop-shadow-[0_0_25px_currentColor]`} />
+                       </div>
                    </div>
                );
            })()}
@@ -458,14 +521,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        {gameMode === 'ONLINE' && mp.isConnected && !winState.winner && (
             <div className="w-full max-w-lg mt-4 flex flex-col gap-3 animate-in slide-in-from-bottom-4 z-20">
                 {/* Reactions */}
-                <div className="flex justify-between items-center gap-2 p-2 bg-gray-900/80 rounded-2xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                <div className="flex justify-between items-center gap-2 p-2 bg-gray-900/80 rounded-2xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] overflow-x-auto no-scrollbar">
                     {REACTIONS.map(reaction => {
                         const Icon = reaction.icon;
                         return (
                             <button
                                 key={reaction.id}
                                 onClick={() => sendReaction(reaction.id)}
-                                className={`p-2 rounded-xl transition-all active:scale-95 border ${reaction.bg} ${reaction.border} hover:scale-110 group`}
+                                className={`p-2 rounded-xl transition-all active:scale-95 border shrink-0 ${reaction.bg} ${reaction.border} hover:scale-110 group`}
                             >
                                 <Icon size={20} className={`${reaction.color} drop-shadow-[0_0_5px_currentColor] group-hover:drop-shadow-[0_0_10px_currentColor] transition-all`} />
                             </button>

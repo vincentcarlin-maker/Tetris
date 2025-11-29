@@ -9,6 +9,7 @@ export interface MultiplayerState {
     isHost: boolean;
     error: string | null;
     isLoading: boolean;
+    opponentName: string | null;
 }
 
 const ID_PREFIX = 'na-'; // Neon Arcade Prefix
@@ -21,7 +22,8 @@ export const useMultiplayer = () => {
         isConnected: false,
         isHost: false,
         error: null,
-        isLoading: true
+        isLoading: true,
+        opponentName: null
     });
     
     const peerRef = useRef<Peer | null>(null);
@@ -35,7 +37,7 @@ export const useMultiplayer = () => {
     const initializePeer = useCallback((customShortId?: string) => {
         if (peerRef.current) return;
 
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
+        setState(prev => ({ ...prev, isLoading: true, error: null, opponentName: null }));
 
         let shortCode = customShortId;
 
@@ -143,7 +145,10 @@ export const useMultiplayer = () => {
             conn.send({ type: 'HANDSHAKE' });
         });
 
-        conn.on('data', (data) => {
+        conn.on('data', (data: any) => {
+            if (data.type === 'NAME') {
+                setState(prev => ({ ...prev, opponentName: data.name }));
+            }
             if (onDataCallbackRef.current) {
                 onDataCallbackRef.current(data);
             }
@@ -151,7 +156,7 @@ export const useMultiplayer = () => {
 
         conn.on('close', () => {
             console.log('Connection closed');
-            setState(prev => ({ ...prev, isConnected: false, isHost: false }));
+            setState(prev => ({ ...prev, isConnected: false, isHost: false, opponentName: null }));
             connRef.current = null;
         });
 
@@ -224,7 +229,8 @@ export const useMultiplayer = () => {
             isConnected: false,
             isHost: false,
             error: null,
-            isLoading: false
+            isLoading: false,
+            opponentName: null
         });
     }, []);
 
