@@ -421,23 +421,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                </div>
            )}
 
-           {/* CHAT MESSAGES OVERLAY (Last 2 messages) */}
-           {chatHistory.length > 0 && !winState.winner && (
-               <div className="absolute top-4 left-4 right-4 z-40 flex flex-col gap-2 pointer-events-none">
-                   {chatHistory.slice(-2).map((msg) => (
-                       <div key={msg.id} className={`animate-in fade-in slide-in-from-bottom-2 flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                           <div className={`px-3 py-1.5 rounded-xl max-w-[80%] text-xs font-bold backdrop-blur-md shadow-lg border ${
-                               msg.isMe 
-                               ? 'bg-neon-pink/20 border-neon-pink/50 text-white' 
-                               : 'bg-neon-blue/20 border-neon-blue/50 text-white'
-                           }`}>
-                               {msg.text}
-                           </div>
-                       </div>
-                   ))}
-               </div>
-           )}
-
            {/* Grid */}
            <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
                <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
@@ -471,7 +454,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
        {/* REACTION & CHAT BAR (Only for Online/PVP) */}
        {gameMode === 'ONLINE' && mp.isConnected && !winState.winner && (
-            <div className="w-full max-w-lg mt-4 flex flex-col gap-3 animate-in slide-in-from-bottom-4">
+            <div className="w-full max-w-lg mt-4 flex flex-col gap-3 animate-in slide-in-from-bottom-4 z-20">
                 {/* Reactions */}
                 <div className="flex justify-between items-center gap-2 p-2 bg-gray-900/80 rounded-2xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
                     {REACTIONS.map(reaction => {
@@ -486,6 +469,25 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                             </button>
                         );
                     })}
+                </div>
+
+                {/* Chat History Display */}
+                <div className="flex flex-col gap-1 max-h-32 overflow-y-auto px-2 py-1 bg-black/40 rounded-xl border border-white/5 custom-scrollbar">
+                    {chatHistory.length === 0 && (
+                        <div className="text-gray-600 text-xs italic text-center py-2">Aucun message</div>
+                    )}
+                    {chatHistory.map((msg) => (
+                        <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`px-2 py-1 rounded-lg text-[10px] font-bold max-w-[85%] break-words ${
+                                msg.isMe 
+                                ? 'bg-neon-pink/20 text-pink-100 border border-neon-pink/30' 
+                                : 'bg-neon-blue/20 text-cyan-100 border border-neon-blue/30'
+                            }`}>
+                                {msg.text}
+                            </div>
+                        </div>
+                    ))}
+                    <div ref={chatEndRef} />
                 </div>
 
                 {/* Chat Input */}
