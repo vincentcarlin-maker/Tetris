@@ -35,6 +35,11 @@ export const useMultiplayer = () => {
     const guestConnectionsRef = useRef<DataConnection[]>([]); // For host
     const onDataCallbackRef = useRef<((data: any) => void) | null>(null);
     const myInfoRef = useRef<{name: string, avatarId: string}>({name: 'Joueur', avatarId: 'av_bot'});
+    const isHostRef = useRef(false);
+
+    useEffect(() => {
+        isHostRef.current = state.isHost;
+    }, [state.isHost]);
 
     const disconnect = useCallback(() => {
         if (peerRef.current) {
@@ -50,42 +55,37 @@ export const useMultiplayer = () => {
     }, []);
 
     const sendData = useCallback((data: any) => {
-        if (state.isHost) {
+        if (isHostRef.current) {
+            // Host logic for sending data is more complex (relaying)
+            // This is handled in specific functions like `sendInvite` etc.
+            // For now, this is a placeholder if a generic broadcast is needed.
             guestConnectionsRef.current.forEach(conn => conn.send(data));
         } else if (hostConnectionRef.current) {
             hostConnectionRef.current.send(data);
         }
-    }, [state.isHost]);
+    }, []);
 
-    // Host-specific logic
     const broadcastPlayerList = useCallback(() => {
-        const playerList = guestConnectionsRef.current
+        if (!isHostRef.current || !peerRef.current) return;
+
+        const guestPlayerList = guestConnectionsRef.current
             .map(c => (c as any).playerInfo)
             .filter(Boolean);
-        
-        const hostInfo: PlayerInfo = { id: peerRef.current!.id, ...myInfoRef.current, inGame: (guestConnectionsRef.current[0] as any)?.playerInfo?.inGame ?? false };
-        const fullList = [hostInfo, ...playerList];
+
+        // Host's inGame status is determined by its own state machine
+        const hostInGame = state.mode === 'in_game';
+        const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, inGame: hostInGame };
+
+        const fullList = [hostSelfInfo, ...guestPlayerList];
         
         guestConnectionsRef.current.forEach(conn => conn.send({ type: 'PLAYER_LIST', players: fullList }));
         setState(prev => ({ ...prev, players: fullList }));
-    }, []);
+
+    }, [state.mode]);
     
-    const handleHostConnection = useCallback((conn: DataConnection) => {
-        conn.on('open', () => {
-            guestConnectionsRef.current.push(conn);
-            conn.on('data', (data) => handleDataReceived(data, conn));
-            conn.on('close', () => {
-                guestConnectionsRef.current = guestConnectionsRef.current.filter(c => c.peer !== conn.peer);
-                broadcastPlayerList();
-            });
-        });
-    }, [broadcastPlayerList]);
-
-
-    // Data handler for both host and guest
     const handleDataReceived = useCallback((data: any, conn: DataConnection) => {
         // --- HOST LOGIC ---
-        if (state.isHost) {
+        if (isHostRef.current) {
             const senderId = conn.peer;
             switch (data.type) {
                 case 'HELLO':
@@ -173,76 +173,87 @@ export const useMultiplayer = () => {
                  if(onDataCallbackRef.current) onDataCallbackRef.current(data);
         }
 
-    }, [state.isHost, broadcastPlayerList]);
-
-    const connectAsGuest = useCallback(() => {
-        const peer = new Peer();
-        peerRef.current = peer;
-        peer.on('open', id => {
-            const conn = peer.connect(LOBBY_ID);
-            hostConnectionRef.current = conn;
-            conn.on('open', () => {
-                setState(prev => ({...prev, peerId: id, isConnected: true, isLoading: false, mode: 'lobby'}));
-                conn.send({ type: 'HELLO', ...myInfoRef.current });
-            });
+    }, [broadcastPlayerList]);
+    
+    const handleHostConnection = useCallback((conn: DataConnection) => {
+        conn.on('open', () => {
+            guestConnectionsRef.current.push(conn);
             conn.on('data', (data) => handleDataReceived(data, conn));
             conn.on('close', () => {
-                setState(prev => ({...prev, error: "Déconnecté du lobby."}));
-                disconnect();
-            });
-            conn.on('error', () => {
-                 setState(prev => ({...prev, error: "Erreur de connexion au lobby."}));
-                 disconnect();
+                guestConnectionsRef.current = guestConnectionsRef.current.filter(c => c.peer !== conn.peer);
+                broadcastPlayerList();
             });
         });
-        peer.on('error', () => {
-            setState(prev => ({...prev, error: "Impossible d'établir une connexion P2P."}));
-            disconnect();
-        });
-    }, [disconnect, handleDataReceived]);
-
-    const connectAsHost = useCallback(() => {
-        const peer = new Peer(LOBBY_ID);
-        peerRef.current = peer;
-        peer.on('open', id => {
-            const selfInfo: PlayerInfo = {id, ...myInfoRef.current, inGame: false};
-            setState(prev => ({...prev, peerId: id, isHost: true, isConnected: true, isLoading: false, mode: 'lobby', players: [selfInfo]}));
-        });
-        peer.on('connection', handleHostConnection);
-        peer.on('error', () => {
-             setState(prev => ({...prev, error: "Le lobby est déjà pris ou une erreur est survenue."}));
-             disconnect();
-        });
-    }, [disconnect, handleHostConnection]);
+    }, [handleDataReceived, broadcastPlayerList]);
 
     const connect = useCallback(() => {
         disconnect();
         setState(prev => ({...prev, isLoading: true, error: null, mode: 'connecting'}));
-        const tempPeer = new Peer();
-        tempPeer.on('open', () => {
-            const conn = tempPeer.connect(LOBBY_ID);
-            const timeout = setTimeout(() => {
-                conn.close();
-                tempPeer.destroy();
-                connectAsHost();
-            }, 3000);
-            conn.on('open', () => {
-                clearTimeout(timeout);
-                conn.close();
-                tempPeer.destroy();
-                connectAsGuest();
-            });
-             conn.on('error', () => {
-                 clearTimeout(timeout);
-                 tempPeer.destroy();
-                 connectAsHost();
-            });
+
+        // --- Step 1: Attempt to become the host ---
+        const peer = new Peer(LOBBY_ID);
+        peerRef.current = peer;
+
+        peer.on('open', id => {
+            // SUCCESS: We are the host.
+            const selfInfo: PlayerInfo = { id, ...myInfoRef.current, inGame: false };
+            setState(prev => ({
+                ...prev,
+                peerId: id,
+                isHost: true,
+                isConnected: true,
+                isLoading: false,
+                mode: 'lobby',
+                players: [selfInfo]
+            }));
+            peer.on('connection', handleHostConnection);
         });
-    }, [disconnect, connectAsHost, connectAsGuest]);
+
+        peer.on('error', (err: any) => {
+            if (err.type === 'unavailable-id') {
+                // FAILURE: Lobby ID is taken, so a host exists. Connect as a guest.
+                peer.destroy(); // Destroy the failed host-attempt peer.
+                
+                // --- Step 2: Connect as a guest ---
+                const guestPeer = new Peer(); // Create a new peer with a random ID.
+                peerRef.current = guestPeer;
+
+                guestPeer.on('open', guestId => {
+                    const conn = guestPeer.connect(LOBBY_ID);
+                    hostConnectionRef.current = conn;
+                    
+                    conn.on('open', () => {
+                        setState(prev => ({ ...prev, peerId: guestId, isHost: false, isConnected: true, isLoading: false, mode: 'lobby' }));
+                        conn.send({ type: 'HELLO', ...myInfoRef.current });
+                    });
+                    conn.on('data', (data) => handleDataReceived(data, conn));
+                    conn.on('close', () => {
+                        setState(prev => ({ ...prev, error: "Déconnecté du lobby." }));
+                        disconnect();
+                    });
+                    conn.on('error', (connErr) => {
+                         setState(prev => ({ ...prev, error: `Erreur de connexion au lobby: ${connErr.type}` }));
+                         disconnect();
+                    });
+                });
+
+                guestPeer.on('error', (guestErr) => {
+                    setState(prev => ({ ...prev, error: `Impossible de créer un peer invité: ${guestErr.type}` }));
+                    disconnect();
+                });
+
+            } else {
+                // Some other PeerJS error occurred
+                setState(prev => ({ ...prev, error: `Erreur PeerJS: ${err.type}`, isLoading: false, mode: 'disconnected' }));
+                disconnect();
+            }
+        });
+    }, [disconnect, handleHostConnection, handleDataReceived]);
 
     const sendInvite = (targetId: string) => {
         const targetPlayer = state.players.find(p => p.id === targetId);
         if (targetPlayer) {
+            // All invites are sent to the host for relaying
             sendData({ type: 'INVITE', targetId });
             setState(prev => ({ ...prev, outgoingInvite: { toId: targetId, toName: targetPlayer.name } }));
         }
