@@ -127,9 +127,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   }, [chatHistory]);
 
   // Determine Roles
-  // Host is always Player 1
-  // First Guest (index 1) is Player 2
-  // Others are Spectators
   const myPlayerIndex = mp.players.findIndex(p => p.id === mp.peerId);
   const isSpectator = gameMode === 'ONLINE' && myPlayerIndex > 1;
   const isPlayer2 = gameMode === 'ONLINE' && myPlayerIndex === 1;
@@ -178,7 +175,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // --- AUTO CONNECT LOGIC ---
   useEffect(() => {
     if (gameMode === 'ONLINE' && isLobbyOpen) {
-        // If not connected, not hosting, not loading, and no FATAL error (like network down), try to connect
         if (!mp.isConnected && !mp.isHost && !mp.isLoading && mp.connectionErrorType !== 'ID_TAKEN') {
              mp.connectToPeer(GLOBAL_ROOM_ID);
         }
@@ -390,6 +386,96 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       );
   };
 
+  // --- RENDER VISUAL FOR REACTION ---
+  const renderReactionVisual = (reactionId: string, color: string) => {
+      const reaction = REACTIONS.find(r => r.id === reactionId);
+      if (!reaction) return null;
+      const Icon = reaction.icon;
+
+      // SAD ANIMATION: TEARS
+      if (reactionId === 'sad') {
+          return (
+              <div className="relative">
+                  <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                  <div className="absolute top-[22px] left-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite]"></div>
+                  <div className="absolute top-[22px] right-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite_0.5s]"></div>
+                  <style>{`
+                    @keyframes tear-fall {
+                        0% { top: 22px; opacity: 1; transform: scale(1); }
+                        80% { top: 45px; opacity: 0; transform: scale(0.5); }
+                        100% { top: 45px; opacity: 0; }
+                    }
+                  `}</style>
+              </div>
+          );
+      }
+
+      // HAPPY ANIMATION: GROWING SMILE
+      if (reactionId === 'happy') {
+        return (
+            <div className="relative animate-[grow-laugh_0.8s_ease-in-out_infinite]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <style>{`
+                  @keyframes grow-laugh {
+                      0%, 100% { transform: scale(1) rotate(-5deg); }
+                      50% { transform: scale(1.3) rotate(5deg); }
+                  }
+                `}</style>
+            </div>
+        );
+      }
+
+      // ANGRY ANIMATION: SHAKE
+      if (reactionId === 'angry') {
+        return (
+            <div className="relative animate-[shake_0.3s_linear_infinite]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                 <style>{`
+                  @keyframes shake {
+                      0% { transform: translate(1px, 1px) rotate(0deg); }
+                      25% { transform: translate(-1px, -2px) rotate(-1deg); }
+                      50% { transform: translate(-3px, 0px) rotate(1deg); }
+                      75% { transform: translate(3px, 2px) rotate(0deg); }
+                      100% { transform: translate(1px, -1px) rotate(-1deg); }
+                  }
+                `}</style>
+            </div>
+        );
+      }
+      
+      // LOVE ANIMATION: HEARTBEAT
+      if (reactionId === 'love') {
+          return (
+             <div className="relative animate-[ping_1s_cubic-bezier(0,0,0.2,1)_infinite]">
+                 <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+             </div>
+          );
+      }
+      
+      // WAVE ANIMATION
+      if (reactionId === 'wave') {
+          return (
+             <div className="relative animate-[wave_1s_ease-in-out_infinite]">
+                 <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                 <style>{`
+                  @keyframes wave {
+                      0%, 100% { transform: rotate(0deg); }
+                      25% { transform: rotate(-20deg); }
+                      75% { transform: rotate(20deg); }
+                  }
+                `}</style>
+             </div>
+          );
+      }
+
+      // DEFAULT BOUNCE
+      return (
+          <div className="animate-bounce">
+              <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+          </div>
+      );
+  };
+
 
   return (
     <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
@@ -397,19 +483,27 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-black to-transparent pointer-events-none"></div>
 
-       {/* Header */}
-       <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
-         <button onClick={() => { mp.disconnect(); onBack(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
-           <ArrowLeft size={20} />
-         </button>
-         <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)]">
-             NEON CONNECT
-         </h1>
-         {mp.isHost && (
-             <button onClick={() => resetGame(true)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
-                <RefreshCw size={20} />
+       {/* Header - TITLE CENTERED FIXED */}
+       <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0 relative min-h-[48px]">
+         <div className="z-20 relative">
+             <button onClick={() => { mp.disconnect(); onBack(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+                <ArrowLeft size={20} />
              </button>
-         )}
+         </div>
+         
+         <div className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none w-full">
+            <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] truncate">
+                 NEON CONNECT
+             </h1>
+         </div>
+
+         <div className="z-20 relative min-w-[40px] flex justify-end">
+            {mp.isHost && (
+                <button onClick={() => resetGame(true)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+                    <RefreshCw size={20} />
+                </button>
+            )}
+         </div>
        </div>
 
        {/* Game Controls / Status */}
@@ -546,7 +640,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
            {activeReaction && (() => {
                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                if (!reaction) return null;
-               const Icon = reaction.icon;
                
                // Show reaction centrally if sender isn't me, or bottom right if me
                const positionClass = activeReaction.isMe 
@@ -554,9 +647,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     : 'top-[-20px] left-[-20px] sm:left-[-40px]';
 
                return (
-                   <div className={`absolute z-50 pointer-events-none animate-bounce ${positionClass}`}>
+                   <div className={`absolute z-50 pointer-events-none ${positionClass}`}>
                        <div className="bg-black/90 rounded-full p-3 border-2 border-white/20 backdrop-blur-md shadow-2xl">
-                            <Icon size={48} className={`${reaction.color} drop-shadow-[0_0_20px_currentColor]`} />
+                           {renderReactionVisual(reaction.id, reaction.color)}
                        </div>
                    </div>
                );
