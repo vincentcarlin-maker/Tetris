@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins } from 'lucide-react';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Copy, Check, LogIn, Loader2 } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove, checkWin } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
+import { useMultiplayer } from '../../hooks/useMultiplayer';
 
 interface Connect4GameProps {
   onBack: () => void;
@@ -67,22 +69,39 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [earnedCoins, setEarnedCoins] = useState(0);
+
+  // Multiplayer Hook
+  const mp = useMultiplayer();
+  const [remoteCodeInput, setRemoteCodeInput] = useState('');
+  const [copied, setCopied] = useState(false);
   
   // Audio
   const { playMove, playGameOver, playVictory } = audio;
 
   // Reset Game
-  const resetGame = useCallback(() => {
+  const resetGame = useCallback((sendSync = false) => {
     setBoard(createBoard());
     setCurrentPlayer(1);
     setWinState({ winner: null, line: [] });
     setIsAiThinking(false);
     setEarnedCoins(0);
-  }, []);
+
+    if (sendSync && mp.isConnected) {
+        mp.sendData({ type: 'RESET' });
+    }
+  }, [mp]);
 
   // Handle Mode Change
-  const toggleMode = () => {
-    setGameMode(prev => prev === 'PVE' ? 'PVP' : 'PVE');
+  const cycleMode = () => {
+    if (gameMode === 'PVE') setGameMode('PVP');
+    else if (gameMode === 'PVP') {
+        setGameMode('ONLINE');
+        mp.initializePeer();
+    }
+    else {
+        setGameMode('PVE');
+        mp.disconnect();
+    }
     resetGame();
   };
 
@@ -95,10 +114,23 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   };
 
   // Drop Piece Logic
-  const handleColumnClick = useCallback((colIndex: number, isAi = false) => {
-    // If it's not the AI playing, we block if game over or if AI is currently thinking (blocking user input)
+  const handleColumnClick = useCallback((colIndex: number, isAi = false, isRemote = false) => {
+    // Basic checks
     if (winState.winner) return;
-    if (!isAi && isAiThinking) return;
+    
+    // AI Check
+    if (gameMode === 'PVE' && !isAi && isAiThinking) return;
+
+    // Multiplayer Checks
+    if (gameMode === 'ONLINE') {
+        if (!mp.isConnected) return;
+        
+        // If I am the host (Player 1) and it's not my turn
+        if (mp.isHost && currentPlayer !== 1 && !isRemote) return;
+        
+        // If I am the guest (Player 2) and it's not my turn
+        if (!mp.isHost && currentPlayer !== 2 && !isRemote) return;
+    }
     
     // Find lowest empty row
     let rowIndex = -1;
@@ -117,31 +149,49 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setBoard(newBoard);
     playMove(); // Trigger sound
 
+    // Send Move to Peer if Online and Local Action
+    if (gameMode === 'ONLINE' && !isRemote) {
+        mp.sendData({ type: 'MOVE', col: colIndex });
+    }
+
     // Check Win
     const result = checkWinFull(newBoard);
     if (result.winner) {
       setWinState(result);
-      if (result.winner === 1 || (gameMode === 'PVP' && result.winner === 2)) {
+      
+      const isMyWin = (gameMode === 'ONLINE' && ((mp.isHost && result.winner === 1) || (!mp.isHost && result.winner === 2))) ||
+                      (gameMode === 'PVP' && (result.winner === 1 || result.winner === 2)) ||
+                      (gameMode === 'PVE' && result.winner === 1);
+
+      if (isMyWin) {
           playVictory();
-          // Récompense seulement si joueur 1 gagne (contre IA ou PVP)
-          if (result.winner === 1) {
-              addCoins(30);
-              setEarnedCoins(30);
+          if (gameMode !== 'ONLINE') { // Only give coins for local play for now to prevent farming
+             addCoins(30);
+             setEarnedCoins(30);
           }
-          if (gameMode === 'PVP' && result.winner === 2) {
-              addCoins(30);
-              setEarnedCoins(30);
-          }
-      } else if (result.winner === 2 && gameMode === 'PVE') {
-          playGameOver();
       } else {
-          playGameOver(); // Draw
+          playGameOver();
       }
     } else {
       setCurrentPlayer(prev => prev === 1 ? 2 : 1);
     }
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode, addCoins]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode, addCoins, mp]);
+
+  // Multiplayer Data Handling
+  useEffect(() => {
+    if (gameMode === 'ONLINE') {
+        mp.setOnDataReceived((data) => {
+            if (data.type === 'MOVE') {
+                handleColumnClick(data.col, false, true);
+            }
+            if (data.type === 'RESET') {
+                resetGame(false);
+            }
+        });
+    }
+  }, [gameMode, mp.isConnected, handleColumnClick, resetGame, mp]);
+
 
   // AI Turn Handling - Split into two effects to prevent cleanup race conditions
   
@@ -172,6 +222,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => clearTimeout(timer);
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
+  // Handle Copy Code
+  const copyCode = () => {
+    if (mp.peerId) {
+        navigator.clipboard.writeText(mp.peerId);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
 
   return (
     <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
@@ -183,7 +242,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
        {/* Header */}
        <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-         <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+         <button onClick={() => { mp.disconnect(); onBack(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
            <ArrowLeft size={20} />
          </button>
          
@@ -193,49 +252,30 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             </h1>
          </div>
 
-         <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+         <button onClick={() => resetGame(true)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
            <RefreshCw size={20} />
          </button>
        </div>
 
        {/* Game Controls / Status */}
-       <div className="w-full max-w-lg flex justify-between items-center mb-6 z-10 px-2">
+       <div className="w-full max-w-lg flex justify-between items-center mb-6 z-10 px-2 flex-wrap gap-2">
           {/* Left: Mode Switch */}
           <div className="flex items-center gap-4">
             <button 
-                onClick={toggleMode}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors"
+                onClick={cycleMode}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[110px]"
             >
-                {gameMode === 'PVE' ? <Cpu size={14} className="text-neon-blue"/> : <User size={14} className="text-neon-pink"/>}
-                {gameMode === 'PVE' ? 'VS ORDI' : 'VS JOUEUR'}
+                {gameMode === 'PVE' && <Cpu size={14} className="text-neon-blue"/>}
+                {gameMode === 'PVP' && <User size={14} className="text-neon-pink"/>}
+                {gameMode === 'ONLINE' && <Globe size={14} className="text-green-400"/>}
+                
+                {gameMode === 'PVE' && 'VS ORDI'}
+                {gameMode === 'PVP' && 'VS JOUEUR'}
+                {gameMode === 'ONLINE' && 'EN LIGNE'}
             </button>
-            {earnedCoins > 0 && (
-                <div className="flex items-center gap-1 text-yellow-400 font-mono text-sm animate-pulse">
-                    <Coins size={16} /> +{earnedCoins}
-                </div>
-            )}
           </div>
 
-
-          {/* Center: Turn Indicator */}
-          <div className={`px-4 py-1.5 rounded-full border flex items-center gap-2 text-sm font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] ${
-              winState.winner 
-              ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-              : currentPlayer === 1 
-                ? 'bg-neon-pink/10 border-neon-pink text-neon-pink' 
-                : 'bg-neon-blue/10 border-neon-blue text-neon-blue'
-          }`}>
-             {winState.winner ? (
-                 <span className="flex items-center gap-2"><Trophy size={14}/> {winState.winner === 'DRAW' ? 'MATCH NUL' : `VICTOIRE J${winState.winner === 1 ? '1' : '2'} !`}</span>
-             ) : (
-                 <span className="flex items-center gap-2">
-                    <CircleDot size={12} className={isAiThinking ? 'animate-spin' : ''} /> 
-                    {isAiThinking ? 'IA RÉFLÉCHIT...' : `TOUR J${currentPlayer}`}
-                 </span>
-             )}
-          </div>
-
-          {/* Right: Difficulty */}
+          {/* Right: Difficulty or Online Status */}
           {gameMode === 'PVE' ? (
               <button 
                 onClick={cycleDifficulty}
@@ -245,13 +285,116 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 {difficulty === 'MEDIUM' && <span className="text-yellow-400">MOYEN</span>}
                 {difficulty === 'HARD' && <span className="text-red-500">DIFFICILE</span>}
               </button>
+          ) : gameMode === 'ONLINE' ? (
+              <div className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 ${mp.isConnected ? 'bg-green-900/30 border-green-500 text-green-400' : 'bg-red-900/30 border-red-500 text-red-400'}`}>
+                  {mp.isConnected ? 'CONNECTÉ' : 'DÉCONNECTÉ'}
+              </div>
           ) : (
-              <div className="w-[80px]"></div> // Spacer
+              <div className="w-[80px]"></div>
           )}
        </div>
 
+       {/* ONLINE LOBBY OVERLAY (RESPONSIVE FIX) */}
+       {gameMode === 'ONLINE' && !mp.isConnected && (
+           <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md overflow-y-auto touch-pan-y">
+               <div className="min-h-full flex flex-col items-center justify-center p-4 animate-in fade-in">
+                   <Globe size={40} className="text-neon-blue mb-4 animate-pulse shrink-0" />
+                   <h2 className="text-xl font-black italic text-white mb-6 text-center leading-tight">MULTIJOUEUR<br/>EN LIGNE</h2>
+                   
+                   {mp.error && (
+                       <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded-lg mb-4 text-xs max-w-xs text-center break-words">
+                           {mp.error}
+                       </div>
+                   )}
+
+                   <div className="grid gap-4 w-full max-w-xs sm:max-w-sm">
+                       {/* HOST SECTION */}
+                       <div className="bg-gray-900/60 border border-white/10 rounded-xl p-4 flex flex-col items-center shadow-lg">
+                           <h3 className="text-neon-pink font-bold tracking-widest text-xs mb-3 text-center">INVITER UN AMI</h3>
+                           {mp.peerId ? (
+                               <div className="w-full flex items-center gap-2">
+                                   <div className="flex-1 bg-black/50 border border-neon-pink/30 rounded px-2 py-2 font-mono text-center text-xs sm:text-sm tracking-wider text-neon-pink break-all select-all">
+                                       {mp.peerId}
+                                   </div>
+                                   <button 
+                                       onClick={copyCode}
+                                       className="p-2 bg-neon-pink/20 border border-neon-pink/50 rounded hover:bg-neon-pink hover:text-black transition-colors shrink-0"
+                                   >
+                                       {copied ? <Check size={18} /> : <Copy size={18} />}
+                                   </button>
+                               </div>
+                           ) : (
+                               <div className="flex items-center gap-2 text-gray-400 text-xs">
+                                   <Loader2 size={14} className="animate-spin" /> Génération...
+                               </div>
+                           )}
+                           <p className="text-[10px] text-gray-500 mt-2 text-center leading-tight">Partage ce code avec ton ami pour qu'il te rejoigne.</p>
+                       </div>
+                       
+                       <div className="relative flex items-center justify-center">
+                           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                           <span className="relative bg-black px-2 text-[10px] text-gray-500 font-bold uppercase">OU</span>
+                       </div>
+
+                       {/* JOIN SECTION */}
+                       <div className="bg-gray-900/60 border border-white/10 rounded-xl p-4 flex flex-col items-center shadow-lg">
+                           <h3 className="text-neon-blue font-bold tracking-widest text-xs mb-3 text-center">REJOINDRE</h3>
+                           <div className="w-full flex items-center gap-2">
+                               <input
+                                   type="text"
+                                   placeholder="Code Ami"
+                                   value={remoteCodeInput}
+                                   onChange={(e) => setRemoteCodeInput(e.target.value)}
+                                   className="flex-1 bg-black/50 border border-neon-blue/30 rounded px-3 py-2 font-mono text-center text-xs sm:text-sm text-white outline-none focus:border-neon-blue transition-colors min-w-0"
+                               />
+                               <button 
+                                   onClick={() => mp.connectToPeer(remoteCodeInput)}
+                                   disabled={!remoteCodeInput}
+                                   className="p-2 bg-neon-blue/20 border border-neon-blue/50 rounded hover:bg-neon-blue hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                               >
+                                   <LogIn size={18} />
+                               </button>
+                           </div>
+                       </div>
+                   </div>
+
+                    <button 
+                        onClick={() => {
+                            setGameMode('PVE'); 
+                            mp.disconnect();
+                        }}
+                        className="mt-6 text-gray-500 text-xs underline hover:text-white"
+                   >
+                       Annuler
+                   </button>
+                   
+                   <div className="h-8"></div>
+               </div>
+           </div>
+       )}
+
+       {/* Turn Indicator (Moved below header for better visibility in online) */}
+       {!winState.winner && (
+            <div className={`mb-4 px-6 py-2 rounded-full border flex items-center gap-2 text-sm font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors ${
+                currentPlayer === 1 
+                    ? 'bg-neon-pink/10 border-neon-pink text-neon-pink' 
+                    : 'bg-neon-blue/10 border-neon-blue text-neon-blue'
+            }`}>
+                <CircleDot size={12} className={isAiThinking ? 'animate-spin' : ''} /> 
+                {gameMode === 'ONLINE' ? (
+                    mp.isConnected ? (
+                        (mp.isHost && currentPlayer === 1) || (!mp.isHost && currentPlayer === 2) 
+                        ? "C'EST TON TOUR !" 
+                        : "L'ADVERSAIRE RÉFLÉCHIT..."
+                    ) : "EN ATTENTE..."
+                ) : (
+                    isAiThinking ? 'IA RÉFLÉCHIT...' : `TOUR JOUEUR ${currentPlayer}`
+                )}
+            </div>
+       )}
+
        {/* Game Board */}
-       <div className="relative z-10 p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md">
+       <div className={`relative z-10 p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md transition-opacity duration-500 ${gameMode === 'ONLINE' && !mp.isConnected ? 'opacity-0' : 'opacity-100'}`}>
            
            {/* Grid */}
            <div className="grid grid-cols-7 gap-2 sm:gap-3">
@@ -299,13 +442,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
            </div>
        </div>
 
-       {/* Instructions */}
-       {!winState.winner && (
-           <div className="mt-8 text-gray-500 text-xs tracking-widest text-center animate-pulse">
-               {isAiThinking ? "ANALYSE EN COURS..." : "TOUCHE UNE COLONNE POUR JOUER"}
-           </div>
-       )}
-
         {/* Victory/Draw Actions */}
         {winState.winner && (
              <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
@@ -313,15 +449,28 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                  {(winState.winner === 1 || (gameMode === 'PVP' && winState.winner === 2)) && (
                     <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
                         <Coins className="text-yellow-400" size={20} />
-                        <span className="text-yellow-100 font-bold">+30 PIÈCES</span>
+                        <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
                     </div>
                  )}
 
+                <div className="bg-black/80 px-6 py-2 rounded-full border border-white/20 mb-4">
+                    <span className="text-xl font-black italic">
+                        {winState.winner === 'DRAW' 
+                            ? "MATCH NUL" 
+                            : gameMode === 'ONLINE'
+                                ? (mp.isHost && winState.winner === 1) || (!mp.isHost && winState.winner === 2) 
+                                    ? "TU AS GAGNÉ !" 
+                                    : "TU AS PERDU..."
+                                : `VICTOIRE JOUEUR ${winState.winner} !`
+                        }
+                    </span>
+                </div>
+
                 <button
-                    onClick={resetGame}
+                    onClick={() => resetGame(true)}
                     className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"
                 >
-                    <Play size={20} fill="black"/> NOUVELLE PARTIE
+                    <Play size={20} fill="black"/> REJOUER
                 </button>
              </div>
         )}
