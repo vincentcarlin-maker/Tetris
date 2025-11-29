@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Server, AlertCircle, CheckCircle2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Zap, Flame } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Server, AlertCircle, CheckCircle2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Zap, Flame, Eye } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
-import { useMultiplayer } from '../../hooks/useMultiplayer';
+import { useMultiplayer, PlayerInfo } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
 
 interface Connect4GameProps {
@@ -15,6 +15,7 @@ interface Connect4GameProps {
 
 const ROWS = 6;
 const COLS = 7;
+const GLOBAL_ROOM_ID = 'neon-global-salon';
 
 // Réactions Néon
 const REACTIONS = [
@@ -31,21 +32,15 @@ const REACTIONS = [
 interface ChatMessage {
     id: number;
     text: string;
+    senderName: string;
     isMe: boolean;
     timestamp: number;
 }
-
-// Fixed Salons
-const SALONS = [
-    { id: 'salon-1', name: 'SALON 1' },
-    { id: 'salon-2', name: 'SALON 2' }
-];
 
 // Helpers
 const createBoard = (): BoardState => Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
 
 const checkWinFull = (board: BoardState): WinState => {
-  // We reuse logic but return lines for display
   // Horizontal
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS - 3; c++) {
@@ -78,7 +73,6 @@ const checkWinFull = (board: BoardState): WinState => {
     }
   }
   
-  // Draw
   if (board.every(row => row.every(cell => cell !== 0))) {
     return { winner: 'DRAW', line: [] };
   }
@@ -99,8 +93,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // Multiplayer Hook
   const mp = useMultiplayer();
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
-  const [selectedSalonId, setSelectedSalonId] = useState<string | null>(null);
-  const [isRoomCreator, setIsRoomCreator] = useState(false); // Local state to know if we just created the room
   
   // Identity
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
@@ -125,6 +117,22 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
+  // Determine Roles
+  // Host is always Player 1
+  // First Guest (index 1) is Player 2
+  // Others are Spectators
+  const myPlayerIndex = mp.players.findIndex(p => p.id === mp.peerId);
+  const isSpectator = gameMode === 'ONLINE' && myPlayerIndex > 1;
+  const isPlayer2 = gameMode === 'ONLINE' && myPlayerIndex === 1;
+  const isPlayer1 = gameMode === 'ONLINE' && myPlayerIndex === 0;
+
+  // Sync Self Info to Multiplayer State
+  useEffect(() => {
+    if (mp.peerId) {
+        mp.updateSelfInfo(username, currentAvatarId);
+    }
+  }, [mp.peerId, username, currentAvatarId, mp]);
+
   // Reset Game
   const resetGame = useCallback((sendSync = false) => {
     setBoard(createBoard());
@@ -133,23 +141,22 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setIsAiThinking(false);
     setEarnedCoins(0);
     setActiveReaction(null);
-    setChatHistory([]);
+    if (gameMode !== 'ONLINE') {
+        setChatHistory([]);
+    }
 
-    if (sendSync && mp.isConnected) {
+    if (sendSync && mp.isConnected && mp.isHost) {
         mp.sendData({ type: 'RESET' });
     }
-  }, [mp]);
+  }, [mp, gameMode]);
 
   // Handle Mode Change
   const cycleMode = () => {
     if (gameMode === 'PVE') setGameMode('PVP');
     else if (gameMode === 'PVP') {
         setGameMode('ONLINE');
-        // Initialiser peer sans ID spécifique pour pouvoir se connecter en tant que client
         mp.initializePeer();
         setIsLobbyOpen(true);
-        setSelectedSalonId(null);
-        setIsRoomCreator(false);
     }
     else {
         setGameMode('PVE');
@@ -158,6 +165,23 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     }
     resetGame();
   };
+
+  // --- AUTO CONNECT LOGIC ---
+  useEffect(() => {
+    if (gameMode === 'ONLINE' && isLobbyOpen) {
+        if (!mp.isConnected && !mp.isHost && !mp.isLoading && !mp.error) {
+             mp.connectToPeer(GLOBAL_ROOM_ID);
+        }
+    }
+  }, [gameMode, isLobbyOpen, mp.isConnected, mp.isHost, mp.isLoading, mp.error, mp]);
+
+  // Fallback Host
+  useEffect(() => {
+    if (gameMode === 'ONLINE' && mp.connectionErrorType === 'PEER_UNAVAILABLE' && !mp.isHost) {
+        mp.hostRoom(GLOBAL_ROOM_ID);
+    }
+  }, [gameMode, mp.connectionErrorType, mp.isHost, mp]);
+
 
   // Handle Difficulty Change
   const cycleDifficulty = () => {
@@ -177,11 +201,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     // Multiplayer Checks
     if (gameMode === 'ONLINE') {
         if (!mp.isConnected) return;
+        // Spectators can't move
+        if (isSpectator) return;
+        
+        // Host (P1) only moves on P1 turn
         if (mp.isHost && currentPlayer !== 1 && !isRemote) return;
+        
+        // Challenger (P2) only moves on P2 turn
         if (!mp.isHost && currentPlayer !== 2 && !isRemote) return;
     }
     
-    // Find lowest empty row
     let rowIndex = -1;
     for (let r = ROWS - 1; r >= 0; r--) {
       if (board[r][colIndex] === 0) {
@@ -190,25 +219,23 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       }
     }
 
-    if (rowIndex === -1) return; // Column full
+    if (rowIndex === -1) return;
 
-    // Execute Move
     const newBoard = board.map(row => [...row]);
     newBoard[rowIndex][colIndex] = currentPlayer;
     setBoard(newBoard);
-    playMove(); // Trigger sound
+    playMove();
 
-    // Send Move to Peer if Online and Local Action
+    // Send Move
     if (gameMode === 'ONLINE' && !isRemote) {
         mp.sendData({ type: 'MOVE', col: colIndex });
     }
 
-    // Check Win
     const result = checkWinFull(newBoard);
     if (result.winner) {
       setWinState(result);
       
-      const isMyWin = (gameMode === 'ONLINE' && ((mp.isHost && result.winner === 1) || (!mp.isHost && result.winner === 2))) ||
+      const isMyWin = (gameMode === 'ONLINE' && ((isPlayer1 && result.winner === 1) || (isPlayer2 && result.winner === 2))) ||
                       (gameMode === 'PVP' && (result.winner === 1 || result.winner === 2)) ||
                       (gameMode === 'PVE' && result.winner === 1);
 
@@ -227,7 +254,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       setCurrentPlayer(prev => prev === 1 ? 2 : 1);
     }
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode, addCoins, mp]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode, addCoins, mp, isSpectator, isPlayer1, isPlayer2]);
 
   // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
@@ -246,41 +273,27 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       const msg: ChatMessage = {
           id: Date.now(),
           text: chatInput.trim(),
+          senderName: username,
           isMe: true,
           timestamp: Date.now()
       };
       
       setChatHistory(prev => [...prev, msg]);
-      mp.sendData({ type: 'CHAT', text: msg.text });
+      mp.sendData({ type: 'CHAT', text: msg.text, sender: username });
       setChatInput('');
   };
 
-  // SEND ROOM STATUS (HOST ONLY)
+  // SEND REQUEST INFO (HOST to GUEST) or GUEST INFO (GUEST to HOST)
   useEffect(() => {
-    if (gameMode === 'ONLINE' && mp.isConnected && mp.isHost) {
-        // Hôte envoie son état quand quelqu'un se connecte
-        const isPlaying = board.some(row => row.some(cell => cell !== 0)) && !winState.winner;
-        const status = isPlaying ? 'PLAYING' : 'WAITING';
-        mp.sendData({ 
-            type: 'ROOM_INFO', 
-            name: username,
-            avatarId: currentAvatarId, 
-            status: status,
-            players: 1 // Myself
-        });
-    }
-  }, [gameMode, mp.isConnected, mp.isHost, username, currentAvatarId, board, winState.winner, mp]);
-  
-  // SEND JOIN INFO (GUEST ONLY)
-  useEffect(() => {
-    if (gameMode === 'ONLINE' && mp.isConnected && !mp.isHost && mp.roomInfo) {
+    // When connected as Guest, immediately send info
+    if (gameMode === 'ONLINE' && mp.isConnected && !mp.isHost) {
         mp.sendData({
             type: 'JOIN_INFO',
             name: username,
             avatarId: currentAvatarId
         });
     }
-  }, [gameMode, mp.isConnected, mp.isHost, mp.roomInfo, username, currentAvatarId, mp]);
+  }, [gameMode, mp.isConnected, mp.isHost, username, currentAvatarId, mp]);
 
   // Multiplayer Data Handling
   useEffect(() => {
@@ -300,14 +313,23 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 const msg: ChatMessage = {
                     id: Date.now(),
                     text: data.text,
+                    senderName: data.sender || 'Joueur',
                     isMe: false,
                     timestamp: Date.now()
                 };
                 setChatHistory(prev => [...prev, msg]);
             }
+            if (data.type === 'REQUEST_INFO') {
+                // Host requested my info
+                mp.sendData({
+                    type: 'JOIN_INFO',
+                    name: username,
+                    avatarId: currentAvatarId
+                });
+            }
         });
     }
-  }, [gameMode, mp.isConnected, handleColumnClick, resetGame, mp]);
+  }, [gameMode, mp.isConnected, handleColumnClick, resetGame, mp, username, currentAvatarId]);
 
 
   // AI Turn Handling
@@ -334,59 +356,26 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
 
-  // ---- LOBBY LOGIC ----
-  
-  // Auto-probe rooms when lobby opens
-  useEffect(() => {
-      if (isLobbyOpen && !mp.isConnected) {
-          mp.checkRooms(SALONS.map(s => s.id));
-          // Refresh every 5 seconds if still open
-          const interval = setInterval(() => {
-              if (isLobbyOpen && !mp.isConnected) {
-                   mp.checkRooms(SALONS.map(s => s.id));
-              }
-          }, 5000);
-          return () => clearInterval(interval);
-      }
-  }, [isLobbyOpen, mp.isConnected]); 
-
-  const handleSelectSalon = (salonId: string) => {
-      setSelectedSalonId(salonId);
-      setIsRoomCreator(false);
-      // Tentative de connexion pour vérifier l'état
-      mp.connectToPeer(salonId); 
-  };
-  
-  // Si Peer Unavailable (Personne dans le salon), on le crée automatiquement
-  useEffect(() => {
-      if (gameMode === 'ONLINE' && selectedSalonId && mp.connectionErrorType === 'PEER_UNAVAILABLE' && !isRoomCreator) {
-          // Personne ! On crée le salon
-          setIsRoomCreator(true);
-          mp.hostRoom(selectedSalonId);
-      }
-  }, [gameMode, selectedSalonId, mp.connectionErrorType, mp, isRoomCreator]);
-
   const handleJoinGame = () => {
-      // On est déjà connecté techniquement, on ferme juste le lobby
       setIsLobbyOpen(false);
   };
   
-  const SalonPlayerCard = ({ name, avatarId, status, isMe, isHost }: { name?: string | null, avatarId?: string | null, status?: string, isMe?: boolean, isHost?: boolean }) => {
-      const AvatarIcon = getAvatarIcon(avatarId);
+  const SalonPlayerCard: React.FC<{ player: PlayerInfo; index: number }> = ({ player, index }) => {
+      const AvatarIcon = getAvatarIcon(player.avatarId);
+      const isMe = player.id === mp.peerId;
+      const isP1 = index === 0;
+      const isP2 = index === 1;
+      const role = isP1 ? 'Hôte' : isP2 ? 'Joueur 2' : 'Spectateur';
+      
       return (
-          <div className={`flex items-center gap-3 p-3 rounded-xl border ${isMe ? 'bg-gray-800/80 border-white/20' : 'bg-black/50 border-white/10'}`}>
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isHost ? 'bg-gradient-to-br from-purple-600 to-blue-600' : 'bg-gradient-to-br from-green-600 to-teal-600'}`}>
-                  <AvatarIcon size={20} className="text-white" />
+          <div className={`flex flex-col items-center p-2 rounded-xl border ${isMe ? 'bg-gray-800/80 border-white/20' : 'bg-black/50 border-white/10'}`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-1 ${isP1 ? 'bg-neon-pink/20' : isP2 ? 'bg-neon-blue/20' : 'bg-gray-800'}`}>
+                  <AvatarIcon size={20} className={isP1 ? 'text-neon-pink' : isP2 ? 'text-neon-blue' : 'text-gray-500'} />
               </div>
-              <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold text-white text-sm">{name || 'Joueur'}</p>
-                    {isHost && <span className="text-[10px] bg-purple-500/30 text-purple-300 px-1.5 py-0.5 rounded uppercase">Hôte</span>}
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {status || (isMe ? 'Connecté' : 'En attente...')}
-                  </p>
-              </div>
+              <p className="font-bold text-white text-[10px] truncate w-full text-center">{player.name}</p>
+              <span className={`text-[8px] px-1.5 py-0.5 rounded uppercase mt-1 ${isP1 || isP2 ? 'bg-white/10 text-white' : 'text-gray-500'}`}>
+                  {role}
+              </span>
           </div>
       );
   };
@@ -406,9 +395,11 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
          <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)]">
              NEON CONNECT
          </h1>
-         <button onClick={() => resetGame(true)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
-           <RefreshCw size={20} />
-         </button>
+         {mp.isHost && (
+             <button onClick={() => resetGame(true)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+                <RefreshCw size={20} />
+             </button>
+         )}
        </div>
 
        {/* Game Controls / Status */}
@@ -438,128 +429,79 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 {difficulty === 'HARD' && <span className="text-red-500">DIFFICILE</span>}
               </button>
           ) : gameMode === 'ONLINE' ? (
-              <button 
-                onClick={() => setIsLobbyOpen(true)}
-                className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 ${mp.isConnected ? 'bg-green-900/30 border-green-500 text-green-400 animate-pulse' : 'bg-red-900/30 border-red-500 text-red-400'}`}
-              >
-                  {mp.isConnected ? 'SALON CONNECTÉ' : 'CHOISIR SALON'}
-              </button>
+              <div className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 ${mp.isConnected ? 'bg-green-900/30 border-green-500 text-green-400 animate-pulse' : 'bg-yellow-900/30 border-yellow-500 text-yellow-400'}`}>
+                  {mp.isConnected ? 'CONNECTÉ' : 'RECHERCHE...'}
+              </div>
           ) : <div className="w-[80px]"></div>}
        </div>
 
-       {/* ONLINE LOBBY OVERLAY (SALON SYSTEM) */}
+       {/* ONLINE LOBBY OVERLAY (AUTO JOIN) */}
        {gameMode === 'ONLINE' && isLobbyOpen && (
-           <div className="absolute inset-0 z-40 bg-black/95 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-8 pb-20 animate-in fade-in duration-300">
-               <h2 className="text-3xl font-black italic text-white mb-2 text-center">SALONS MULTIJOUEUR</h2>
+           <div className="absolute inset-0 z-40 bg-black/95 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-16 pb-20 animate-in fade-in duration-300">
+               <h2 className="text-3xl font-black italic text-white mb-2 text-center">SALON GLOBAL</h2>
                
-               {!selectedSalonId ? (
-                   <>
-                        <p className="text-gray-400 mb-8 text-xs text-center px-4">Choisis un salon pour voir les joueurs.</p>
-                        <div className="grid grid-cols-2 gap-4 w-full max-w-sm px-4">
-                            {SALONS.map((salon) => {
-                                const statusData = mp.roomStatuses[salon.id] || { status: 'CHECKING' };
-                                const isOccupied = statusData.status === 'OCCUPIED';
-                                const isChecking = statusData.status === 'CHECKING';
-                                
-                                return (
-                                    <button 
-                                            key={salon.id}
-                                            onClick={() => handleSelectSalon(salon.id)}
-                                            disabled={mp.isLoading}
-                                            className="relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 group h-36 bg-black/40 border-white/10 hover:border-white/20"
-                                    >
-                                        <div className={`absolute top-3 right-3 w-3 h-3 rounded-full shadow-[0_0_8px_currentColor] 
-                                                ${isChecking ? 'bg-yellow-400 text-yellow-400 animate-pulse' : 
-                                                isOccupied ? 'bg-green-500 text-green-500' : 'bg-red-500 text-red-500'}
-                                        `}></div>
-            
-                                        <Server size={32} className="text-gray-500 group-hover:text-white" />
-                                        <span className="font-bold text-lg text-white">{salon.name}</span>
-                                        
-                                        <div className="text-xs font-mono font-bold mt-1">
-                                            {isChecking ? (
-                                                <span className="text-yellow-400 flex items-center gap-1"><Loader2 size={10} className="animate-spin"/> VÉRIF...</span>
-                                            ) : isOccupied ? (
-                                                <span className="text-green-400 flex items-center gap-1">
-                                                    <User size={12}/> {statusData.playerCount || 1} JOUEUR(S)
-                                                </span>
-                                            ) : (
-                                                <span className="text-red-500">VIDE</span>
-                                            )}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                   </>
-               ) : (
-                    /* INSIDE SALON VIEW */
-                    <div className="w-full max-w-sm px-4 animate-in slide-in-from-right-8">
-                        <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                            <div className="flex items-center justify-between mb-6">
-                                <button onClick={() => { setSelectedSalonId(null); mp.disconnect(); }} className="text-gray-400 hover:text-white flex items-center gap-1 text-xs">
-                                    <ArrowLeft size={14} /> RETOUR
+                {/* AUTO-JOIN STATUS */}
+                {!mp.isConnected && !mp.isHost ? (
+                    <div className="flex flex-col items-center gap-4 mt-10">
+                        {mp.error ? (
+                            <div className="p-4 bg-red-900/50 border border-red-500 rounded-xl text-red-200 text-center max-w-xs">
+                                <AlertCircle className="mx-auto mb-2 text-red-500" size={32} />
+                                <p className="font-bold">{mp.error}</p>
+                                <button 
+                                    onClick={() => { mp.disconnect(); mp.connectToPeer(GLOBAL_ROOM_ID); }}
+                                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-500"
+                                >
+                                    RÉESSAYER
                                 </button>
-                                <h3 className="text-xl font-bold text-white uppercase tracking-widest">{SALONS.find(s => s.id === selectedSalonId)?.name}</h3>
+                            </div>
+                        ) : (
+                            <>
+                                <Loader2 size={48} className="text-neon-blue animate-spin" />
+                                <p className="text-gray-400 animate-pulse text-sm">Connexion au salon...</p>
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    /* INSIDE SALON VIEW - GRID OF PLAYERS */
+                    <div className="w-full max-w-md px-4 animate-in slide-in-from-bottom-8 mt-6">
+                        <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold text-white uppercase tracking-widest">JOUEURS ({mp.players.length}/15)</h3>
                                 <div className={`w-3 h-3 rounded-full ${mp.isConnected ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-yellow-500 animate-pulse'}`}></div>
                             </div>
 
-                            <div className="space-y-3 mb-6">
-                                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-2">JOUEURS DANS LE SALON</p>
-                                
-                                {/* Slot 1: Host */}
-                                <SalonPlayerCard 
-                                    name={mp.isHost ? username : mp.roomInfo?.name} 
-                                    avatarId={mp.isHost ? currentAvatarId : mp.roomInfo?.avatarId}
-                                    status={mp.isHost ? 'Hôte du salon' : (mp.roomInfo?.status === 'PLAYING' ? 'EN PARTIE' : 'EN ATTENTE')}
-                                    isMe={mp.isHost}
-                                    isHost={true}
-                                />
-
-                                {/* Slot 2: Guest */}
-                                {(mp.isHost && mp.opponentName) || (!mp.isHost) ? (
-                                    <SalonPlayerCard 
-                                        name={mp.isHost ? mp.opponentName : username} 
-                                        avatarId={mp.isHost ? mp.opponentAvatarId : currentAvatarId}
-                                        status={mp.isHost ? 'Connecté' : 'Visiteur'}
-                                        isMe={!mp.isHost}
-                                        isHost={false}
-                                    />
-                                ) : (
-                                    <div className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-white/10 bg-black/30 opacity-50">
-                                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-800">
-                                            <User size={20} className="text-gray-600" />
-                                        </div>
-                                        <p className="text-sm text-gray-500 italic">En attente d'un adversaire...</p>
+                            {/* PLAYERS GRID */}
+                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 mb-6">
+                                {mp.players.map((p, idx) => (
+                                    <SalonPlayerCard key={p.id} player={p} index={idx} />
+                                ))}
+                                {/* Empty Slots placeholders */}
+                                {Array.from({ length: Math.max(0, 15 - mp.players.length) }).map((_, i) => (
+                                    <div key={`empty-${i}`} className="aspect-square rounded-xl border border-dashed border-white/5 bg-black/20 flex items-center justify-center">
+                                        <User size={16} className="text-white/10" />
                                     </div>
-                                )}
+                                ))}
                             </div>
 
                             {/* ACTION BUTTON */}
-                            {mp.isHost ? (
-                                <div className="text-center text-xs text-gray-400 animate-pulse">
-                                    {mp.opponentName ? 'Adversaire connecté ! La partie va commencer.' : 'En attente de connexion...'}
+                            {mp.players.length < 2 ? (
+                                <div className="text-center text-xs text-gray-400 animate-pulse py-2">
+                                    En attente de joueurs...
                                 </div>
                             ) : (
-                                mp.roomInfo?.status === 'WAITING' ? (
-                                    <button 
-                                        onClick={handleJoinGame}
-                                        className="w-full py-4 bg-green-500 text-black font-black text-lg rounded-xl shadow-[0_0_20px_#22c55e] hover:bg-white hover:scale-105 transition-all"
-                                    >
-                                        REJOINDRE LA PARTIE
-                                    </button>
-                                ) : (
-                                    <button disabled className="w-full py-4 bg-gray-800 text-gray-500 font-bold text-lg rounded-xl border border-white/10 cursor-not-allowed">
-                                        PARTIE EN COURS
-                                    </button>
-                                )
+                                <button 
+                                    onClick={handleJoinGame}
+                                    className="w-full py-4 bg-green-500 text-black font-black text-lg rounded-xl shadow-[0_0_20px_#22c55e] hover:bg-white hover:scale-105 transition-all flex items-center justify-center gap-2"
+                                >
+                                    {isSpectator ? <><Eye size={20}/> REGARDER LA PARTIE</> : <><Play size={20}/> JOUER</>}
+                                </button>
                             )}
                         </div>
                     </div>
                )}
 
                <button onClick={() => { setGameMode('PVE'); mp.disconnect(); setIsLobbyOpen(false); }} className="mt-auto mb-4 text-gray-500 text-xs underline">
-                   Retour au menu principal
+                   Quitter le mode en ligne
                </button>
            </div>
        )}
@@ -574,7 +516,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 <CircleDot size={12} className={isAiThinking ? 'animate-spin' : ''} /> 
                 {gameMode === 'ONLINE' ? (
                     mp.isConnected ? (
-                        (mp.isHost && currentPlayer === 1) || (!mp.isHost && currentPlayer === 2) 
+                        isSpectator ? `SPECTATEUR - TOUR JOUEUR ${currentPlayer}` :
+                        (isPlayer1 && currentPlayer === 1) || (isPlayer2 && currentPlayer === 2) 
                         ? "C'EST TON TOUR !" 
                         : "L'ADVERSAIRE RÉFLÉCHIT..."
                     ) : "EN ATTENTE..."
@@ -593,7 +536,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                if (!reaction) return null;
                const Icon = reaction.icon;
                
-               // Positionnement : Si c'est moi, en bas à droite. Si c'est l'adversaire, en haut à gauche.
+               // Show reaction centrally if sender isn't me, or bottom right if me
                const positionClass = activeReaction.isMe 
                     ? 'bottom-[-20px] right-[-20px] sm:right-[-40px]' 
                     : 'top-[-20px] left-[-20px] sm:left-[-40px]';
@@ -611,7 +554,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
            <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
                <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
                     {Array.from({ length: COLS }).map((_, c) => (
-                        <div key={`col-${c}`} onClick={() => handleColumnClick(c)} className={`h-full cursor-pointer hover:bg-white/5 transition-colors rounded-full ${winState.winner ? 'pointer-events-none' : ''}`}/>
+                        <div 
+                            key={`col-${c}`} 
+                            onClick={() => handleColumnClick(c)} 
+                            className={`h-full transition-colors rounded-full ${
+                                winState.winner || isSpectator 
+                                ? 'cursor-default' 
+                                : 'cursor-pointer hover:bg-white/5'
+                            }`}
+                        />
                     ))}
                </div>
                {Array.from({ length: COLS }).map((_, c) => (
@@ -638,7 +589,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
            </div>
        </div>
 
-       {/* REACTION & CHAT BAR (Only for Online/PVP) */}
+       {/* REACTION & CHAT BAR (Only for Online) */}
        {gameMode === 'ONLINE' && mp.isConnected && !winState.winner && (
             <div className="w-full max-w-lg mt-4 flex flex-col gap-3 animate-in slide-in-from-bottom-4 z-20">
                 {/* Reactions */}
@@ -664,12 +615,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     )}
                     {chatHistory.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`px-2 py-1 rounded-lg text-[10px] font-bold max-w-[85%] break-words ${
-                                msg.isMe 
-                                ? 'bg-neon-pink/20 text-pink-100 border border-neon-pink/30' 
-                                : 'bg-neon-blue/20 text-cyan-100 border border-neon-blue/30'
-                            }`}>
-                                {msg.text}
+                            <div className={`flex flex-col max-w-[85%]`}>
+                                {!msg.isMe && <span className="text-[8px] text-gray-500 ml-1 mb-0.5">{msg.senderName}</span>}
+                                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold break-words ${
+                                    msg.isMe 
+                                    ? 'bg-neon-pink/20 text-pink-100 border border-neon-pink/30' 
+                                    : 'bg-neon-blue/20 text-cyan-100 border border-neon-blue/30'
+                                }`}>
+                                    {msg.text}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -713,17 +667,26 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                         {winState.winner === 'DRAW' 
                             ? "MATCH NUL" 
                             : gameMode === 'ONLINE'
-                                ? (mp.isHost && winState.winner === 1) || (!mp.isHost && winState.winner === 2) ? "TU AS GAGNÉ !" : "TU AS PERDU..."
+                                ? (isSpectator 
+                                    ? `VICTOIRE JOUEUR ${winState.winner}` 
+                                    : (isPlayer1 && winState.winner === 1) || (isPlayer2 && winState.winner === 2) ? "TU AS GAGNÉ !" : "TU AS PERDU...")
                                 : `VICTOIRE JOUEUR ${winState.winner} !`
                         }
                     </span>
                 </div>
-                <button
-                    onClick={() => resetGame(true)}
-                    className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"
-                >
-                    <Play size={20} fill="black"/> REJOUER
-                </button>
+                {(gameMode !== 'ONLINE' || mp.isHost) && (
+                    <button
+                        onClick={() => resetGame(true)}
+                        className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"
+                    >
+                        <Play size={20} fill="black"/> REJOUER
+                    </button>
+                )}
+                {gameMode === 'ONLINE' && !mp.isHost && (
+                    <div className="text-xs text-gray-500 animate-pulse">
+                        En attente de l'hôte pour rejouer...
+                    </div>
+                )}
              </div>
         )}
     </div>
