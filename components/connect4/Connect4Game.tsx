@@ -14,6 +14,7 @@ interface Connect4GameProps {
 
 const ROWS = 6;
 const COLS = 7;
+const EMOJIS = ['👋', '😂', '😎', '😭', '😡', '🤔', '👍', '❤️'];
 
 // Helpers
 const createBoard = (): BoardState => Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
@@ -75,6 +76,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const [remoteCodeInput, setRemoteCodeInput] = useState('');
   const [showNumpad, setShowNumpad] = useState(false);
   
+  // Emoji State
+  const [localEmoji, setLocalEmoji] = useState<string | null>(null);
+  const [remoteEmoji, setRemoteEmoji] = useState<string | null>(null);
+  
   // Audio
   const { playMove, playGameOver, playVictory } = audio;
 
@@ -85,6 +90,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setWinState({ winner: null, line: [] });
     setIsAiThinking(false);
     setEarnedCoins(0);
+    setLocalEmoji(null);
+    setRemoteEmoji(null);
 
     if (sendSync && mp.isConnected) {
         mp.sendData({ type: 'RESET' });
@@ -165,9 +172,13 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
       if (isMyWin) {
           playVictory();
-          if (gameMode === 'PVE') { // Only give coins for PVE mode
+          // STRICT RULE: Coins are ONLY for PVE (Single Player vs AI)
+          // No coins for local PVP or Online
+          if (gameMode === 'PVE') { 
              addCoins(30);
              setEarnedCoins(30);
+          } else {
+             setEarnedCoins(0);
           }
       } else {
           playGameOver();
@@ -178,6 +189,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode, addCoins, mp]);
 
+  // Send Emoji
+  const sendEmoji = useCallback((emoji: string) => {
+      if (gameMode === 'ONLINE' && mp.isConnected) {
+          setLocalEmoji(emoji);
+          mp.sendData({ type: 'EMOJI', emoji });
+          // Auto clear local emoji
+          setTimeout(() => setLocalEmoji(null), 2500);
+      }
+  }, [gameMode, mp.isConnected, mp]);
+
   // Multiplayer Data Handling
   useEffect(() => {
     if (gameMode === 'ONLINE') {
@@ -187,6 +208,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             }
             if (data.type === 'RESET') {
                 resetGame(false);
+            }
+            if (data.type === 'EMOJI') {
+                setRemoteEmoji(data.emoji);
+                setTimeout(() => setRemoteEmoji(null), 2500);
             }
         });
     }
@@ -368,13 +393,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                                 onClick={() => {
                                     setRemoteCodeInput('1111');
                                     mp.connectToPeer('1111');
-                                    // Fallback: If connection fails, user should host this code. 
-                                    // Complex to handle in UI only, but setting input helps convention.
-                                    // Or better, try to become it if fail?
-                                    // For now, simple join attempt.
                                     setTimeout(() => {
                                         if (!mp.isConnected && !mp.isHost) {
-                                            // Suggest hosting if join fails
                                             if (confirm("Personne dans le Salon 1. Voulez-vous créer ce salon ?")) {
                                                 mp.hostRoom('1111');
                                             }
@@ -443,8 +463,25 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        {/* Game Board */}
        <div className={`relative z-10 p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md transition-opacity duration-500 ${gameMode === 'ONLINE' && !mp.isConnected ? 'opacity-0' : 'opacity-100'}`}>
            
+           {/* EMOJI OVERLAYS */}
+           {remoteEmoji && (
+               <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce">
+                   <div className="text-6xl filter drop-shadow-[0_0_15px_rgba(255,255,255,0.6)]">
+                       {remoteEmoji}
+                   </div>
+               </div>
+           )}
+           
+           {localEmoji && (
+               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-pulse">
+                   <div className="text-6xl filter drop-shadow-[0_0_15px_rgba(255,255,255,0.6)]">
+                       {localEmoji}
+                   </div>
+               </div>
+           )}
+
            {/* Grid */}
-           <div className="grid grid-cols-7 gap-2 sm:gap-3">
+           <div className="grid grid-cols-7 gap-2 sm:gap-3 relative">
                {/* Click Columns (Invisible overlays for better hit area) */}
                <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
                     {Array.from({ length: COLS }).map((_, c) => (
@@ -488,6 +525,21 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                ))}
            </div>
        </div>
+
+       {/* EMOJI BAR (Only for Online/PVP) */}
+       {gameMode === 'ONLINE' && mp.isConnected && !winState.winner && (
+            <div className="mt-6 flex gap-3 p-2 bg-gray-900/80 rounded-full border border-white/10 z-20 animate-in slide-in-from-bottom-4 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                {EMOJIS.map(emoji => (
+                    <button
+                        key={emoji}
+                        onClick={() => sendEmoji(emoji)}
+                        className="text-2xl hover:scale-125 transition-transform active:scale-95 p-1 grayscale hover:grayscale-0"
+                    >
+                        {emoji}
+                    </button>
+                ))}
+            </div>
+       )}
 
         {/* Victory/Draw Actions */}
         {winState.winner && (
