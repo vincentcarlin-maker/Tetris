@@ -1,30 +1,81 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Dégradé principal Néon -->
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#00f3ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#bc13fe;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#ff00ff;stop-opacity:1" />
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+    
+    <!-- Filtre de lueur intense -->
+    <filter id="glow" height="300%" width="300%" x="-75%" y="-75%">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur" />
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="coloredBlur" />
+        <feMergeNode in="SourceGraphic" />
       </feMerge>
     </filter>
+    
+    <!-- Filtre pour l'écran -->
+    <filter id="screenGlow">
+        <feGaussianBlur stdDeviation="4" result="blur" />
+        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
   </defs>
+
+  <!-- Fond sombre -->
+  <rect width="512" height="512" fill="#0a0a12" />
   
-  <!-- Fond -->
-  <rect width="512" height="512" fill="#0a0a12"/>
-  
-  <!-- Base du Joystick -->
-  <path d="M156 380 L356 380 L300 180 L212 180 Z" fill="url(#grad1)" filter="url(#glow)" opacity="0.8"/>
-  
-  <!-- Tige -->
-  <rect x="241" y="140" width="30" height="180" rx="15" fill="#e2e8f0" />
-  
-  <!-- Boule -->
-  <circle cx="256" cy="140" r="70" fill="#ff00ff" stroke="white" stroke-width="6" filter="url(#glow)"/>
-  
-  <!-- Reflet Boule -->
-  <ellipse cx="235" cy="120" rx="20" ry="12" fill="white" opacity="0.4" />
+  <!-- Grille subtile en arrière-plan -->
+  <pattern id="smallGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+  </pattern>
+  <rect width="512" height="512" fill="url(#smallGrid)" />
+
+  <!-- Groupe Borne d'Arcade centrée -->
+  <g transform="translate(106, 60) scale(0.6)">
+      <!-- Silhouette de la borne -->
+      <path d="M 100 50 L 400 50 L 420 150 L 450 350 L 450 650 L 50 650 L 50 350 L 80 150 Z" 
+            fill="none" 
+            stroke="url(#neonGrad)" 
+            stroke-width="20" 
+            stroke-linejoin="round"
+            filter="url(#glow)" 
+            stroke-linecap="round"
+            opacity="0.95"/>
+      
+      <!-- Écran -->
+      <rect x="130" y="180" width="240" height="180" rx="10" 
+            fill="#120820" 
+            stroke="#00f3ff" 
+            stroke-width="8" 
+            filter="url(#glow)" />
+      
+      <!-- Contenu Écran: Coeur Pixel -->
+      <g transform="translate(205, 235) scale(0.9)">
+         <path d="M 20 0 L 50 0 L 50 30 L 80 0 L 110 0 L 110 30 L 110 60 L 80 90 L 65 105 L 50 90 L 20 60 L 20 30 Z" 
+               fill="#ff00ff" 
+               filter="url(#screenGlow)" />
+      </g>
+
+      <!-- Plateau de contrôle -->
+      <path d="M 30 380 L 470 380 L 450 480 L 50 480 Z" 
+            fill="#161626" 
+            stroke="#bc13fe" 
+            stroke-width="8"
+            stroke-linejoin="round"
+            filter="url(#glow)" />
+            
+      <!-- Joystick -->
+      <line x1="140" y1="430" x2="160" y2="400" stroke="#ccc" stroke-width="12" stroke-linecap="round"/>
+      <circle cx="160" cy="390" r="25" fill="#ff00ff" filter="url(#glow)"/>
+
+      <!-- Boutons -->
+      <circle cx="300" cy="430" r="18" fill="#00f3ff" filter="url(#glow)"/>
+      <circle cx="360" cy="410" r="18" fill="#ffff00" filter="url(#glow)"/>
+      <circle cx="420" cy="430" r="18" fill="#00f3ff" filter="url(#glow)"/>
+      
+      <!-- Reflet Sol -->
+      <ellipse cx="250" cy="690" rx="200" ry="40" fill="url(#neonGrad)" opacity="0.2" filter="url(#glow)"/>
+  </g>
 </svg>
