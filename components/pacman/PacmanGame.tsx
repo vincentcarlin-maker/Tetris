@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, RefreshCw, Trophy, Ghost } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Ghost } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { Direction, Position, Pacman, Ghost as GhostType, Grid, TileType, GhostMode } from './types';
@@ -12,7 +12,7 @@ interface PacmanGameProps {
     addCoins: (amount: number) => void;
 }
 
-const GAME_SPEED_BASE = 0.15; // Vitesse de déplacement
+const GAME_SPEED_BASE = 0.11; // Vitesse réduite pour meilleur contrôle
 
 // --- GHOST AI CONSTANTS ---
 const SCATTER_TARGETS = [
@@ -72,6 +72,9 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     const gameModeIndexRef = useRef(0);
     const gameModeRef = useRef<'CHASE' | 'SCATTER'>('SCATTER');
     
+    // Swipe Control Refs
+    const touchStartRef = useRef<{ x: number, y: number } | null>(null);
+    
     const [, setTick] = useState(0);
 
     useEffect(() => {
@@ -99,6 +102,42 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [gameOver, gameWon, isPlaying, resumeAudio]);
 
+    // --- SWIPE CONTROLS LOGIC ---
+    const handleTouchStart = (e: React.TouchEvent) => {
+        const touch = e.touches[0];
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!touchStartRef.current) return;
+        
+        const touch = e.touches[0];
+        const diffX = touch.clientX - touchStartRef.current.x;
+        const diffY = touch.clientY - touchStartRef.current.y;
+        const threshold = 20; // Sensibilité du swipe
+
+        // Si le mouvement est significatif
+        if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
+            resumeAudio();
+            if (!isPlaying && !gameOver && !gameWon) setIsPlaying(true);
+
+            // Determine dominant direction
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                pacmanRef.current.nextDir = diffX > 0 ? 'RIGHT' : 'LEFT';
+            } else {
+                pacmanRef.current.nextDir = diffY > 0 ? 'DOWN' : 'UP';
+            }
+
+            // Reset start point to current to allow continuous steering
+            touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+        }
+    };
+
+    const handleTouchEnd = () => {
+        touchStartRef.current = null;
+    };
+
+
     const resetGame = () => {
         gridRef.current = JSON.parse(JSON.stringify(LEVEL_MAP));
         let dots = 0;
@@ -122,12 +161,6 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
             gameModeIndexRef.current = 0;
             gameModeRef.current = 'SCATTER';
         }
-    };
-
-    const handleDirBtn = (dir: Direction) => {
-        resumeAudio();
-        if (!isPlaying && !gameOver && !gameWon) setIsPlaying(true);
-        pacmanRef.current.nextDir = dir;
     };
 
     const isWall = (x: number, y: number): boolean => {
@@ -172,7 +205,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         const p = pacmanRef.current;
         const speed = p.speed;
 
-        // 1. Gestion du demi-tour immédiat (plus réactif)
+        // 1. Gestion du demi-tour immédiat
         if (
             (p.dir === 'LEFT' && p.nextDir === 'RIGHT') ||
             (p.dir === 'RIGHT' && p.nextDir === 'LEFT') ||
@@ -183,14 +216,11 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         }
 
         // 2. Calculs de position sur la grille
-        // On considère que le centre d'une case est un entier (ex: 9, 10).
         const center = { x: Math.round(p.pos.x), y: Math.round(p.pos.y) };
         const distToCenter = Math.abs(p.pos.x - center.x) + Math.abs(p.pos.y - center.y);
 
         // 3. Logique de virage et d'alignement
-        // Si on est proche du centre de la case (dans la marge de vitesse), on peut prendre une décision
-        if (distToCenter < speed) {
-            // TENTATIVE DE VIRAGE
+        if (distToCenter <= speed + 0.02) {
             if (p.nextDir !== p.dir) {
                 let canTurn = false;
                 if (p.nextDir === 'UP' && !isWall(center.x, center.y - 1)) canTurn = true;
@@ -199,14 +229,12 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                 if (p.nextDir === 'RIGHT' && !isWall(center.x + 1, center.y)) canTurn = true;
 
                 if (canTurn) {
-                    // Snapping: On s'aligne parfaitement au centre pour tourner proprement
                     p.pos.x = center.x;
                     p.pos.y = center.y;
                     p.dir = p.nextDir;
                 }
             }
 
-            // DETECTION DE MUR FACE À NOUS
             let blocked = false;
             if (p.dir === 'UP' && isWall(center.x, center.y - 1)) blocked = true;
             if (p.dir === 'DOWN' && isWall(center.x, center.y + 1)) blocked = true;
@@ -214,31 +242,27 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
             if (p.dir === 'RIGHT' && isWall(center.x + 1, center.y)) blocked = true;
 
             if (blocked) {
-                // Si on est bloqué, on s'arrête pile au centre pour éviter de rentrer dans le mur
                 p.pos.x = center.x;
                 p.pos.y = center.y;
-                return; // Stop movement
+                return;
             }
         }
 
-        // 4. Application du mouvement
         if (p.dir === 'UP') p.pos.y -= speed;
         else if (p.dir === 'DOWN') p.pos.y += speed;
         else if (p.dir === 'LEFT') p.pos.x -= speed;
         else if (p.dir === 'RIGHT') p.pos.x += speed;
 
-        // 5. Gestion du Tunnel (Wrapping)
+        // Wrapping
         if (p.pos.x < -0.5) p.pos.x = COLS - 0.5;
         if (p.pos.x > COLS - 0.5) p.pos.x = -0.5;
 
-        // 6. Manger les points (basé sur la position arrondie)
+        // Manger les points
         const gridX = Math.round(p.pos.x);
         const gridY = Math.round(p.pos.y);
         
-        // Waka Sound Throttling
         const now = Date.now();
         if (!wakaTimerRef.current || now - wakaTimerRef.current > 250) {
-             // Only play if moving
              if (Math.abs(p.pos.x - center.x) > 0.01 || Math.abs(p.pos.y - center.y) > 0.01) {
                 playPacmanWaka();
                 wakaTimerRef.current = now;
@@ -247,12 +271,12 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
 
         if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
             const tile = gridRef.current[gridY][gridX];
-            if (tile === 2) { // Dot
+            if (tile === 2) {
                 gridRef.current[gridY][gridX] = 0;
                 setScore(s => s + 10);
                 dotsCountRef.current--;
                 checkWin();
-            } else if (tile === 3) { // Power Pellet
+            } else if (tile === 3) {
                 gridRef.current[gridY][gridX] = 0;
                 setScore(s => s + 50);
                 dotsCountRef.current--;
@@ -401,7 +425,12 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     });
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-[#0a0a12] relative overflow-hidden text-white font-sans touch-none select-none">
+        <div 
+            className="h-full w-full flex flex-col items-center bg-[#0a0a12] relative overflow-hidden text-white font-sans touch-none select-none"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-black pointer-events-none"></div>
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
@@ -415,6 +444,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
             <div className="w-full max-w-lg flex gap-2 px-6 mb-4 z-10">
                  {Array.from({ length: 3 }).map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full bg-yellow-400 ${i < lives ? 'opacity-100' : 'opacity-20'}`} />))}
             </div>
+            
             <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg relative z-10 min-h-0 pb-6">
                 <div className="relative w-full h-auto aspect-[19/21] bg-black border-2 border-blue-900/50 rounded-lg shadow-[0_0_20px_rgba(30,58,138,0.3)] overflow-hidden">
                     {gridRef.current.map((row, r) => (row.map((cell, c) => {
@@ -431,68 +461,20 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                         const isFrightened = g.mode === 'FRIGHTENED';
                         const isEaten = g.mode === 'EATEN';
                         const colorClass = isFrightened ? 'text-blue-300' : g.color === 'red' ? 'text-red-500' : g.color === 'pink' ? 'text-pink-400' : g.color === 'cyan' ? 'text-cyan-400' : 'text-orange-400';
-                        // REMOVED transition-transform duration-75 to fix visual trails
-                        return (<div key={g.id} className={`absolute flex items-center justify-center`} style={{...style, transform: 'scale(1.2)'}}>
+                        return (<div key={g.id} className={`absolute flex items-center justify-center`} style={{...style, transform: 'scale(1.2)', transition: 'none'}}>
                             {isEaten ? (<div className="relative w-full h-full flex items-center justify-center"><div className="w-1/3 h-1/3 bg-white rounded-full absolute -translate-x-1/4" /><div className="w-1/3 h-1/3 bg-white rounded-full absolute translate-x-1/4" /></div>)
                             : (<Ghost size={24} className={`${colorClass} ${isFrightened ? 'animate-pulse' : ''} drop-shadow-[0_0_5px_currentColor]`} fill="currentColor" />)}
                         </div>);
                     })}
-                    {/* REMOVED transition-transform duration-75 from pacman as well */}
-                    <div className="absolute flex items-center justify-center" style={{...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y), transform: `scale(1.1) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`}}>
+                    <div className="absolute flex items-center justify-center" style={{...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y), transform: `scale(1.1) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`, transition: 'none'}}>
                         <div className="w-[80%] h-[80%] bg-yellow-400 rounded-full relative overflow-hidden shadow-[0_0_10px_#facc15]">
                             <div className="absolute top-0 right-0 w-full h-1/2 bg-black origin-bottom-right animate-[chomp_0.2s_infinite_alternate]" style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 0, 100% 50%)' }} />
                             <div className="absolute bottom-0 right-0 w-full h-1/2 bg-black origin-top-right animate-[chomp_0.2s_infinite_alternate]" style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 100%, 100% 50%)' }} />
                         </div>
                     </div>
-                    {!isPlaying && !gameOver && !gameWon && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">UTILISEZ LES FLÈCHES</p></div>)}
+                    {!isPlaying && !gameOver && !gameWon && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
                     {gameOver && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-red-500 italic mb-2">GAME OVER</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-500">REJOUER</button></div>)}
                     {gameWon && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-green-400 italic mb-2">VICTOIRE !</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">REJOUER</button></div>)}
-                </div>
-                
-                {/* CROSS D-PAD - REDESIGNED */}
-                <div className="mt-6 relative w-48 h-48 shrink-0 z-20">
-                     {/* Background Shadow for the Cross Shape */}
-                     {/* Vertical Arm BG */}
-                     <div className="absolute top-0 left-[35%] w-[30%] h-full bg-gray-900 rounded-lg transform scale-105" />
-                     {/* Horizontal Arm BG */}
-                     <div className="absolute top-[35%] left-0 w-full h-[30%] bg-gray-900 rounded-lg transform scale-105" />
-
-                     {/* UP */}
-                     <button
-                        className="absolute top-0 left-[35%] w-[30%] h-[35%] bg-gray-800 border-t border-x border-gray-600 rounded-t-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
-                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('UP'); }}
-                     >
-                        <ArrowUp size={32} className="text-gray-300" />
-                     </button>
-
-                     {/* DOWN */}
-                     <button
-                        className="absolute bottom-0 left-[35%] w-[30%] h-[35%] bg-gray-800 border-b border-x border-gray-600 rounded-b-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
-                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('DOWN'); }}
-                     >
-                        <ArrowDown size={32} className="text-gray-300" />
-                     </button>
-
-                     {/* LEFT */}
-                     <button
-                        className="absolute top-[35%] left-0 w-[35%] h-[30%] bg-gray-800 border-l border-y border-gray-600 rounded-l-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
-                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('LEFT'); }}
-                     >
-                        <ArrowLeft size={32} className="text-gray-300" />
-                     </button>
-
-                     {/* RIGHT */}
-                     <button
-                        className="absolute top-[35%] right-0 w-[35%] h-[30%] bg-gray-800 border-r border-y border-gray-600 rounded-r-md active:bg-neon-blue active:border-white flex items-center justify-center z-10 touch-manipulation"
-                        onPointerDown={(e) => { e.preventDefault(); handleDirBtn('RIGHT'); }}
-                     >
-                        <ArrowRight size={32} className="text-gray-300" />
-                     </button>
-
-                     {/* CENTER PIVOT */}
-                     <div className="absolute top-[35%] left-[35%] w-[30%] h-[30%] bg-gray-800 flex items-center justify-center z-10 pointer-events-none">
-                        <div className="w-1/2 h-1/2 rounded-full bg-black/40 shadow-inner" />
-                     </div>
                 </div>
             </div>
         </div>
