@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Server, AlertCircle, CheckCircle2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Zap, Flame, Eye } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Server, AlertCircle, CheckCircle2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Zap, Eye } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -19,7 +19,7 @@ const GLOBAL_ROOM_ID = 'neon-global-salon';
 
 // Réactions Néon
 const REACTIONS = [
-    { id: 'angry', icon: Flame, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' },
+    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' },
     { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500' },
     { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
@@ -90,6 +90,11 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [earnedCoins, setEarnedCoins] = useState(0);
 
+  // Animation State
+  const [animatingCell, setAnimatingCell] = useState<{r: number, c: number} | null>(null);
+  const isAnimatingRef = useRef(false);
+  const animationTimerRef = useRef<any>(null);
+
   // Multiplayer Hook
   const mp = useMultiplayer();
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
@@ -110,11 +115,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Audio
-  const { playMove, playGameOver, playVictory } = audio;
+  const { playMove, playLand, playGameOver, playVictory } = audio;
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+        if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
         if (mp.isConnected || mp.peerId) {
             mp.disconnect();
         }
@@ -141,12 +147,17 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Reset Game
   const resetGame = useCallback((sendSync = false) => {
+    if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+    isAnimatingRef.current = false;
+    
     setBoard(createBoard());
     setCurrentPlayer(1);
     setWinState({ winner: null, line: [] });
     setIsAiThinking(false);
     setEarnedCoins(0);
     setActiveReaction(null);
+    setAnimatingCell(null);
+
     if (gameMode !== 'ONLINE') {
         setChatHistory([]);
     }
@@ -199,7 +210,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Drop Piece Logic
   const handleColumnClick = useCallback((colIndex: number, isAi = false, isRemote = false) => {
-    if (winState.winner) return;
+    if (winState.winner || isAnimatingRef.current) return;
     
     // AI Check
     if (gameMode === 'PVE' && !isAi && isAiThinking) return;
@@ -227,40 +238,54 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
     if (rowIndex === -1) return;
 
+    // --- EXECUTE MOVE START ---
+    isAnimatingRef.current = true;
+    
+    // 1. Update Board Immediately
     const newBoard = board.map(row => [...row]);
     newBoard[rowIndex][colIndex] = currentPlayer;
     setBoard(newBoard);
-    playMove();
+    
+    // 2. Start Animation
+    setAnimatingCell({ r: rowIndex, c: colIndex });
+    playMove(); // "Whoosh" drop sound
 
-    // Send Move
+    // 3. Send Move (Multiplayer)
     if (gameMode === 'ONLINE' && !isRemote) {
         mp.sendData({ type: 'MOVE', col: colIndex });
     }
 
-    const result = checkWinFull(newBoard);
-    if (result.winner) {
-      setWinState(result);
-      
-      const isMyWin = (gameMode === 'ONLINE' && ((isPlayer1 && result.winner === 1) || (isPlayer2 && result.winner === 2))) ||
-                      (gameMode === 'PVP' && (result.winner === 1 || result.winner === 2)) ||
-                      (gameMode === 'PVE' && result.winner === 1);
+    // 4. Wait for Animation to Finish (Drop End)
+    animationTimerRef.current = setTimeout(() => {
+        playLand(); // Impact sound
+        setAnimatingCell(null);
+        
+        const result = checkWinFull(newBoard);
+        if (result.winner) {
+          setWinState(result);
+          
+          const isMyWin = (gameMode === 'ONLINE' && ((isPlayer1 && result.winner === 1) || (isPlayer2 && result.winner === 2))) ||
+                          (gameMode === 'PVP' && (result.winner === 1 || result.winner === 2)) ||
+                          (gameMode === 'PVE' && result.winner === 1);
 
-      if (isMyWin) {
-          playVictory();
-          if (gameMode === 'PVE') { 
-             addCoins(30);
-             setEarnedCoins(30);
+          if (isMyWin) {
+              playVictory();
+              if (gameMode === 'PVE') { 
+                 addCoins(30);
+                 setEarnedCoins(30);
+              } else {
+                 setEarnedCoins(0);
+              }
           } else {
-             setEarnedCoins(0);
+              playGameOver();
           }
-      } else {
-          playGameOver();
-      }
-    } else {
-      setCurrentPlayer(prev => prev === 1 ? 2 : 1);
-    }
+        } else {
+          setCurrentPlayer(prev => prev === 1 ? 2 : 1);
+        }
+        isAnimatingRef.current = false;
+    }, 500); // Duration matches CSS animation
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playGameOver, playVictory, gameMode, addCoins, mp, isSpectator, isPlayer1, isPlayer2]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp, isSpectator, isPlayer1, isPlayer2]);
 
   // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
@@ -340,7 +365,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // AI Turn Handling
   useEffect(() => {
-    if (gameMode === 'PVE' && currentPlayer === 2 && !winState.winner && !isAiThinking) {
+    if (gameMode === 'PVE' && currentPlayer === 2 && !winState.winner && !isAiThinking && !isAnimatingRef.current) {
       setIsAiThinking(true);
     }
   }, [gameMode, currentPlayer, winState.winner, isAiThinking]);
@@ -425,11 +450,17 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         );
       }
 
-      // ANGRY ANIMATION: SHAKE
+      // ANGRY ANIMATION: SHAKE & EYEBROWS (😡)
       if (reactionId === 'angry') {
         return (
             <div className="relative animate-[shake_0.3s_linear_infinite]">
+                {/* Base Icon */}
                 <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                
+                {/* Angry Eyebrows Overlay */}
+                <div className={`absolute top-[14px] left-[10px] w-3 h-1 ${color.replace('text-', 'bg-')} rotate-[30deg] rounded-full shadow-[0_0_5px_currentColor]`}></div>
+                <div className={`absolute top-[14px] right-[10px] w-3 h-1 ${color.replace('text-', 'bg-')} -rotate-[30deg] rounded-full shadow-[0_0_5px_currentColor]`}></div>
+
                  <style>{`
                   @keyframes shake {
                       0% { transform: translate(1px, 1px) rotate(0deg); }
@@ -479,6 +510,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   return (
     <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
+       {/* Inject Keyframe for Drop Animation */}
+       <style>{`
+            @keyframes dropIn {
+                0% { transform: translateY(var(--drop-start)); opacity: 1; }
+                100% { transform: translateY(0); opacity: 1; }
+            }
+       `}</style>
+
        {/* Ambient Light Reflection */}
        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-black to-transparent pointer-events-none"></div>
@@ -663,7 +702,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                             key={`col-${c}`} 
                             onClick={() => handleColumnClick(c)} 
                             className={`h-full transition-colors rounded-full ${
-                                winState.winner || isSpectator 
+                                winState.winner || isSpectator || isAnimatingRef.current
                                 ? 'cursor-default' 
                                 : 'cursor-pointer hover:bg-white/5'
                             }`}
@@ -675,14 +714,26 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                        {Array.from({ length: ROWS }).map((_, r) => {
                            const val = board[r][c];
                            const isWinningPiece = winState.line.some(([wr, wc]) => wr === r && wc === c);
+                           
+                           // --- ANIMATION STYLES ---
+                           const isAnimating = animatingCell?.r === r && animatingCell?.c === c;
+                           const animationStyle: React.CSSProperties = isAnimating ? {
+                                animation: 'dropIn 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045)', // Custom bounce-like gravity
+                                '--drop-start': `-${r * 110}%`, 
+                                zIndex: 50,
+                                position: 'relative'
+                           } as React.CSSProperties : {};
+
                            return (
                                <div key={`${r}-${c}`} className="relative w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-black/60 shadow-inner flex items-center justify-center border border-white/5">
                                    {val !== 0 && (
-                                       <div className={`w-full h-full rounded-full animate-bounce transition-all duration-500 shadow-lg ${
-                                           val === 1 
-                                           ? 'bg-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.6)]' 
-                                           : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.6)]'
-                                       } ${isWinningPiece ? 'animate-pulse ring-4 ring-white z-10 brightness-125' : ''}`}>
+                                       <div 
+                                            style={animationStyle}
+                                            className={`w-full h-full rounded-full transition-all duration-500 shadow-lg ${
+                                               val === 1 
+                                               ? 'bg-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.6)]' 
+                                               : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.6)]'
+                                           } ${isWinningPiece ? 'animate-pulse ring-4 ring-white z-10 brightness-125' : ''}`}>
                                             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent"></div>
                                        </div>
                                    )}
