@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Server, AlertCircle, CheckCircle2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Zap, Eye, X, Check, Swords } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
@@ -187,12 +186,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  const multiplayerStateRef = useRef({ gameSession, outgoingInvite, incomingInvite, currentPlayer });
-  useEffect(() => {
-      multiplayerStateRef.current = { gameSession, outgoingInvite, incomingInvite, currentPlayer };
-  }, [gameSession, outgoingInvite, incomingInvite, currentPlayer]);
-
-
   // Sync Self Info to Multiplayer State
   useEffect(() => {
     if (mp.peerId) {
@@ -276,14 +269,13 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Drop Piece Logic
   const handleColumnClick = useCallback((colIndex: number, isAi = false, isRemote = false) => {
-    const state = multiplayerStateRef.current;
     if (winState.winner || isAnimatingRef.current) return;
     
     if (gameMode === 'PVE' && !isAi && isAiThinking) return;
 
     if (gameMode === 'ONLINE') {
-        if (!state.gameSession) return;
-        const isMyTurn = (state.gameSession.isGameHost && state.currentPlayer === 1) || (!state.gameSession.isGameHost && state.currentPlayer === 2);
+        if (!gameSession) return;
+        const isMyTurn = (gameSession.isGameHost && currentPlayer === 1) || (!gameSession.isGameHost && currentPlayer === 2);
         if (!isMyTurn && !isRemote) return;
     }
     
@@ -306,8 +298,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setAnimatingCell({ r: rowIndex, c: colIndex });
     playMove(); 
 
-    if (gameMode === 'ONLINE' && !isRemote && state.gameSession) {
-        mp.sendTo(state.gameSession.opponentId, { type: 'MOVE', col: colIndex });
+    if (gameMode === 'ONLINE' && !isRemote && gameSession) {
+        mp.sendTo(gameSession.opponentId, { type: 'MOVE', col: colIndex });
     }
 
     animationTimerRef.current = setTimeout(() => {
@@ -318,8 +310,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         if (result.winner) {
           setWinState(result);
           
-          const isMyWin = gameMode === 'ONLINE' && state.gameSession && (
-              (state.gameSession.isGameHost && result.winner === 1) || (!state.gameSession.isGameHost && result.winner === 2)
+          const isMyWin = gameMode === 'ONLINE' && gameSession && (
+              (gameSession.isGameHost && result.winner === 1) || (!gameSession.isGameHost && result.winner === 2)
           ) || (gameMode !== 'ONLINE' && result.winner === 1);
 
           if (isMyWin) {
@@ -335,7 +327,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         isAnimatingRef.current = false;
     }, 500); 
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp, gameSession]);
 
   // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
@@ -414,10 +406,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   useEffect(() => {
     if (gameMode === 'ONLINE') {
         const handler = (data: any) => {
-            const state = multiplayerStateRef.current;
             const sender = data.sender || data.from;
 
-            if (state.gameSession && sender === state.gameSession.opponentId) {
+            if (gameSession && sender === gameSession.opponentId) {
                 if (data.type === 'MOVE') handleColumnClick(data.col, false, true);
                 if (data.type === 'RESET') resetGame(false);
                 if (data.type === 'REACTION') {
@@ -433,14 +424,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             }
 
             if (data.type === 'INVITE') {
-                if (!state.gameSession && !state.incomingInvite) {
+                if (!gameSession && !incomingInvite) {
                     setIncomingInvite({ from: sender, name: data.name, gameId: data.gameId });
                 } else {
                     mp.sendTo(sender, { type: 'BUSY' });
                 }
             }
             if (data.type === 'ACCEPT_INVITE') {
-                if (state.outgoingInvite && state.outgoingInvite.targetId === sender && state.outgoingInvite.gameId === data.gameId) {
+                if (outgoingInvite && outgoingInvite.targetId === sender && outgoingInvite.gameId === data.gameId) {
                     mp.updateStatus('PLAYING');
                     setGameSession({ id: data.gameId, opponentId: sender, isGameHost: true });
                     setIsLobbyOpen(false);
@@ -449,12 +440,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 }
             }
             if (data.type === 'DECLINE_INVITE') {
-                if (state.outgoingInvite && state.outgoingInvite.targetId === sender) {
+                if (outgoingInvite && outgoingInvite.targetId === sender) {
                     setOutgoingInvite(null); alert("Invitation refusée.");
                 }
             }
             if (data.type === 'BUSY') {
-                 if (state.outgoingInvite && state.outgoingInvite.targetId === sender) {
+                 if (outgoingInvite && outgoingInvite.targetId === sender) {
                     setOutgoingInvite(null); alert("Ce joueur est déjà en partie.");
                 }
             }
@@ -466,7 +457,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         mp.setOnDataReceived(handler);
         return () => mp.setOnDataReceived(null);
     }
-  }, [gameMode, mp, handleColumnClick, resetGame, username, currentAvatarId]);
+  }, [
+    gameMode, mp, handleColumnClick, resetGame, username, currentAvatarId, 
+    gameSession, outgoingInvite, incomingInvite // Add state dependencies to recreate handler
+  ]);
 
 
   // AI Turn Handling
