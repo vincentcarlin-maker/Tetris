@@ -199,6 +199,20 @@ const RAW_LEVELS = [
     c(9, 2, 4, 2, 'h'),
     c(10, 2, 5, 2, 'h'),
     c(11, 4, 4, 2, 'h') // CORRECTION: v -> h pour résoudre le blocage de la colonne 4
+  ],
+  // --- NIVEAU 16 (Légende 2) ---
+  [
+    c(0, 2, 2, 2, 'h', true), // Target mid
+    c(1, 2, 0, 2, 'v'),
+    c(2, 3, 0, 2, 'h'),
+    c(3, 5, 0, 3, 'v'),
+    c(4, 0, 1, 2, 'h'),
+    c(5, 0, 3, 2, 'v'),
+    c(6, 1, 3, 2, 'h'),
+    c(7, 3, 3, 2, 'v'),
+    c(8, 2, 5, 2, 'h'),
+    c(9, 4, 4, 2, 'h'),
+    c(10, 4, 1, 2, 'v')
   ]
 ];
 
