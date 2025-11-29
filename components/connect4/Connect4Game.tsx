@@ -356,38 +356,37 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // Invite Logic
   const sendInvite = useCallback((targetId: string) => {
       setOutgoingInvite(targetId);
+      // Manually sync ref to prevent race condition where ACCEPT arrives before state update
+      multiplayerStateRef.current.outgoingInvite = targetId; 
       mp.sendTo(targetId, { type: 'INVITE', name: username });
   }, [mp, username]);
 
   const acceptInvite = useCallback(() => {
-    setIncomingInvite(currentInvite => {
-        if (!currentInvite) return null;
-        
-        const fromId = currentInvite.from;
-        
-        setOutgoingInvite(null);
-        setOpponentId(fromId);
-        setIsLobbyOpen(false);
-        resetGame(false);
-        mp.sendTo(fromId, { type: 'ACCEPT_INVITE' });
-        mp.updateStatus('PLAYING');
-        
-        return null;
-    });
-  }, [mp, resetGame]);
+    if (!incomingInvite) return;
+    
+    const fromId = incomingInvite.from;
+    
+    setOutgoingInvite(null);
+    setOpponentId(fromId);
+    setIsLobbyOpen(false);
+    resetGame(false);
+    mp.sendTo(fromId, { type: 'ACCEPT_INVITE' });
+    mp.updateStatus('PLAYING');
+    setIncomingInvite(null);
+    
+  }, [mp, resetGame, incomingInvite]);
 
   const declineInvite = useCallback(() => {
-    setIncomingInvite(currentInvite => {
-        if (!currentInvite) return null;
-        mp.sendTo(currentInvite.from, { type: 'DECLINE_INVITE' });
-        return null;
-    });
-  }, [mp]);
+    if (!incomingInvite) return;
+    mp.sendTo(incomingInvite.from, { type: 'DECLINE_INVITE' });
+    setIncomingInvite(null);
+  }, [mp, incomingInvite]);
   
   const cancelInvite = useCallback(() => {
       if (!outgoingInvite) return;
-      // Note: We might want to send a CANCEL message here in the future.
+      // Future: send a CANCEL message to the other player.
       setOutgoingInvite(null);
+      multiplayerStateRef.current.outgoingInvite = null; // Manually sync ref
   }, [outgoingInvite]);
 
 
@@ -433,7 +432,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             }
             if (data.type === 'ACCEPT_INVITE') {
                 if (state.outgoingInvite === sender) {
-                    setOpponentId(sender); setIsLobbyOpen(false); resetGame(); mp.updateStatus('PLAYING');
+                    setOpponentId(sender);
+                    setIsLobbyOpen(false);
+                    resetGame();
+                    mp.updateStatus('PLAYING');
                 }
             }
             if (data.type === 'DECLINE_INVITE') {
