@@ -12,6 +12,7 @@ export interface MultiplayerState {
 }
 
 const ID_PREFIX = 'na-'; // Neon Arcade Prefix
+const STORAGE_KEY_CODE = 'neon-friend-code';
 
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
@@ -36,7 +37,19 @@ export const useMultiplayer = () => {
 
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-        const shortCode = customShortId || generateShortCode();
+        let shortCode = customShortId;
+
+        // Si aucun code personnalisé n'est fourni, on utilise le code persistant ou on en génère un nouveau
+        if (!shortCode) {
+            const storedCode = localStorage.getItem(STORAGE_KEY_CODE);
+            if (storedCode) {
+                shortCode = storedCode;
+            } else {
+                shortCode = generateShortCode();
+                localStorage.setItem(STORAGE_KEY_CODE, shortCode);
+            }
+        }
+
         const fullId = `${ID_PREFIX}${shortCode}`;
 
         try {
@@ -83,7 +96,11 @@ export const useMultiplayer = () => {
                             error: 'Ce code est déjà utilisé par un autre joueur.' 
                         }));
                     } else {
-                        // Si c'était aléatoire, on réessaie silencieusement
+                        // Si c'était notre code fixe/aléatoire, on doit le régénérer car il est pris
+                        console.log('Code fixe indisponible, génération d\'un nouveau...');
+                        const newCode = generateShortCode();
+                        localStorage.setItem(STORAGE_KEY_CODE, newCode);
+                        
                         peer.destroy();
                         peerRef.current = null;
                         setTimeout(() => initializePeer(), 500); 
