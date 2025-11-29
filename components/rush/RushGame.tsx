@@ -321,7 +321,9 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
                     setTimeout(() => {
                         setIsWon(true);
                         saveProgress(currentLevelId);
-                        setIsSolving(false);
+                        // NOTE: On ne remet PAS isSolving à false ici pour garder l'état "Solution"
+                        // et empêcher le gain de récompenses dans useEffect si déjà obtenu.
+                        // isSolving sera reset quand le joueur cliquera sur "Rejouer" ou "Niveau Suivant" via loadLevel.
                         setSolverStatus('idle');
                     }, 800);
                     return;
@@ -427,15 +429,25 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
   // Give reward and update high score on win
   useEffect(() => {
       if (isWon && !rewardClaimed) {
-          // Don't give full reward if solved by AI (maybe reduced or none? kept full for now as purchased)
+          const alreadyBeaten = highScores.rush && highScores.rush[currentLevelId] !== undefined;
+
           if (!isSolving) {
-            addCoins(50);
-            setEarnedCoins(50);
-            updateHighScore('rush', moveCount, currentLevelId);
+              // Victoire Manuelle : Récompense + Score
+              addCoins(50);
+              setEarnedCoins(50);
+              updateHighScore('rush', moveCount, currentLevelId);
+          } else {
+             // Victoire via Solution
+             if (!alreadyBeaten) {
+                 // Première fois seulement : Récompense (pas de score)
+                 addCoins(50);
+                 setEarnedCoins(50);
+             }
+             // Sinon (Déjà réussi) : Pas de récompense
           }
           setRewardClaimed(true);
       }
-  }, [isWon, rewardClaimed, addCoins, updateHighScore, moveCount, currentLevelId, isSolving]);
+  }, [isWon, rewardClaimed, addCoins, updateHighScore, moveCount, currentLevelId, isSolving, highScores]);
 
 
   // Gestion clavier
@@ -488,7 +500,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
             <span>COUPS: {moveCount}</span>
             {bestScore !== undefined && <span className="text-yellow-400">MEILLEUR: {bestScore}</span>}
             {earnedCoins > 0 && (
-                <span className="flex items-center gap-1 text-yellow-400">
+                <span className="flex items-center gap-1 text-yellow-400 animate-pulse">
                     <Coins size={12} /> +{earnedCoins}
                 </span>
             )}
@@ -563,13 +575,17 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
                 VOIE<br/>LIBRE !
             </h3>
             
-            {/* Show coin reward only if played manually */}
-            {!isSolving && (
+            {/* Show coin reward logic display */}
+            {earnedCoins > 0 ? (
                 <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse relative z-10">
                     <Coins className="text-yellow-400" size={20} />
-                    <span className="text-yellow-100 font-bold">+50 PIÈCES</span>
+                    <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
                 </div>
-            )}
+            ) : isSolving ? (
+                 <div className="mb-6 px-4 py-2 text-gray-400 text-xs text-center max-w-[80%]">
+                    Récompense déjà obtenue ou désactivée pour la solution.
+                 </div>
+            ) : null}
 
             <div className="flex gap-4 relative z-10">
               <button 
