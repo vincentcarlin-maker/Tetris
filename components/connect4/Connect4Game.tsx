@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Copy, Check, LogIn, Loader2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Copy, Check, LogIn, Loader2, Users, Radio } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove, checkWin } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -73,7 +73,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // Multiplayer Hook
   const mp = useMultiplayer();
   const [remoteCodeInput, setRemoteCodeInput] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [showNumpad, setShowNumpad] = useState(false);
   
   // Audio
   const { playMove, playGameOver, playVictory } = audio;
@@ -165,7 +165,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
       if (isMyWin) {
           playVictory();
-          if (gameMode !== 'ONLINE') { // Only give coins for local play for now to prevent farming
+          if (gameMode === 'PVE') { // Only give coins for PVE mode
              addCoins(30);
              setEarnedCoins(30);
           }
@@ -222,13 +222,13 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => clearTimeout(timer);
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
-  // Handle Copy Code
-  const copyCode = () => {
-    if (mp.peerId) {
-        navigator.clipboard.writeText(mp.peerId);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    }
+  // Numpad input handler
+  const handleNumpad = (digit: string) => {
+      if (digit === 'DEL') {
+          setRemoteCodeInput(prev => prev.slice(0, -1));
+      } else if (remoteCodeInput.length < 4) {
+          setRemoteCodeInput(prev => prev + digit);
+      }
   };
 
 
@@ -294,82 +294,129 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           )}
        </div>
 
-       {/* ONLINE LOBBY OVERLAY (RESPONSIVE FIX) */}
+       {/* ONLINE LOBBY OVERLAY (NEW DESIGN) */}
        {gameMode === 'ONLINE' && !mp.isConnected && (
-           <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md overflow-y-auto touch-pan-y">
-               <div className="min-h-full flex flex-col items-center justify-center p-4 animate-in fade-in">
-                   <Globe size={40} className="text-neon-blue mb-4 animate-pulse shrink-0" />
-                   <h2 className="text-xl font-black italic text-white mb-6 text-center leading-tight">MULTIJOUEUR<br/>EN LIGNE</h2>
+           <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-8 pb-20">
+               
+               <h2 className="text-3xl font-black italic text-white mb-2 text-center leading-tight">SALON ONLINE</h2>
+               <p className="text-gray-400 text-xs mb-6 text-center max-w-[80%]">Entrez le code d'un ami ou rejoignez une salle publique.</p>
+               
+               {mp.error && (
+                   <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded-lg mb-4 text-xs max-w-xs text-center break-words">
+                       {mp.error}
+                   </div>
+               )}
+
+               <div className="w-full max-w-sm px-4 grid gap-6">
                    
-                   {mp.error && (
-                       <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded-lg mb-4 text-xs max-w-xs text-center break-words">
-                           {mp.error}
-                       </div>
-                   )}
-
-                   <div className="grid gap-4 w-full max-w-xs sm:max-w-sm">
-                       {/* HOST SECTION */}
-                       <div className="bg-gray-900/60 border border-white/10 rounded-xl p-4 flex flex-col items-center shadow-lg">
-                           <h3 className="text-neon-pink font-bold tracking-widest text-xs mb-3 text-center">INVITER UN AMI</h3>
-                           {mp.peerId ? (
-                               <div className="w-full flex items-center gap-2">
-                                   <div className="flex-1 bg-black/50 border border-neon-pink/30 rounded px-2 py-2 font-mono text-center text-xs sm:text-sm tracking-wider text-neon-pink break-all select-all">
-                                       {mp.peerId}
-                                   </div>
-                                   <button 
-                                       onClick={copyCode}
-                                       className="p-2 bg-neon-pink/20 border border-neon-pink/50 rounded hover:bg-neon-pink hover:text-black transition-colors shrink-0"
-                                   >
-                                       {copied ? <Check size={18} /> : <Copy size={18} />}
-                                   </button>
-                               </div>
-                           ) : (
-                               <div className="flex items-center gap-2 text-gray-400 text-xs">
-                                   <Loader2 size={14} className="animate-spin" /> Génération...
-                               </div>
-                           )}
-                           <p className="text-[10px] text-gray-500 mt-2 text-center leading-tight">Partage ce code avec ton ami pour qu'il te rejoigne.</p>
-                       </div>
-                       
-                       <div className="relative flex items-center justify-center">
-                           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-                           <span className="relative bg-black px-2 text-[10px] text-gray-500 font-bold uppercase">OU</span>
-                       </div>
-
-                       {/* JOIN SECTION */}
-                       <div className="bg-gray-900/60 border border-white/10 rounded-xl p-4 flex flex-col items-center shadow-lg">
-                           <h3 className="text-neon-blue font-bold tracking-widest text-xs mb-3 text-center">REJOINDRE</h3>
-                           <div className="w-full flex items-center gap-2">
-                               <input
-                                   type="text"
-                                   placeholder="Code Ami"
-                                   value={remoteCodeInput}
-                                   onChange={(e) => setRemoteCodeInput(e.target.value)}
-                                   className="flex-1 bg-black/50 border border-neon-blue/30 rounded px-3 py-2 font-mono text-center text-xs sm:text-sm text-white outline-none focus:border-neon-blue transition-colors min-w-0"
-                               />
-                               <button 
-                                   onClick={() => mp.connectToPeer(remoteCodeInput)}
-                                   disabled={!remoteCodeInput}
-                                   className="p-2 bg-neon-blue/20 border border-neon-blue/50 rounded hover:bg-neon-blue hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                               >
-                                   <LogIn size={18} />
-                               </button>
+                   {/* MY CODE SECTION */}
+                   <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
+                       <h3 className="text-neon-pink font-bold tracking-widest text-[10px] mb-2 uppercase">Votre Code Joueur</h3>
+                       {mp.isLoading ? (
+                           <div className="flex items-center gap-2 text-gray-400 text-xs h-12">
+                               <Loader2 size={16} className="animate-spin" /> Connexion au serveur...
                            </div>
+                       ) : (
+                           <div className="w-full flex items-center justify-center gap-2">
+                               <div className="text-4xl font-mono font-bold text-neon-pink tracking-widest drop-shadow-[0_0_10px_#ff00ff]">
+                                   {mp.shortId || '----'}
+                               </div>
+                           </div>
+                       )}
+                   </div>
+
+                   {/* JOIN SECTION */}
+                   <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
+                       <h3 className="text-neon-blue font-bold tracking-widest text-[10px] mb-3 uppercase">Code Adversaire</h3>
+                       
+                       <div className="flex items-center gap-2 mb-4">
+                           <div className="h-12 w-32 bg-black/50 border-2 border-neon-blue rounded-lg flex items-center justify-center text-2xl font-mono font-bold text-white tracking-widest">
+                               {remoteCodeInput || ''}
+                               <span className="animate-pulse text-neon-blue ml-1">_</span>
+                           </div>
+                           <button 
+                               onClick={() => mp.connectToPeer(remoteCodeInput)}
+                               disabled={remoteCodeInput.length !== 4}
+                               className="h-12 px-6 bg-neon-blue text-black font-bold rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-[0_0_10px_rgba(0,243,255,0.4)]"
+                           >
+                               REJOINDRE
+                           </button>
+                       </div>
+
+                       {/* NUMPAD */}
+                       <div className="grid grid-cols-3 gap-2 w-full max-w-[200px]">
+                           {[1,2,3,4,5,6,7,8,9].map(n => (
+                               <button 
+                                   key={n}
+                                   onClick={() => handleNumpad(n.toString())}
+                                   className="h-10 bg-gray-800 rounded hover:bg-gray-700 text-white font-bold text-lg active:scale-95 transition-transform"
+                               >
+                                   {n}
+                               </button>
+                           ))}
+                           <button onClick={() => setRemoteCodeInput('')} className="h-10 bg-gray-800 rounded hover:bg-gray-700 text-red-400 font-bold text-xs">C</button>
+                           <button onClick={() => handleNumpad('0')} className="h-10 bg-gray-800 rounded hover:bg-gray-700 text-white font-bold text-lg">0</button>
+                           <button onClick={() => handleNumpad('DEL')} className="h-10 bg-gray-800 rounded hover:bg-gray-700 text-gray-300 font-bold text-xs">DEL</button>
                        </div>
                    </div>
 
-                    <button 
-                        onClick={() => {
-                            setGameMode('PVE'); 
-                            mp.disconnect();
-                        }}
-                        className="mt-6 text-gray-500 text-xs underline hover:text-white"
-                   >
-                       Annuler
-                   </button>
-                   
-                   <div className="h-8"></div>
+                   {/* PUBLIC ROOMS SHORTCUTS */}
+                   <div className="flex flex-col gap-2">
+                       <h3 className="text-gray-500 font-bold tracking-widest text-[10px] text-center uppercase">Salons Publics</h3>
+                       <div className="grid grid-cols-2 gap-3">
+                           <button 
+                                onClick={() => {
+                                    setRemoteCodeInput('1111');
+                                    mp.connectToPeer('1111');
+                                    // Fallback: If connection fails, user should host this code. 
+                                    // Complex to handle in UI only, but setting input helps convention.
+                                    // Or better, try to become it if fail?
+                                    // For now, simple join attempt.
+                                    setTimeout(() => {
+                                        if (!mp.isConnected && !mp.isHost) {
+                                            // Suggest hosting if join fails
+                                            if (confirm("Personne dans le Salon 1. Voulez-vous créer ce salon ?")) {
+                                                mp.hostRoom('1111');
+                                            }
+                                        }
+                                    }, 2000);
+                                }}
+                                className="bg-gray-800 border border-white/5 p-3 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-700 active:scale-95 transition-all"
+                            >
+                               <Users size={16} className="text-green-400" />
+                               <span className="text-xs font-bold text-gray-300">SALON #1</span>
+                           </button>
+                           <button 
+                                onClick={() => {
+                                     setRemoteCodeInput('2222');
+                                     mp.connectToPeer('2222');
+                                     setTimeout(() => {
+                                        if (!mp.isConnected && !mp.isHost) {
+                                            if (confirm("Personne dans le Salon 2. Voulez-vous créer ce salon ?")) {
+                                                mp.hostRoom('2222');
+                                            }
+                                        }
+                                    }, 2000);
+                                }}
+                                className="bg-gray-800 border border-white/5 p-3 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-700 active:scale-95 transition-all"
+                            >
+                               <Users size={16} className="text-purple-400" />
+                               <span className="text-xs font-bold text-gray-300">SALON #2</span>
+                           </button>
+                       </div>
+                   </div>
+
                </div>
+               
+               <button 
+                    onClick={() => {
+                        setGameMode('PVE'); 
+                        mp.disconnect();
+                    }}
+                    className="mt-6 text-gray-500 text-xs underline hover:text-white"
+               >
+                   Retour au menu
+               </button>
            </div>
        )}
 
@@ -445,8 +492,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         {/* Victory/Draw Actions */}
         {winState.winner && (
              <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
-                 {/* Reward Display */}
-                 {(winState.winner === 1 || (gameMode === 'PVP' && winState.winner === 2)) && (
+                 {/* Reward Display (PVE Only) */}
+                 {(gameMode === 'PVE' && (winState.winner === 1)) && (
                     <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
                         <Coins className="text-yellow-400" size={20} />
                         <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
