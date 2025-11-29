@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -81,6 +81,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // State pour la lumière dynamique (Interaction)
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
 
+    // PWA Install Prompt State
+    const [installPrompt, setInstallPrompt] = useState<any>(null);
+
     // Helpers pour gérer l'interaction tactile et souris
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
@@ -103,6 +106,37 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             inputRef.current.focus();
         }
     }, [isEditingName]);
+
+    // Install Prompt Listener
+    useEffect(() => {
+        const handler = (e: any) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            setInstallPrompt(e);
+        };
+
+        window.addEventListener('beforeinstallprompt', handler);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handler);
+        };
+    }, []);
+
+    const handleInstallClick = () => {
+        if (!installPrompt) return;
+        // Show the install prompt
+        installPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        installPrompt.userChoice.then((choiceResult: any) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+            } else {
+                console.log('User dismissed the install prompt');
+            }
+            setInstallPrompt(null);
+        });
+    };
 
     const handleReload = () => {
         window.location.reload();
@@ -156,6 +190,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 </div>
 
                 <div className="flex gap-3">
+                    {/* Install Button (Visible only if prompt captured) */}
+                    {installPrompt && (
+                        <button 
+                            onClick={handleInstallClick} 
+                            className="p-2 bg-neon-pink/20 rounded-full text-neon-pink hover:bg-neon-pink hover:text-white border border-neon-pink/50 backdrop-blur-sm active:scale-95 transition-all animate-pulse shadow-[0_0_10px_rgba(255,0,255,0.4)]"
+                            title="Installer l'application"
+                        >
+                            <Download size={20} />
+                        </button>
+                    )}
+
                     {/* Reload Button */}
                     <button 
                         onClick={handleReload} 
@@ -530,6 +575,26 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">BATAILLE NAVALE</h3>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                        <Lock size={10} /> BIENTÔT DISPONIBLE
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                     </button>
+                     
+                     {/* Mastermind (Coming Soon) */}
+                     <button 
+                        disabled
+                        className="group relative w-full h-24 bg-black/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
+                     >
+                        <div className="flex items-center justify-between px-6 h-full relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-3 bg-gray-800 rounded-lg text-gray-400 shadow-lg">
+                                    <BrainCircuit size={28} />
+                                 </div>
+                                 <div className="text-left">
+                                    <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">MASTERMIND</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
                                         <Lock size={10} /> BIENTÔT DISPONIBLE
                                     </span>
