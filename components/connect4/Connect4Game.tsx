@@ -409,9 +409,11 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        {/* Game Board */}
        <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md transition-opacity duration-500 ${gameMode === 'ONLINE' && !mp.isConnected ? 'opacity-0' : 'opacity-100'}`}>
            
-           {/* REACTION OVERLAY */}
+           {/* REACTION OVERLAY - Fixed Positioning */}
            {activeReaction && (
-               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none animate-bounce`}>
+               <div className={`absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce ${
+                   activeReaction.isMe ? 'bottom-10' : 'top-10'
+               }`}>
                    {REACTIONS.find(r => r.id === activeReaction.id)?.icon({ 
                        size: 80, 
                        className: `${REACTIONS.find(r => r.id === activeReaction.id)?.color} drop-shadow-[0_0_25px_currentColor]`
