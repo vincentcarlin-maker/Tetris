@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Ghost } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -426,12 +425,15 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
 
     return (
         <div 
-            className="h-full w-full flex flex-col items-center bg-[#0a0a12] relative overflow-hidden text-white font-sans touch-none select-none"
+            className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans touch-none select-none"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-black pointer-events-none"></div>
+            {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-yellow-400/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">NEON PAC</h1>
@@ -446,7 +448,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
             </div>
             
             <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg relative z-10 min-h-0 pb-6">
-                <div className="relative w-full h-auto aspect-[19/21] bg-black border-2 border-blue-900/50 rounded-lg shadow-[0_0_20px_rgba(30,58,138,0.3)] overflow-hidden">
+                <div className="relative w-full h-auto aspect-[19/21] bg-black/80 border-2 border-blue-900/50 rounded-lg shadow-[0_0_20px_rgba(30,58,138,0.3)] overflow-hidden backdrop-blur-md">
                     {gridRef.current.map((row, r) => (row.map((cell, c) => {
                         if (cell === 0) return null;
                         const style = getStyle(c, r);

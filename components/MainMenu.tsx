@@ -14,10 +14,13 @@ interface MainMenuProps {
 // Composant pour le logo stylisé avec manette arcade
 const ArcadeLogo = () => {
     return (
-        <div className="flex flex-col items-center justify-center py-8 animate-in fade-in slide-in-from-top-8 duration-700 mb-2">
+        <div className="flex flex-col items-center justify-center py-6 animate-in fade-in slide-in-from-top-8 duration-700 mb-4 relative">
             
+            {/* LUMIÈRE PERMANENTE DU LOGO SUR LE MUR DE BRIQUES */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-gradient-to-b from-neon-pink/40 to-neon-blue/40 blur-[60px] rounded-full pointer-events-none -z-10 mix-blend-hard-light opacity-80" />
+
             {/* 1. THE ARCADE CONTROLLER GRAPHIC */}
-            <div className="relative mb-[-15px] z-10 hover:scale-105 transition-transform duration-300 group">
+            <div className="relative mb-[-25px] z-10 hover:scale-105 transition-transform duration-300 group">
                 {/* Panel Body - Removed overflow-hidden to let the joystick ball stick out */}
                 <div className="w-48 h-16 bg-gray-900 rounded-2xl border-2 border-neon-blue/50 shadow-[0_0_30px_rgba(0,243,255,0.15),inset_0_0_20px_rgba(0,0,0,0.8)] flex items-center justify-between px-6 relative">
                     {/* Gloss Effect - Added rounded-2xl to match parent */}
@@ -45,20 +48,23 @@ const ArcadeLogo = () => {
                 </div>
             </div>
 
-            {/* 2. THE TEXT LOGO */}
-            <div className="flex flex-col items-center relative z-20">
+            {/* 2. THE TEXT LOGO (UPDATED SCRIPT STYLE) */}
+            <div className="flex flex-col items-center relative z-20 mt-2">
                  <div 
-                    className="text-7xl font-black italic tracking-widest text-white leading-none transform -skew-x-6 drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]"
-                    style={{ textShadow: '0 0 20px rgba(0, 243, 255, 0.6)' }}
+                    className="font-script text-7xl text-white transform -rotate-6 z-10"
+                    style={{ 
+                        textShadow: '0 0 10px #00f3ff, 0 0 20px #00f3ff, 0 0 30px #00f3ff'
+                    }}
                 >
-                    NEON
+                    Neon
                 </div>
                 <div 
-                    className="glitch text-5xl font-black italic tracking-[0.15em] text-transparent bg-clip-text bg-gradient-to-r from-neon-pink via-white to-purple-500 leading-none mt-1 transform -skew-x-6"
-                    data-text="ARCADE"
-                    style={{ filter: 'drop-shadow(0 0 10px rgba(255,0,255,0.4))' }}
+                    className="font-script text-6xl text-neon-pink transform -rotate-3 -mt-4 ml-8"
+                    style={{ 
+                        textShadow: '0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff'
+                    }}
                 >
-                    ARCADE
+                    Arcade
                 </div>
             </div>
 
@@ -71,6 +77,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
+    
+    // State pour la lumière dynamique (Interaction)
+    const [activeGlow, setActiveGlow] = useState<string | null>(null);
+
+    // Helpers pour gérer l'interaction tactile et souris
+    const bindGlow = (color: string) => ({
+        onMouseEnter: () => setActiveGlow(color),
+        onMouseLeave: () => setActiveGlow(null),
+        onTouchStart: () => setActiveGlow(color),
+        onTouchEnd: () => setActiveGlow(null)
+    });
     
     // Username editing state
     const [isEditingName, setIsEditingName] = useState(false);
@@ -117,20 +134,23 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const pacmanHighScore = highScores.pacman || 0;
 
     return (
-        <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-[#0a0a12] overflow-y-auto">
-             {/* Background effects */}
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-black z-0 pointer-events-none"></div>
-             <div className="absolute inset-0 opacity-20 pointer-events-none" 
-                 style={{ 
-                     backgroundImage: 'linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px)', 
-                     backgroundSize: '40px 40px' 
-                 }}>
-            </div>
-            
+        <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
+            {/* Note: bg-transparent here allows the fixed app-background div to show through */}
+
+            {/* Dynamic Ambient Light Reflection on Wall (Interactive Only) */}
+            {/* 150vmax ensures it covers the screen even on very long mobile screens, removing the "cut off" look */}
+            <div 
+                className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`}
+                style={{
+                    background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none',
+                    opacity: activeGlow ? 0.6 : 0
+                }}
+            />
+
             {/* Top Bar */}
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
                 {/* Coin Display */}
-                <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
                     <Coins className="text-yellow-400" size={20} />
                     <span className="text-yellow-100 font-mono font-bold text-lg">{coins.toLocaleString()}</span>
                 </div>
@@ -139,7 +159,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     {/* Reload Button */}
                     <button 
                         onClick={handleReload} 
-                        className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                        className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
                         title="Actualiser l'application"
                     >
                         <RefreshCw size={20} />
@@ -148,7 +168,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     {/* Mute Button */}
                     <button 
                         onClick={audio.toggleMute} 
-                        className="p-2 bg-gray-800/50 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                        className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
                     >
                         {audio.isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                     </button>
@@ -160,7 +180,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  <ArcadeLogo />
 
                  {/* CARTE DE PROFIL DU JOUEUR */}
-                 <div className="w-full bg-gray-900/40 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-4 backdrop-blur-md relative overflow-hidden group">
+                 <div 
+                    {...bindGlow('rgba(200, 230, 255, 0.8)')}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-4 backdrop-blur-md relative overflow-hidden group shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-white/50 hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:ring-1 hover:ring-white/30"
+                 >
                      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
                      
                      <div className="flex items-center w-full gap-4 z-10">
@@ -234,7 +257,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
 
                  {/* High Scores Panel */}
-                 <div className="w-full bg-gray-900/40 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300">
+                 <div 
+                    {...bindGlow('rgba(250, 204, 21, 0.8)')}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300 shadow-xl hover:shadow-[0_0_35px_rgba(250,204,21,0.5)] hover:border-yellow-400/50 hover:ring-1 hover:ring-yellow-400/30"
+                 >
                     <button 
                         onClick={() => setShowScores(s => !s)}
                         className="w-full p-4 flex items-center justify-between"
@@ -296,7 +322,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  {/* Shop Button */}
                  <button
                     onClick={() => onSelectGame('shop')}
-                    className="w-full bg-gradient-to-r from-yellow-600/10 to-orange-600/10 border border-yellow-500/40 rounded-xl p-4 flex items-center justify-between hover:bg-yellow-600/20 transition-all group active:scale-95 hover:border-yellow-500/80"
+                    {...bindGlow('rgba(234, 179, 8, 0.9)')}
+                    className="w-full bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border border-yellow-500/40 rounded-xl p-4 flex items-center justify-between transition-all group active:scale-[0.98] 
+                    hover:border-yellow-500 hover:shadow-[0_0_50px_rgba(234,179,8,0.6)] hover:ring-2 hover:ring-yellow-500 hover:bg-yellow-600/20
+                    backdrop-blur-md shadow-lg"
                  >
                      <div className="flex items-center gap-4">
                          <div className="p-3 bg-yellow-500/20 rounded-lg text-yellow-400 group-hover:text-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
@@ -307,7 +336,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                              <p className="text-xs text-yellow-400/70 font-mono">BADGES & AVATARS</p>
                          </div>
                      </div>
-                     <div className="px-4 py-1.5 bg-yellow-500 text-black text-xs font-bold rounded-full group-hover:scale-105 transition-transform">
+                     <div className="px-4 py-1.5 bg-yellow-500 text-black text-xs font-bold rounded-full group-hover:scale-105 transition-transform shadow-[0_0_15px_#facc15]">
                          OUVRIR
                      </div>
                  </button>
@@ -316,20 +345,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {/* Tetris Button */}
                      <button
                         onClick={() => onSelectGame('tetris')}
-                        className="group relative w-full h-24 bg-gray-900/60 border border-neon-blue/30 hover:border-neon-blue rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,243,255,0.2)] active:scale-[0.98]"
+                        {...bindGlow('rgba(0, 243, 255, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-neon-blue/30 rounded-xl overflow-hidden transition-all duration-200 
+                        hover:border-neon-blue hover:shadow-[0_0_50px_rgba(0,243,255,0.7)] hover:ring-2 hover:ring-neon-blue
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(0,243,255,1)] active:ring-neon-blue
+                        backdrop-blur-md"
                      >
                         <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                             <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-neon-blue group-hover:bg-neon-blue group-hover:text-black transition-colors shadow-lg">
+                                <div className="p-3 bg-gray-800 rounded-lg text-neon-blue group-hover:bg-neon-blue group-hover:text-black transition-colors shadow-lg group-hover:shadow-[0_0_15px_#00f3ff]">
                                     <Grid3X3 size={28} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-blue transition-colors italic">TETRIS NÉON</h3>
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-blue transition-colors italic drop-shadow-md">TETRIS NÉON</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
-                                </div>
+                                 </div>
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-blue group-hover:text-black transition-all">
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-blue group-hover:text-black transition-all group-hover:shadow-[0_0_15px_#00f3ff]">
                                 <Play size={16} className="ml-1" />
                             </div>
                         </div>
@@ -338,20 +371,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {/* Breaker Button */}
                      <button 
                         onClick={() => onSelectGame('breaker')}
-                        className="group relative w-full h-24 bg-gray-900/60 border border-neon-pink/30 hover:border-neon-pink rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,0,255,0.2)] active:scale-[0.98]"
+                        {...bindGlow('rgba(255, 0, 255, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-neon-pink/30 rounded-xl overflow-hidden transition-all duration-200
+                        hover:border-neon-pink hover:shadow-[0_0_50px_rgba(255,0,255,0.7)] hover:ring-2 hover:ring-neon-pink
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(255,0,255,1)]
+                        backdrop-blur-md"
                      >
                         <div className="absolute inset-0 bg-gradient-to-r from-neon-pink/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                              <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-neon-pink group-hover:bg-neon-pink group-hover:text-white transition-colors shadow-lg">
+                                 <div className="p-3 bg-gray-800 rounded-lg text-neon-pink group-hover:bg-neon-pink group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#ff00ff]">
                                     <Layers size={28} />
                                  </div>
                                  <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic">NEON BREAKER</h3>
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic drop-shadow-md">NEON BREAKER</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                  </div>
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all">
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#ff00ff]">
                                 <Play size={16} className="ml-1" />
                             </div>
                         </div>
@@ -360,20 +397,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {/* Neon Rush Button */}
                      <button 
                         onClick={() => onSelectGame('rush')}
-                        className="group relative w-full h-24 bg-gray-900/60 border border-purple-500/30 hover:border-purple-500 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] active:scale-[0.98]"
+                        {...bindGlow('rgba(168, 85, 247, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-purple-500/30 rounded-xl overflow-hidden transition-all duration-200
+                        hover:border-purple-500 hover:shadow-[0_0_50px_rgba(168,85,247,0.7)] hover:ring-2 hover:ring-purple-500
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(168,85,247,1)]
+                        backdrop-blur-md"
                      >
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                              <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors shadow-lg">
+                                 <div className="p-3 bg-gray-800 rounded-lg text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#a855f7]">
                                     <Car size={28} />
                                  </div>
                                  <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-purple-400 transition-colors italic">NEON RUSH</h3>
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-purple-400 transition-colors italic drop-shadow-md">NEON RUSH</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Niveau</span>
                                  </div>
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all">
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#a855f7]">
                                 <Play size={16} className="ml-1" />
                             </div>
                         </div>
@@ -382,20 +423,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {/* Connect 4 Button */}
                      <button 
                         onClick={() => onSelectGame('connect4')}
-                        className="group relative w-full h-24 bg-gray-900/60 border border-neon-pink/30 hover:border-neon-pink rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,0,255,0.2)] active:scale-[0.98]"
+                        {...bindGlow('rgba(255, 0, 255, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-neon-pink/30 rounded-xl overflow-hidden transition-all duration-200
+                        hover:border-neon-pink hover:shadow-[0_0_50px_rgba(255,0,255,0.7)] hover:ring-2 hover:ring-neon-pink
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(255,0,255,1)]
+                        backdrop-blur-md"
                      >
                         <div className="absolute inset-0 bg-gradient-to-r from-neon-pink/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                              <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-neon-pink group-hover:bg-neon-pink group-hover:text-white transition-colors shadow-lg">
+                                 <div className="p-3 bg-gray-800 rounded-lg text-neon-pink group-hover:bg-neon-pink group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#ff00ff]">
                                     <CircleDot size={28} />
                                  </div>
                                  <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic">NEON CONNECT</h3>
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic drop-shadow-md">NEON CONNECT</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 30 Pièces / Victoire</span>
                                  </div>
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all">
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#ff00ff]">
                                 <Play size={16} className="ml-1" />
                             </div>
                         </div>
@@ -404,20 +449,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {/* Sudoku Button */}
                      <button 
                         onClick={() => onSelectGame('sudoku')}
-                        className="group relative w-full h-24 bg-gray-900/60 border border-cyan-500/30 hover:border-cyan-500 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.2)] active:scale-[0.98]"
+                        {...bindGlow('rgba(6, 182, 212, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-cyan-500/30 rounded-xl overflow-hidden transition-all duration-200
+                        hover:border-cyan-500 hover:shadow-[0_0_50px_rgba(6,182,212,0.7)] hover:ring-2 hover:ring-cyan-500
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(6,182,212,1)]
+                        backdrop-blur-md"
                      >
                         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                              <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-cyan-500 group-hover:bg-cyan-500 group-hover:text-white transition-colors shadow-lg">
+                                 <div className="p-3 bg-gray-800 rounded-lg text-cyan-500 group-hover:bg-cyan-500 group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#06b6d4]">
                                     <Brain size={28} />
                                  </div>
                                  <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-cyan-400 transition-colors italic">NEON SUDOKU</h3>
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-cyan-400 transition-colors italic drop-shadow-md">NEON SUDOKU</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Victoire</span>
                                  </div>
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-cyan-500 group-hover:text-white transition-all">
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-cyan-500 group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#06b6d4]">
                                 <Play size={16} className="ml-1" />
                             </div>
                         </div>
@@ -426,20 +475,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {/* Pac-Man (UNLOCKED) */}
                      <button 
                         onClick={() => onSelectGame('pacman')}
-                        className="group relative w-full h-24 bg-gray-900/60 border border-yellow-500/30 hover:border-yellow-500 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(234,179,8,0.2)] active:scale-[0.98]"
+                        {...bindGlow('rgba(234, 179, 8, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-yellow-500/30 rounded-xl overflow-hidden transition-all duration-200
+                        hover:border-yellow-500 hover:shadow-[0_0_50px_rgba(234,179,8,0.7)] hover:ring-2 hover:ring-yellow-500
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(234,179,8,1)]
+                        backdrop-blur-md"
                      >
                         <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                             <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-yellow-500 group-hover:bg-yellow-500 group-hover:text-black transition-colors shadow-lg">
+                                <div className="p-3 bg-gray-800 rounded-lg text-yellow-500 group-hover:bg-yellow-500 group-hover:text-black transition-colors shadow-lg group-hover:shadow-[0_0_15px_#facc15]">
                                     <Ghost size={28} />
                                  </div>
                                  <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-yellow-400 transition-colors italic">NEON PAC</h3>
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-yellow-400 transition-colors italic drop-shadow-md">NEON PAC</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                  </div>
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-black transition-all">
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-black transition-all group-hover:shadow-[0_0_15px_#facc15]">
                                 <Play size={16} className="ml-1" />
                             </div>
                         </div>
@@ -448,7 +501,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {/* Memory (Coming Soon) */}
                      <button 
                         disabled
-                        className="group relative w-full h-24 bg-gray-900/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
+                        className="group relative w-full h-24 bg-black/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
                      >
                         <div className="flex items-center justify-between px-6 h-full relative z-10">
                             <div className="flex items-center gap-5">
@@ -468,7 +521,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.8.0 • NEON PAC UPDATE
+                    v1.8.6 • SUPER BRIGHT EDITION
                  </div>
              </div>
         </div>

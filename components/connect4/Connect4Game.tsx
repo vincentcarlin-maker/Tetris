@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
@@ -175,9 +174,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
 
   return (
-    <div className="h-full w-full flex flex-col items-center bg-[#0a0a12] relative overflow-hidden text-white font-sans p-4">
+    <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
+       {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
+       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+
        {/* Background */}
-       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-black to-black pointer-events-none"></div>
+       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-black to-transparent pointer-events-none"></div>
 
        {/* Header */}
        <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
@@ -249,7 +251,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        </div>
 
        {/* Game Board */}
-       <div className="relative z-10 p-4 bg-gray-900/80 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-sm">
+       <div className="relative z-10 p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md">
            
            {/* Grid */}
            <div className="grid grid-cols-7 gap-2 sm:gap-3">

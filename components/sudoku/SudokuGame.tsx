@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -136,9 +135,12 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
     if (playerGrid.length === 0) return <div className="text-white text-center mt-20">Chargement...</div>;
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-[#0a0a12] relative overflow-hidden text-white font-sans p-4">
+        <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
+            {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-400/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+
              {/* Background */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-black pointer-events-none"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
@@ -185,7 +187,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
             </div>
 
             {/* GRID */}
-            <div className="w-full max-w-md aspect-square bg-gray-900 border-2 border-cyan-500/30 rounded-lg p-1 shadow-[0_0_20px_rgba(6,182,212,0.1)] z-10 relative">
+            <div className="w-full max-w-md aspect-square bg-gray-900/90 border-2 border-cyan-500/30 rounded-lg p-1 shadow-[0_0_20px_rgba(6,182,212,0.1)] z-10 relative backdrop-blur-md">
                 
                 {/* Victory Overlay */}
                 {isWon && (

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Heart, Trophy, Play, Coins, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -444,6 +443,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
+             {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
+             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative">
                 {/* Left: Back Btn + Score */}

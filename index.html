@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -16,13 +17,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Yellowtail&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
               sans: ['Rajdhani', 'sans-serif'],
+              script: ['Yellowtail', 'cursive'],
             },
             colors: {
               neon: {
@@ -90,18 +92,43 @@
     </script>
     <style>
       :root {
-        --bg-color: #0a0a12;
-        --grid-color: rgba(0, 243, 255, 0.07);
+        --bg-color: #020202;
+      }
+      html {
+        background-color: var(--bg-color);
+        height: 100%;
       }
       body {
+        background-color: transparent;
+        color: white;
+        height: 100%;
+        margin: 0;
+        overflow-x: hidden;
+      }
+      
+      /* 
+         VRAI MUR DE BRIQUES FIXE
+         Positionné en arrière-plan fixe pour éviter les coupures lors du scroll
+      */
+      #app-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -50;
         background-color: var(--bg-color);
         background-image: 
-          linear-gradient(var(--grid-color) 1px, transparent 1px),
-          linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
-          radial-gradient(circle at 50% 50%, rgba(20, 10, 40, 0) 0%, rgba(0, 0, 0, 0.8) 100%);
-        background-size: 40px 40px, 40px 40px, 100% 100%;
-        color: white;
+          /* Vignette très prononcée */
+          radial-gradient(circle at 50% 50%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.95) 100%),
+          /* SVG Briques Irrégulières (Tons très sombres) */
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='60' viewBox='0 0 200 60'%3E%3Cdefs%3E%3Cfilter id='roughEdges' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='4' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='1.5' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='200' height='60' fill='%23050505'/%3E%3Cg filter='url(%23roughEdges)'%3E%3Crect x='2' y='2' width='96' height='26' fill='%2315151a' /%3E%3Crect x='102' y='2' width='96' height='26' fill='%23131318' /%3E%3Crect x='-2' y='32' width='50' height='26' fill='%23111116' /%3E%3Crect x='52' y='32' width='96' height='26' fill='%23141419' /%3E%3Crect x='152' y='32' width='50' height='26' fill='%23121217' /%3E%3C/g%3E%3Crect width='200' height='60' fill='%23fff' opacity='0.05' filter='url(%23grain)'/%3E%3C/svg%3E");
+        background-size: 100% 100%, 200px 60px;
+        background-attachment: fixed; /* Fallback */
+        background-repeat: no-repeat, repeat;
+        pointer-events: none;
       }
+
       /* Prevent text selection generally */
       * {
         user-select: none;
@@ -119,7 +146,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: var(--bg-color);
+        background: transparent; 
         overflow: hidden;
       }
       .glitch:before {
@@ -148,6 +175,7 @@
     </style>
 </head>
   <body class="h-[100dvh] w-screen">
+    <div id="app-background"></div>
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="index.js"></script>
     <script>

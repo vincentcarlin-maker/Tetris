@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb } from 'lucide-react';
 import { useCurrency, Badge, Avatar, SOLUTION_COST } from '../hooks/useCurrency';
@@ -40,9 +39,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     };
 
     return (
-        <div className="flex flex-col items-center min-h-screen w-full bg-[#0a0a12] text-white overflow-y-auto pb-10">
+        <div className="flex flex-col items-center min-h-screen w-full bg-black/20 text-white overflow-y-auto pb-10">
+            {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+
             {/* Header Sticky */}
-            <div className="sticky top-0 w-full max-w-2xl bg-[#0a0a12]/95 backdrop-blur-md z-30 border-b border-white/10 shadow-lg">
+            <div className="sticky top-0 w-full max-w-2xl bg-black/95 backdrop-blur-md z-30 border-b border-white/10 shadow-lg">
                 <div className="flex items-center justify-between p-4">
                     <button 
                         onClick={onBack} 

@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Board } from './Board';
 import { GameInfo } from './GameInfo';
@@ -250,6 +249,9 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins 
             role="button" 
             tabIndex={0} 
         >
+            {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-blue/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+
             {/* --- HEADER (HUD) --- */}
             <div className="w-full max-w-lg px-3 py-2 flex items-center justify-between gap-2 z-20 shrink-0">
                 {/* Left: Hold */}

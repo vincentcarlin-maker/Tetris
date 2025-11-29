@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb, PlayCircle, Loader2 } from 'lucide-react';
 import { CarData, LevelData } from './types';
@@ -476,12 +475,15 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
 
   return (
     <div 
-        className="min-h-full w-full flex flex-col items-center justify-start bg-[#0a0a12] relative overflow-y-auto p-4 gap-4"
+        className="min-h-full w-full flex flex-col items-center justify-start bg-black/20 relative overflow-y-auto p-4 gap-4"
         onTouchStart={resumeAudio} // FORCE iOS AUDIO UNLOCK
         onMouseDown={resumeAudio}
     >
+      {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-500/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+
       {/* Background Decor */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
       {/* Header */}
       <div className="w-full max-w-lg flex items-center justify-between z-10 shrink-0">
@@ -512,7 +514,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
       </div>
 
       {/* Game Board */}
-      <div className="relative w-full max-w-md aspect-square bg-gray-950 border-4 border-gray-800 rounded-xl shadow-2xl overflow-hidden z-10 ring-1 ring-white/10 shrink-0">
+      <div className="relative w-full max-w-md aspect-square bg-black/90 border-4 border-gray-800 rounded-xl shadow-2xl overflow-hidden z-10 ring-1 ring-white/10 shrink-0 backdrop-blur-sm">
         {/* Grille de fond */}
         <div className="absolute inset-0 opacity-20" 
             style={{ 
