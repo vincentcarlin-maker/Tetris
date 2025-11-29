@@ -4,8 +4,14 @@ import { Peer, DataConnection } from 'peerjs';
 
 export interface RoomInfo {
     name: string;
+    avatarId?: string;
     status: 'WAITING' | 'PLAYING';
     players: number;
+}
+
+export interface RoomStatusData {
+    status: 'EMPTY' | 'OCCUPIED' | 'CHECKING';
+    playerCount?: number;
 }
 
 export interface MultiplayerState {
@@ -16,8 +22,10 @@ export interface MultiplayerState {
     error: string | null;
     isLoading: boolean;
     opponentName: string | null;
+    opponentAvatarId: string | null;
     roomInfo: RoomInfo | null; // Info received from host when joining
     connectionErrorType: 'PEER_UNAVAILABLE' | 'NETWORK' | null; // To distinguish empty rooms
+    roomStatuses: Record<string, RoomStatusData>;
 }
 
 const ID_PREFIX = 'na-'; // Neon Arcade Prefix
@@ -32,8 +40,10 @@ export const useMultiplayer = () => {
         error: null,
         isLoading: false,
         opponentName: null,
+        opponentAvatarId: null,
         roomInfo: null,
-        connectionErrorType: null
+        connectionErrorType: null,
+        roomStatuses: {}
     });
     
     const peerRef = useRef<Peer | null>(null);
@@ -52,9 +62,11 @@ export const useMultiplayer = () => {
             isLoading: true, 
             error: null, 
             opponentName: null, 
+            opponentAvatarId: null,
             roomInfo: null,
             isConnected: false,
-            connectionErrorType: null
+            connectionErrorType: null,
+            roomStatuses: {}
         }));
 
         let shortCode = customShortId;
@@ -91,6 +103,16 @@ export const useMultiplayer = () => {
             });
 
             peer.on('connection', (conn) => {
+                // Handle Probes (Lobby checks)
+                if (conn.metadata && conn.metadata.type === 'PROBE') {
+                    conn.on('open', () => {
+                        // Return player count (1 if waiting, 2 if playing/connected)
+                        const count = connRef.current ? 2 : 1;
+                        conn.send({ type: 'PONG_INFO', players: count });
+                    });
+                    return;
+                }
+
                 console.log('Incoming connection...');
                 // We handle multiple connections logic in component (reject or accept)
                 handleConnection(conn);
@@ -100,6 +122,23 @@ export const useMultiplayer = () => {
             peer.on('error', (err: any) => {
                 console.error('PeerJS error:', err);
                 
+                // Handle Probe Errors (Quietly update status)
+                if (err.type === 'peer-unavailable') {
+                    const message = err.message || '';
+                    const match = message.match(new RegExp(`${ID_PREFIX}(\\S+)`));
+                    if (match && match[1]) {
+                        // It's a specific peer we tried to connect to
+                        setState(prev => ({
+                            ...prev,
+                            roomStatuses: {
+                                ...prev.roomStatuses,
+                                [match[1]]: { status: 'EMPTY' }
+                            }
+                        }));
+                        return; // Don't set global error for probes
+                    }
+                }
+
                 let errorMsg = 'Erreur de connexion.';
                 let errorType: MultiplayerState['connectionErrorType'] = null;
 
@@ -144,18 +183,24 @@ export const useMultiplayer = () => {
         });
 
         conn.on('data', (data: any) => {
-            if (data.type === 'NAME') {
-                setState(prev => ({ ...prev, opponentName: data.name }));
+            if (data.type === 'JOIN_INFO') {
+                setState(prev => ({ 
+                    ...prev, 
+                    opponentName: data.name,
+                    opponentAvatarId: data.avatarId 
+                }));
             }
             if (data.type === 'ROOM_INFO') {
                 setState(prev => ({ 
                     ...prev, 
                     roomInfo: {
                         name: data.name,
+                        avatarId: data.avatarId,
                         status: data.status,
                         players: data.players
                     },
-                    opponentName: data.name
+                    opponentName: data.name,
+                    opponentAvatarId: data.avatarId
                 }));
             }
             if (onDataCallbackRef.current) {
@@ -165,7 +210,7 @@ export const useMultiplayer = () => {
 
         conn.on('close', () => {
             console.log('Connection closed');
-            setState(prev => ({ ...prev, isConnected: false, isHost: false, opponentName: null, roomInfo: null }));
+            setState(prev => ({ ...prev, isConnected: false, isHost: false, opponentName: null, opponentAvatarId: null, roomInfo: null }));
             connRef.current = null;
         });
 
@@ -178,10 +223,10 @@ export const useMultiplayer = () => {
     const connectToPeer = useCallback((targetShortId: string) => {
         // Always ensure we have a peer instance
         if (!peerRef.current) {
-            initializePeer(); // Init with random ID first to be a guest
+            initializePeer(); 
         }
         
-        // Wait a tiny bit if peer is initializing (hacky but effective for React state updates)
+        // Wait a tiny bit if peer is initializing
         setTimeout(() => {
             if (!peerRef.current) return;
 
@@ -208,6 +253,69 @@ export const useMultiplayer = () => {
                 setState(prev => ({ ...prev, error: "Echec de la demande de connexion", isLoading: false }));
             }
         }, 100);
+    }, [initializePeer]);
+
+    const checkRooms = useCallback((shortIds: string[]) => {
+        // Retry if peer not ready
+        const attemptProbe = () => {
+             if (!peerRef.current || peerRef.current.disconnected) {
+                 // Try again shortly
+                 setTimeout(attemptProbe, 200);
+                 return;
+             }
+ 
+             shortIds.forEach(id => {
+                 // Update status to checking
+                 setState(prev => ({
+                     ...prev,
+                     roomStatuses: { ...prev.roomStatuses, [id]: { status: 'CHECKING' } }
+                 }));
+ 
+                 const fullId = `${ID_PREFIX}${id}`;
+                 const conn = peerRef.current!.connect(fullId, { 
+                     metadata: { type: 'PROBE' },
+                     reliable: true 
+                 });
+ 
+                 let responseReceived = false;
+ 
+                 const timeout = setTimeout(() => {
+                     if (!responseReceived) {
+                         conn.close();
+                         // If no response, assume empty (or dead host)
+                         setState(prev => ({
+                             ...prev,
+                             roomStatuses: { ...prev.roomStatuses, [id]: { status: 'EMPTY' } }
+                         }));
+                     }
+                 }, 1500);
+ 
+                 conn.on('open', () => {
+                     // Connected to *something*, so it's occupied. Ask for details.
+                     conn.send({ type: 'PING_INFO' });
+                 });
+ 
+                 conn.on('data', (data: any) => {
+                     if (data.type === 'PONG_INFO') {
+                         responseReceived = true;
+                         clearTimeout(timeout);
+                         setState(prev => ({
+                             ...prev,
+                             roomStatuses: { 
+                                 ...prev.roomStatuses, 
+                                 [id]: { status: 'OCCUPIED', playerCount: data.players } 
+                             }
+                         }));
+                         conn.close();
+                     }
+                 });
+
+                 // Note: 'error' on connection is unreliable in PeerJS v1, handled via global peer error
+             });
+        };
+
+        if (!peerRef.current) initializePeer();
+        attemptProbe();
     }, [initializePeer]);
 
     const hostRoom = useCallback((roomId: string) => {
@@ -245,8 +353,10 @@ export const useMultiplayer = () => {
             error: null,
             isLoading: false,
             opponentName: null,
+            opponentAvatarId: null,
             roomInfo: null,
-            connectionErrorType: null
+            connectionErrorType: null,
+            roomStatuses: {}
         });
     }, []);
 
@@ -257,6 +367,7 @@ export const useMultiplayer = () => {
         hostRoom,
         sendData,
         setOnDataReceived,
-        disconnect
+        disconnect,
+        checkRooms
     };
 };
