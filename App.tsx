@@ -38,6 +38,14 @@ const App: React.FC = () => {
         };
     }, [currentView]);
 
+    // Wrapper pour déclencher le son à chaque gain
+    const addCoinsWithSound = (amount: number) => {
+        currency.addCoins(amount);
+        if (amount > 0) {
+            audio.playCoin();
+        }
+    };
+
     const handleSelectGame = (game: string) => {
         if (game === 'tetris') setCurrentView('tetris');
         else if (game === 'rush') setCurrentView('rush');
@@ -57,27 +65,28 @@ const App: React.FC = () => {
     }
 
     if (currentView === 'tetris') {
-        return <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+        return <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
     }
 
     if (currentView === 'rush') {
-        return <RushGame onBack={handleBackToMenu} audio={audio} currency={currency} />;
+        // Pour RushGame qui prend tout l'objet currency, on remplace la méthode addCoins
+        return <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSound}} />;
     }
 
     if (currentView === 'connect4') {
-        return <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+        return <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
     }
 
     if (currentView === 'sudoku') {
-        return <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+        return <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
     }
 
     if (currentView === 'breaker') {
-        return <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+        return <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
     }
     
     if (currentView === 'pacman') {
-        return <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={currency.addCoins} />;
+        return <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
     }
 
     return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} />;

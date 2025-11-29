@@ -400,6 +400,44 @@ export const useGameAudio = () => {
         osc.stop(now + 0.4);
     }, [isMuted, resume]);
 
+    const playCoin = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+
+        // Base frequency
+        const freq = 1200;
+
+        // Oscillator 1 (Main tone)
+        const osc1 = audioCtx.current.createOscillator();
+        const gain1 = audioCtx.current.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(freq, now);
+        osc1.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.1); // Slight pitch up
+        
+        gain1.gain.setValueAtTime(0.1, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.current.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.6);
+
+        // Oscillator 2 (Upper harmonic/Ring)
+        const osc2 = audioCtx.current.createOscillator();
+        const gain2 = audioCtx.current.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(freq * 1.5, now); // Higher start
+        osc2.frequency.exponentialRampToValueAtTime(freq * 2.5, now + 0.1);
+
+        gain2.gain.setValueAtTime(0.05, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.current.destination);
+        osc2.start(now);
+        osc2.stop(now + 0.4);
+    }, [isMuted, resume]);
 
     return { 
         playMove, 
@@ -420,6 +458,7 @@ export const useGameAudio = () => {
         playPacmanWaka,
         playPacmanEatGhost,
         playPacmanPower,
+        playCoin,
         isMuted, 
         toggleMute,
         resumeAudio: resume
