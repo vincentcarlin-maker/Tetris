@@ -256,7 +256,7 @@ export const useMultiplayer = () => {
 
     const handleDataReceived = (data: any, senderConn: DataConnection) => {
         // --- RELAY SYSTEM LOGIC ---
-        // 1. Host receives RELAY_REQUEST from Guest A -> Forwards to Guest B
+        // 1. Host receives RELAY_REQUEST from Guest A -> Forwards to Guest B (or processes if target is Host)
         if (data.type === 'RELAY_REQUEST' && state.isHost) {
             const targetId = data.target;
             const payload = data.payload;
@@ -264,9 +264,11 @@ export const useMultiplayer = () => {
 
             // If target is ME (Host)
             if (targetId === state.peerId) {
-                 // Process as if I received RELAYED_DATA from Sender
+                 // UNWRAP the payload and add sender info before passing to app
+                 // This ensures the Host logic sees 'INVITE' from 'GuestID', not 'RELAYED_DATA'
+                 const enrichedPayload = { ...payload, sender: senderId };
                  if (onDataCallbackRef.current) {
-                    onDataCallbackRef.current({ type: 'RELAYED_DATA', from: senderId, payload });
+                    onDataCallbackRef.current(enrichedPayload);
                  }
                  return;
             }
@@ -289,7 +291,6 @@ export const useMultiplayer = () => {
             const actualPayload = data.payload;
             
             // Pass the UNWRAPPED payload to the app, but attach the real sender
-            // We attach 'sender' property to the payload for the app to know who sent it
             const enrichedPayload = { ...actualPayload, sender: realSender };
             
             if (onDataCallbackRef.current) {

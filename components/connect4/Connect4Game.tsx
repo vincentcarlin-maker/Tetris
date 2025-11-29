@@ -5,7 +5,7 @@ import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useMultiplayer, PlayerInfo } from '../../hooks/useMultiplayer';
-import { useCurrency } from '../../hooks/useCurrency';
+import { useCurrency, AVATARS_CATALOG } from '../../hooks/useCurrency';
 
 interface Connect4GameProps {
   onBack: () => void;
@@ -79,6 +79,56 @@ const checkWinFull = (board: BoardState): WinState => {
   return { winner: null, line: [] };
 };
 
+// Component carte joueur extrait pour éviter les re-rendus
+interface SalonPlayerCardProps {
+    player: PlayerInfo;
+    myId: string | null;
+    outgoingInvite: string | null;
+    onInvite: (id: string) => void;
+    onCancel: () => void;
+}
+
+const SalonPlayerCard: React.FC<SalonPlayerCardProps> = ({ player, myId, outgoingInvite, onInvite, onCancel }) => {
+    const av = AVATARS_CATALOG.find(a => a.id === player.avatarId);
+    const AvatarIcon = av ? av.icon : User;
+    const isMe = player.id === myId;
+    const isBusy = player.status === 'PLAYING';
+    const isInvited = outgoingInvite === player.id;
+    
+    return (
+        <div className={`flex items-center justify-between p-3 rounded-xl border mb-2 transition-all ${isMe ? 'bg-gray-800/50 border-white/20' : 'bg-black/50 border-white/10 hover:bg-white/5'}`}>
+            <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isMe ? 'bg-neon-pink/20' : 'bg-gray-800'}`}>
+                    <AvatarIcon size={20} className={isMe ? 'text-neon-pink' : 'text-gray-400'} />
+                </div>
+                <div>
+                    <p className="font-bold text-white text-sm truncate max-w-[120px]">{player.name} {isMe && "(Moi)"}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className={`w-2 h-2 rounded-full ${isBusy ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
+                        <span className="text-[10px] text-gray-400 uppercase font-bold">{isBusy ? 'EN JEU' : 'DISPONIBLE'}</span>
+                    </div>
+                </div>
+            </div>
+
+            {!isMe && (
+                <button 
+                    onClick={() => isInvited ? onCancel() : onInvite(player.id)}
+                    disabled={isBusy}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border
+                        ${isInvited 
+                            ? 'bg-red-500/20 text-red-400 border-red-500 animate-pulse' 
+                            : isBusy
+                                ? 'bg-gray-800 text-gray-600 border-transparent cursor-not-allowed'
+                                : 'bg-neon-blue/20 text-neon-blue border-neon-blue hover:bg-neon-blue hover:text-black'
+                        }
+                    `}
+                >
+                    {isInvited ? 'ANNULER' : isBusy ? 'OCCUPÉ' : 'DÉFIER'}
+                </button>
+            )}
+        </div>
+    );
+};
 
 export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
@@ -104,11 +154,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const [outgoingInvite, setOutgoingInvite] = useState<string | null>(null); // ID of player we invited
   
   // Identity
-  const { username, currentAvatarId, avatarsCatalog } = useCurrency();
-  const getAvatarIcon = (id?: string | null) => {
-      const av = avatarsCatalog.find(a => a.id === id);
-      return av ? av.icon : User;
-  }
+  const { username, currentAvatarId } = useCurrency();
   
   // Interaction State
   const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
@@ -481,47 +527,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       mp.updateStatus('AVAILABLE');
   };
   
-  const SalonPlayerCard: React.FC<{ player: PlayerInfo }> = ({ player }) => {
-      const AvatarIcon = getAvatarIcon(player.avatarId);
-      const isMe = player.id === mp.peerId;
-      const isBusy = player.status === 'PLAYING';
-      const isInvited = outgoingInvite === player.id;
-      
-      return (
-          <div className={`flex items-center justify-between p-3 rounded-xl border mb-2 transition-all ${isMe ? 'bg-gray-800/50 border-white/20' : 'bg-black/50 border-white/10 hover:bg-white/5'}`}>
-              <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isMe ? 'bg-neon-pink/20' : 'bg-gray-800'}`}>
-                      <AvatarIcon size={20} className={isMe ? 'text-neon-pink' : 'text-gray-400'} />
-                  </div>
-                  <div>
-                      <p className="font-bold text-white text-sm truncate max-w-[120px]">{player.name} {isMe && "(Moi)"}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                          <div className={`w-2 h-2 rounded-full ${isBusy ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}></div>
-                          <span className="text-[10px] text-gray-400 uppercase font-bold">{isBusy ? 'EN JEU' : 'DISPONIBLE'}</span>
-                      </div>
-                  </div>
-              </div>
-
-              {!isMe && (
-                  <button 
-                      onClick={() => isInvited ? cancelInvite() : sendInvite(player.id)}
-                      disabled={isBusy}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border
-                          ${isInvited 
-                              ? 'bg-red-500/20 text-red-400 border-red-500 animate-pulse' 
-                              : isBusy
-                                  ? 'bg-gray-800 text-gray-600 border-transparent cursor-not-allowed'
-                                  : 'bg-neon-blue/20 text-neon-blue border-neon-blue hover:bg-neon-blue hover:text-black'
-                          }
-                      `}
-                  >
-                      {isInvited ? 'ANNULER' : isBusy ? 'OCCUPÉ' : 'DÉFIER'}
-                  </button>
-              )}
-          </div>
-      );
-  };
-
   // --- RENDER VISUAL FOR REACTION ---
   const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
@@ -699,7 +704,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     <div className="w-full max-w-md px-4 mt-4">
                         <div className="flex flex-col gap-1 pb-20">
                             {mp.players.map((p) => (
-                                <SalonPlayerCard key={p.id} player={p} />
+                                <SalonPlayerCard 
+                                    key={p.id} 
+                                    player={p} 
+                                    myId={mp.peerId}
+                                    outgoingInvite={outgoingInvite}
+                                    onInvite={sendInvite}
+                                    onCancel={cancelInvite}
+                                />
                             ))}
                             {mp.players.length === 1 && (
                                 <div className="text-center py-10 text-gray-500 italic">
