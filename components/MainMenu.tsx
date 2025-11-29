@@ -11,38 +11,57 @@ interface MainMenuProps {
     currency: ReturnType<typeof useCurrency>;
 }
 
-// Composant pour le logo stylisé
+// Composant pour le logo stylisé avec manette arcade
 const ArcadeLogo = () => {
-    // Le "A" est remplacé par un joystick d'arcade
-    const JoystickA = () => (
-        <div className="relative w-[4.5rem] h-[5rem] flex items-center justify-center -mb-2">
-            {/* Base du joystick (forme du A) */}
-            <div 
-                className="w-full h-full bg-gradient-to-t from-neon-blue/50 to-white"
-                style={{ clipPath: 'polygon(50% 0%, 0% 100%, 15% 100%, 50% 25%, 85% 100%, 100% 100%)' }}
-            />
-            {/* Bâton */}
-            <div className="absolute top-[35%] w-1.5 h-1/2 bg-gray-300 rounded-t-full" />
-            {/* Boule */}
-            <div className="absolute top-[20%] w-6 h-6 rounded-full bg-neon-pink border-2 border-white shadow-[0_0_10px_#ff00ff]" />
-        </div>
-    );
-
     return (
-        <div className="text-center space-y-0 animate-in fade-in slide-in-from-top-8 duration-700 flex flex-col items-center mb-6">
-            {/* NEON: Très lisible, style "Tube Néon Blanc" */}
-            <div 
-                className="text-8xl font-black italic tracking-widest text-white drop-shadow-[0_0_10px_#00f3ff] relative z-10"
-                style={{ textShadow: '0 0 20px rgba(0, 243, 255, 0.8), 0 0 40px rgba(0, 243, 255, 0.4)' }}
-            >
-                NEON
-            </div>
+        <div className="flex flex-col items-center justify-center py-8 animate-in fade-in slide-in-from-top-8 duration-700 mb-2">
             
-            {/* ARCADE: Style Glitch dynamique */}
-            <div className="flex items-end justify-center -mt-6 animate-glitch-main opacity-90">
-                <JoystickA />
-                <span className="glitch text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink via-white to-neon-purple drop-shadow-[0_0_15px_rgba(255,0,255,0.5)]" data-text="RCADE">RCADE</span>
+            {/* 1. THE ARCADE CONTROLLER GRAPHIC */}
+            <div className="relative mb-[-15px] z-10 hover:scale-105 transition-transform duration-300 group">
+                {/* Panel Body - Removed overflow-hidden to let the joystick ball stick out */}
+                <div className="w-48 h-16 bg-gray-900 rounded-2xl border-2 border-neon-blue/50 shadow-[0_0_30px_rgba(0,243,255,0.15),inset_0_0_20px_rgba(0,0,0,0.8)] flex items-center justify-between px-6 relative">
+                    {/* Gloss Effect - Added rounded-2xl to match parent */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-2xl"></div>
+                    
+                    {/* Joystick (Left) */}
+                    <div className="relative flex items-center justify-center w-12 h-12 group-hover:-rotate-12 transition-transform duration-300">
+                         {/* Stick Shaft base */}
+                         <div className="absolute bottom-1/2 w-3 h-8 bg-gray-600 rounded-full origin-bottom transform -rotate-12 border border-black"></div>
+                         {/* Stick Ball */}
+                         <div className="absolute bottom-[40%] w-10 h-10 bg-gradient-to-br from-neon-pink via-purple-600 to-purple-900 rounded-full shadow-[0_0_15px_rgba(255,0,255,0.6)] border border-white/20 transform -translate-x-1 -translate-y-2 z-10">
+                            <div className="absolute top-2 left-2 w-3 h-2 bg-white/40 rounded-full rotate-45 blur-[1px]"></div>
+                         </div>
+                         {/* Base socket */}
+                         <div className="w-10 h-10 bg-black/50 rounded-full border border-gray-700 shadow-inner"></div>
+                    </div>
+
+                    {/* Buttons (Right) */}
+                    <div className="grid grid-cols-2 gap-2 transform rotate-6">
+                         <div className="w-4 h-4 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] border border-white/30 animate-pulse"></div>
+                         <div className="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_8px_#facc15] border border-white/30"></div>
+                         <div className="w-4 h-4 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] border border-white/30"></div>
+                         <div className="w-4 h-4 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444] border border-white/30"></div>
+                    </div>
+                </div>
             </div>
+
+            {/* 2. THE TEXT LOGO */}
+            <div className="flex flex-col items-center relative z-20">
+                 <div 
+                    className="text-7xl font-black italic tracking-widest text-white leading-none transform -skew-x-6 drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]"
+                    style={{ textShadow: '0 0 20px rgba(0, 243, 255, 0.6)' }}
+                >
+                    NEON
+                </div>
+                <div 
+                    className="glitch text-5xl font-black italic tracking-[0.15em] text-transparent bg-clip-text bg-gradient-to-r from-neon-pink via-white to-purple-500 leading-none mt-1 transform -skew-x-6"
+                    data-text="ARCADE"
+                    style={{ filter: 'drop-shadow(0 0 10px rgba(255,0,255,0.4))' }}
+                >
+                    ARCADE
+                </div>
+            </div>
+
         </div>
     );
 };
@@ -414,11 +433,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             <div className="flex items-center gap-5">
                                 <div className="p-3 bg-gray-800 rounded-lg text-yellow-500 group-hover:bg-yellow-500 group-hover:text-black transition-colors shadow-lg">
                                     <Ghost size={28} />
-                                </div>
-                                <div className="text-left">
+                                 </div>
+                                 <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-yellow-400 transition-colors italic">NEON PAC</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
-                                </div>
+                                 </div>
                             </div>
                             <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-black transition-all">
                                 <Play size={16} className="ml-1" />
@@ -435,8 +454,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             <div className="flex items-center gap-5">
                                 <div className="p-3 bg-gray-800 rounded-lg text-gray-400 shadow-lg">
                                     <Sparkles size={28} />
-                                </div>
-                                <div className="text-left">
+                                 </div>
+                                 <div className="text-left">
                                     <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">NEON MEMORY</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
                                         <Lock size={10} /> BIENTÔT DISPONIBLE
