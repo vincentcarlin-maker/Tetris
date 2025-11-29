@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --external:peerjs --external:react --external:react-dom --external:lucide-react && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll"
+    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --external:peerjs && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll"
   },
   "dependencies": {
     "react": "^18.3.1",
