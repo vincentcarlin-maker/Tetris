@@ -182,13 +182,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  // Determine Roles (For Game Logic)
-  // Logic: In private match, the one who SENT the invite is Player 1 (Red), Receiver is Player 2 (Yellow)
-  // We need to persist who initiated. Or we sort IDs.
-  // SIMPLER: The invite sender sends "START_GAME" and takes P1. Receiver takes P2.
-  // We'll track `isMyTurn` locally based on P1/P2.
-  const isPlayer1 = gameMode === 'ONLINE' && opponentId && outgoingInvite === opponentId; // I invited him
-  const isPlayer2 = gameMode === 'ONLINE' && opponentId && !isPlayer1; // I accepted his invite
+  const isPlayer1 = gameMode === 'ONLINE' && opponentId && outgoingInvite === opponentId;
+  const isPlayer2 = gameMode === 'ONLINE' && opponentId && !isPlayer1;
+
+  // Ref to hold a copy of state for stable callbacks, preventing stale closures.
+  const multiplayerStateRef = useRef({ opponentId, outgoingInvite, incomingInvite, isPlayer1, isPlayer2, currentPlayer });
+  useEffect(() => {
+      multiplayerStateRef.current = { opponentId, outgoingInvite, incomingInvite, isPlayer1, isPlayer2, currentPlayer };
+  }, [opponentId, outgoingInvite, incomingInvite, isPlayer1, isPlayer2, currentPlayer]);
+
 
   // Sync Self Info to Multiplayer State
   useEffect(() => {
@@ -264,18 +266,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Drop Piece Logic
   const handleColumnClick = useCallback((colIndex: number, isAi = false, isRemote = false) => {
+    const state = multiplayerStateRef.current;
     if (winState.winner || isAnimatingRef.current) return;
     
-    // AI Check
     if (gameMode === 'PVE' && !isAi && isAiThinking) return;
 
-    // Multiplayer Checks
     if (gameMode === 'ONLINE') {
-        if (!opponentId) return; // Must be in a game
-        
-        // P1 moves on turn 1, P2 moves on turn 2
-        if (isPlayer1 && currentPlayer !== 1 && !isRemote) return;
-        if (isPlayer2 && currentPlayer !== 2 && !isRemote) return;
+        if (!state.opponentId) return;
+        if (state.isPlayer1 && state.currentPlayer !== 1 && !isRemote) return;
+        if (state.isPlayer2 && state.currentPlayer !== 2 && !isRemote) return;
     }
     
     let rowIndex = -1;
@@ -288,44 +287,34 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
     if (rowIndex === -1) return;
 
-    // --- EXECUTE MOVE START ---
     isAnimatingRef.current = true;
     
-    // 1. Update Board Immediately
     const newBoard = board.map(row => [...row]);
     newBoard[rowIndex][colIndex] = currentPlayer;
     setBoard(newBoard);
     
-    // 2. Start Animation
     setAnimatingCell({ r: rowIndex, c: colIndex });
     playMove(); 
 
-    // 3. Send Move (Multiplayer - Private)
-    if (gameMode === 'ONLINE' && !isRemote && opponentId) {
-        mp.sendTo(opponentId, { type: 'MOVE', col: colIndex });
+    if (gameMode === 'ONLINE' && !isRemote && state.opponentId) {
+        mp.sendTo(state.opponentId, { type: 'MOVE', col: colIndex });
     }
 
-    // 4. Wait for Animation to Finish (Drop End)
     animationTimerRef.current = setTimeout(() => {
-        playLand(); // Impact sound
+        playLand();
         setAnimatingCell(null);
         
         const result = checkWinFull(newBoard);
         if (result.winner) {
           setWinState(result);
           
-          const isMyWin = (gameMode === 'ONLINE' && ((isPlayer1 && result.winner === 1) || (isPlayer2 && result.winner === 2))) ||
-                          (gameMode === 'PVP' && (result.winner === 1 || result.winner === 2)) ||
-                          (gameMode === 'PVE' && result.winner === 1);
+          const isMyWin = (gameMode === 'ONLINE' && ((state.isPlayer1 && result.winner === 1) || (state.isPlayer2 && result.winner === 2))) ||
+                          (gameMode !== 'ONLINE' && result.winner === 1);
 
           if (isMyWin) {
               playVictory();
-              if (gameMode === 'PVE') { 
-                 addCoins(30);
-                 setEarnedCoins(30);
-              } else {
-                 setEarnedCoins(0);
-              }
+              addCoins(30);
+              setEarnedCoins(30);
           } else {
               playGameOver();
           }
@@ -335,7 +324,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         isAnimatingRef.current = false;
     }, 500); 
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp, opponentId, isPlayer1, isPlayer2]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp]);
 
   // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
@@ -365,41 +354,41 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   };
 
   // Invite Logic
-  const sendInvite = (targetId: string) => {
+  const sendInvite = useCallback((targetId: string) => {
       setOutgoingInvite(targetId);
       mp.sendTo(targetId, { type: 'INVITE', name: username });
-  };
+  }, [mp, username]);
 
-  const acceptInvite = () => {
-      if (!incomingInvite) return;
-      const targetId = incomingInvite.from;
-      
-      // I am accepting, so I am Player 2. Sender is Player 1.
-      // But we need to set state first.
-      
-      // NOTE: We need to set outgoingInvite to NULL so we aren't P1
-      // Actually, logic is: outgoingInvite === opponentId => I am P1.
-      setOutgoingInvite(null); // I did not send invite, I accepted it
-      setOpponentId(targetId);
-      setIncomingInvite(null);
-      setIsLobbyOpen(false); // Close Lobby
-      resetGame();
+  const acceptInvite = useCallback(() => {
+    setIncomingInvite(currentInvite => {
+        if (!currentInvite) return null;
+        
+        const fromId = currentInvite.from;
+        
+        setOutgoingInvite(null);
+        setOpponentId(fromId);
+        setIsLobbyOpen(false);
+        resetGame(false);
+        mp.sendTo(fromId, { type: 'ACCEPT_INVITE' });
+        mp.updateStatus('PLAYING');
+        
+        return null;
+    });
+  }, [mp, resetGame]);
 
-      mp.sendTo(targetId, { type: 'ACCEPT_INVITE' });
-      mp.updateStatus('PLAYING');
-  };
-
-  const declineInvite = () => {
-      if (!incomingInvite) return;
-      mp.sendTo(incomingInvite.from, { type: 'DECLINE_INVITE' });
-      setIncomingInvite(null);
-  };
+  const declineInvite = useCallback(() => {
+    setIncomingInvite(currentInvite => {
+        if (!currentInvite) return null;
+        mp.sendTo(currentInvite.from, { type: 'DECLINE_INVITE' });
+        return null;
+    });
+  }, [mp]);
   
-  const cancelInvite = () => {
+  const cancelInvite = useCallback(() => {
       if (!outgoingInvite) return;
+      // Note: We might want to send a CANCEL message here in the future.
       setOutgoingInvite(null);
-      // Optional: send cancel msg
-  };
+  }, [outgoingInvite]);
 
 
   // SEND REQUEST INFO (HOST to GUEST) or GUEST INFO (GUEST to HOST)
@@ -416,81 +405,56 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // Multiplayer Data Handling
   useEffect(() => {
     if (gameMode === 'ONLINE') {
-        mp.setOnDataReceived((data) => {
-            const sender = data.sender || data.from; // Normalized sender ID from Relay or Direct
+        const handler = (data: any) => {
+            const state = multiplayerStateRef.current;
+            const sender = data.sender || data.from;
 
-            // GAME DATA (Only from opponent)
-            if (sender === opponentId) {
-                if (data.type === 'MOVE') {
-                    handleColumnClick(data.col, false, true);
-                }
-                if (data.type === 'RESET') {
-                    resetGame(false);
-                }
+            if (sender === state.opponentId) {
+                if (data.type === 'MOVE') handleColumnClick(data.col, false, true);
+                if (data.type === 'RESET') resetGame(false);
                 if (data.type === 'REACTION') {
                     setActiveReaction({ id: data.id, isMe: false });
                     setTimeout(() => setActiveReaction(null), 3000);
                 }
                 if (data.type === 'CHAT') {
-                    const msg: ChatMessage = {
-                        id: Date.now(),
-                        text: data.text,
-                        senderName: data.senderName || 'Opposant',
-                        isMe: false,
-                        timestamp: Date.now()
-                    };
-                    setChatHistory(prev => [...prev, msg]);
+                    setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
                 }
                 if (data.type === 'QUIT_GAME') {
-                    setOpponentId(null);
-                    setIsLobbyOpen(true);
-                    setChatHistory([]);
-                    mp.updateStatus('AVAILABLE');
-                    alert("L'adversaire a quitté la partie.");
+                    setOpponentId(null); setIsLobbyOpen(true); setChatHistory([]); mp.updateStatus('AVAILABLE'); alert("L'adversaire a quitté la partie.");
                 }
             }
 
-            // LOBBY DATA
             if (data.type === 'INVITE') {
-                if (!opponentId && !incomingInvite) {
+                if (!state.opponentId && !state.incomingInvite) {
                     setIncomingInvite({ from: sender, name: data.name });
                 } else {
-                    // Auto-decline if busy
                     mp.sendTo(sender, { type: 'BUSY' });
                 }
             }
             if (data.type === 'ACCEPT_INVITE') {
-                if (outgoingInvite === sender) {
-                    setOpponentId(sender);
-                    setIsLobbyOpen(false);
-                    resetGame();
-                    mp.updateStatus('PLAYING');
+                if (state.outgoingInvite === sender) {
+                    setOpponentId(sender); setIsLobbyOpen(false); resetGame(); mp.updateStatus('PLAYING');
                 }
             }
             if (data.type === 'DECLINE_INVITE') {
-                if (outgoingInvite === sender) {
-                    setOutgoingInvite(null);
-                    alert("Invitation refusée.");
+                if (state.outgoingInvite === sender) {
+                    setOutgoingInvite(null); alert("Invitation refusée.");
                 }
             }
             if (data.type === 'BUSY') {
-                 if (outgoingInvite === sender) {
-                    setOutgoingInvite(null);
-                    alert("Ce joueur est déjà en partie.");
+                 if (state.outgoingInvite === sender) {
+                    setOutgoingInvite(null); alert("Ce joueur est déjà en partie.");
                 }
             }
-
-            // INFO SYNC
             if (data.type === 'REQUEST_INFO') {
-                mp.sendData({
-                    type: 'JOIN_INFO',
-                    name: username,
-                    avatarId: currentAvatarId
-                });
+                mp.sendData({ type: 'JOIN_INFO', name: username, avatarId: currentAvatarId });
             }
-        });
+        };
+        
+        mp.setOnDataReceived(handler);
+        return () => mp.setOnDataReceived(null);
     }
-  }, [gameMode, mp.isConnected, handleColumnClick, resetGame, mp, username, currentAvatarId, opponentId, outgoingInvite, incomingInvite]);
+  }, [gameMode, mp, handleColumnClick, resetGame, username, currentAvatarId]);
 
 
   // AI Turn Handling
@@ -860,10 +824,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         {/* Victory/Draw Actions */}
         {winState.winner && (
              <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
-                 {(gameMode === 'PVE' && (winState.winner === 1)) && (
+                 {(winState.winner !== 'DRAW' && ((isPlayer1 && winState.winner === 1) || (isPlayer2 && winState.winner === 2) || (gameMode !== 'ONLINE' && winState.winner === 1))) && (
                     <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
                         <Coins className="text-yellow-400" size={20} />
-                        <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
+                        <span className="text-yellow-100 font-bold">+30 PIÈCES</span>
                     </div>
                  )}
                 <div className="bg-black/80 px-6 py-2 rounded-full border border-white/20 mb-4">
