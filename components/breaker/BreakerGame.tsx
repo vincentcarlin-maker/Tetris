@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Heart, Trophy, Play, Coins, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -288,6 +289,10 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         // Level complete
         if (blocks.filter(b => !b.isIndestructible).length === 0) {
             playVictory();
+            // AJOUT: Gain d'argent à chaque niveau terminé
+            addCoins(50);
+            setEarnedCoins(50);
+            
             setGameState('levelComplete');
             setTimeout(() => {
                 const nextLevel = currentLevel + 1;
@@ -301,8 +306,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
 
                 loadLevel(nextLevel);
                 resetBallAndPaddle();
+                setEarnedCoins(0); // Reset for next game
                 setGameState('waitingToServe');
-            }, 2000);
+            }, 3000); // Increased delay slightly to let user see reward
         }
 
     }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect]);
@@ -426,7 +432,11 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         if (gameState === 'levelComplete') {
             return (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 animate-in fade-in">
-                    <h2 className="text-4xl font-bold text-green-400">NIVEAU {currentLevel} TERMINÉ !</h2>
+                    <h2 className="text-4xl font-bold text-green-400 mb-4">NIVEAU {currentLevel} TERMINÉ !</h2>
+                    <div className="flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                        <Coins className="text-yellow-400" size={24} />
+                        <span className="text-yellow-100 font-bold text-xl">+50 PIÈCES</span>
+                    </div>
                 </div>
             );
         }
