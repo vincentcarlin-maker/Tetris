@@ -7,6 +7,7 @@ export interface PlayerInfo {
     name: string;
     avatarId: string;
     isHost: boolean;
+    status?: 'AVAILABLE' | 'PLAYING';
 }
 
 export interface RoomStatusData {
@@ -28,7 +29,7 @@ export interface MultiplayerState {
 
 const ID_PREFIX = 'na-'; // Neon Arcade Prefix
 const STORAGE_KEY_CODE = 'neon-friend-code';
-const MAX_PLAYERS = 15;
+const MAX_PLAYERS = 20;
 
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
@@ -52,7 +53,6 @@ export const useMultiplayer = () => {
     const generateShortCode = () => Math.floor(1000 + Math.random() * 9000).toString();
 
     // Initialisation du Peer
-    // Added retryCount to handle zombie IDs
     const initializePeer = useCallback((customShortId?: string, retryCount = 0) => {
         if (peerRef.current) peerRef.current.destroy();
 
@@ -97,7 +97,7 @@ export const useMultiplayer = () => {
                     error: null,
                     isLoading: false,
                     // Host adds themselves to player list initially (Guest will be overwritten on sync)
-                    players: customShortId ? [{ id: id, name: 'Hôte', avatarId: 'av_bot', isHost: true }] : [] 
+                    players: customShortId ? [{ id: id, name: 'Hôte', avatarId: 'av_bot', isHost: true, status: 'AVAILABLE' }] : [] 
                 }));
             });
 
@@ -121,17 +121,13 @@ export const useMultiplayer = () => {
                 // --- ID TAKEN / ZOMBIE SESSION HANDLING ---
                 if (err.type === 'unavailable-id') {
                     if (customShortId) {
-                        // CASE 1: Hosting a specific room (Global Salon)
-                        // If the ID is taken, it might be a zombie session from a recent refresh/close.
-                        // We wait and retry a few times.
                         if (retryCount < 3) {
                             console.log(`ID ${customShortId} taken. Retrying hosting in 1.5s... (Attempt ${retryCount + 1}/3)`);
                             setTimeout(() => {
                                 initializePeer(customShortId, retryCount + 1);
                             }, 1500);
-                            return; // Exit here, don't set error state yet
+                            return; 
                         } else {
-                            // If retries failed, mapped error
                             setState(prev => ({ 
                                 ...prev, 
                                 error: 'Salon occupé ou inaccessible (Zombie ID).',
@@ -141,28 +137,11 @@ export const useMultiplayer = () => {
                             return;
                         }
                     } else {
-                        // CASE 2: Guest with a random ID
-                        // If my random ID is taken, just generate a NEW one and try again immediately.
                         console.log('Guest ID collision. Generating new ID...');
                         const newCode = generateShortCode();
                         localStorage.setItem(STORAGE_KEY_CODE, newCode);
-                        initializePeer(undefined, 0); // Restart with new ID
+                        initializePeer(undefined, 0); 
                         return;
-                    }
-                }
-
-                // Probe error handling
-                if (err.type === 'peer-unavailable') {
-                    const message = err.message || '';
-                    const match = message.match(new RegExp(`${ID_PREFIX}(\\S+)`));
-                    if (match && match[1]) {
-                        setState(prev => ({
-                            ...prev,
-                            roomStatuses: {
-                                ...prev.roomStatuses,
-                                [match[1]]: { status: 'EMPTY' }
-                            }
-                        }));
                     }
                 }
 
@@ -209,10 +188,38 @@ export const useMultiplayer = () => {
         });
     }, []);
 
+    // NEW: Send to a specific player ID (Private or Relayed)
+    const sendTo = useCallback((targetId: string, data: any) => {
+        // If I am Host, I can send directly
+        if (state.isHost) {
+            const conn = connectionsRef.current.find(c => c.peer === targetId);
+            if (conn && conn.open) {
+                // Wrap in RELAYED_DATA so recipient knows it's a direct message
+                conn.send({ 
+                    type: 'RELAYED_DATA', 
+                    from: state.peerId, 
+                    payload: data 
+                });
+            } else if (targetId === state.peerId) {
+                // Sending to self? Ignore or handle locally
+            }
+        } else {
+            // If I am Guest, I send a RELAY request to Host
+            // Host will forward it to Target
+            const hostConn = connectionsRef.current[0];
+            if (hostConn && hostConn.open) {
+                hostConn.send({
+                    type: 'RELAY_REQUEST',
+                    target: targetId,
+                    payload: data
+                });
+            }
+        }
+    }, [state.isHost, state.peerId]);
+
+
     const handleConnection = (conn: DataConnection) => {
-        // LIMIT CHECK
-        if (connectionsRef.current.length >= MAX_PLAYERS - 1) { // -1 because Host is a player
-            console.warn("Rejected incoming connection: Room Full");
+        if (connectionsRef.current.length >= MAX_PLAYERS - 1) { 
             conn.on('open', () => {
                 conn.send({ type: 'ERROR', code: 'ROOM_FULL' });
                 setTimeout(() => conn.close(), 500);
@@ -220,17 +227,14 @@ export const useMultiplayer = () => {
             return;
         }
 
-        // Add to connections list
         connectionsRef.current.push(conn);
         
-        // Use functional state update to ensure we are using the latest state for 'isHost'
         setState(prev => {
             return { ...prev, isHost: true, isConnected: true };
         });
 
         conn.on('open', () => {
             console.log('Connection open with', conn.peer);
-            // Request info from the new guest
             conn.send({ type: 'REQUEST_INFO' });
         });
 
@@ -242,61 +246,100 @@ export const useMultiplayer = () => {
             console.log('Connection closed with', conn.peer);
             connectionsRef.current = connectionsRef.current.filter(c => c.connectionId !== conn.connectionId);
             
-            // Remove player from list and broadcast update
             setState(prev => {
                 const newPlayers = prev.players.filter(p => p.id !== conn.peer);
-                // Broadcast new list to remaining guests
                 broadcast({ type: 'PLAYERS_UPDATE', players: newPlayers }, conn.connectionId);
                 return { ...prev, players: newPlayers };
             });
         });
-
-        conn.on('error', (err) => {
-            console.error('Connection error:', err);
-        });
     };
 
     const handleDataReceived = (data: any, senderConn: DataConnection) => {
-        // 1. HOST LOGIC: Process and Broadcast
+        // --- RELAY SYSTEM LOGIC ---
+        // 1. Host receives RELAY_REQUEST from Guest A -> Forwards to Guest B
+        if (data.type === 'RELAY_REQUEST' && state.isHost) {
+            const targetId = data.target;
+            const payload = data.payload;
+            const senderId = senderConn.peer;
+
+            // If target is ME (Host)
+            if (targetId === state.peerId) {
+                 // Process as if I received RELAYED_DATA from Sender
+                 if (onDataCallbackRef.current) {
+                    onDataCallbackRef.current({ type: 'RELAYED_DATA', from: senderId, payload });
+                 }
+                 return;
+            }
+
+            // Find target connection
+            const targetConn = connectionsRef.current.find(c => c.peer === targetId);
+            if (targetConn && targetConn.open) {
+                targetConn.send({
+                    type: 'RELAYED_DATA',
+                    from: senderId,
+                    payload: payload
+                });
+            }
+            return;
+        }
+
+        // 2. Guest (or Host) receives RELAYED_DATA
+        if (data.type === 'RELAYED_DATA') {
+            const realSender = data.from;
+            const actualPayload = data.payload;
+            
+            // Pass the UNWRAPPED payload to the app, but attach the real sender
+            // We attach 'sender' property to the payload for the app to know who sent it
+            const enrichedPayload = { ...actualPayload, sender: realSender };
+            
+            if (onDataCallbackRef.current) {
+                onDataCallbackRef.current(enrichedPayload);
+            }
+            return;
+        }
+
+
+        // --- STANDARD BROADCAST LOGIC ---
+
         if (data.type === 'JOIN_INFO') {
-            // New player joined
             const newPlayer: PlayerInfo = {
                 id: senderConn.peer,
                 name: data.name,
                 avatarId: data.avatarId,
-                isHost: false
+                isHost: false,
+                status: 'AVAILABLE'
             };
             
             setState(prev => {
-                // Avoid duplicates
                 const filtered = prev.players.filter(p => p.id !== newPlayer.id);
                 const updatedPlayers = [...filtered, newPlayer];
-                
-                // Broadcast updated full list to ALL guests (including the new one)
                 broadcast({ type: 'PLAYERS_UPDATE', players: updatedPlayers });
-                
                 return { ...prev, players: updatedPlayers };
             });
         }
-        else if (data.type === 'CHAT' || data.type === 'MOVE' || data.type === 'REACTION' || data.type === 'RESET') {
-            // Relay to other guests (Broadcasting)
-            broadcast(data, senderConn.connectionId);
-        }
-
-        // 2. GUEST LOGIC: Receive Updates
-        if (data.type === 'PLAYERS_UPDATE') {
+        else if (data.type === 'PLAYERS_UPDATE') {
             setState(prev => ({ ...prev, players: data.players }));
         }
-        if (data.type === 'REQUEST_INFO') {
-            // Host is asking for my info. This is handled in the component usually,
-            // or we can trigger a callback.
+        else if (data.type === 'STATUS_UPDATE') {
+            // Update specific player status
+            setState(prev => {
+                const updatedPlayers = prev.players.map(p => 
+                    p.id === data.id ? { ...p, status: data.status } : p
+                );
+                // If I am host, I must broadcast this to others
+                if (prev.isHost) {
+                    broadcast({ type: 'PLAYERS_UPDATE', players: updatedPlayers }, senderConn.connectionId);
+                }
+                return { ...prev, players: updatedPlayers };
+            });
         }
-        if (data.type === 'ERROR' && data.code === 'ROOM_FULL') {
-            setState(prev => ({ ...prev, error: 'Salon complet (15 joueurs max).', isConnected: false }));
-            senderConn.close();
+        // Broadcast types (Chat global, etc - though we might move chat to private)
+        else if (data.type === 'GLOBAL_CHAT') {
+            broadcast(data, senderConn.connectionId);
+            if (onDataCallbackRef.current) onDataCallbackRef.current(data);
         }
-
-        // 3. APP CALLBACK (Pass data up to React Component)
+        
+        // Pass everything else to app
         if (onDataCallbackRef.current) {
             onDataCallbackRef.current(data);
         }
@@ -312,14 +355,11 @@ export const useMultiplayer = () => {
             console.log(`Connecting to ${fullTargetId}...`);
             setState(prev => ({ ...prev, isLoading: true, error: null, connectionErrorType: null }));
             
-            // Close existing connections
             connectionsRef.current.forEach(c => c.close());
             connectionsRef.current = [];
 
             try {
                 const conn = peerRef.current.connect(fullTargetId, { reliable: true });
-                
-                // Add to ref immediately
                 connectionsRef.current.push(conn);
                 setState(prev => ({ ...prev, isHost: false }));
 
@@ -336,7 +376,6 @@ export const useMultiplayer = () => {
                     connectionsRef.current = [];
                 });
 
-                // Timeout for connection
                 setTimeout(() => {
                     if (!conn.open) {
                         setState(prev => {
@@ -415,13 +454,10 @@ export const useMultiplayer = () => {
     }, []);
 
     const hostRoom = useCallback((roomId: string) => {
-        // Force complete destroy of old peer before creating new one
         if (peerRef.current) { 
             peerRef.current.destroy(); 
             peerRef.current = null; 
         }
-        
-        // Small delay to ensure cleanup allows ID reuse
         setTimeout(() => {
             initializePeer(roomId);
             setState(prev => ({ ...prev, isHost: true }));
@@ -429,28 +465,44 @@ export const useMultiplayer = () => {
     }, [initializePeer]);
 
     const sendData = useCallback((data: any) => {
-        // Send to all active connections
+        // Broadcast to all active connections (Legacy support)
         connectionsRef.current.forEach(conn => {
             if (conn.open) conn.send(data);
         });
     }, []);
+    
+    // Broadcast status change (AVAILABLE / PLAYING)
+    const updateStatus = useCallback((status: 'AVAILABLE' | 'PLAYING') => {
+        const msg = { type: 'STATUS_UPDATE', id: state.peerId, status };
+        // If Host: Broadcast to everyone
+        // If Guest: Send to Host, who will broadcast
+        if (state.isHost) {
+            setState(prev => {
+               const updatedPlayers = prev.players.map(p => 
+                    p.id === prev.peerId ? { ...p, status } : p
+                );
+                // self update
+               return { ...prev, players: updatedPlayers };
+            });
+            broadcast(msg); // Send to all guests
+        } else {
+            const host = connectionsRef.current[0];
+            if (host && host.open) host.send(msg);
+        }
+    }, [state.peerId, state.isHost, broadcast]);
+
 
     const setOnDataReceived = useCallback((callback: (data: any) => void) => {
         onDataCallbackRef.current = callback;
     }, []);
 
     const disconnect = useCallback(() => {
-        // Close all data connections
         connectionsRef.current.forEach(c => c.close());
         connectionsRef.current = [];
-        
-        // Destroy peer
         if (peerRef.current) {
             peerRef.current.destroy();
             peerRef.current = null;
         }
-        
-        // Reset state
         setState(prev => ({
             ...prev,
             peerId: null,
@@ -478,7 +530,7 @@ export const useMultiplayer = () => {
             );
             
             if (!prev.players.find(p => p.id === myId)) {
-                newPlayers.push({ id: myId, name, avatarId, isHost: prev.isHost });
+                newPlayers.push({ id: myId, name, avatarId, isHost: prev.isHost, status: 'AVAILABLE' });
             }
 
             return { ...prev, players: newPlayers };
@@ -491,6 +543,8 @@ export const useMultiplayer = () => {
         connectToPeer,
         hostRoom,
         sendData,
+        sendTo,
+        updateStatus,
         setOnDataReceived,
         disconnect,
         checkRooms,
