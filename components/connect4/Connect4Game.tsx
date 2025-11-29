@@ -15,7 +15,6 @@ interface Connect4GameProps {
 
 const ROWS = 6;
 const COLS = 7;
-const GLOBAL_ROOM_ID = 'neon-global-salon';
 
 // Réactions Néon
 const REACTIONS = [
@@ -242,18 +241,28 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // --- AUTO CONNECT LOGIC ---
   useEffect(() => {
     if (gameMode === 'ONLINE' && isLobbyOpen) {
-        if (!mp.isConnected && !mp.isHost && !mp.isLoading && mp.connectionErrorType !== 'ID_TAKEN') {
-             mp.connectToPeer(GLOBAL_ROOM_ID);
+        // Only try to connect if we're in a clean state with no errors.
+        const shouldConnect = !mp.isConnected && !mp.isHost && !mp.isLoading && !mp.connectionErrorType;
+        if (shouldConnect) {
+             mp.connectToPeer(mp.GLOBAL_ROOM_ID);
         }
     }
   }, [gameMode, isLobbyOpen, mp.isConnected, mp.isHost, mp.isLoading, mp.connectionErrorType, mp]);
 
-  // Fallback Host
+  // Fallback Host on Connection Failure
   useEffect(() => {
     if (gameMode === 'ONLINE' && mp.connectionErrorType === 'PEER_UNAVAILABLE' && !mp.isHost) {
-        mp.hostRoom(GLOBAL_ROOM_ID);
+        mp.hostRoom(mp.GLOBAL_ROOM_ID);
     }
   }, [gameMode, mp.connectionErrorType, mp.isHost, mp]);
+  
+  // Race Condition Handler: If hosting fails because someone else just became host, try connecting again.
+  useEffect(() => {
+      if (mp.connectionErrorType === 'RACE_CONDITION_RESOLVED') {
+          console.log("Race condition resolved. Re-attempting connection to global room.");
+          mp.connectToPeer(mp.GLOBAL_ROOM_ID);
+      }
+  }, [mp.connectionErrorType, mp]);
 
 
   // Handle Difficulty Change
@@ -653,7 +662,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                                 <AlertCircle className="mx-auto mb-2 text-red-500" size={32} />
                                 <p className="font-bold">{mp.error}</p>
                                 <button 
-                                    onClick={() => { mp.disconnect(); mp.connectToPeer(GLOBAL_ROOM_ID); }}
+                                    onClick={() => { mp.disconnect(); mp.connectToPeer(mp.GLOBAL_ROOM_ID); }}
                                     className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-500"
                                 >
                                     RÉESSAYER

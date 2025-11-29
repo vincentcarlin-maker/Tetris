@@ -23,13 +23,15 @@ export interface MultiplayerState {
     error: string | null;
     isLoading: boolean;
     players: PlayerInfo[];     // List of all players in the room
-    connectionErrorType: 'PEER_UNAVAILABLE' | 'NETWORK' | 'ID_TAKEN' | null;
+    connectionErrorType: 'PEER_UNAVAILABLE' | 'NETWORK' | 'ID_TAKEN' | 'RACE_CONDITION_RESOLVED' | null;
     roomStatuses: Record<string, RoomStatusData>;
+    GLOBAL_ROOM_ID: string;
 }
 
 const ID_PREFIX = 'na-'; // Neon Arcade Prefix
 const STORAGE_KEY_CODE = 'neon-friend-code';
 const MAX_PLAYERS = 20;
+const GLOBAL_ROOM_ID_SHORT = 'neon-global-salon';
 
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
@@ -41,7 +43,8 @@ export const useMultiplayer = () => {
         isLoading: false,
         players: [],
         connectionErrorType: null,
-        roomStatuses: {}
+        roomStatuses: {},
+        GLOBAL_ROOM_ID: GLOBAL_ROOM_ID_SHORT,
     });
     
     const peerRef = useRef<Peer | null>(null);
@@ -54,7 +57,7 @@ export const useMultiplayer = () => {
 
     // Initialisation du Peer
     const initializePeer = useCallback((customShortId?: string, retryCount = 0) => {
-        if (peerRef.current) peerRef.current.destroy();
+        if (peerRef.current && !peerRef.current.destroyed) peerRef.current.destroy();
 
         setState(prev => ({ 
             ...prev, 
@@ -117,15 +120,32 @@ export const useMultiplayer = () => {
 
             peer.on('error', (err: any) => {
                 console.error('PeerJS error:', err);
-                
-                // --- ID TAKEN / ZOMBIE SESSION HANDLING ---
+
                 if (err.type === 'unavailable-id') {
+                    // --- RACE CONDITION HANDLING (HOSTING GLOBAL ROOM) ---
+                    if (customShortId === GLOBAL_ROOM_ID_SHORT) {
+                        console.log(`Failed to host ${customShortId}, another host likely exists. Resolving race condition.`);
+                        if (peerRef.current && !peerRef.current.destroyed) {
+                            peerRef.current.destroy();
+                            peerRef.current = null;
+                        }
+                        setState(prev => ({
+                            ...prev,
+                            error: null,
+                            connectionErrorType: 'RACE_CONDITION_RESOLVED',
+                            isLoading: false,
+                            isHost: false,
+                        }));
+                        return;
+                    }
+
+                    // --- ZOMBIE ID (HOSTING PRIVATE ROOM) ---
                     if (customShortId) {
                         if (retryCount < 3) {
                             console.log(`ID ${customShortId} taken. Retrying hosting in 1.5s... (Attempt ${retryCount + 1}/3)`);
                             setTimeout(() => {
                                 initializePeer(customShortId, retryCount + 1);
-                            }, 1500);
+                            }, 1500); // Long delay for server to clear
                             return; 
                         } else {
                             setState(prev => ({ 
@@ -136,12 +156,28 @@ export const useMultiplayer = () => {
                             }));
                             return;
                         }
-                    } else {
-                        console.log('Guest ID collision. Generating new ID...');
-                        const newCode = generateShortCode();
-                        localStorage.setItem(STORAGE_KEY_CODE, newCode);
-                        initializePeer(undefined, 0); 
-                        return;
+                    } 
+                    
+                    // --- GUEST ID COLLISION / ZOMBIE ID ---
+                    else { 
+                        if (retryCount < 5) { // Try up to 5 times for a random ID
+                            console.log(`Guest ID taken. Generating new ID... (Attempt ${retryCount + 1}/5)`);
+                            const newCode = generateShortCode();
+                            localStorage.setItem(STORAGE_KEY_CODE, newCode);
+                            // Use an increasing delay to give the server time to release the old ID
+                            setTimeout(() => {
+                                initializePeer(undefined, retryCount + 1);
+                            }, 250 * (retryCount + 1));
+                            return;
+                        } else {
+                            setState(prev => ({ 
+                                ...prev, 
+                                error: 'Impossible de trouver un ID disponible pour se connecter.',
+                                connectionErrorType: 'ID_TAKEN',
+                                isLoading: false 
+                            }));
+                            return;
+                        }
                     }
                 }
 
@@ -201,7 +237,11 @@ export const useMultiplayer = () => {
                     payload: data 
                 });
             } else if (targetId === state.peerId) {
-                // Sending to self? Ignore or handle locally
+                // Sending to self? Handle locally by enriching and passing to callback
+                const enrichedPayload = { ...data, sender: state.peerId };
+                if (onDataCallbackRef.current) {
+                   onDataCallbackRef.current(enrichedPayload);
+                }
             }
         } else {
             // If I am Guest, I send a RELAY request to Host
@@ -264,8 +304,6 @@ export const useMultiplayer = () => {
 
             // If target is ME (Host)
             if (targetId === state.peerId) {
-                 // UNWRAP the payload and add sender info before passing to app
-                 // This ensures the Host logic sees 'INVITE' from 'GuestID', not 'RELAYED_DATA'
                  const enrichedPayload = { ...payload, sender: senderId };
                  if (onDataCallbackRef.current) {
                     onDataCallbackRef.current(enrichedPayload);
@@ -290,7 +328,6 @@ export const useMultiplayer = () => {
             const realSender = data.from;
             const actualPayload = data.payload;
             
-            // Pass the UNWRAPPED payload to the app, but attach the real sender
             const enrichedPayload = { ...actualPayload, sender: realSender };
             
             if (onDataCallbackRef.current) {
@@ -342,15 +379,22 @@ export const useMultiplayer = () => {
         
         // Pass everything else to app
         if (onDataCallbackRef.current) {
-            onDataCallbackRef.current(data);
+            const enrichedData = { ...data, from: senderConn.peer };
+            onDataCallbackRef.current(enrichedData);
         }
     };
 
     const connectToPeer = useCallback((targetShortId: string) => {
-        if (!peerRef.current) initializePeer();
+        if (!peerRef.current || peerRef.current.destroyed) {
+            initializePeer(); // Ensure we have a guest peer identity first
+        }
         
+        // Give Peer time to initialize if it wasn't already
         setTimeout(() => {
-            if (!peerRef.current) return;
+            if (!peerRef.current) {
+                setState(prev => ({...prev, error: "Initialisation Peer a échoué.", isLoading: false}));
+                return;
+            }
             const fullTargetId = `${ID_PREFIX}${targetShortId}`;
             
             console.log(`Connecting to ${fullTargetId}...`);
@@ -366,7 +410,7 @@ export const useMultiplayer = () => {
 
                 conn.on('open', () => {
                     console.log('Connected to host!');
-                    setState(prev => ({ ...prev, isConnected: true, error: null }));
+                    setState(prev => ({ ...prev, isConnected: true, isLoading: false, error: null }));
                 });
 
                 conn.on('data', (data) => handleDataReceived(data, conn));
@@ -378,18 +422,13 @@ export const useMultiplayer = () => {
                 });
 
                 setTimeout(() => {
-                    if (!conn.open) {
-                        setState(prev => {
-                            if (prev.isLoading && !prev.isConnected) {
-                                return {
-                                    ...prev,
-                                    isLoading: false,
-                                    error: 'Salon vide ou introuvable.',
-                                    connectionErrorType: 'PEER_UNAVAILABLE'
-                                };
-                            }
-                            return prev;
-                        });
+                    if (!conn.open && !state.isConnected) {
+                         setState(prev => ({
+                             ...prev,
+                             isLoading: false,
+                             error: 'La connexion au salon a expiré.',
+                             connectionErrorType: 'PEER_UNAVAILABLE'
+                         }));
                     }
                 }, 3000);
 
@@ -398,7 +437,7 @@ export const useMultiplayer = () => {
                 setState(prev => ({ ...prev, error: "Echec de connexion", isLoading: false }));
             }
         }, 100);
-    }, [initializePeer]);
+    }, [initializePeer, state.isConnected]);
 
     const checkRooms = useCallback((shortIds: string[]) => {
         if (!peerRef.current || peerRef.current.disconnected || !peerRef.current.id) return;
@@ -455,7 +494,7 @@ export const useMultiplayer = () => {
     }, []);
 
     const hostRoom = useCallback((roomId: string) => {
-        if (peerRef.current) { 
+        if (peerRef.current && !peerRef.current.destroyed) { 
             peerRef.current.destroy(); 
             peerRef.current = null; 
         }
