@@ -26,7 +26,15 @@ export const useMultiplayer = () => {
         if (peerRef.current) return;
 
         try {
-            const peer = new Peer();
+            const peer = new Peer({
+                debug: 2, // Print errors to console
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
             
             peer.on('open', (id) => {
                 console.log('My peer ID is: ' + id);
@@ -39,9 +47,27 @@ export const useMultiplayer = () => {
                 setState(prev => ({ ...prev, isHost: true }));
             });
 
-            peer.on('error', (err) => {
+            // Auto-reconnect when signaling server connection is lost (common on mobile)
+            peer.on('disconnected', () => {
+                console.log('Peer disconnected from server. Attempting reconnect...');
+                peer.reconnect();
+            });
+
+            peer.on('error', (err: any) => {
                 console.error('PeerJS error:', err);
-                setState(prev => ({ ...prev, error: 'Erreur de connexion' }));
+                
+                // Handle specific network/server errors by trying to reconnect
+                if (err.type === 'peer-unavailable') {
+                     setState(prev => ({ ...prev, error: 'Pair introuvable' }));
+                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+                     if (!peer.disconnected) {
+                         peer.reconnect();
+                     } else {
+                         setState(prev => ({ ...prev, error: 'Problème réseau' }));
+                     }
+                } else {
+                    setState(prev => ({ ...prev, error: 'Erreur de connexion' }));
+                }
             });
 
             peerRef.current = peer;
@@ -84,7 +110,9 @@ export const useMultiplayer = () => {
         if (!peerRef.current) return;
         
         console.log(`Connecting to ${remotePeerId}...`);
-        const conn = peerRef.current.connect(remotePeerId);
+        const conn = peerRef.current.connect(remotePeerId, {
+            reliable: true
+        });
         handleConnection(conn);
         setState(prev => ({ ...prev, isHost: false }));
     }, []);
