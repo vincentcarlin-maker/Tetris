@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Users, Hand, Smile, Frown, ThumbsUp, Heart, Zap, MessageSquare, Send, Flame } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Users, Hand, Smile, Frown, ThumbsUp, Heart, Zap, MessageSquare, Send, Flame, Server } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -18,10 +18,10 @@ const COLS = 7;
 
 // Réactions Néon
 const REACTIONS = [
+    { id: 'angry', icon: Flame, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' }, // Colère (Premier comme demandé)
     { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500' },
     { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
-    { id: 'angry', icon: Flame, color: 'text-red-500', bg: 'bg-red-500/20', border: 'border-red-500' }, // Colère ajoutée
     { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500' },
     { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500' },
     { id: 'shock', icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500' },
@@ -34,6 +34,12 @@ interface ChatMessage {
     isMe: boolean;
     timestamp: number;
 }
+
+// Fixed Salons
+const SALONS = [
+    { id: 'salon-1', name: 'SALON 1' },
+    { id: 'salon-2', name: 'SALON 2' }
+];
 
 // Helpers
 const createBoard = (): BoardState => Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
@@ -92,8 +98,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Multiplayer Hook
   const mp = useMultiplayer();
-  const [remoteCodeInput, setRemoteCodeInput] = useState('');
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
+  const [selectedSalonId, setSelectedSalonId] = useState<string | null>(null);
   
   // Identity
   const { username } = useCurrency();
@@ -134,8 +140,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     if (gameMode === 'PVE') setGameMode('PVP');
     else if (gameMode === 'PVP') {
         setGameMode('ONLINE');
+        // Initialiser peer sans ID spécifique pour pouvoir se connecter en tant que client
         mp.initializePeer();
         setIsLobbyOpen(true);
+        setSelectedSalonId(null);
     }
     else {
         setGameMode('PVE');
@@ -305,13 +313,20 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => clearTimeout(timer);
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
-  // Numpad input handler
-  const handleNumpad = (digit: string) => {
-      if (digit === 'DEL') {
-          setRemoteCodeInput(prev => prev.slice(0, -1));
-      } else if (remoteCodeInput.length < 4) {
-          setRemoteCodeInput(prev => prev + digit);
-      }
+  // Salon Selection Logic
+  const handleSelectSalon = (salonId: string) => {
+      setSelectedSalonId(salonId);
+      // Tentative de connexion en tant qu'invité
+      mp.connectToPeer(salonId); 
+  };
+  
+  const handleCreateSalon = (salonId: string) => {
+      mp.hostRoom(salonId);
+  };
+  
+  const handleJoinGame = () => {
+      // On est déjà connecté via handleSelectSalon
+      setIsLobbyOpen(false);
   };
 
 
@@ -365,80 +380,117 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 onClick={() => setIsLobbyOpen(true)}
                 className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 ${mp.isConnected ? 'bg-green-900/30 border-green-500 text-green-400 animate-pulse' : 'bg-red-900/30 border-red-500 text-red-400'}`}
               >
-                  {mp.isConnected ? 'SALON CONNECTÉ' : 'SALON DÉCONNECTÉ'}
+                  {mp.isConnected ? 'SALON CONNECTÉ' : 'CHOISIR SALON'}
               </button>
           ) : <div className="w-[80px]"></div>}
        </div>
 
-       {/* ONLINE LOBBY OVERLAY (REFINED) */}
+       {/* ONLINE LOBBY OVERLAY (SALON SYSTEM) */}
        {gameMode === 'ONLINE' && isLobbyOpen && (
-           <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-8 pb-20 animate-in fade-in duration-300">
-               <h2 className="text-3xl font-black italic text-white mb-6 text-center">SALON MULTIJOUEUR</h2>
+           <div className="absolute inset-0 z-40 bg-black/95 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-8 pb-20 animate-in fade-in duration-300">
+               <h2 className="text-3xl font-black italic text-white mb-2 text-center">SALONS MULTIJOUEUR</h2>
+               <p className="text-gray-400 mb-8 text-xs text-center px-4">Choisis un salon. Si le point est <span className="text-green-400 font-bold">VERT</span>, rejoins le joueur. Si <span className="text-red-500 font-bold">ROUGE</span>, crée le salon.</p>
                
-               {/* STATUS INDICATOR (DOT) */}
-               <div className="flex flex-col items-center mb-8 gap-4">
-                   <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${mp.isConnected ? 'bg-green-500 shadow-[0_0_50px_#22c55e]' : 'bg-red-500 shadow-[0_0_50px_#ef4444]'}`}>
-                        <div className={`absolute inset-0 rounded-full border-4 border-white/20 ${mp.isConnected ? 'animate-ping' : ''}`}></div>
-                        {mp.isConnected ? <Users size={40} className="text-white" /> : <Loader2 size={40} className="text-white animate-spin" />}
-                   </div>
-                   
-                   <div className="text-center">
-                        <h3 className={`text-xl font-bold ${mp.isConnected ? 'text-green-400' : 'text-red-400'}`}>
-                            {mp.isConnected ? 'CONNEXION ÉTABLIE' : 'EN ATTENTE...'}
-                        </h3>
-                        {mp.isConnected ? (
-                            <p className="text-white mt-1">
-                                Adversaire : <span className="font-mono text-neon-pink font-bold">{mp.opponentName || 'Inconnu'}</span>
-                            </p>
-                        ) : (
-                            <p className="text-gray-400 mt-1 text-sm">Le point passera au vert quand un joueur rejoindra.</p>
-                        )}
-                   </div>
+               <div className="flex flex-col gap-6 w-full max-w-sm px-4">
+                   {SALONS.map((salon) => {
+                       const isSelected = selectedSalonId === salon.id;
+                       
+                       return (
+                           <button 
+                                key={salon.id}
+                                onClick={() => handleSelectSalon(salon.id)}
+                                disabled={mp.isLoading || (mp.isConnected && !isSelected)}
+                                className={`
+                                    relative w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between group
+                                    ${isSelected 
+                                        ? 'bg-gray-800 border-white/30' 
+                                        : 'bg-black/40 border-white/10 hover:border-white/20'
+                                    }
+                                `}
+                           >
+                               <div className="flex items-center gap-4">
+                                   <div className="bg-gray-900 p-3 rounded-xl">
+                                       <Server size={24} className="text-gray-400" />
+                                   </div>
+                                   <div className="text-left">
+                                       <h3 className="font-bold text-lg text-white">{salon.name}</h3>
+                                       <div className="text-xs text-gray-500">ID: {salon.id}</div>
+                                   </div>
+                               </div>
+
+                               {/* INDICATEUR D'ÉTAT DU SALON */}
+                               {isSelected ? (
+                                   <div className="flex items-center">
+                                       {mp.isLoading ? (
+                                           <Loader2 size={24} className="text-yellow-400 animate-spin" />
+                                       ) : mp.isConnected ? (
+                                            // CONNECTÉ (Point Vert)
+                                            <div className="relative w-6 h-6 rounded-full bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div>
+                                       ) : (
+                                            // ERREUR/VIDE (Point Rouge)
+                                            <div className="relative w-6 h-6 rounded-full bg-red-500 shadow-[0_0_15px_#ef4444]"></div>
+                                       )}
+                                   </div>
+                               ) : (
+                                   // Non sélectionné
+                                   <div className="w-6 h-6 rounded-full bg-gray-700 border border-gray-600"></div>
+                               )}
+                           </button>
+                       );
+                   })}
                </div>
 
-               {/* SHOW CODES ONLY IF NOT CONNECTED (OR FOR INFO) */}
-               {!mp.isConnected && (
-                   <div className="w-full max-w-sm px-4 grid gap-6">
-                       <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
-                           <h3 className="text-neon-pink font-bold tracking-widest text-[10px] mb-2 uppercase">Votre Code (Partager)</h3>
-                           {mp.isLoading ? (
-                               <div className="flex items-center gap-2 text-gray-400 text-xs h-12"><Loader2 size={16} className="animate-spin" /> Connexion...</div>
+               {/* ACTIONS PANEL BASED ON SELECTION */}
+               {selectedSalonId && !mp.isLoading && (
+                   <div className="mt-8 w-full max-w-sm px-4 animate-in slide-in-from-bottom-4">
+                       <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-6 text-center shadow-2xl">
+                           {mp.isConnected ? (
+                               <>
+                                   <h3 className="text-green-400 font-bold text-xl mb-1">JOUEUR TROUVÉ !</h3>
+                                   <p className="text-white mb-6">Adversaire : <span className="font-mono text-neon-pink font-bold text-lg">{mp.opponentName || 'Inconnu'}</span></p>
+                                   
+                                   <button 
+                                        onClick={handleJoinGame}
+                                        className="w-full py-4 bg-green-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_#22c55e] hover:bg-white hover:scale-105 transition-all animate-pulse"
+                                    >
+                                        REJOINDRE LE MATCH
+                                   </button>
+                               </>
                            ) : (
-                               <div className="text-4xl font-mono font-bold text-neon-pink tracking-widest drop-shadow-[0_0_10px_#ff00ff]">{mp.shortId || '----'}</div>
+                               <>
+                                   <h3 className="text-red-500 font-bold text-xl mb-1">PERSONNE ICI...</h3>
+                                   <p className="text-gray-400 mb-6 text-sm">Le salon est vide ou inaccessible.</p>
+                                   
+                                   <button 
+                                        onClick={() => handleCreateSalon(selectedSalonId)}
+                                        className="w-full py-4 bg-neon-blue text-black font-black text-lg rounded-xl shadow-[0_0_20px_#00f3ff] hover:bg-white hover:scale-105 transition-all"
+                                    >
+                                        CRÉER LE SALON (ATTENDRE)
+                                   </button>
+                               </>
                            )}
-                       </div>
-
-                       <div className="bg-gray-900/60 border border-white/10 rounded-2xl p-4 flex flex-col items-center shadow-lg">
-                           <h3 className="text-neon-blue font-bold tracking-widest text-[10px] mb-3 uppercase">Rejoindre un Salon</h3>
-                           <div className="flex items-center gap-2 mb-4">
-                               <div className="h-12 w-32 bg-black/50 border-2 border-neon-blue rounded-lg flex items-center justify-center text-2xl font-mono font-bold text-white tracking-widest">{remoteCodeInput}<span className="animate-pulse text-neon-blue ml-1">_</span></div>
-                               <button onClick={() => mp.connectToPeer(remoteCodeInput)} disabled={remoteCodeInput.length !== 4} className="h-12 px-6 bg-neon-blue text-black font-bold rounded-lg hover:bg-white disabled:opacity-50 transition-all">OK</button>
-                           </div>
-                           <div className="grid grid-cols-3 gap-2 w-full max-w-[200px]">
-                               {[1,2,3,4,5,6,7,8,9].map(n => <button key={n} onClick={() => handleNumpad(n.toString())} className="h-10 bg-gray-800 rounded text-white font-bold">{n}</button>)}
-                               <button onClick={() => setRemoteCodeInput('')} className="h-10 bg-gray-800 rounded text-red-400 font-bold text-xs">C</button>
-                               <button onClick={() => handleNumpad('0')} className="h-10 bg-gray-800 rounded text-white font-bold">0</button>
-                               <button onClick={() => handleNumpad('DEL')} className="h-10 bg-gray-800 rounded text-gray-300 font-bold text-xs">DEL</button>
-                           </div>
                        </div>
                    </div>
                )}
-
-               {/* JOIN BUTTON (Only if connected) */}
-               {mp.isConnected && (
-                   <button 
-                        onClick={() => setIsLobbyOpen(false)}
-                        className="mt-8 px-8 py-4 bg-green-500 text-black font-black text-xl rounded-full shadow-[0_0_20px_#22c55e] hover:bg-white hover:scale-105 transition-all animate-pulse"
-                    >
-                        REJOINDRE LE MATCH
-                   </button>
+               
+               {/* Waiting Screen for Host */}
+               {mp.isHost && (
+                   <div className="absolute inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-6">
+                        <div className="relative w-32 h-32 mb-8">
+                            <div className="absolute inset-0 border-4 border-neon-blue rounded-full animate-ping opacity-20"></div>
+                            <div className="absolute inset-0 border-4 border-t-neon-blue border-r-transparent border-b-neon-blue border-l-transparent rounded-full animate-spin"></div>
+                            <Users size={48} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">EN ATTENTE D'UN JOUEUR...</h2>
+                        <p className="text-gray-400 mb-8 text-center">Vous êtes l'hôte du <span className="text-neon-blue font-bold">{SALONS.find(s => s.id === selectedSalonId)?.name}</span>.</p>
+                        <button onClick={() => { mp.disconnect(); setIsLobbyOpen(false); }} className="px-6 py-2 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm">
+                            ANNULER / QUITTER
+                        </button>
+                   </div>
                )}
 
-               {/* CLOSE / ERROR */}
-               {mp.error && <div className="mt-4 bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded-lg text-xs">{mp.error}</div>}
-               
-               <button onClick={() => { setGameMode('PVE'); mp.disconnect(); setIsLobbyOpen(false); }} className="mt-8 text-gray-500 text-xs underline">
-                   Quitter le mode en ligne
+               <button onClick={() => { setGameMode('PVE'); mp.disconnect(); setIsLobbyOpen(false); }} className="mt-auto mb-4 text-gray-500 text-xs underline">
+                   Retour au menu principal
                </button>
            </div>
        )}
@@ -472,15 +524,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                if (!reaction) return null;
                const Icon = reaction.icon;
                
-               // Dynamic Positioning based on who sent it
+               // Positionnement : Si c'est moi, en bas à droite. Si c'est l'adversaire, en haut à gauche.
                const positionClass = activeReaction.isMe 
-                    ? 'bottom-[5%] right-[-10%] sm:right-[-20%]' 
-                    : 'top-[5%] left-[-10%] sm:left-[-20%]';
+                    ? 'bottom-[-20px] right-[-20px] sm:right-[-40px]' 
+                    : 'top-[-20px] left-[-20px] sm:left-[-40px]';
 
                return (
                    <div className={`absolute z-50 pointer-events-none animate-bounce ${positionClass}`}>
-                       <div className="bg-black/80 rounded-full p-2 border border-white/20 backdrop-blur-sm">
-                            <Icon size={64} className={`${reaction.color} drop-shadow-[0_0_25px_currentColor]`} />
+                       <div className="bg-black/90 rounded-full p-3 border-2 border-white/20 backdrop-blur-md shadow-2xl">
+                            <Icon size={48} className={`${reaction.color} drop-shadow-[0_0_20px_currentColor]`} />
                        </div>
                    </div>
                );

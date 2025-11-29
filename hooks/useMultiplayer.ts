@@ -22,7 +22,7 @@ export const useMultiplayer = () => {
         isConnected: false,
         isHost: false,
         error: null,
-        isLoading: true,
+        isLoading: false, // Default to false until we actually start an action
         opponentName: null
     });
     
@@ -35,9 +35,14 @@ export const useMultiplayer = () => {
 
     // Initialisation du Peer avec un Code Court
     const initializePeer = useCallback((customShortId?: string) => {
-        if (peerRef.current) return;
+        // If we already have a peer and it's the same ID, don't recreate
+        if (peerRef.current && !peerRef.current.destroyed) {
+             // Optional: check if ID matches
+        } else {
+             if (peerRef.current) peerRef.current.destroy();
+        }
 
-        setState(prev => ({ ...prev, isLoading: true, error: null, opponentName: null }));
+        setState(prev => ({ ...prev, isLoading: true, error: null, opponentName: null, isConnected: false }));
 
         let shortCode = customShortId;
 
@@ -57,7 +62,7 @@ export const useMultiplayer = () => {
         try {
             // Configuration optimisée pour mobile/tablette
             const peer = new Peer(fullId, {
-                debug: 2,
+                debug: 1,
                 pingInterval: 5000, // Keep-alive frequent pour Android
             });
             
@@ -88,35 +93,23 @@ export const useMultiplayer = () => {
             peer.on('error', (err: any) => {
                 console.error('PeerJS error:', err);
                 
-                // Si l'ID est déjà pris (collision rare ou Room occupée), on réessaie avec un autre
+                // Si l'ID est déjà pris (collision rare ou Room occupée)
                 if (err.type === 'unavailable-id') {
-                    if (customShortId) {
-                        // Si c'était une room spécifique, c'est une erreur pour l'utilisateur
-                        setState(prev => ({ 
-                            ...prev, 
-                            isLoading: false, 
-                            error: 'Ce code est déjà utilisé par un autre joueur.' 
-                        }));
-                    } else {
-                        // Si c'était notre code fixe/aléatoire, on doit le régénérer car il est pris
-                        console.log('Code fixe indisponible, génération d\'un nouveau...');
-                        const newCode = generateShortCode();
-                        localStorage.setItem(STORAGE_KEY_CODE, newCode);
-                        
-                        peer.destroy();
-                        peerRef.current = null;
-                        setTimeout(() => initializePeer(), 500); 
-                    }
+                    setState(prev => ({ 
+                        ...prev, 
+                        isLoading: false, 
+                        error: 'Ce salon est déjà occupé par un hôte.' 
+                    }));
                 } else if (err.type === 'peer-unavailable') {
-                     setState(prev => ({ ...prev, error: 'Joueur introuvable. Vérifiez le code.' }));
+                     setState(prev => ({ ...prev, error: 'Salon vide ou introuvable.' }));
                 } else if (err.type === 'network' || err.type === 'disconnected') {
                      setState(prev => ({ ...prev, error: 'Problème de connexion réseau.' }));
                 } else {
-                    setState(prev => ({ ...prev, error: 'Erreur de connexion serveur.' }));
+                    setState(prev => ({ ...prev, error: 'Erreur de connexion.' }));
                 }
                 
                 // Stop loading state on fatal errors
-                if (['browser-incompatible', 'invalid-id', 'ssl-unavailable'].includes(err.type)) {
+                if (['browser-incompatible', 'invalid-id', 'ssl-unavailable', 'unavailable-id'].includes(err.type)) {
                     setState(prev => ({ ...prev, isLoading: false }));
                 }
             });
@@ -142,7 +135,10 @@ export const useMultiplayer = () => {
         conn.on('open', () => {
             console.log('Connected to peer!');
             setState(prev => ({ ...prev, isConnected: true, error: null }));
-            conn.send({ type: 'HANDSHAKE' });
+            // Wait slightly before shaking hands to ensure stability
+            setTimeout(() => {
+                conn.send({ type: 'HANDSHAKE' });
+            }, 500);
         });
 
         conn.on('data', (data: any) => {
@@ -167,8 +163,15 @@ export const useMultiplayer = () => {
     };
 
     const connectToPeer = useCallback((targetShortId: string) => {
-        if (!peerRef.current) return;
+        // Ensure we have a peer instance first. If not, create a random temp one.
+        if (!peerRef.current) {
+            initializePeer();
+            // Wait for open? simpler to just require init first.
+            // For this specific flow, we usually init peer first.
+        }
         
+        if (!peerRef.current) return;
+
         // Clean ID input
         const cleanId = targetShortId.trim();
         if (!cleanId) return;
@@ -176,6 +179,7 @@ export const useMultiplayer = () => {
         const fullTargetId = `${ID_PREFIX}${cleanId}`;
         
         console.log(`Connecting to ${fullTargetId}...`);
+        setState(prev => ({ ...prev, isLoading: true, error: null }));
         
         // Close existing connection if any
         if (connRef.current) {
@@ -190,13 +194,13 @@ export const useMultiplayer = () => {
             setState(prev => ({ ...prev, isHost: false }));
         } catch (e) {
             console.error("Connect failed", e);
-            setState(prev => ({ ...prev, error: "Echec de la demande de connexion" }));
+            setState(prev => ({ ...prev, error: "Echec de la demande de connexion", isLoading: false }));
         }
-    }, []);
+    }, [initializePeer]);
 
     // Host a specific room (e.g. "1111")
     const hostRoom = useCallback((roomId: string) => {
-        // Destroy current random peer
+        // Destroy current random peer to free up resources/ports
         if (peerRef.current) {
             peerRef.current.destroy();
             peerRef.current = null;
@@ -237,6 +241,8 @@ export const useMultiplayer = () => {
     // Cleanup on unmount
     useEffect(() => {
         return () => {
+            // Optional: Don't kill peer immediately on unmount to allow navigation
+            // But for this game structure, yes we disconnect.
             disconnect();
         };
     }, []);
