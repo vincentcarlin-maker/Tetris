@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Users, Hand, Smile, Frown, ThumbsUp, Heart, Zap, MessageSquare, Send, Flame, Server } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, Users, Hand, Smile, Frown, ThumbsUp, Heart, Zap, MessageSquare, Send, Flame, Server, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -18,7 +18,7 @@ const COLS = 7;
 
 // Réactions Néon
 const REACTIONS = [
-    { id: 'angry', icon: Flame, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' }, // Colère (Premier comme demandé)
+    { id: 'angry', icon: Flame, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' },
     { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500' },
     { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
@@ -100,6 +100,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const mp = useMultiplayer();
   const [isLobbyOpen, setIsLobbyOpen] = useState(false);
   const [selectedSalonId, setSelectedSalonId] = useState<string | null>(null);
+  const [isRoomCreator, setIsRoomCreator] = useState(false); // Local state to know if we just created the room
   
   // Identity
   const { username } = useCurrency();
@@ -128,7 +129,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setIsAiThinking(false);
     setEarnedCoins(0);
     setActiveReaction(null);
-    setChatHistory([]); // Clear chat on new game? Maybe optional.
+    setChatHistory([]);
 
     if (sendSync && mp.isConnected) {
         mp.sendData({ type: 'RESET' });
@@ -144,6 +145,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         mp.initializePeer();
         setIsLobbyOpen(true);
         setSelectedSalonId(null);
+        setIsRoomCreator(false);
     }
     else {
         setGameMode('PVE');
@@ -163,7 +165,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Drop Piece Logic
   const handleColumnClick = useCallback((colIndex: number, isAi = false, isRemote = false) => {
-    // Basic checks
     if (winState.winner) return;
     
     // AI Check
@@ -172,11 +173,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     // Multiplayer Checks
     if (gameMode === 'ONLINE') {
         if (!mp.isConnected) return;
-        
-        // If I am the host (Player 1) and it's not my turn
         if (mp.isHost && currentPlayer !== 1 && !isRemote) return;
-        
-        // If I am the guest (Player 2) and it's not my turn
         if (!mp.isHost && currentPlayer !== 2 && !isRemote) return;
     }
     
@@ -213,7 +210,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
       if (isMyWin) {
           playVictory();
-          // STRICT RULE: Coins are ONLY for PVE (Single Player vs AI)
           if (gameMode === 'PVE') { 
              addCoins(30);
              setEarnedCoins(30);
@@ -255,12 +251,20 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       setChatInput('');
   };
 
-  // Exchange Names on connection
+  // SEND ROOM STATUS (HOST ONLY)
   useEffect(() => {
-      if (gameMode === 'ONLINE' && mp.isConnected) {
-          mp.sendData({ type: 'NAME', name: username });
-      }
-  }, [gameMode, mp.isConnected, username]);
+    if (gameMode === 'ONLINE' && mp.isConnected && mp.isHost) {
+        // Hôte envoie son état quand quelqu'un se connecte
+        const isPlaying = board.some(row => row.some(cell => cell !== 0)) && !winState.winner;
+        const status = isPlaying ? 'PLAYING' : 'WAITING';
+        mp.sendData({ 
+            type: 'ROOM_INFO', 
+            name: username, 
+            status: status,
+            players: 1 // Myself
+        });
+    }
+  }, [gameMode, mp.isConnected, mp.isHost, username, board, winState.winner, mp]);
 
   // Multiplayer Data Handling
   useEffect(() => {
@@ -313,19 +317,27 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => clearTimeout(timer);
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
-  // Salon Selection Logic
+
+  // ---- LOBBY LOGIC ----
+
   const handleSelectSalon = (salonId: string) => {
       setSelectedSalonId(salonId);
-      // Tentative de connexion en tant qu'invité
+      setIsRoomCreator(false);
+      // Tentative de connexion pour vérifier l'état
       mp.connectToPeer(salonId); 
   };
   
-  const handleCreateSalon = (salonId: string) => {
-      mp.hostRoom(salonId);
-  };
-  
+  // Si Peer Unavailable (Personne dans le salon), on le crée automatiquement
+  useEffect(() => {
+      if (gameMode === 'ONLINE' && selectedSalonId && mp.connectionErrorType === 'PEER_UNAVAILABLE' && !isRoomCreator) {
+          // Personne ! On crée le salon
+          setIsRoomCreator(true);
+          mp.hostRoom(selectedSalonId);
+      }
+  }, [gameMode, selectedSalonId, mp.connectionErrorType, mp, isRoomCreator]);
+
   const handleJoinGame = () => {
-      // On est déjà connecté via handleSelectSalon
+      // On est déjà connecté techniquement, on ferme juste le lobby
       setIsLobbyOpen(false);
   };
 
@@ -389,9 +401,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        {gameMode === 'ONLINE' && isLobbyOpen && (
            <div className="absolute inset-0 z-40 bg-black/95 backdrop-blur-md overflow-y-auto touch-pan-y flex flex-col items-center pt-8 pb-20 animate-in fade-in duration-300">
                <h2 className="text-3xl font-black italic text-white mb-2 text-center">SALONS MULTIJOUEUR</h2>
-               <p className="text-gray-400 mb-8 text-xs text-center px-4">Choisis un salon. Si le point est <span className="text-green-400 font-bold">VERT</span>, rejoins le joueur. Si <span className="text-red-500 font-bold">ROUGE</span>, crée le salon.</p>
+               <p className="text-gray-400 mb-8 text-xs text-center px-4">Choisis un salon. <span className="text-green-400 font-bold">VERT</span> = Joueur présent. <span className="text-red-500 font-bold">ROUGE</span> = Vide (Création auto).</p>
                
-               <div className="flex flex-col gap-6 w-full max-w-sm px-4">
+               <div className="grid grid-cols-2 gap-4 w-full max-w-sm px-4">
                    {SALONS.map((salon) => {
                        const isSelected = selectedSalonId === salon.id;
                        
@@ -399,93 +411,83 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                            <button 
                                 key={salon.id}
                                 onClick={() => handleSelectSalon(salon.id)}
-                                disabled={mp.isLoading || (mp.isConnected && !isSelected)}
+                                disabled={mp.isLoading}
                                 className={`
-                                    relative w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between group
+                                    relative p-6 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 group h-32
                                     ${isSelected 
                                         ? 'bg-gray-800 border-white/30' 
                                         : 'bg-black/40 border-white/10 hover:border-white/20'
                                     }
                                 `}
                            >
-                               <div className="flex items-center gap-4">
-                                   <div className="bg-gray-900 p-3 rounded-xl">
-                                       <Server size={24} className="text-gray-400" />
-                                   </div>
-                                   <div className="text-left">
-                                       <h3 className="font-bold text-lg text-white">{salon.name}</h3>
-                                       <div className="text-xs text-gray-500">ID: {salon.id}</div>
-                                   </div>
-                               </div>
-
-                               {/* INDICATEUR D'ÉTAT DU SALON */}
-                               {isSelected ? (
-                                   <div className="flex items-center">
-                                       {mp.isLoading ? (
-                                           <Loader2 size={24} className="text-yellow-400 animate-spin" />
-                                       ) : mp.isConnected ? (
-                                            // CONNECTÉ (Point Vert)
-                                            <div className="relative w-6 h-6 rounded-full bg-green-500 shadow-[0_0_15px_#22c55e] animate-pulse"></div>
-                                       ) : (
-                                            // ERREUR/VIDE (Point Rouge)
-                                            <div className="relative w-6 h-6 rounded-full bg-red-500 shadow-[0_0_15px_#ef4444]"></div>
-                                       )}
-                                   </div>
-                               ) : (
-                                   // Non sélectionné
-                                   <div className="w-6 h-6 rounded-full bg-gray-700 border border-gray-600"></div>
-                               )}
+                               <Server size={32} className={isSelected ? 'text-white' : 'text-gray-500'} />
+                               <span className="font-bold text-lg text-white">{salon.name}</span>
+                               {isSelected && mp.isLoading && <Loader2 size={16} className="animate-spin text-yellow-400" />}
                            </button>
                        );
                    })}
                </div>
 
-               {/* ACTIONS PANEL BASED ON SELECTION */}
+               {/* STATUS PANEL FOR SELECTED SALON */}
                {selectedSalonId && !mp.isLoading && (
                    <div className="mt-8 w-full max-w-sm px-4 animate-in slide-in-from-bottom-4">
-                       <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-6 text-center shadow-2xl">
-                           {mp.isConnected ? (
+                       <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-6 text-center shadow-2xl relative overflow-hidden">
+                           
+                           {/* INDICATOR LIGHT */}
+                           <div className={`absolute top-4 right-4 w-6 h-6 rounded-full shadow-[0_0_15px_currentColor] animate-pulse ${mp.isHost ? 'bg-green-500 text-green-500' : mp.isConnected ? 'bg-green-500 text-green-500' : 'bg-red-500 text-red-500'}`}></div>
+
+                           {mp.isHost ? (
+                               // CAS 1 : JE SUIS L'HOTE (SALON CRÉÉ CAR VIDE)
                                <>
-                                   <h3 className="text-green-400 font-bold text-xl mb-1">JOUEUR TROUVÉ !</h3>
-                                   <p className="text-white mb-6">Adversaire : <span className="font-mono text-neon-pink font-bold text-lg">{mp.opponentName || 'Inconnu'}</span></p>
+                                   <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/50">
+                                       <AlertCircle size={32} className="text-red-500" />
+                                   </div>
+                                   <h3 className="text-white font-bold text-xl mb-1">SALON CRÉÉ</h3>
+                                   <p className="text-gray-400 mb-6 text-sm">Le salon était vide (Point Rouge). Vous êtes maintenant l'hôte.</p>
+                                   <div className="bg-black/40 p-3 rounded-lg border border-white/5 animate-pulse">
+                                       <p className="text-neon-blue font-mono text-xs">EN ATTENTE D'UN JOUEUR...</p>
+                                   </div>
+                               </>
+                           ) : mp.isConnected && mp.roomInfo ? (
+                               // CAS 2 : JE SUIS INVITÉ (SALON OCCUPÉ)
+                               <>
+                                    <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/50">
+                                       <CheckCircle2 size={32} className="text-green-500" />
+                                   </div>
+                                   <h3 className="text-green-400 font-bold text-xl mb-1">SALON OCCUPÉ</h3>
+                                   <p className="text-gray-400 mb-4 text-sm">1 Joueur présent (Point Vert)</p>
                                    
-                                   <button 
-                                        onClick={handleJoinGame}
-                                        className="w-full py-4 bg-green-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_#22c55e] hover:bg-white hover:scale-105 transition-all animate-pulse"
-                                    >
-                                        REJOINDRE LE MATCH
-                                   </button>
+                                   <div className="bg-black/50 p-4 rounded-xl border border-white/10 mb-6 text-left">
+                                       <div className="flex justify-between items-center mb-2">
+                                           <span className="text-gray-400 text-xs uppercase">Joueur</span>
+                                           <span className="font-bold text-white">{mp.roomInfo.name}</span>
+                                       </div>
+                                       <div className="flex justify-between items-center">
+                                           <span className="text-gray-400 text-xs uppercase">Statut</span>
+                                           <span className={`font-bold text-xs px-2 py-0.5 rounded ${mp.roomInfo.status === 'PLAYING' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                               {mp.roomInfo.status === 'PLAYING' ? 'EN JEU' : 'DISPONIBLE'}
+                                           </span>
+                                       </div>
+                                   </div>
+
+                                   {mp.roomInfo.status === 'WAITING' ? (
+                                       <button 
+                                            onClick={handleJoinGame}
+                                            className="w-full py-4 bg-green-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_#22c55e] hover:bg-white hover:scale-105 transition-all animate-pulse"
+                                        >
+                                            REJOINDRE LA PARTIE
+                                       </button>
+                                   ) : (
+                                       <div className="w-full py-4 bg-gray-800 text-gray-500 font-bold text-lg rounded-xl border border-white/10 cursor-not-allowed">
+                                           PARTIE EN COURS
+                                       </div>
+                                   )}
                                </>
                            ) : (
-                               <>
-                                   <h3 className="text-red-500 font-bold text-xl mb-1">PERSONNE ICI...</h3>
-                                   <p className="text-gray-400 mb-6 text-sm">Le salon est vide ou inaccessible.</p>
-                                   
-                                   <button 
-                                        onClick={() => handleCreateSalon(selectedSalonId)}
-                                        className="w-full py-4 bg-neon-blue text-black font-black text-lg rounded-xl shadow-[0_0_20px_#00f3ff] hover:bg-white hover:scale-105 transition-all"
-                                    >
-                                        CRÉER LE SALON (ATTENDRE)
-                                   </button>
-                               </>
+                               // CAS ERREUR
+                               <p className="text-red-500">Erreur de connexion au salon.</p>
                            )}
                        </div>
-                   </div>
-               )}
-               
-               {/* Waiting Screen for Host */}
-               {mp.isHost && (
-                   <div className="absolute inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-6">
-                        <div className="relative w-32 h-32 mb-8">
-                            <div className="absolute inset-0 border-4 border-neon-blue rounded-full animate-ping opacity-20"></div>
-                            <div className="absolute inset-0 border-4 border-t-neon-blue border-r-transparent border-b-neon-blue border-l-transparent rounded-full animate-spin"></div>
-                            <Users size={48} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">EN ATTENTE D'UN JOUEUR...</h2>
-                        <p className="text-gray-400 mb-8 text-center">Vous êtes l'hôte du <span className="text-neon-blue font-bold">{SALONS.find(s => s.id === selectedSalonId)?.name}</span>.</p>
-                        <button onClick={() => { mp.disconnect(); setIsLobbyOpen(false); }} className="px-6 py-2 bg-red-900/50 border border-red-500 text-red-300 rounded-lg text-sm">
-                            ANNULER / QUITTER
-                        </button>
                    </div>
                )}
 
@@ -518,7 +520,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        {/* Game Board */}
        <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md transition-opacity duration-500 ${gameMode === 'ONLINE' && !mp.isConnected ? 'opacity-0' : 'opacity-100'}`}>
            
-           {/* REACTION OVERLAY - Positioned specifically */}
+           {/* REACTION OVERLAY */}
            {activeReaction && (() => {
                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                if (!reaction) return null;
