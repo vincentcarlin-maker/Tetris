@@ -97,8 +97,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   
   // MATCHMAKING & GAME STATE
   const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
-  const [outgoingInviteId, setOutgoingInviteId] = useState<string | null>(null);
-
+  
   // Identity
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
   
@@ -179,18 +178,11 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           }
       } else if (mp.mode === 'in_game') {
           setOnlineStep('game');
-          setOutgoingInviteId(null);
           resetGame();
       } else if (mp.mode === 'disconnected' && gameMode === 'ONLINE') {
           setOnlineStep('connecting');
       }
-
-      if (mp.outgoingInvite) {
-          setOutgoingInviteId(mp.outgoingInvite.toId);
-      } else {
-          setOutgoingInviteId(null);
-      }
-  }, [mp.mode, mp.outgoingInvite, gameMode]);
+  }, [mp.mode, gameMode]);
   
   // Handle Difficulty Change
   const cycleDifficulty = () => {
@@ -424,46 +416,79 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     }
 
     if (onlineStep === 'lobby') {
-        const availablePlayers = mp.players.filter(p => !p.inGame && p.id !== mp.peerId);
-        const inGamePlayers = mp.players.filter(p => p.inGame);
+        const self = mp.players.find(p => p.id === mp.peerId);
+        const myStatus = self?.status || 'idle';
+
+        // VIEW WHEN I AM HOSTING A ROOM
+        if (myStatus === 'hosting') {
+            return (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-cyan-400 animate-in fade-in">
+                    <Loader2 size={48} className="animate-spin" />
+                    <p className="font-bold tracking-widest">EN ATTENTE D'UN ADVERSAIRE...</p>
+                    <button onClick={mp.cancelHosting} className="mt-4 px-6 py-2 bg-red-600/80 text-white font-bold rounded-lg text-sm">
+                        ANNULER
+                    </button>
+                </div>
+            );
+        }
+
+        // DEFAULT LOBBY VIEW
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
 
         return (
              <div className="flex flex-col h-full animate-in fade-in">
-                {mp.incomingInvite && (
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center text-center p-4">
-                        <h3 className="text-2xl font-bold mb-2">Défi reçu !</h3>
-                        <p className="mb-6"><span className="font-bold text-yellow-400">{mp.incomingInvite.name}</span> vous défie !</p>
-                        <div className="flex gap-4">
-                            <button onClick={() => mp.declineInvite(mp.incomingInvite!.id)} className="px-6 py-3 bg-red-600 text-white font-bold rounded-lg flex items-center gap-2"><X/> Refuser</button>
-                            <button onClick={() => mp.acceptInvite(mp.incomingInvite!.id)} className="px-6 py-3 bg-green-500 text-black font-bold rounded-lg flex items-center gap-2"><Check/> Accepter</button>
-                        </div>
-                    </div>
-                )}
-                <h3 className="text-lg font-bold text-center mb-2 text-cyan-300 tracking-wider">JOUEURS DISPONIBLES</h3>
+                <div className="flex items-center justify-between mb-2">
+                     <h3 className="text-lg font-bold text-center text-cyan-300 tracking-wider">LOBBY EN LIGNE</h3>
+                     <button onClick={mp.createRoom} className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg text-xs hover:bg-green-400 transition-colors flex items-center gap-2">
+                        <Play size={14}/> CRÉER UN SALON
+                     </button>
+                </div>
+                
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {availablePlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Personne dans le lobby...<br/>Invitez un ami !</p>}
-                    {availablePlayers.map(player => {
-                        const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
-                        const AvatarIcon = avatar.icon;
-                        const isInvited = outgoingInviteId === player.id;
-                        return (
-                            <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
-                                    <span className="font-bold">{player.name}</span>
-                                </div>
-                                {isInvited ? (
-                                    <div className="flex items-center gap-2 text-yellow-400 text-xs font-bold animate-pulse">
-                                        <Loader2 size={14} className="animate-spin"/> EN ATTENTE...
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">SALONS OUVERTS</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">
+                                            REJOINDRE
+                                        </button>
                                     </div>
-                                ) : (
-                                    <button onClick={() => mp.sendInvite(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">
-                                        DÉFIER
-                                    </button>
-                                )}
-                            </div>
-                        );
-                    })}
+                                );
+                            })}
+                        </>
+                    )}
+                    
+                    {hostingPlayers.length === 0 && (
+                         <p className="text-center text-gray-500 italic text-sm py-8">Aucun salon ouvert...<br/>Créez le vôtre !</p>
+                    )}
+                    
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
                 </div>
              </div>
         );

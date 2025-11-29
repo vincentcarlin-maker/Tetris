@@ -5,7 +5,7 @@ export interface PlayerInfo {
     id: string; // Peer ID
     name: string;
     avatarId: string;
-    inGame: boolean;
+    status: 'idle' | 'hosting' | 'in_game';
 }
 
 export interface MultiplayerState {
@@ -16,8 +16,6 @@ export interface MultiplayerState {
     isLoading: boolean;
     mode: 'disconnected' | 'connecting' | 'lobby' | 'in_game';
     players: PlayerInfo[];
-    incomingInvite: PlayerInfo | null;
-    outgoingInvite: { toId: string, toName: string } | null;
     gameOpponent: PlayerInfo | null;
     isMyTurn: boolean;
 }
@@ -27,7 +25,7 @@ const LOBBY_ID = 'NEON-ARCADE-C4-LOBBY';
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
         peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
-        mode: 'disconnected', players: [], incomingInvite: null, outgoingInvite: null, gameOpponent: null, isMyTurn: false,
+        mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false,
     });
     
     const peerRef = useRef<Peer | null>(null);
@@ -50,15 +48,12 @@ export const useMultiplayer = () => {
         guestConnectionsRef.current = [];
         setState({
             peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
-            mode: 'disconnected', players: [], incomingInvite: null, outgoingInvite: null, gameOpponent: null, isMyTurn: false,
+            mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false,
         });
     }, []);
 
     const sendData = useCallback((data: any) => {
         if (isHostRef.current) {
-            // Host logic for sending data is more complex (relaying)
-            // This is handled in specific functions like `sendInvite` etc.
-            // For now, this is a placeholder if a generic broadcast is needed.
             guestConnectionsRef.current.forEach(conn => conn.send(data));
         } else if (hostConnectionRef.current) {
             hostConnectionRef.current.send(data);
@@ -72,9 +67,9 @@ export const useMultiplayer = () => {
             .map(c => (c as any).playerInfo)
             .filter(Boolean);
 
-        // Host's inGame status is determined by its own state machine
         const hostInGame = state.mode === 'in_game';
-        const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, inGame: hostInGame };
+        const hostStatus = hostInGame ? 'in_game' : 'idle';
+        const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, status: hostStatus };
 
         const fullList = [hostSelfInfo, ...guestPlayerList];
         
@@ -87,38 +82,35 @@ export const useMultiplayer = () => {
         // --- HOST LOGIC ---
         if (isHostRef.current) {
             const senderId = conn.peer;
+            const senderInfo = (conn as any).playerInfo;
             switch (data.type) {
                 case 'HELLO':
-                    (conn as any).playerInfo = { id: senderId, name: data.name, avatarId: data.avatarId, inGame: false };
+                    (conn as any).playerInfo = { id: senderId, name: data.name, avatarId: data.avatarId, status: 'idle' };
                     broadcastPlayerList();
                     break;
-                case 'INVITE': {
-                    const targetConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
-                    const senderInfo = (conn as any).playerInfo;
-                    if (targetConn && senderInfo) {
-                        targetConn.send({ type: 'INVITE_REQUEST', from: senderInfo });
-                    }
+                case 'CREATE_ROOM':
+                    if (senderInfo) senderInfo.status = 'hosting';
+                    broadcastPlayerList();
                     break;
-                }
-                case 'INVITE_RESPONSE': {
-                    const { accepted, targetId } = data;
-                    const guestA_Conn = conn;
-                    const guestB_Conn = guestConnectionsRef.current.find(c => c.peer === targetId);
-
-                    const respondToA = (payload: any) => guestA_Conn.send(payload);
-                    const respondToB = (payload: any) => guestB_Conn?.send(payload);
+                case 'CANCEL_HOSTING':
+                     if (senderInfo) senderInfo.status = 'idle';
+                     broadcastPlayerList();
+                     break;
+                case 'JOIN_ROOM': {
+                    const { targetId } = data;
+                    const hosterConn = guestConnectionsRef.current.find(c => c.peer === targetId);
+                    const joinerConn = conn;
                     
-                    if (accepted && guestB_Conn) {
-                        const playerA_Info = (guestA_Conn as any).playerInfo;
-                        const playerB_Info = (guestB_Conn as any).playerInfo;
-                        playerA_Info.inGame = true;
-                        playerB_Info.inGame = true;
-                        
-                        respondToA({ type: 'GAME_START', opponent: playerB_Info, starts: false }); // B starts
-                        respondToB({ type: 'GAME_START', opponent: playerA_Info, starts: true }); // A invites, so B accepts and starts
+                    if (hosterConn && (hosterConn as any).playerInfo.status === 'hosting') {
+                        const hosterInfo = (hosterConn as any).playerInfo;
+                        const joinerInfo = (joinerConn as any).playerInfo;
+
+                        hosterInfo.status = 'in_game';
+                        joinerInfo.status = 'in_game';
+
+                        hosterConn.send({ type: 'GAME_START', opponent: joinerInfo, starts: true });
+                        joinerConn.send({ type: 'GAME_START', opponent: hosterInfo, starts: false });
                         broadcastPlayerList();
-                    } else {
-                        guestB_Conn?.send({ type: 'INVITE_DECLINED', fromId: senderId });
                     }
                     break;
                 }
@@ -128,17 +120,20 @@ export const useMultiplayer = () => {
                     break;
                 }
                 case 'LEAVE_GAME':
-                case 'REMATCH':
-                     (conn as any).playerInfo.inGame = false;
+                     senderInfo.status = 'idle';
                      const opponentConn = guestConnectionsRef.current.find(c => c.peer === data.opponentId);
                      if (opponentConn) {
-                         (opponentConn as any).playerInfo.inGame = false;
-                         if (data.type === 'REMATCH') {
-                             const playerA_Info = (conn as any).playerInfo;
-                             const playerB_Info = (opponentConn as any).playerInfo;
-                             conn.send({ type: 'REMATCH_START', opponent: playerB_Info, starts: true });
-                             opponentConn.send({ type: 'REMATCH_START', opponent: playerA_Info, starts: false });
-                         }
+                         (opponentConn as any).playerInfo.status = 'idle';
+                     }
+                     broadcastPlayerList();
+                     break;
+                 case 'REMATCH':
+                     senderInfo.status = 'in_game';
+                     const opponentConnRematch = guestConnectionsRef.current.find(c => c.peer === data.opponentId);
+                     if (opponentConnRematch) {
+                         (opponentConnRematch as any).playerInfo.status = 'in_game';
+                         conn.send({ type: 'REMATCH_START', opponent: (opponentConnRematch as any).playerInfo, starts: true });
+                         opponentConnRematch.send({ type: 'REMATCH_START', opponent: senderInfo, starts: false });
                      }
                      broadcastPlayerList();
                      break;
@@ -153,20 +148,12 @@ export const useMultiplayer = () => {
             case 'PLAYER_LIST':
                 setState(prev => ({...prev, players: data.players}));
                 break;
-            case 'INVITE_REQUEST':
-                setState(prev => ({...prev, incomingInvite: data.from}));
-                break;
-            case 'INVITE_DECLINED':
-                setState(prev => ({...prev, outgoingInvite: null}));
-                break;
             case 'GAME_START':
                 setState(prev => ({
                     ...prev,
                     mode: 'in_game',
                     gameOpponent: data.opponent,
                     isMyTurn: data.starts,
-                    incomingInvite: null,
-                    outgoingInvite: null
                 }));
                 break;
             default:
@@ -190,13 +177,11 @@ export const useMultiplayer = () => {
         disconnect();
         setState(prev => ({...prev, isLoading: true, error: null, mode: 'connecting'}));
 
-        // --- Step 1: Attempt to become the host ---
         const peer = new Peer(LOBBY_ID);
         peerRef.current = peer;
 
         peer.on('open', id => {
-            // SUCCESS: We are the host.
-            const selfInfo: PlayerInfo = { id, ...myInfoRef.current, inGame: false };
+            const selfInfo: PlayerInfo = { id, ...myInfoRef.current, status: 'idle' };
             setState(prev => ({
                 ...prev,
                 peerId: id,
@@ -211,13 +196,9 @@ export const useMultiplayer = () => {
 
         peer.on('error', (err: any) => {
             if (err.type === 'unavailable-id') {
-                // FAILURE: Lobby ID is taken, so a host exists. Connect as a guest.
-                peer.destroy(); // Destroy the failed host-attempt peer.
-                
-                // --- Step 2: Connect as a guest ---
-                const guestPeer = new Peer(); // Create a new peer with a random ID.
+                peer.destroy();
+                const guestPeer = new Peer();
                 peerRef.current = guestPeer;
-
                 guestPeer.on('open', guestId => {
                     const conn = guestPeer.connect(LOBBY_ID);
                     hostConnectionRef.current = conn;
@@ -236,38 +217,20 @@ export const useMultiplayer = () => {
                          disconnect();
                     });
                 });
-
                 guestPeer.on('error', (guestErr) => {
                     setState(prev => ({ ...prev, error: `Impossible de créer un peer invité: ${guestErr.type}` }));
                     disconnect();
                 });
-
             } else {
-                // Some other PeerJS error occurred
                 setState(prev => ({ ...prev, error: `Erreur PeerJS: ${err.type}`, isLoading: false, mode: 'disconnected' }));
                 disconnect();
             }
         });
     }, [disconnect, handleHostConnection, handleDataReceived]);
 
-    const sendInvite = (targetId: string) => {
-        const targetPlayer = state.players.find(p => p.id === targetId);
-        if (targetPlayer) {
-            // All invites are sent to the host for relaying
-            sendData({ type: 'INVITE', targetId });
-            setState(prev => ({ ...prev, outgoingInvite: { toId: targetId, toName: targetPlayer.name } }));
-        }
-    };
-    
-    const acceptInvite = (fromId: string) => {
-        sendData({ type: 'INVITE_RESPONSE', accepted: true, targetId: fromId });
-        setState(prev => ({ ...prev, incomingInvite: null }));
-    };
-
-    const declineInvite = (fromId: string) => {
-        sendData({ type: 'INVITE_RESPONSE', accepted: false, targetId: fromId });
-        setState(prev => ({ ...prev, incomingInvite: null }));
-    };
+    const createRoom = () => sendData({ type: 'CREATE_ROOM' });
+    const joinRoom = (targetId: string) => sendData({ type: 'JOIN_ROOM', targetId });
+    const cancelHosting = () => sendData({ type: 'CANCEL_HOSTING' });
 
     const sendGameMove = (colIndex: number) => {
         if (state.mode === 'in_game' && state.gameOpponent) {
@@ -289,15 +252,6 @@ export const useMultiplayer = () => {
              setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
         }
     };
-    
-    useEffect(() => {
-        if (state.mode === 'in_game' && state.gameOpponent) {
-             const isMyTurnNow = (state.isHost && state.gameOpponent.inGame) || (!state.isHost && !state.gameOpponent.inGame);
-             // This logic seems complex. Let's simplify turn management.
-             // The move itself will dictate the next turn.
-        }
-    }, [state.players, state.mode, state.gameOpponent, state.isHost]);
-
 
     const updateSelfInfo = useCallback((name: string, avatarId: string) => {
         myInfoRef.current = { name, avatarId };
@@ -314,9 +268,9 @@ export const useMultiplayer = () => {
         sendData,
         updateSelfInfo,
         setOnDataReceived,
-        sendInvite,
-        acceptInvite,
-        declineInvite,
+        createRoom,
+        joinRoom,
+        cancelHosting,
         sendGameMove,
         leaveGame
     };
