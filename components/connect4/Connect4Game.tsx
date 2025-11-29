@@ -165,7 +165,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
       if (isMyWin) {
           playVictory();
-          if (gameMode === 'PVE') { // Only give coins for PVE
+          if (gameMode !== 'ONLINE') { // Only give coins for local play for now to prevent farming
              addCoins(30);
              setEarnedCoins(30);
           }
@@ -446,7 +446,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         {winState.winner && (
              <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
                  {/* Reward Display */}
-                 {earnedCoins > 0 && (
+                 {(winState.winner === 1 || (gameMode === 'PVP' && winState.winner === 2)) && (
                     <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
                         <Coins className="text-yellow-400" size={20} />
                         <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
