@@ -112,6 +112,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // Audio
   const { playMove, playGameOver, playVictory } = audio;
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+        if (mp.isConnected || mp.peerId) {
+            mp.disconnect();
+        }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-scroll chat
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -169,11 +178,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // --- AUTO CONNECT LOGIC ---
   useEffect(() => {
     if (gameMode === 'ONLINE' && isLobbyOpen) {
-        if (!mp.isConnected && !mp.isHost && !mp.isLoading && !mp.error) {
+        // If not connected, not hosting, not loading, and no FATAL error (like network down), try to connect
+        if (!mp.isConnected && !mp.isHost && !mp.isLoading && mp.connectionErrorType !== 'ID_TAKEN') {
              mp.connectToPeer(GLOBAL_ROOM_ID);
         }
     }
-  }, [gameMode, isLobbyOpen, mp.isConnected, mp.isHost, mp.isLoading, mp.error, mp]);
+  }, [gameMode, isLobbyOpen, mp.isConnected, mp.isHost, mp.isLoading, mp.connectionErrorType, mp]);
 
   // Fallback Host
   useEffect(() => {
@@ -457,7 +467,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                         ) : (
                             <>
                                 <Loader2 size={48} className="text-neon-blue animate-spin" />
-                                <p className="text-gray-400 animate-pulse text-sm">Connexion au salon...</p>
+                                <p className="text-gray-400 animate-pulse text-sm">
+                                    {mp.isLoading ? "Connexion au salon..." : "En attente du serveur..."}
+                                </p>
                             </>
                         )}
                     </div>

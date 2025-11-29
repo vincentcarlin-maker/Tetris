@@ -22,7 +22,7 @@ export interface MultiplayerState {
     error: string | null;
     isLoading: boolean;
     players: PlayerInfo[];     // List of all players in the room
-    connectionErrorType: 'PEER_UNAVAILABLE' | 'NETWORK' | null;
+    connectionErrorType: 'PEER_UNAVAILABLE' | 'NETWORK' | 'ID_TAKEN' | null;
     roomStatuses: Record<string, RoomStatusData>;
 }
 
@@ -52,7 +52,8 @@ export const useMultiplayer = () => {
     const generateShortCode = () => Math.floor(1000 + Math.random() * 9000).toString();
 
     // Initialisation du Peer
-    const initializePeer = useCallback((customShortId?: string) => {
+    // Added retryCount to handle zombie IDs
+    const initializePeer = useCallback((customShortId?: string, retryCount = 0) => {
         if (peerRef.current) peerRef.current.destroy();
 
         setState(prev => ({ 
@@ -66,6 +67,8 @@ export const useMultiplayer = () => {
         }));
 
         let shortCode = customShortId;
+        
+        // If no custom ID (Guest mode), try to get from storage or generate
         if (!shortCode) {
             const storedCode = localStorage.getItem(STORAGE_KEY_CODE);
             if (storedCode) {
@@ -115,6 +118,39 @@ export const useMultiplayer = () => {
             peer.on('error', (err: any) => {
                 console.error('PeerJS error:', err);
                 
+                // --- ID TAKEN / ZOMBIE SESSION HANDLING ---
+                if (err.type === 'unavailable-id') {
+                    if (customShortId) {
+                        // CASE 1: Hosting a specific room (Global Salon)
+                        // If the ID is taken, it might be a zombie session from a recent refresh/close.
+                        // We wait and retry a few times.
+                        if (retryCount < 3) {
+                            console.log(`ID ${customShortId} taken. Retrying hosting in 1.5s... (Attempt ${retryCount + 1}/3)`);
+                            setTimeout(() => {
+                                initializePeer(customShortId, retryCount + 1);
+                            }, 1500);
+                            return; // Exit here, don't set error state yet
+                        } else {
+                            // If retries failed, mapped error
+                            setState(prev => ({ 
+                                ...prev, 
+                                error: 'Salon occupé ou inaccessible (Zombie ID).',
+                                connectionErrorType: 'ID_TAKEN',
+                                isLoading: false 
+                            }));
+                            return;
+                        }
+                    } else {
+                        // CASE 2: Guest with a random ID
+                        // If my random ID is taken, just generate a NEW one and try again immediately.
+                        console.log('Guest ID collision. Generating new ID...');
+                        const newCode = generateShortCode();
+                        localStorage.setItem(STORAGE_KEY_CODE, newCode);
+                        initializePeer(undefined, 0); // Restart with new ID
+                        return;
+                    }
+                }
+
                 // Probe error handling
                 if (err.type === 'peer-unavailable') {
                     const message = err.message || '';
@@ -133,14 +169,15 @@ export const useMultiplayer = () => {
                 let errorMsg = 'Erreur de connexion.';
                 let errorType: MultiplayerState['connectionErrorType'] = null;
 
-                if (err.type === 'unavailable-id') {
-                    errorMsg = 'Ce salon est déjà occupé.';
-                } else if (err.type === 'peer-unavailable') {
+                if (err.type === 'peer-unavailable') {
                      errorMsg = 'Salon vide ou introuvable.';
                      errorType = 'PEER_UNAVAILABLE';
                 } else if (err.type === 'network' || err.type === 'disconnected') {
                      errorMsg = 'Problème de connexion réseau.';
                      errorType = 'NETWORK';
+                } else if (err.type === 'unavailable-id') {
+                    errorMsg = 'Identifiant indisponible.';
+                    errorType = 'ID_TAKEN';
                 }
                 
                 setState(prev => ({ 
@@ -188,8 +225,6 @@ export const useMultiplayer = () => {
         
         // Use functional state update to ensure we are using the latest state for 'isHost'
         setState(prev => {
-            // Only set isHost if we weren't already connected as a guest (hybrid edge case)
-            // But usually handleConnection is for incoming, so we are Host.
             return { ...prev, isHost: true, isConnected: true };
         });
 
@@ -240,15 +275,11 @@ export const useMultiplayer = () => {
                 // Broadcast updated full list to ALL guests (including the new one)
                 broadcast({ type: 'PLAYERS_UPDATE', players: updatedPlayers });
                 
-                // Send current game state if needed (handled by app component via callback)
                 return { ...prev, players: updatedPlayers };
             });
         }
         else if (data.type === 'CHAT' || data.type === 'MOVE' || data.type === 'REACTION' || data.type === 'RESET') {
             // Relay to other guests (Broadcasting)
-            // We exclude the sender so they don't get their own message back if they handled it locally
-            // BUT for simplicity, the App might rely on server echo. 
-            // Current design: App handles own actions locally. Host broadcasts to OTHERS.
             broadcast(data, senderConn.connectionId);
         }
 
@@ -384,10 +415,17 @@ export const useMultiplayer = () => {
     }, []);
 
     const hostRoom = useCallback((roomId: string) => {
-        if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
-        initializePeer(roomId);
-        // We set initial player state in initializePeer callback
-        setState(prev => ({ ...prev, isHost: true }));
+        // Force complete destroy of old peer before creating new one
+        if (peerRef.current) { 
+            peerRef.current.destroy(); 
+            peerRef.current = null; 
+        }
+        
+        // Small delay to ensure cleanup allows ID reuse
+        setTimeout(() => {
+            initializePeer(roomId);
+            setState(prev => ({ ...prev, isHost: true }));
+        }, 100);
     }, [initializePeer]);
 
     const sendData = useCallback((data: any) => {
@@ -402,12 +440,17 @@ export const useMultiplayer = () => {
     }, []);
 
     const disconnect = useCallback(() => {
+        // Close all data connections
         connectionsRef.current.forEach(c => c.close());
         connectionsRef.current = [];
+        
+        // Destroy peer
         if (peerRef.current) {
             peerRef.current.destroy();
             peerRef.current = null;
         }
+        
+        // Reset state
         setState(prev => ({
             ...prev,
             peerId: null,
@@ -424,7 +467,6 @@ export const useMultiplayer = () => {
 
     const updateSelfInfo = useCallback((name: string, avatarId: string) => {
         setState(prev => {
-            // Update my own entry in the players list
             const myId = prev.peerId;
             if (!myId) return prev;
             
@@ -435,7 +477,6 @@ export const useMultiplayer = () => {
                 p.id === myId ? { ...p, name, avatarId } : p
             );
             
-            // If I wasn't in list (rare), add me
             if (!prev.players.find(p => p.id === myId)) {
                 newPlayers.push({ id: myId, name, avatarId, isHost: prev.isHost });
             }
