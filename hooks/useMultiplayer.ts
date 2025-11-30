@@ -19,6 +19,7 @@ export interface MultiplayerState {
     players: PlayerInfo[];
     gameOpponent: PlayerInfo | null;
     isMyTurn: boolean;
+    amIP1: boolean; // Am I Player 1 (Game Creator/Host)?
 }
 
 const LOBBY_ID = 'NEON-ARCADE-C4-LOBBY';
@@ -26,7 +27,7 @@ const LOBBY_ID = 'NEON-ARCADE-C4-LOBBY';
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
         peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
-        mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false,
+        mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
     });
     
     const peerRef = useRef<Peer | null>(null);
@@ -53,7 +54,7 @@ export const useMultiplayer = () => {
         hostStatusRef.current = 'idle';
         setState({
             peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
-            mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false,
+            mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
         });
     }, []);
 
@@ -120,7 +121,8 @@ export const useMultiplayer = () => {
                                 ...prev,
                                 mode: 'in_game',
                                 gameOpponent: joinerInfo,
-                                isMyTurn: true
+                                isMyTurn: true,
+                                amIP1: true // I am hosting the game, I am P1
                              }));
 
                              // Update Joiner State via message
@@ -173,7 +175,7 @@ export const useMultiplayer = () => {
                      if (senderInfo) senderInfo.status = 'idle';
                      // If opponent was me (Host)
                      if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
-                         setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
+                         setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false, amIP1: false}));
                          hostStatusRef.current = 'idle';
                      } else {
                          // If opponent was another guest
@@ -236,6 +238,7 @@ export const useMultiplayer = () => {
                     mode: 'in_game',
                     gameOpponent: data.opponent,
                     isMyTurn: data.starts,
+                    amIP1: data.starts // If I start, I am P1. If I don't, I am P2.
                 }));
                 break;
             case 'GAME_MOVE_RELAY':
@@ -245,7 +248,7 @@ export const useMultiplayer = () => {
                 if(onDataCallbackRef.current) onDataCallbackRef.current(data);
                 break;
             case 'LEAVE_GAME':
-                setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
+                setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false, amIP1: false}));
                 break;
             default:
                  if(onDataCallbackRef.current) onDataCallbackRef.current(data);
@@ -301,7 +304,8 @@ export const useMultiplayer = () => {
                 isConnected: true,
                 isLoading: false,
                 mode: 'lobby',
-                players: [selfInfo]
+                players: [selfInfo],
+                amIP1: false
             }));
             peer.on('connection', handleHostConnection);
         });
@@ -316,7 +320,7 @@ export const useMultiplayer = () => {
                     hostConnectionRef.current = conn;
                     
                     conn.on('open', () => {
-                        setState(prev => ({ ...prev, peerId: guestId, isHost: false, isConnected: true, isLoading: false, mode: 'lobby' }));
+                        setState(prev => ({ ...prev, peerId: guestId, isHost: false, isConnected: true, isLoading: false, mode: 'lobby', amIP1: false }));
                         conn.send({ type: 'HELLO', ...myInfoRef.current });
                     });
                     conn.on('data', (data) => {
@@ -372,7 +376,8 @@ export const useMultiplayer = () => {
                     ...prev,
                     mode: 'in_game',
                     gameOpponent: targetInfo,
-                    isMyTurn: false 
+                    isMyTurn: false,
+                    amIP1: false // I joined, so I am P2
                 }));
                 
                 broadcastPlayerList('in_game');
@@ -395,8 +400,9 @@ export const useMultiplayer = () => {
 
     const sendGameMove = (colIndex: number) => {
         if (state.mode === 'in_game' && state.gameOpponent) {
-             const player = state.isHost ? 1 : 2;
-             const nextPlayer = state.isHost ? 2 : 1;
+             // Logic adjusted: Player number depends on who started
+             const player = state.amIP1 ? 1 : 2;
+             const nextPlayer = state.amIP1 ? 2 : 1;
              
              const moveData = {
                  type: 'GAME_MOVE',
@@ -441,7 +447,7 @@ export const useMultiplayer = () => {
     const leaveGame = () => {
         if (state.mode === 'in_game' && state.gameOpponent) {
              sendData({ type: 'LEAVE_GAME', opponentId: state.gameOpponent.id });
-             setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
+             setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false, amIP1: false}));
              if (state.isHost) {
                  hostStatusRef.current = 'idle';
                  broadcastPlayerList();

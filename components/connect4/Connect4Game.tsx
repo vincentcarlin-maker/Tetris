@@ -185,9 +185,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           setOnlineStep('game');
           // Important: When starting a fresh game, ensure board is clear
           if (!winState.winner) {
-              // We only reset if the game isn't already finished (prevents clearing victory screen on minor updates)
-              // But we need to be careful not to reset mid-game. 
-              // A safer bet is checking if the board is empty.
               const isBoardEmpty = board.every(row => row.every(cell => cell === 0));
               if (!isBoardEmpty) {
                    resetGame(); 
@@ -206,18 +203,20 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     if (gameMode === 'PVE') resetGame();
   };
 
-  // Determine if it's my turn in online mode based on local state + host status
-  const isMyTurnOnline = mp.mode === 'in_game' && ((mp.isHost && currentPlayer === 1) || (!mp.isHost && currentPlayer === 2));
+  // Determine if it's my turn in online mode
+  // CORRECTED LOGIC: Use mp.amIP1 to decide if I am Player 1 or 2, instead of mp.isHost
+  const isMyTurnOnline = mp.mode === 'in_game' && ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2));
+  
   const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
 
   // Drop Piece Logic
-  const handleColumnClick = useCallback((colIndex: number) => {
+  const handleColumnClick = useCallback((colIndex: number, isAiMove = false) => {
     if (winState.winner || isAnimatingRef.current) return;
-    if (gameMode === 'PVE' && isAiThinking) return;
+    // Allow move if it's explicitly from AI, otherwise block if AI is thinking
+    if (gameMode === 'PVE' && isAiThinking && !isAiMove) return;
     
     // Online check
     if (gameMode === 'ONLINE') {
-        // Critical fix: Check dynamic turn state, NOT mp.isMyTurn which can be stale
         if (mp.mode !== 'in_game' || !mp.gameOpponent || !isMyTurnOnline) return;
     }
     
@@ -317,7 +316,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     const result = checkWinFull(newBoard);
                     if (result.winner) {
                         setWinState(result);
-                         if ((mp.isHost && result.winner === 1) || (!mp.isHost && result.winner === 2)) {
+                         // Use mp.amIP1 to determine victory condition correctly
+                         if ((mp.amIP1 && result.winner === 1) || (!mp.amIP1 && result.winner === 2)) {
                            playVictory();
                            addCoins(30);
                            setEarnedCoins(30);
@@ -359,15 +359,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     const timer = setTimeout(() => {
         const bestCol = getBestMove(board, difficulty);
         if (bestCol !== -1) {
-            handleColumnClick(bestCol);
+            handleColumnClick(bestCol, true); // Pass true to indicate AI move
         }
         setIsAiThinking(false);
     }, 600);
     return () => clearTimeout(timer);
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
+  // ... render functions ...
   
-  // --- RENDER VISUAL FOR REACTION ---
+  // RENDER VISUAL FOR REACTION
   const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
@@ -593,7 +594,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        )}
 
        {/* Game Board or Lobby */}
-       <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-800 shadow-2xl backdrop-blur-md w-full max-w-lg aspect-[7/6]`}>
+       <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-700/80 shadow-2xl backdrop-blur-md w-full max-w-lg aspect-[7/6]`}>
             {gameMode === 'ONLINE' && onlineStep !== 'game' ? (
                 renderOnlineLobby()
             ) : (
@@ -635,15 +636,17 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                                         animation: 'dropIn 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045)',
                                         '--drop-start': `-${r * 110}%`, 
                                         zIndex: 50,
-                                        position: 'relative'
+                                        position: 'absolute',
+                                        inset: 0,
+                                        margin: 'auto'
                                     } as React.CSSProperties : {};
 
                                     return (
-                                        <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-black/60 shadow-inner flex items-center justify-center border border-white/5">
+                                        <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-gray-800/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2 border-white/20 group-hover:border-white/30 transition-colors overflow-hidden">
                                             {val !== 0 && (
                                                 <div 
                                                         style={animationStyle}
-                                                        className={`w-full h-full rounded-full transition-all duration-500 shadow-lg ${
+                                                        className={`absolute inset-0 m-auto w-full h-full rounded-full transition-all duration-500 shadow-lg ${
                                                         val === 1 
                                                         ? 'bg-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.6)]' 
                                                         : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.6)]'
@@ -736,7 +739,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                         {winState.winner === 'DRAW' 
                             ? "MATCH NUL" 
                             : gameMode === 'ONLINE'
-                                ? (((mp.isHost && winState.winner === 1) || (!mp.isHost && winState.winner === 2)) ? "TU AS GAGNÉ !" : "TU AS PERDU...")
+                                ? (((mp.amIP1 && winState.winner === 1) || (!mp.amIP1 && winState.winner === 2)) ? "TU AS GAGNÉ !" : "TU AS PERDU...")
                                 : `VICTOIRE JOUEUR ${winState.winner} !`
                         }
                     </span>
