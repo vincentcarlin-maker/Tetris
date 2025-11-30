@@ -260,15 +260,27 @@ export const useMultiplayer = () => {
     }, [handleDataReceived]);
     
     const handleHostConnection = useCallback((conn: DataConnection) => {
+        // IMPORTANT: Attach 'data' listener immediately. 
+        // Do not wait for 'open' event, as data might arrive immediately after connection is established but before 'open' fires on this side.
+        conn.on('data', (data) => {
+            handleDataRef.current?.(data, conn);
+        });
+
         conn.on('open', () => {
             guestConnectionsRef.current.push(conn);
-            conn.on('data', (data) => {
-                handleDataRef.current?.(data, conn);
-            });
-            conn.on('close', () => {
-                guestConnectionsRef.current = guestConnectionsRef.current.filter(c => c.peer !== conn.peer);
-                broadcastPlayerList();
-            });
+            // Broadcast here to ensure that if HELLO arrived before open, we now include this player in the list
+            broadcastPlayerList();
+        });
+
+        conn.on('close', () => {
+            guestConnectionsRef.current = guestConnectionsRef.current.filter(c => c.peer !== conn.peer);
+            broadcastPlayerList();
+        });
+
+        conn.on('error', (err) => {
+             console.error("Connection error:", err);
+             guestConnectionsRef.current = guestConnectionsRef.current.filter(c => c.peer !== conn.peer);
+             broadcastPlayerList();
         });
     }, [broadcastPlayerList]); 
 
