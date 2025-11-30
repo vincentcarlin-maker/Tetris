@@ -290,20 +290,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
             setEarnedCoins(reward);
         } else {
             // Online reward
-            // We need to calculate based on new scores
-            // Current state 'scores' might not be updated yet in this closure if we used functional update
-            // But we can calculate based on full board match count = 8.
-            // Let's just use final check.
             const p1Score = currentPlayer === 1 ? scores.p1 + 1 : scores.p1;
             const p2Score = currentPlayer === 2 ? scores.p2 + 1 : scores.p2;
-            
-            // Since we are inside the loop where a match just happened, one score incremented.
-            // Actually it's cleaner to wait for render but logic must be instant.
-            
-            // Let's assume update happens.
-            // Determine winner
-            // We can't easily access the very latest state inside setTimeout without refs, 
-            // but for simplicity, let's just trigger "Game Over" screen and show scores there.
             
             const winner = p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0; // 0 draw
             const isMeP1 = mp.amIP1;
@@ -352,14 +340,14 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                 <div className={`w-full h-full relative preserve-3d transition-transform duration-500 ${flipClass}`}>
                     {/* FRONT (Hidden initially) - The Content */}
                     <div className={`absolute inset-0 backface-hidden rotate-y-180 bg-gray-900 border-2 rounded-md flex items-center justify-center ${matchClass} shadow-lg`}>
-                        <Icon size={20} className={`${color} drop-shadow-[0_0_10px_currentColor]`} />
+                        <Icon size={28} className={`${color} drop-shadow-[0_0_10px_currentColor]`} />
                     </div>
 
                     {/* BACK (Visible initially) - The App Logo */}
                     <div className="absolute inset-0 backface-hidden bg-gray-800 border border-white/10 rounded-md flex flex-col items-center justify-center group hover:border-white/40 transition-colors shadow-inner">
                          <div className="flex flex-col items-center">
-                             <span className="font-script text-cyan-400 text-[10px] leading-none drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]">Neon</span>
-                             <span className="font-script text-neon-pink text-[10px] leading-none drop-shadow-[0_0_3px_rgba(255,0,255,0.8)]">Arcade</span>
+                             <span className="font-script text-cyan-400 text-[13px] leading-none drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]">Neon</span>
+                             <span className="font-script text-neon-pink text-[13px] leading-none drop-shadow-[0_0_3px_rgba(255,0,255,0.8)]">Arcade</span>
                         </div>
                     </div>
                 </div>
@@ -368,19 +356,17 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
     };
 
     const renderLobby = () => {
-         // Re-using simplified Lobby logic similar to Connect4
-         // Since generic hook handles logic, we just render list
          const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
          
          return (
-             <div className="flex flex-col h-full animate-in fade-in p-4 w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md">
+             <div className="flex flex-col w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4 animate-in fade-in">
                  <h2 className="text-xl font-bold text-center text-purple-400 mb-6">LOBBY MEMORY</h2>
                  <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-bold rounded-lg mb-4 hover:bg-green-400">
                      CRÉER UNE PARTIE
                  </button>
                  
                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-2">Parties disponibles</p>
-                 <div className="flex-1 overflow-y-auto space-y-2">
+                 <div className="flex-1 overflow-y-auto space-y-2 max-h-[250px] custom-scrollbar">
                      {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic py-4">Aucune partie trouvée.</p>}
                      {hostingPlayers.map(p => (
                          <div key={p.id} className="flex justify-between items-center p-3 bg-gray-800 rounded-lg border border-white/10">
@@ -392,24 +378,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
              </div>
          );
     };
-
-    if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
-        return (
-            <div className="h-full w-full flex flex-col items-center justify-center bg-black/20 p-4 relative">
-                <button onClick={() => setGameMode('SOLO')} className="absolute top-4 left-4 p-2 bg-gray-800 rounded-lg text-gray-400"><ArrowLeft size={20}/></button>
-                {renderLobby()}
-            </div>
-        );
-    }
-    
-    if (gameMode === 'ONLINE' && onlineStep === 'connecting') {
-         return (
-             <div className="h-full w-full flex flex-col items-center justify-center bg-black/20">
-                 <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
-                 <p className="text-purple-300 font-bold">CONNEXION...</p>
-             </div>
-         );
-    }
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
@@ -426,7 +394,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
-            {/* Header */}
+            {/* Header (Always Visible) */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
                     <Home size={20} />
@@ -444,7 +412,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
 
             {/* Mode Selector (Only if not in active online game) */}
             {(!mp.gameOpponent || isGameOver) && (
-                <div className="flex bg-gray-900 rounded-full border border-white/10 p-1 mb-2 z-10">
+                <div className="flex bg-gray-900 rounded-full border border-white/10 p-1 mb-2 z-10 shrink-0">
                     <button 
                         onClick={() => setGameMode('SOLO')}
                         className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'SOLO' ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}
@@ -460,47 +428,61 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                 </div>
             )}
 
-            {/* HUD */}
-            <div className="w-full max-w-lg flex justify-between items-center mb-2 z-10 px-4">
-                {gameMode === 'SOLO' ? (
-                    <>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] text-gray-500 font-bold tracking-widest">COUPS</span>
-                            <span className="text-2xl font-mono font-bold text-white">{moves}</span>
+            {/* CONTENT AREA */}
+            {gameMode === 'ONLINE' && onlineStep === 'connecting' ? (
+                 <div className="flex-1 flex flex-col items-center justify-center">
+                     <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
+                     <p className="text-purple-300 font-bold">CONNEXION...</p>
+                 </div>
+            ) : gameMode === 'ONLINE' && onlineStep === 'lobby' ? (
+                 <div className="flex-1 w-full flex items-start justify-center pt-4">
+                     {renderLobby()}
+                 </div>
+            ) : (
+                 <>
+                    {/* HUD */}
+                    <div className="w-full max-w-lg flex justify-between items-center mb-2 z-10 px-4 shrink-0">
+                        {gameMode === 'SOLO' ? (
+                            <>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-500 font-bold tracking-widest">COUPS</span>
+                                    <span className="text-2xl font-mono font-bold text-white">{moves}</span>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span>
+                                    <span className="text-2xl font-mono font-bold text-yellow-400">{highScore > 0 ? highScore : '-'}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 1 ? 'bg-neon-pink/20 border-neon-pink' : 'bg-gray-800/50 border-transparent'}`}>
+                                    <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{mp.amIP1 ? 'TOI (P1)' : 'ADV (P1)'}</span>
+                                    <span className="text-2xl font-mono font-bold text-neon-pink">{scores.p1}</span>
+                                </div>
+                                <div className="text-gray-500 font-black text-xl">VS</div>
+                                <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 2 ? 'bg-neon-blue/20 border-neon-blue' : 'bg-gray-800/50 border-transparent'}`}>
+                                    <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{!mp.amIP1 ? 'TOI (P2)' : 'ADV (P2)'}</span>
+                                    <span className="text-2xl font-mono font-bold text-neon-blue">{scores.p2}</span>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    
+                    {/* Status Message Online */}
+                    {gameMode === 'ONLINE' && !isGameOver && (
+                        <div className="mb-2 z-10 text-sm font-bold animate-pulse text-center h-6 shrink-0">
+                            {isWaitingForDeck ? "Attente de l'hôte..." : 
+                            isProcessing ? "Validation..." : 
+                            ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2)) ? <span className="text-green-400">C'EST TON TOUR !</span> : <span className="text-gray-500">L'ADVERSAIRE JOUE...</span>}
                         </div>
-                        <div className="flex flex-col items-end">
-                            <span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span>
-                            <span className="text-2xl font-mono font-bold text-yellow-400">{highScore > 0 ? highScore : '-'}</span>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                         <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 1 ? 'bg-neon-pink/20 border-neon-pink' : 'bg-gray-800/50 border-transparent'}`}>
-                            <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{mp.amIP1 ? 'TOI (P1)' : 'ADV (P1)'}</span>
-                            <span className="text-2xl font-mono font-bold text-neon-pink">{scores.p1}</span>
-                        </div>
-                        <div className="text-gray-500 font-black text-xl">VS</div>
-                        <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 2 ? 'bg-neon-blue/20 border-neon-blue' : 'bg-gray-800/50 border-transparent'}`}>
-                            <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{!mp.amIP1 ? 'TOI (P2)' : 'ADV (P2)'}</span>
-                            <span className="text-2xl font-mono font-bold text-neon-blue">{scores.p2}</span>
-                        </div>
-                    </>
-                )}
-            </div>
-            
-            {/* Status Message Online */}
-            {gameMode === 'ONLINE' && !isGameOver && (
-                <div className="mb-2 z-10 text-sm font-bold animate-pulse text-center h-6">
-                    {isWaitingForDeck ? "Attente de l'hôte..." : 
-                     isProcessing ? "Validation..." : 
-                     ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2)) ? <span className="text-green-400">C'EST TON TOUR !</span> : <span className="text-gray-500">L'ADVERSAIRE JOUE...</span>}
-                </div>
-            )}
+                    )}
 
-            {/* GRID - 6x3 */}
-            <div className="w-full max-w-[400px] grid grid-cols-6 gap-1 z-10 p-1">
-                {cards.map(card => renderCard(card))}
-            </div>
+                    {/* GRID */}
+                    <div className="w-full max-w-[400px] grid grid-cols-6 gap-1 z-10 p-1 mb-6">
+                        {cards.map(card => renderCard(card))}
+                    </div>
+                 </>
+            )}
 
             {/* Game Over Overlay */}
             {isGameOver && (
