@@ -186,7 +186,8 @@ export const useMultiplayer = () => {
                      }
                      broadcastPlayerList();
                      break;
-                 case 'REMATCH':
+                 case 'REMATCH_REQUEST':
+                     // A guest wants a rematch
                      senderInfo.status = 'in_game';
                      // If opponent is me (Host)
                      if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
@@ -238,6 +239,9 @@ export const useMultiplayer = () => {
                 }));
                 break;
             case 'GAME_MOVE_RELAY':
+                if(onDataCallbackRef.current) onDataCallbackRef.current(data);
+                break;
+            case 'REMATCH_START':
                 if(onDataCallbackRef.current) onDataCallbackRef.current(data);
                 break;
             case 'LEAVE_GAME':
@@ -329,7 +333,8 @@ export const useMultiplayer = () => {
     const createRoom = () => {
         if (isHostRef.current) {
             hostStatusRef.current = 'hosting';
-            setState(prev => ({ ...prev, mode: 'lobby' })); // Trigger update to component
+            // Force state update to ensure UI sees the change
+            setState(prev => ({ ...prev, mode: 'lobby' })); 
             broadcastPlayerList();
         } else {
             sendData({ type: 'CREATE_ROOM' });
@@ -341,7 +346,7 @@ export const useMultiplayer = () => {
     const cancelHosting = () => {
         if (isHostRef.current) {
             hostStatusRef.current = 'idle';
-            setState(prev => ({ ...prev, mode: 'lobby' })); // Trigger update to component
+            setState(prev => ({ ...prev, mode: 'lobby' })); 
             broadcastPlayerList();
         } else {
             sendData({ type: 'CANCEL_HOSTING' });
@@ -371,6 +376,23 @@ export const useMultiplayer = () => {
                  // Guest sending to host (who relays)
                  sendData(moveData);
              }
+        }
+    };
+
+    const requestRematch = () => {
+        if (state.mode === 'in_game' && state.gameOpponent) {
+            if (state.isHost) {
+                // Host initiates rematch
+                // 1. Notify Guest
+                const guestConn = guestConnectionsRef.current.find(c => c.peer === state.gameOpponent!.id);
+                guestConn?.send({ type: 'REMATCH_START', opponent: { id: peerRef.current?.id, ...myInfoRef.current, status: 'in_game' }, starts: false });
+                
+                // 2. Notify Self (Host)
+                if(onDataCallbackRef.current) onDataCallbackRef.current({ type: 'REMATCH_START' });
+            } else {
+                // Guest requests rematch from Host
+                sendData({ type: 'REMATCH_REQUEST', opponentId: state.gameOpponent.id });
+            }
         }
     };
 
@@ -404,6 +426,7 @@ export const useMultiplayer = () => {
         joinRoom,
         cancelHosting,
         sendGameMove,
+        requestRematch,
         leaveGame
     };
 };

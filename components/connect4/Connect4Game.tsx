@@ -139,11 +139,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     if (gameMode !== 'ONLINE') {
         setChatHistory([]);
     }
-
-    if (isOnlineReset && mp.mode === 'in_game') {
-        mp.sendData({ type: 'REMATCH' });
-    }
-  }, [mp, gameMode]);
+  }, [gameMode]);
 
   // Handle Mode Change
   const cycleMode = () => {
@@ -343,12 +339,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
         }
         if (data.type === 'REMATCH_START') {
-            resetGame();
+            resetGame(true);
         }
     };
     mp.setOnDataReceived(handleData);
     return () => mp.setOnDataReceived(null);
-  }, [mp, board, playMove, playLand, playGameOver, playVictory, addCoins]);
+  }, [mp, board, playMove, playLand, playGameOver, playVictory, addCoins, resetGame]);
 
 
   // AI Turn Handling
@@ -539,7 +535,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
          <div className="z-20 relative min-w-[40px] flex justify-end">
             {(gameMode !== 'ONLINE' || onlineStep === 'game') && !isHostingAndWaiting && (
-                <button onClick={() => resetGame(gameMode === 'ONLINE')} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+                <button onClick={() => resetGame(false)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
                     <RefreshCw size={20} />
                 </button>
             )}
@@ -747,16 +743,20 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 </div>
                 {(gameMode !== 'ONLINE' || (mp.isHost && mp.mode === 'in_game')) && (
                     <button
-                        onClick={() => resetGame(gameMode === 'ONLINE')}
+                        onClick={() => gameMode === 'ONLINE' ? mp.requestRematch() : resetGame(false)}
                         className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"
                     >
                         <Play size={20} fill="black"/> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}
                     </button>
                 )}
+                
                 {gameMode === 'ONLINE' && !mp.isHost && mp.mode === 'in_game' && (
-                    <div className="text-xs text-gray-500 animate-pulse">
-                        En attente de l'hôte...
-                    </div>
+                     <button
+                        onClick={() => mp.requestRematch()}
+                        className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"
+                    >
+                        <Play size={20} fill="black"/> REVANCHE
+                    </button>
                 )}
                 
                 {gameMode === 'ONLINE' && (
