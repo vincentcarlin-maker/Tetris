@@ -187,7 +187,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           }
       } else if (mp.mode === 'in_game') {
           setOnlineStep('game');
-          // DO NOT reset board here automatically on every render, only on specific events or transitions
+          // Important: When starting a fresh game, ensure board is clear
+          if (!winState.winner) {
+              // We only reset if the game isn't already finished (prevents clearing victory screen on minor updates)
+              // But we need to be careful not to reset mid-game. 
+              // A safer bet is checking if the board is empty.
+              const isBoardEmpty = board.every(row => row.every(cell => cell === 0));
+              if (!isBoardEmpty) {
+                   resetGame(); 
+              }
+          }
       } else if (mp.mode === 'disconnected' && gameMode === 'ONLINE') {
           setOnlineStep('connecting');
       }

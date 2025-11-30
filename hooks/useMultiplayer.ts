@@ -160,9 +160,8 @@ export const useMultiplayer = () => {
                          if(onDataCallbackRef.current) onDataCallbackRef.current(relayData);
                          
                          // 2. IMPORTANT: Send Relay back to Guest so they see the move confirmed
-                         // Since the guest is connected directly to us (as host), we find their connection
-                         const guestConn = guestConnectionsRef.current.find(c => c.peer === state.gameOpponent!.id);
-                         guestConn?.send(relayData);
+                         // Using 'conn' directly ensures we reply to the exact person who sent it
+                         conn.send(relayData);
                     } else {
                          // Relay to another guest
                          const targetConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
@@ -267,7 +266,7 @@ export const useMultiplayer = () => {
                 broadcastPlayerList();
             });
         });
-    }, [broadcastPlayerList]); // handleDataRef is stable enough via ref access
+    }, [broadcastPlayerList]); 
 
     const connect = useCallback(() => {
         disconnect();
@@ -325,11 +324,12 @@ export const useMultiplayer = () => {
                 disconnect();
             }
         });
-    }, [disconnect, handleHostConnection]); // Removed handleDataReceived dependency loop
+    }, [disconnect, handleHostConnection]); 
 
     const createRoom = () => {
         if (isHostRef.current) {
             hostStatusRef.current = 'hosting';
+            setState(prev => ({ ...prev, mode: 'lobby' })); // Trigger update to component
             broadcastPlayerList();
         } else {
             sendData({ type: 'CREATE_ROOM' });
@@ -341,6 +341,7 @@ export const useMultiplayer = () => {
     const cancelHosting = () => {
         if (isHostRef.current) {
             hostStatusRef.current = 'idle';
+            setState(prev => ({ ...prev, mode: 'lobby' })); // Trigger update to component
             broadcastPlayerList();
         } else {
             sendData({ type: 'CANCEL_HOSTING' });
