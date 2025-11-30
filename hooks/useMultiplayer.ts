@@ -65,7 +65,7 @@ export const useMultiplayer = () => {
         }
     }, []);
 
-    const broadcastPlayerList = useCallback(() => {
+    const broadcastPlayerList = useCallback((hostStatusOverride?: string) => {
         if (!isHostRef.current || !peerRef.current) return;
 
         const guestPlayerList = guestConnectionsRef.current
@@ -73,9 +73,9 @@ export const useMultiplayer = () => {
             .filter(Boolean);
 
         const hostInGame = state.mode === 'in_game';
-        // If in game, status is in_game. If not, check our explicit host waiting status.
-        const hostStatus = hostInGame ? 'in_game' : hostStatusRef.current;
-        const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, status: hostStatus };
+        // If override provided, use it. Otherwise fall back to state/ref logic.
+        const currentHostStatus = hostStatusOverride || (hostInGame ? 'in_game' : hostStatusRef.current);
+        const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, status: currentHostStatus as any };
 
         const fullList = [hostSelfInfo, ...guestPlayerList];
         
@@ -128,7 +128,7 @@ export const useMultiplayer = () => {
                              joinerInfo.status = 'in_game';
                              
                              joinerConn.send({ type: 'GAME_START', opponent: hostInfoForGuest, starts: false });
-                             broadcastPlayerList();
+                             broadcastPlayerList('in_game');
                          }
                          break;
                     }
@@ -170,7 +170,7 @@ export const useMultiplayer = () => {
                     break;
                 }
                 case 'LEAVE_GAME':
-                     senderInfo.status = 'idle';
+                     if (senderInfo) senderInfo.status = 'idle';
                      // If opponent was me (Host)
                      if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
                          setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
@@ -188,7 +188,7 @@ export const useMultiplayer = () => {
                      break;
                  case 'REMATCH_REQUEST':
                      // A guest wants a rematch
-                     senderInfo.status = 'in_game';
+                     if (senderInfo) senderInfo.status = 'in_game';
                      // If opponent is me (Host)
                      if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
                          // Host handles rematch locally
@@ -353,7 +353,35 @@ export const useMultiplayer = () => {
         }
     };
     
-    const joinRoom = (targetId: string) => sendData({ type: 'JOIN_ROOM', targetId });
+    const joinRoom = (targetId: string) => {
+        if (isHostRef.current) {
+            // I am the Lobby Host joining a Guest's room
+            if (peerRef.current && targetId === peerRef.current.id) return;
+
+            const targetConn = guestConnectionsRef.current.find(c => c.peer === targetId);
+            if (targetConn && (targetConn as any).playerInfo?.status === 'hosting') {
+                const targetInfo = (targetConn as any).playerInfo;
+                targetInfo.status = 'in_game';
+                
+                const myInfo = { id: peerRef.current!.id, ...myInfoRef.current, status: 'in_game' };
+                // Guest (Hoster) starts first usually
+                targetConn.send({ type: 'GAME_START', opponent: myInfo, starts: true });
+                
+                hostStatusRef.current = 'idle';
+                setState(prev => ({
+                    ...prev,
+                    mode: 'in_game',
+                    gameOpponent: targetInfo,
+                    isMyTurn: false 
+                }));
+                
+                broadcastPlayerList('in_game');
+            }
+        } else {
+            // Guest sends request to Lobby Host
+            sendData({ type: 'JOIN_ROOM', targetId });
+        }
+    };
     
     const cancelHosting = () => {
         if (isHostRef.current) {
@@ -380,8 +408,10 @@ export const useMultiplayer = () => {
 
              // If I am host and playing against guest, handle locally for me + send to guest
              if (state.isHost) {
+                 // Update me (Host)
                  if(onDataCallbackRef.current) onDataCallbackRef.current({ ...moveData, type: 'GAME_MOVE_RELAY' });
-                 // Find guest conn
+                 
+                 // Update Guest
                  const guestConn = guestConnectionsRef.current.find(c => c.peer === state.gameOpponent!.id);
                  guestConn?.send({ ...moveData, type: 'GAME_MOVE_RELAY' });
              } else {
