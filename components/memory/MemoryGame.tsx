@@ -334,20 +334,20 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         return (
             <div 
                 key={card.id} 
-                className="relative w-full aspect-[2/1] perspective-1000 cursor-pointer"
+                className="relative w-full aspect-[2/3] perspective-1000 cursor-pointer"
                 onClick={() => handleCardClick(card.id)}
             >
                 <div className={`w-full h-full relative preserve-3d transition-transform duration-500 ${flipClass}`}>
                     {/* FRONT (Hidden initially) - The Content */}
                     <div className={`absolute inset-0 backface-hidden rotate-y-180 bg-gray-900 border-2 rounded-md flex items-center justify-center ${matchClass} shadow-lg`}>
-                        <Icon size={28} className={`${color} drop-shadow-[0_0_10px_currentColor]`} />
+                        <Icon size={32} className={`${color} drop-shadow-[0_0_10px_currentColor]`} />
                     </div>
 
                     {/* BACK (Visible initially) - The App Logo */}
                     <div className="absolute inset-0 backface-hidden bg-gray-800 border border-white/10 rounded-md flex flex-col items-center justify-center group hover:border-white/40 transition-colors shadow-inner">
-                         <div className="flex flex-col items-center">
-                             <span className="font-script text-cyan-400 text-[13px] leading-none drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]">Neon</span>
-                             <span className="font-script text-neon-pink text-[13px] leading-none drop-shadow-[0_0_3px_rgba(255,0,255,0.8)]">Arcade</span>
+                         <div className="flex flex-col items-center gap-1">
+                             <span className="font-script text-cyan-400 text-[14px] leading-none drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]">Neon</span>
+                             <span className="font-script text-neon-pink text-[14px] leading-none drop-shadow-[0_0_3px_rgba(255,0,255,0.8)]">Arcade</span>
                         </div>
                     </div>
                 </div>
