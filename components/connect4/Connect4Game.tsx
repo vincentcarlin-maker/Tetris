@@ -201,13 +201,19 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     if (gameMode === 'PVE') resetGame();
   };
 
+  // Determine if it's my turn in online mode based on local state + host status
+  const isMyTurnOnline = mp.mode === 'in_game' && ((mp.isHost && currentPlayer === 1) || (!mp.isHost && currentPlayer === 2));
+  const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
+
   // Drop Piece Logic
   const handleColumnClick = useCallback((colIndex: number) => {
     if (winState.winner || isAnimatingRef.current) return;
     if (gameMode === 'PVE' && isAiThinking) return;
-    // Online check: must be in game mode, have an opponent, and be my turn
+    
+    // Online check
     if (gameMode === 'ONLINE') {
-        if (mp.mode !== 'in_game' || !mp.isMyTurn || !mp.gameOpponent) return;
+        // Critical fix: Check dynamic turn state, NOT mp.isMyTurn which can be stale
+        if (mp.mode !== 'in_game' || !mp.gameOpponent || !isMyTurnOnline) return;
     }
     
     let rowIndex = -1;
@@ -253,7 +259,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         }, 500); 
     }
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp, isMyTurnOnline]);
 
   // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
@@ -493,9 +499,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     }
     return null;
   };
-
-  const isMyTurnOnline = mp.mode === 'in_game' && ((mp.isHost && currentPlayer === 1) || (!mp.isHost && currentPlayer === 2));
-  const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
 
   return (
     <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">

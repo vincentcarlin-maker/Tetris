@@ -153,7 +153,15 @@ export const useMultiplayer = () => {
                     // Relay move
                     if (state.gameOpponent && data.targetId === peerRef.current?.id) {
                          // Move directed at host
-                         if(onDataCallbackRef.current) onDataCallbackRef.current({ ...data, type: 'GAME_MOVE_RELAY' });
+                         const relayData = { ...data, type: 'GAME_MOVE_RELAY' };
+                         
+                         // 1. Update Host Self
+                         if(onDataCallbackRef.current) onDataCallbackRef.current(relayData);
+                         
+                         // 2. IMPORTANT: Send Relay back to Guest so they see the move confirmed
+                         // Since the guest is connected directly to us (as host), we find their connection
+                         const guestConn = guestConnectionsRef.current.find(c => c.peer === state.gameOpponent!.id);
+                         guestConn?.send(relayData);
                     } else {
                          // Relay to another guest
                          const targetConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
@@ -204,18 +212,23 @@ export const useMultiplayer = () => {
                          if(onDataCallbackRef.current) onDataCallbackRef.current(data);
                      } else {
                          // Relay to guest opponent
-                         const targetConn = guestConnectionsRef.current.find(c => c.peer === data.targetId || (state.players.find(p=>p.id===senderId)?.status === 'in_game' && (c as any).playerInfo.status === 'in_game')); 
-                         // Simplified relay: if we can't find exact target, broadcast to all in-game? No, bad.
-                         // Better: We need targetId in data for robust relay.
-                         // However, for CHAT/REACTION we can look up who is playing with sender.
-                         // But for now, let's assume UI sends targetId or we relay to gameOpponent logic if implemented.
-                         // Fix: Chat/Reaction should likely be relayed blindly if we know the pair.
-                         // For now, let's look for the opponent in player list?
-                         // Skip for brevity, assuming direct p2p data or correct targetId usage. 
-                         // Actually, let's allow relaying if targetId provided:
                          if (data.targetId) {
                               const tConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
                               tConn?.send(data);
+                         } else {
+                            // Fallback: Broadcast to everyone in game? No.
+                            // Try to infer based on room.
+                            // For now, if no targetId, we can't reliably relay between guests.
+                            // But Chat/Reaction usually doesn't have targetId in previous impl.
+                            // Let's iterate all guests and send to the one "playing with" the sender.
+                            // Find the opponent of the sender
+                            // Sender is 'conn'. We need to find who is playing with 'senderId'.
+                            // It's tricky without a room object. 
+                            // But we know guests only play 1 game.
+                            // We can iterate guestConnections and check if status is in_game? No.
+                            // Let's assume the client sends targetId or we skip this edge case for Guest-Guest chat for now.
+                            // However, for Host-Guest chat:
+                            // If sender is guest, and target is host (us), we handled it above.
                          }
                      }
                      break;
