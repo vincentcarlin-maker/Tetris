@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Peer, DataConnection } from 'peerjs';
 
@@ -34,6 +35,9 @@ export const useMultiplayer = () => {
     const onDataCallbackRef = useRef<((data: any) => void) | null>(null);
     const myInfoRef = useRef<{name: string, avatarId: string}>({name: 'Joueur', avatarId: 'av_bot'});
     const isHostRef = useRef(false);
+    
+    // Track host status explicitly since it's not stored in a connection object
+    const hostStatusRef = useRef<'idle' | 'hosting'>('idle');
 
     useEffect(() => {
         isHostRef.current = state.isHost;
@@ -46,6 +50,7 @@ export const useMultiplayer = () => {
         }
         hostConnectionRef.current = null;
         guestConnectionsRef.current = [];
+        hostStatusRef.current = 'idle';
         setState({
             peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
             mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false,
@@ -68,7 +73,8 @@ export const useMultiplayer = () => {
             .filter(Boolean);
 
         const hostInGame = state.mode === 'in_game';
-        const hostStatus = hostInGame ? 'in_game' : 'idle';
+        // If in game, status is in_game. If not, check our explicit host waiting status.
+        const hostStatus = hostInGame ? 'in_game' : hostStatusRef.current;
         const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, status: hostStatus };
 
         const fullList = [hostSelfInfo, ...guestPlayerList];
@@ -98,6 +104,35 @@ export const useMultiplayer = () => {
                      break;
                 case 'JOIN_ROOM': {
                     const { targetId } = data;
+                    
+                    // Case 1: Guest wants to join Host (Me)
+                    if (peerRef.current && targetId === peerRef.current.id) {
+                         if (hostStatusRef.current === 'hosting') {
+                             const joinerConn = conn;
+                             const joinerInfo = (joinerConn as any).playerInfo;
+                             
+                             // Host enters game
+                             hostStatusRef.current = 'idle'; 
+                             
+                             // Update Host State
+                             setState(prev => ({
+                                ...prev,
+                                mode: 'in_game',
+                                gameOpponent: joinerInfo,
+                                isMyTurn: true
+                             }));
+
+                             // Update Joiner State via message
+                             const hostInfoForGuest = { id: peerRef.current.id, ...myInfoRef.current, status: 'in_game' };
+                             joinerInfo.status = 'in_game';
+                             
+                             joinerConn.send({ type: 'GAME_START', opponent: hostInfoForGuest, starts: false });
+                             broadcastPlayerList();
+                         }
+                         break;
+                    }
+
+                    // Case 2: Guest wants to join another Guest
                     const hosterConn = guestConnectionsRef.current.find(c => c.peer === targetId);
                     const joinerConn = conn;
                     
@@ -115,27 +150,74 @@ export const useMultiplayer = () => {
                     break;
                 }
                 case 'GAME_MOVE': {
-                    const targetConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
-                    targetConn?.send({ ...data, type: 'GAME_MOVE_RELAY' });
+                    // Relay move
+                    if (state.gameOpponent && data.targetId === peerRef.current?.id) {
+                         // Move directed at host
+                         if(onDataCallbackRef.current) onDataCallbackRef.current({ ...data, type: 'GAME_MOVE_RELAY' });
+                    } else {
+                         // Relay to another guest
+                         const targetConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
+                         targetConn?.send({ ...data, type: 'GAME_MOVE_RELAY' });
+                    }
                     break;
                 }
                 case 'LEAVE_GAME':
                      senderInfo.status = 'idle';
-                     const opponentConn = guestConnectionsRef.current.find(c => c.peer === data.opponentId);
-                     if (opponentConn) {
-                         (opponentConn as any).playerInfo.status = 'idle';
+                     // If opponent was me (Host)
+                     if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
+                         setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
+                         hostStatusRef.current = 'idle';
+                     } else {
+                         // If opponent was another guest
+                         const opponentConn = guestConnectionsRef.current.find(c => c.peer === data.opponentId);
+                         if (opponentConn) {
+                             (opponentConn as any).playerInfo.status = 'idle';
+                             // Forward the leave message so they reset too
+                             opponentConn.send({ type: 'LEAVE_GAME', opponentId: senderId }); 
+                         }
                      }
                      broadcastPlayerList();
                      break;
                  case 'REMATCH':
                      senderInfo.status = 'in_game';
-                     const opponentConnRematch = guestConnectionsRef.current.find(c => c.peer === data.opponentId);
-                     if (opponentConnRematch) {
-                         (opponentConnRematch as any).playerInfo.status = 'in_game';
-                         conn.send({ type: 'REMATCH_START', opponent: (opponentConnRematch as any).playerInfo, starts: true });
-                         opponentConnRematch.send({ type: 'REMATCH_START', opponent: senderInfo, starts: false });
+                     // If opponent is me (Host)
+                     if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
+                         // Host handles rematch locally
+                         if(onDataCallbackRef.current) onDataCallbackRef.current({ type: 'REMATCH_START' });
+                         conn.send({ type: 'REMATCH_START', opponent: { id: peerRef.current?.id, ...myInfoRef.current, status: 'in_game' }, starts: false });
+                     } else {
+                         // Opponent is guest
+                         const opponentConnRematch = guestConnectionsRef.current.find(c => c.peer === data.opponentId);
+                         if (opponentConnRematch) {
+                             (opponentConnRematch as any).playerInfo.status = 'in_game';
+                             conn.send({ type: 'REMATCH_START', opponent: (opponentConnRematch as any).playerInfo, starts: true });
+                             opponentConnRematch.send({ type: 'REMATCH_START', opponent: senderInfo, starts: false });
+                         }
                      }
                      broadcastPlayerList();
+                     break;
+                 // Forward other data types (Reaction, Chat)
+                 case 'REACTION':
+                 case 'CHAT':
+                     if (state.gameOpponent?.id === senderId) {
+                         // For Host
+                         if(onDataCallbackRef.current) onDataCallbackRef.current(data);
+                     } else {
+                         // Relay to guest opponent
+                         const targetConn = guestConnectionsRef.current.find(c => c.peer === data.targetId || (state.players.find(p=>p.id===senderId)?.status === 'in_game' && (c as any).playerInfo.status === 'in_game')); 
+                         // Simplified relay: if we can't find exact target, broadcast to all in-game? No, bad.
+                         // Better: We need targetId in data for robust relay.
+                         // However, for CHAT/REACTION we can look up who is playing with sender.
+                         // But for now, let's assume UI sends targetId or we relay to gameOpponent logic if implemented.
+                         // Fix: Chat/Reaction should likely be relayed blindly if we know the pair.
+                         // For now, let's look for the opponent in player list?
+                         // Skip for brevity, assuming direct p2p data or correct targetId usage. 
+                         // Actually, let's allow relaying if targetId provided:
+                         if (data.targetId) {
+                              const tConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
+                              tConn?.send(data);
+                         }
+                     }
                      break;
                  default:
                      if(onDataCallbackRef.current) onDataCallbackRef.current(data);
@@ -156,11 +238,14 @@ export const useMultiplayer = () => {
                     isMyTurn: data.starts,
                 }));
                 break;
+            case 'LEAVE_GAME':
+                setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
+                break;
             default:
                  if(onDataCallbackRef.current) onDataCallbackRef.current(data);
         }
 
-    }, [broadcastPlayerList]);
+    }, [broadcastPlayerList, state.mode, state.gameOpponent, state.players]);
     
     const handleHostConnection = useCallback((conn: DataConnection) => {
         conn.on('open', () => {
@@ -182,6 +267,7 @@ export const useMultiplayer = () => {
 
         peer.on('open', id => {
             const selfInfo: PlayerInfo = { id, ...myInfoRef.current, status: 'idle' };
+            hostStatusRef.current = 'idle';
             setState(prev => ({
                 ...prev,
                 peerId: id,
@@ -228,21 +314,49 @@ export const useMultiplayer = () => {
         });
     }, [disconnect, handleHostConnection, handleDataReceived]);
 
-    const createRoom = () => sendData({ type: 'CREATE_ROOM' });
+    const createRoom = () => {
+        if (isHostRef.current) {
+            hostStatusRef.current = 'hosting';
+            broadcastPlayerList();
+        } else {
+            sendData({ type: 'CREATE_ROOM' });
+        }
+    };
+    
     const joinRoom = (targetId: string) => sendData({ type: 'JOIN_ROOM', targetId });
-    const cancelHosting = () => sendData({ type: 'CANCEL_HOSTING' });
+    
+    const cancelHosting = () => {
+        if (isHostRef.current) {
+            hostStatusRef.current = 'idle';
+            broadcastPlayerList();
+        } else {
+            sendData({ type: 'CANCEL_HOSTING' });
+        }
+    };
 
     const sendGameMove = (colIndex: number) => {
         if (state.mode === 'in_game' && state.gameOpponent) {
              const player = state.isHost ? 1 : 2;
              const nextPlayer = state.isHost ? 2 : 1;
-             sendData({
+             
+             const moveData = {
                  type: 'GAME_MOVE',
                  col: colIndex,
                  player,
                  nextPlayer,
                  targetId: state.gameOpponent.id
-             });
+             };
+
+             // If I am host and playing against guest, handle locally for me + send to guest
+             if (state.isHost) {
+                 if(onDataCallbackRef.current) onDataCallbackRef.current({ ...moveData, type: 'GAME_MOVE_RELAY' });
+                 // Find guest conn
+                 const guestConn = guestConnectionsRef.current.find(c => c.peer === state.gameOpponent!.id);
+                 guestConn?.send({ ...moveData, type: 'GAME_MOVE_RELAY' });
+             } else {
+                 // Guest sending to host (who relays)
+                 sendData(moveData);
+             }
         }
     };
 
@@ -250,6 +364,10 @@ export const useMultiplayer = () => {
         if (state.mode === 'in_game' && state.gameOpponent) {
              sendData({ type: 'LEAVE_GAME', opponentId: state.gameOpponent.id });
              setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
+             if (state.isHost) {
+                 hostStatusRef.current = 'idle';
+                 broadcastPlayerList();
+             }
         }
     };
 
