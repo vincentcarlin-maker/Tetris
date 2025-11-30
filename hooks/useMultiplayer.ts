@@ -84,6 +84,7 @@ export const useMultiplayer = () => {
 
     }, [state.mode]);
     
+    // Core data handling logic
     const handleDataReceived = useCallback((data: any, conn: DataConnection) => {
         // --- HOST LOGIC ---
         if (isHostRef.current) {
@@ -215,20 +216,6 @@ export const useMultiplayer = () => {
                          if (data.targetId) {
                               const tConn = guestConnectionsRef.current.find(c => c.peer === data.targetId);
                               tConn?.send(data);
-                         } else {
-                            // Fallback: Broadcast to everyone in game? No.
-                            // Try to infer based on room.
-                            // For now, if no targetId, we can't reliably relay between guests.
-                            // But Chat/Reaction usually doesn't have targetId in previous impl.
-                            // Let's iterate all guests and send to the one "playing with" the sender.
-                            // Find the opponent of the sender
-                            // Sender is 'conn'. We need to find who is playing with 'senderId'.
-                            // It's tricky without a room object. 
-                            // But we know guests only play 1 game.
-                            // We can iterate guestConnections and check if status is in_game? No.
-                            // Let's assume the client sends targetId or we skip this edge case for Guest-Guest chat for now.
-                            // However, for Host-Guest chat:
-                            // If sender is guest, and target is host (us), we handled it above.
                          }
                      }
                      break;
@@ -251,6 +238,9 @@ export const useMultiplayer = () => {
                     isMyTurn: data.starts,
                 }));
                 break;
+            case 'GAME_MOVE_RELAY':
+                if(onDataCallbackRef.current) onDataCallbackRef.current(data);
+                break;
             case 'LEAVE_GAME':
                 setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false}));
                 break;
@@ -259,17 +249,25 @@ export const useMultiplayer = () => {
         }
 
     }, [broadcastPlayerList, state.mode, state.gameOpponent, state.players]);
+
+    // Use a Ref to ensure the event listener always uses the latest version of handleDataReceived
+    const handleDataRef = useRef(handleDataReceived);
+    useEffect(() => {
+        handleDataRef.current = handleDataReceived;
+    }, [handleDataReceived]);
     
     const handleHostConnection = useCallback((conn: DataConnection) => {
         conn.on('open', () => {
             guestConnectionsRef.current.push(conn);
-            conn.on('data', (data) => handleDataReceived(data, conn));
+            conn.on('data', (data) => {
+                handleDataRef.current?.(data, conn);
+            });
             conn.on('close', () => {
                 guestConnectionsRef.current = guestConnectionsRef.current.filter(c => c.peer !== conn.peer);
                 broadcastPlayerList();
             });
         });
-    }, [handleDataReceived, broadcastPlayerList]);
+    }, [broadcastPlayerList]); // handleDataRef is stable enough via ref access
 
     const connect = useCallback(() => {
         disconnect();
@@ -306,7 +304,9 @@ export const useMultiplayer = () => {
                         setState(prev => ({ ...prev, peerId: guestId, isHost: false, isConnected: true, isLoading: false, mode: 'lobby' }));
                         conn.send({ type: 'HELLO', ...myInfoRef.current });
                     });
-                    conn.on('data', (data) => handleDataReceived(data, conn));
+                    conn.on('data', (data) => {
+                        handleDataRef.current?.(data, conn);
+                    });
                     conn.on('close', () => {
                         setState(prev => ({ ...prev, error: "Déconnecté du lobby." }));
                         disconnect();
@@ -325,7 +325,7 @@ export const useMultiplayer = () => {
                 disconnect();
             }
         });
-    }, [disconnect, handleHostConnection, handleDataReceived]);
+    }, [disconnect, handleHostConnection]); // Removed handleDataReceived dependency loop
 
     const createRoom = () => {
         if (isHostRef.current) {

@@ -187,7 +187,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           }
       } else if (mp.mode === 'in_game') {
           setOnlineStep('game');
-          resetGame();
+          // DO NOT reset board here automatically on every render, only on specific events or transitions
       } else if (mp.mode === 'disconnected' && gameMode === 'ONLINE') {
           setOnlineStep('connecting');
       }
@@ -293,6 +293,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     const handleData = (data: any) => {
         if (data.type === 'GAME_MOVE_RELAY') {
             const { col, player, nextPlayer } = data;
+            
+            // Find valid row for this move locally to animate properly
             const rowIndex = board.findIndex((row, r) => board[r][col] === 0 && (r === ROWS - 1 || board[r+1][col] !== 0));
             
             if (rowIndex !== -1) {
@@ -300,7 +302,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 const newBoard = board.map(r => [...r]);
                 newBoard[rowIndex][col] = player;
                 setBoard(newBoard);
-                setCurrentPlayer(player);
+                setCurrentPlayer(player); // Temporarily show the piece being placed by 'player'
                 setAnimatingCell({ r: rowIndex, c: col });
                 playMove();
 
@@ -318,7 +320,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                            playGameOver();
                          }
                     } else {
-                        setCurrentPlayer(nextPlayer);
+                        setCurrentPlayer(nextPlayer); // Switch turn
                     }
                     isAnimatingRef.current = false;
                 }, 500);
