@@ -1,4 +1,5 @@
 
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const useGameAudio = () => {
@@ -326,6 +327,20 @@ export const useGameAudio = () => {
             osc.frequency.linearRampToValueAtTime(1200, now + 0.05);
             osc.frequency.linearRampToValueAtTime(600, now + 0.1);
             osc.frequency.linearRampToValueAtTime(1200, now + 0.15);
+        } else if (type === 'LASER_PADDLE') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(800, now + 0.4);
+            // Modulation
+            const lfo = audioCtx.current.createOscillator();
+            lfo.type = 'square';
+            lfo.frequency.value = 20;
+            const lfoGain = audioCtx.current.createGain();
+            lfoGain.gain.value = 500;
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            lfo.start(now);
+            lfo.stop(now + 0.4);
         } else {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(800, now);
@@ -335,6 +350,26 @@ export const useGameAudio = () => {
         osc.start();
         osc.stop(now + 0.4);
 
+    }, [isMuted, resume]);
+    
+    const playLaserShoot = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+        
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+        osc.start();
+        osc.stop(now + 0.15);
     }, [isMuted, resume]);
 
     // PACMAN SOUNDS
@@ -455,6 +490,7 @@ export const useGameAudio = () => {
         playLoseLife,
         playPowerUpSpawn,
         playPowerUpCollect,
+        playLaserShoot,
         playPacmanWaka,
         playPacmanEatGhost,
         playPacmanPower,

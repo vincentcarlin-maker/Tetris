@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Zap, Swords, Clipboard, X, Check } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Swords, Clipboard, X, Check } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -23,7 +23,7 @@ const REACTIONS = [
     { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
     { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500' },
     { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500' },
-    { id: 'shock', icon: Zap, color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500' },
+    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
 ];
 
 interface ChatMessage {
@@ -615,7 +615,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                         const positionClass = activeReaction.isMe ? 'bottom-[-20px] right-[-20px] sm:right-[-40px]' : 'top-[-20px] left-[-20px] sm:left-[-40px]';
                         return (
                             <div className={`absolute z-50 pointer-events-none ${positionClass}`}>
-                                <div className="bg-black/90 rounded-full p-3 border-2 border-white/20 backdrop-blur-md shadow-2xl">
+                                <div className="p-3 drop-shadow-2xl">
                                     {renderReactionVisual(reaction.id, reaction.color)}
                                 </div>
                             </div>
@@ -643,13 +643,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                                     const isWinningPiece = winState.line.some(([wr, wc]) => wr === r && wc === c);
                                     const isAnimating = animatingCell?.r === r && animatingCell?.c === c;
                                     
-                                    // Modified animation style to start from the top of the board (Row 0 area)
-                                    // Row 0 is the top. If we are at Row R, we need to translate UP by R + 1 units roughly.
-                                    // 1 unit is 100% of the cell. Plus some buffer.
                                     const animationStyle: React.CSSProperties = isAnimating ? {
-                                        animation: 'dropIn 0.5s cubic-bezier(0.5, 0, 0.75, 0)', // More linear drop like gravity
+                                        animation: 'dropIn 0.5s cubic-bezier(0.5, 0, 0.75, 0)', 
                                         '--drop-start': `-${(r * 110) + 120}%`, 
-                                        zIndex: 0, // Behind the grid interaction layer but visible
+                                        zIndex: 0, 
                                         position: 'absolute',
                                         inset: 0,
                                         margin: 'auto'

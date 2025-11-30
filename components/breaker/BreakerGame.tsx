@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Heart, Trophy, Play, Coins, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
-import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType } from './types';
+import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType, Laser } from './types';
 import { getLevelLayout, TOTAL_BREAKER_LEVELS } from './levels';
-import { drawBall, drawBlocks, drawPaddle, drawParticles, createParticles, BLOCK_COLORS, INDESTRUCTIBLE_COLOR, drawPowerUp } from './helpers';
+import { drawBall, drawBlocks, drawPaddle, drawParticles, createParticles, BLOCK_COLORS, INDESTRUCTIBLE_COLOR, drawPowerUp, drawLasers } from './helpers';
 
 interface BreakerGameProps {
     onBack: () => void;
@@ -30,18 +31,22 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.breaker || 0;
     
-    const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver, playPowerUpSpawn, playPowerUpCollect } = audio;
+    const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver, playPowerUpSpawn, playPowerUpCollect, playLaserShoot } = audio;
     
     // Game objects refs
-    const paddleRef = useRef<Paddle>({ x: (GAME_WIDTH / 2) - PADDLE_DEFAULT_WIDTH / 2, width: PADDLE_DEFAULT_WIDTH, height: 15 });
+    const paddleRef = useRef<Paddle>({ x: (GAME_WIDTH / 2) - PADDLE_DEFAULT_WIDTH / 2, width: PADDLE_DEFAULT_WIDTH, height: 15, hasLasers: false });
     const ballsRef = useRef<Ball[]>([]);
     const blocksRef = useRef<Block[]>([]);
     const particlesRef = useRef<any[]>([]);
     const powerUpsRef = useRef<PowerUp[]>([]);
+    const lasersRef = useRef<Laser[]>([]);
 
     // Refs for power-up timers
     const paddleEffectTimeoutRef = useRef<any>(null);
     const ballSpeedEffectTimeoutRef = useRef<any>(null);
+    const laserEffectTimeoutRef = useRef<any>(null);
+    
+    const lastLaserShotTime = useRef<number>(0);
 
     // Initialisation du niveau sauvegardé au montage (juste pour l'affichage initial si besoin)
     useEffect(() => {
@@ -53,9 +58,11 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         // Clear any active power-up timers
         if (paddleEffectTimeoutRef.current) clearTimeout(paddleEffectTimeoutRef.current);
         if (ballSpeedEffectTimeoutRef.current) clearTimeout(ballSpeedEffectTimeoutRef.current);
+        if (laserEffectTimeoutRef.current) clearTimeout(laserEffectTimeoutRef.current);
 
         paddleRef.current.width = PADDLE_DEFAULT_WIDTH;
         paddleRef.current.x = (GAME_WIDTH - PADDLE_DEFAULT_WIDTH) / 2;
+        paddleRef.current.hasLasers = false;
         
         ballsRef.current = [{
             x: GAME_WIDTH / 2,
@@ -65,6 +72,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             radius: 8,
             status: 'normal',
         }];
+        lasersRef.current = [];
     }, []);
 
     const loadLevel = useCallback((level: number) => {
@@ -117,8 +125,8 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     };
 
     const spawnPowerUp = (x: number, y: number) => {
-        const types: PowerUpType[] = ['PADDLE_GROW', 'PADDLE_SHRINK', 'MULTI_BALL', 'BALL_FAST', 'BALL_SLOW', 'EXTRA_LIFE'];
-        const weights = [3, 2, 2, 2, 3, 1]; // Grow/Slow are more common, Life is rare
+        const types: PowerUpType[] = ['PADDLE_GROW', 'PADDLE_SHRINK', 'MULTI_BALL', 'BALL_FAST', 'BALL_SLOW', 'EXTRA_LIFE', 'LASER_PADDLE'];
+        const weights = [3, 2, 2, 2, 3, 1, 2]; // Grow/Slow are more common, Life/Laser rare
         const weightedTypes: PowerUpType[] = [];
         types.forEach((type, i) => {
             for(let j=0; j<weights[i]; j++) weightedTypes.push(type);
@@ -159,6 +167,10 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             ballsRef.current.push({ ...sourceBall, dx: -2, dy: -3 });
         } else if (type === 'EXTRA_LIFE') {
             setLives(l => l + 1);
+        } else if (type === 'LASER_PADDLE') {
+            clearTimeout(laserEffectTimeoutRef.current);
+            paddleRef.current.hasLasers = true;
+            laserEffectTimeoutRef.current = setTimeout(() => { paddleRef.current.hasLasers = false; }, 10000);
         }
     };
 
@@ -170,6 +182,48 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         const blocks = blocksRef.current;
         const balls = ballsRef.current;
         const powerUps = powerUpsRef.current;
+        const lasers = lasersRef.current;
+
+        // Laser Logic
+        if (paddle.hasLasers) {
+            const now = Date.now();
+            if (now - lastLaserShotTime.current > 500) { // Shoot every 500ms
+                lasers.push({ x: paddle.x + 5, y: GAME_HEIGHT - 50, width: 4, height: 10, dy: -6, active: true });
+                lasers.push({ x: paddle.x + paddle.width - 5, y: GAME_HEIGHT - 50, width: 4, height: 10, dy: -6, active: true });
+                playLaserShoot();
+                lastLaserShotTime.current = now;
+            }
+        }
+        
+        // Move Lasers
+        for (let i = lasers.length - 1; i >= 0; i--) {
+            const l = lasers[i];
+            l.y += l.dy;
+            if (l.y < 0) {
+                lasers.splice(i, 1);
+                continue;
+            }
+            // Check Collision with blocks
+            for (let j = blocks.length - 1; j >= 0; j--) {
+                const b = blocks[j];
+                if (l.x > b.x && l.x < b.x + b.width && l.y > b.y && l.y < b.y + b.height) {
+                    lasers.splice(i, 1); // Remove laser
+                    playBlockHit();
+                    if (!b.isIndestructible) {
+                        b.health--;
+                        setScore(s => s + b.points);
+                        createParticles(particlesRef.current, l.x, l.y, b.color);
+                         if (b.health <= 0) {
+                             if (Math.random() < 0.25) spawnPowerUp(b.x + b.width / 2, b.y + b.height / 2);
+                             blocks.splice(j, 1);
+                         } else {
+                             b.color = BLOCK_COLORS[String(b.health)];
+                         }
+                    }
+                    break;
+                }
+            }
+        }
 
         // Move and check collisions for power-ups
         for (let i = powerUps.length - 1; i >= 0; i--) {
@@ -193,7 +247,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             ball.x += ball.dx;
             ball.y += ball.dy;
 
-            // Wall collision - CORRECTION BUG BLOCAGE
+            // Wall collision
             if (ball.x + ball.radius >= GAME_WIDTH) { 
                 ball.x = GAME_WIDTH - ball.radius; // Push out
                 ball.dx = -Math.abs(ball.dx); // Force Left
@@ -227,15 +281,45 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 playPaddleHit();
             }
 
-            // Block collision
+            // Block collision (Improved Logic)
             for (let i = blocks.length - 1; i >= 0; i--) {
                 const block = blocks[i];
-                if (ball.x > block.x && ball.x < block.x + block.width &&
-                    ball.y > block.y && ball.y < block.y + block.height) {
-                    
-                    ball.dy = -ball.dy;
+                
+                // Find closes point on the block to the ball center
+                const closestX = Math.max(block.x, Math.min(ball.x, block.x + block.width));
+                const closestY = Math.max(block.y, Math.min(ball.y, block.y + block.height));
+                
+                const distX = ball.x - closestX;
+                const distY = ball.y - closestY;
+                const distanceSquared = (distX * distX) + (distY * distY);
+                
+                if (distanceSquared < (ball.radius * ball.radius)) {
+                    // Collision Detected
                     playBlockHit();
                     
+                    // Resolve Collision (Push out + Reflect)
+                    // Determine overlap on axes
+                    const overlapX = (ball.radius + block.width / 2) - Math.abs(ball.x - (block.x + block.width / 2));
+                    const overlapY = (ball.radius + block.height / 2) - Math.abs(ball.y - (block.y + block.height / 2));
+                    
+                    if (overlapX < overlapY) {
+                         // Hit vertical side
+                         if (ball.x < block.x + block.width / 2) {
+                             ball.x = block.x - ball.radius; // Hit Left
+                         } else {
+                             ball.x = block.x + block.width + ball.radius; // Hit Right
+                         }
+                         ball.dx = -ball.dx;
+                    } else {
+                        // Hit horizontal side
+                        if (ball.y < block.y + block.height / 2) {
+                            ball.y = block.y - ball.radius; // Hit Top
+                        } else {
+                            ball.y = block.y + block.height + ball.radius; // Hit Bottom
+                        }
+                        ball.dy = -ball.dy;
+                    }
+
                     if (!block.isIndestructible) {
                         block.health--;
                         setScore(s => s + block.points);
@@ -249,7 +333,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                             block.color = BLOCK_COLORS[String(block.health)];
                         }
                     }
-                    break; // Prevent hitting multiple blocks in one frame
+                    break; // Handle only one block collision per frame per ball
                 }
             }
             
@@ -311,7 +395,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             }, 3000); // Increased delay slightly to let user see reward
         }
 
-    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect]);
+    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot]);
 
     // Game Loop
     useEffect(() => {
@@ -328,6 +412,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             for(let i=0; i<GAME_HEIGHT; i+=20) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
 
             drawBlocks(ctx, blocksRef.current);
+            drawLasers(ctx, lasersRef.current);
             drawPaddle(ctx, paddleRef.current, GAME_HEIGHT);
             ballsRef.current.forEach(ball => drawBall(ctx, ball));
             powerUpsRef.current.forEach(powerUp => drawPowerUp(ctx, powerUp));

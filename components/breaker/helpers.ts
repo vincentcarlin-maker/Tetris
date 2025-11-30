@@ -1,4 +1,5 @@
-import { Ball, Block, Paddle, PowerUp } from './types';
+
+import { Ball, Block, Paddle, PowerUp, Laser } from './types';
 
 // Block Colors
 export const BLOCK_COLORS: { [key: string]: string } = {
@@ -12,11 +13,30 @@ export function drawPaddle(ctx: CanvasRenderingContext2D, paddle: Paddle, canvas
   ctx.beginPath();
   const y = canvasHeight - 40; // Paddle position from bottom
   ctx.rect(paddle.x, y, paddle.width, paddle.height);
-  ctx.fillStyle = '#f5f5f5'; // white
-  ctx.shadowColor = '#f5f5f5';
-  ctx.shadowBlur = 15;
+  
+  if (paddle.hasLasers) {
+      ctx.fillStyle = '#ef4444'; // Red for lasers
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 20;
+  } else {
+      ctx.fillStyle = '#f5f5f5'; // white
+      ctx.shadowColor = '#f5f5f5';
+      ctx.shadowBlur = 15;
+  }
+  
   ctx.fill();
   ctx.closePath();
+  
+  // Draw Cannons if lasers active
+  if (paddle.hasLasers) {
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.rect(paddle.x, y - 5, 5, 5);
+      ctx.rect(paddle.x + paddle.width - 5, y - 5, 5, 5);
+      ctx.fill();
+      ctx.closePath();
+  }
+
   // Reset shadow for other elements
   ctx.shadowBlur = 0;
 }
@@ -43,6 +63,22 @@ export function drawBlocks(ctx: CanvasRenderingContext2D, blocks: Block[]) {
     ctx.closePath();
   });
   ctx.shadowBlur = 0;
+}
+
+export function drawLasers(ctx: CanvasRenderingContext2D, lasers: Laser[]) {
+    ctx.fillStyle = '#ef4444';
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 10;
+    
+    lasers.forEach(l => {
+        if (!l.active) return;
+        ctx.beginPath();
+        ctx.rect(l.x, l.y, l.width, l.height);
+        ctx.fill();
+        ctx.closePath();
+    });
+    
+    ctx.shadowBlur = 0;
 }
 
 export function createParticles(particles: any[], x: number, y: number, color: string) {
@@ -90,6 +126,7 @@ export function drawPowerUp(ctx: CanvasRenderingContext2D, powerUp: PowerUp) {
         case 'BALL_FAST': color = '#ec4899'; text = 'F'; break;
         case 'BALL_SLOW': color = '#06b6d4'; text = 'S'; break;
         case 'EXTRA_LIFE': color = '#facc15'; text = '♥'; break;
+        case 'LASER_PADDLE': color = '#ef4444'; text = 'L'; break;
     }
 
     ctx.save();
