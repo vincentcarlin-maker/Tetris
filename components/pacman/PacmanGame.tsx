@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Ghost } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -113,7 +114,9 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         const touch = e.touches[0];
         const diffX = touch.clientX - touchStartRef.current.x;
         const diffY = touch.clientY - touchStartRef.current.y;
-        const threshold = 20; // Sensibilité du swipe
+        
+        // Increased sensitivity: threshold lowered from 20 to 6
+        const threshold = 6; 
 
         // Si le mouvement est significatif
         if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
@@ -430,6 +433,19 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
+            <style>{`
+                @keyframes chomp-upper {
+                    0% { transform: rotate(-30deg); }
+                    50% { transform: rotate(0deg); }
+                    100% { transform: rotate(-30deg); }
+                }
+                @keyframes chomp-lower {
+                    0% { transform: rotate(30deg); }
+                    50% { transform: rotate(0deg); }
+                    100% { transform: rotate(30deg); }
+                }
+            `}</style>
+            
             {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-yellow-400/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
@@ -468,12 +484,22 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                             : (<Ghost size={24} className={`${colorClass} ${isFrightened ? 'animate-pulse' : ''} drop-shadow-[0_0_5px_currentColor]`} fill="currentColor" />)}
                         </div>);
                     })}
-                    <div className="absolute flex items-center justify-center" style={{...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y), transform: `scale(1.1) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`, transition: 'none'}}>
-                        <div className="w-[80%] h-[80%] bg-yellow-400 rounded-full relative overflow-hidden shadow-[0_0_10px_#facc15]">
-                            <div className="absolute top-0 right-0 w-full h-1/2 bg-black origin-bottom-right animate-[chomp_0.2s_infinite_alternate]" style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 0, 100% 50%)' }} />
-                            <div className="absolute bottom-0 right-0 w-full h-1/2 bg-black origin-top-right animate-[chomp_0.2s_infinite_alternate]" style={{ transformOrigin: '50% 50%', clipPath: 'polygon(50% 50%, 100% 100%, 100% 50%)' }} />
+                    
+                    {/* CLASSIC PACMAN RENDER */}
+                    <div className="absolute flex items-center justify-center" 
+                         style={{
+                             ...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y), 
+                             transform: `scale(1.3) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`, 
+                             transition: 'none'
+                         }}>
+                        <div className="w-full h-full relative">
+                            {/* Upper Half */}
+                            <div className="absolute top-0 left-0 w-full h-1/2 bg-yellow-400 rounded-t-full animate-[chomp-upper_0.2s_infinite_linear] origin-bottom shadow-[0_0_10px_#facc15]"></div>
+                            {/* Lower Half */}
+                            <div className="absolute bottom-0 left-0 w-full h-1/2 bg-yellow-400 rounded-b-full animate-[chomp-lower_0.2s_infinite_linear] origin-top shadow-[0_0_10px_#facc15]"></div>
                         </div>
                     </div>
+
                     {!isPlaying && !gameOver && !gameWon && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
                     {gameOver && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-red-500 italic mb-2">GAME OVER</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-500">REJOUER</button></div>)}
                     {gameWon && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-green-400 italic mb-2">VICTOIRE !</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">REJOUER</button></div>)}

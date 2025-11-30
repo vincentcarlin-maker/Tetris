@@ -251,8 +251,17 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
               setWinState(result);
               if (result.winner === 1) { // Player 1 always wins locally for coins
                   playVictory();
-                  addCoins(30);
-                  setEarnedCoins(30);
+                  
+                  // Calcul des gains selon difficulté
+                  let reward = 10; // Base PVP Local
+                  if (gameMode === 'PVE') {
+                      if (difficulty === 'EASY') reward = 5;
+                      else if (difficulty === 'MEDIUM') reward = 15;
+                      else if (difficulty === 'HARD') reward = 30;
+                  }
+                  
+                  addCoins(reward);
+                  setEarnedCoins(reward);
               } else {
                   playGameOver();
               }
@@ -263,7 +272,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         }, 500); 
     }
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, addCoins, mp, isMyTurnOnline]);
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, isMyTurnOnline]);
 
   // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
@@ -319,8 +328,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                          // Use mp.amIP1 to determine victory condition correctly
                          if ((mp.amIP1 && result.winner === 1) || (!mp.amIP1 && result.winner === 2)) {
                            playVictory();
-                           addCoins(30);
-                           setEarnedCoins(30);
+                           const onlineReward = 50;
+                           addCoins(onlineReward);
+                           setEarnedCoins(onlineReward);
                          } else {
                            playGameOver();
                          }
@@ -632,17 +642,21 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                                     const val = board[r][c];
                                     const isWinningPiece = winState.line.some(([wr, wc]) => wr === r && wc === c);
                                     const isAnimating = animatingCell?.r === r && animatingCell?.c === c;
+                                    
+                                    // Modified animation style to start from the top of the board (Row 0 area)
+                                    // Row 0 is the top. If we are at Row R, we need to translate UP by R + 1 units roughly.
+                                    // 1 unit is 100% of the cell. Plus some buffer.
                                     const animationStyle: React.CSSProperties = isAnimating ? {
-                                        animation: 'dropIn 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045)',
-                                        '--drop-start': `-${r * 110}%`, 
-                                        zIndex: 50,
+                                        animation: 'dropIn 0.5s cubic-bezier(0.5, 0, 0.75, 0)', // More linear drop like gravity
+                                        '--drop-start': `-${(r * 110) + 120}%`, 
+                                        zIndex: 0, // Behind the grid interaction layer but visible
                                         position: 'absolute',
                                         inset: 0,
                                         margin: 'auto'
                                     } as React.CSSProperties : {};
 
                                     return (
-                                        <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-gray-800/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2 border-white/20 group-hover:border-white/30 transition-colors overflow-hidden">
+                                        <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-gray-800/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2 border-white/20 group-hover:border-white/30 transition-colors overflow-visible">
                                             {val !== 0 && (
                                                 <div 
                                                         style={animationStyle}
@@ -731,7 +745,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                  {(winState.winner !== 'DRAW' && earnedCoins > 0) && (
                     <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
                         <Coins className="text-yellow-400" size={20} />
-                        <span className="text-yellow-100 font-bold">+30 PIÈCES</span>
+                        <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
                     </div>
                  )}
                 <div className="bg-black/80 px-6 py-2 rounded-full border border-white/20 mb-4">

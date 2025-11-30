@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -82,8 +83,14 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
             if (filled) {
                 setIsWon(true);
                 playClear();
-                addCoins(50);
-                setEarnedCoins(50);
+                
+                // Rewards logic
+                let reward = 10;
+                if (difficulty === 'MEDIUM') reward = 25;
+                if (difficulty === 'HARD') reward = 50;
+                
+                addCoins(reward);
+                setEarnedCoins(reward);
                 updateHighScore('sudoku', mistakes, difficulty);
             }
 
@@ -197,7 +204,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
                         
                         <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
                             <Coins className="text-yellow-400" size={20} />
-                            <span className="text-yellow-100 font-bold">+50 PIÈCES</span>
+                            <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
                         </div>
 
                         <button 

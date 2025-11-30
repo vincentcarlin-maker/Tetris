@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, User, Users, Globe } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -69,6 +69,29 @@ const ArcadeLogo = () => {
             </div>
 
         </div>
+    );
+};
+
+// Helper pour les badges de mode de jeu
+const GameBadge = ({ type }: { type: 'SOLO' | 'VS' | 'ONLINE' }) => {
+    let styles = "";
+    let icon = null;
+
+    if (type === 'SOLO') {
+        styles = "text-cyan-400 border-cyan-500/30 bg-cyan-500/10";
+        icon = <User size={8} />;
+    } else if (type === 'VS') {
+        styles = "text-pink-400 border-pink-500/30 bg-pink-500/10";
+        icon = <Users size={8} />;
+    } else if (type === 'ONLINE') {
+        styles = "text-green-400 border-green-500/30 bg-green-500/10";
+        icon = <Globe size={8} />;
+    }
+
+    return (
+        <span className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${styles}`}>
+            {icon} {type}
+        </span>
     );
 };
 
@@ -404,6 +427,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 </div>
                                 <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-blue transition-colors italic drop-shadow-md">TETRIS NÉON</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                    </div>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                  </div>
                             </div>
@@ -430,6 +456,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic drop-shadow-md">NEON BREAKER</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                    </div>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                  </div>
                             </div>
@@ -456,6 +485,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-purple-400 transition-colors italic drop-shadow-md">NEON RUSH</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                    </div>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Niveau</span>
                                  </div>
                             </div>
@@ -482,6 +514,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic drop-shadow-md">NEON CONNECT</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                        <GameBadge type="VS" />
+                                        <GameBadge type="ONLINE" />
+                                    </div>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 30 Pièces / Victoire</span>
                                  </div>
                             </div>
@@ -508,6 +545,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-cyan-400 transition-colors italic drop-shadow-md">NEON SUDOKU</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                    </div>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Victoire</span>
                                  </div>
                             </div>
@@ -534,6 +574,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-yellow-400 transition-colors italic drop-shadow-md">NEON PAC</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                    </div>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                  </div>
                             </div>
@@ -606,7 +649,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.8.6 • SUPER BRIGHT EDITION
+                    v1.8.7 • SUPER BRIGHT EDITION
                  </div>
              </div>
         </div>
