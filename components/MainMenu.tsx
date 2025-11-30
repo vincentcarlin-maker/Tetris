@@ -189,6 +189,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const sudokuHardBest = highScores.sudoku?.hard;
     const breakerHighScore = highScores.breaker || 0;
     const pacmanHighScore = highScores.pacman || 0;
+    const memoryBestMoves = highScores.memory || 0;
 
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
@@ -355,6 +356,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 <p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p>
                             </div>
                             <div className="py-2 border-t border-white/5">
+                                <h4 className="font-bold text-purple-400">NEON MEMORY</h4>
+                                <p className="text-2xl font-mono">{memoryBestMoves > 0 ? memoryBestMoves + ' coups' : '-'}</p>
+                            </div>
+                            <div className="py-2 border-t border-white/5">
                                 <h4 className="font-bold text-purple-400">NEON RUSH</h4>
                                 {rushLevelsCompleted > 0 ? (
                                     <p className="text-sm text-gray-300">{rushLevelsCompleted} niveaux terminés</p>
@@ -496,6 +501,36 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             </div>
                         </div>
                      </button>
+                     
+                     {/* Memory (UNLOCKED) */}
+                     <button 
+                        onClick={() => onSelectGame('memory')}
+                        {...bindGlow('rgba(168, 85, 247, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-purple-400/30 rounded-xl overflow-hidden transition-all duration-200
+                        hover:border-purple-400 hover:shadow-[0_0_50px_rgba(192,132,252,0.7)] hover:ring-2 hover:ring-purple-400
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(192,132,252,1)]
+                        backdrop-blur-md"
+                     >
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="flex items-center justify-between px-6 h-full relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-3 bg-gray-800 rounded-lg text-purple-400 group-hover:bg-purple-400 group-hover:text-black transition-colors shadow-lg group-hover:shadow-[0_0_15px_currentColor]">
+                                    <Sparkles size={28} />
+                                 </div>
+                                 <div className="text-left">
+                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-purple-300 transition-colors italic drop-shadow-md">NEON MEMORY</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                        <GameBadge type="ONLINE" />
+                                    </div>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-400 group-hover:text-black transition-all group-hover:shadow-[0_0_15px_currentColor]">
+                                <Play size={16} className="ml-1" />
+                            </div>
+                        </div>
+                     </button>
 
                      {/* Connect 4 Button */}
                      <button 
@@ -582,26 +617,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             </div>
                             <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-black transition-all group-hover:shadow-[0_0_15px_#facc15]">
                                 <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
-
-                     {/* Memory (Coming Soon) */}
-                     <button 
-                        disabled
-                        className="group relative w-full h-24 bg-black/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
-                     >
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-gray-400 shadow-lg">
-                                    <Sparkles size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">NEON MEMORY</h3>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                                        <Lock size={10} /> BIENTÔT DISPONIBLE
-                                    </span>
-                                </div>
                             </div>
                         </div>
                      </button>

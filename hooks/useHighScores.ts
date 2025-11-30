@@ -1,4 +1,5 @@
 
+
 import { useState, useCallback, useEffect } from 'react';
 
 export interface HighScores {
@@ -7,6 +8,7 @@ export interface HighScores {
   pacman: number;
   rush: { [level: number]: number }; // level: minMoves
   sudoku: { [difficulty: string]: number }; // difficulty: minMistakes
+  memory: number; // minMoves (Lower is better)
 }
 
 const initialHighScores: HighScores = {
@@ -15,6 +17,7 @@ const initialHighScores: HighScores = {
   pacman: 0,
   rush: {},
   sudoku: {},
+  memory: 0,
 };
 
 const HIGHSCORES_KEY = 'neon-highscores';
@@ -31,6 +34,7 @@ export const useHighScores = () => {
         if (!parsed.sudoku) parsed.sudoku = {};
         if (!parsed.breaker) parsed.breaker = 0;
         if (!parsed.pacman) parsed.pacman = 0;
+        if (!parsed.memory) parsed.memory = 0;
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -71,6 +75,13 @@ export const useHighScores = () => {
            if (!newScores.sudoku) newScores.sudoku = {};
            newScores.sudoku[key] = value;
            shouldUpdate = true;
+        }
+      } else if (game === 'memory') {
+        // Lower is better for memory. 0 means unset.
+        const current = prev.memory || 0;
+        if (current === 0 || value < current) {
+            newScores.memory = value;
+            shouldUpdate = true;
         }
       }
 
