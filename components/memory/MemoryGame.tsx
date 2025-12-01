@@ -37,9 +37,9 @@ const ICONS = [
 ];
 
 const DIFFICULTY_CONFIG: Record<Difficulty, { pairs: number, cols: number, name: string, bonus: number }> = {
-    EASY: { pairs: 6, cols: 4, name: 'FACILE', bonus: 10 },    // 12 cards -> 4 cols x 3 rows (Fixed to 4 cols for uniform size)
-    MEDIUM: { pairs: 8, cols: 4, name: 'MOYEN', bonus: 20 },   // 16 cards -> 4 cols x 4 rows
-    HARD: { pairs: 12, cols: 4, name: 'DIFFICILE', bonus: 40 } // 24 cards -> 4 cols x 6 rows
+    EASY: { pairs: 6, cols: 6, name: 'FACILE', bonus: 10 },    // 12 cards -> 6 cols x 2 rows
+    MEDIUM: { pairs: 9, cols: 6, name: 'MOYEN', bonus: 20 },   // 18 cards -> 6 cols x 3 rows
+    HARD: { pairs: 12, cols: 6, name: 'DIFFICILE', bonus: 40 } // 24 cards -> 6 cols x 4 rows
 };
 
 // Réactions Néon (Same as Connect 4)
@@ -626,7 +626,10 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                     )}
 
                     {/* GRID */}
-                    <div className="w-full max-w-lg grid grid-cols-4 gap-1 z-10 p-1 mb-2">
+                    <div 
+                        className="w-full max-w-lg grid gap-1 z-10 p-1 mb-2"
+                        style={{ gridTemplateColumns: `repeat(${DIFFICULTY_CONFIG[difficulty].cols}, minmax(0, 1fr))` }}
+                    >
                         {cards.map(card => renderCard(card))}
                     </div>
 
