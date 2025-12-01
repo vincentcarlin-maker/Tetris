@@ -1,14 +1,32 @@
 
-import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, User, Users, Globe, Wind } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, User, Users, Globe, Wind, Copy, Plus, MessageSquare, Send, Circle, X, Trash2, Bell } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
+import { Peer, DataConnection } from 'peerjs';
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
+}
+
+// --- TYPES POUR LE SYSTÈME SOCIAL ---
+interface Friend {
+    id: string; // Peer ID
+    name: string;
+    avatarId: string;
+    status: 'online' | 'offline';
+    lastSeen: number;
+}
+
+interface PrivateMessage {
+    id: string;
+    senderId: string;
+    text: string;
+    timestamp: number;
+    read: boolean;
 }
 
 // Composant pour le logo stylisé avec manette arcade
@@ -107,6 +125,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // PWA Install Prompt State
     const [installPrompt, setInstallPrompt] = useState<any>(null);
 
+    // Social System State
+    const [showSocial, setShowSocial] = useState(false);
+    const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD'>('FRIENDS');
+    const [myPeerId, setMyPeerId] = useState<string>('');
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
+    const [activeChatId, setActiveChatId] = useState<string | null>(null);
+    const [friendInput, setFriendInput] = useState('');
+    const [chatInput, setChatInput] = useState('');
+    const [unreadCount, setUnreadCount] = useState(0);
+    
+    const peerRef = useRef<Peer | null>(null);
+    const connectionsRef = useRef<Record<string, DataConnection>>({});
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
     // Helpers pour gérer l'interaction tactile et souris
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
@@ -133,30 +166,274 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Install Prompt Listener
     useEffect(() => {
         const handler = (e: any) => {
-            // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             setInstallPrompt(e);
         };
-
         window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    // --- SOCIAL SYSTEM INITIALIZATION ---
+    useEffect(() => {
+        // 1. Load Data
+        const storedFriends = localStorage.getItem('neon_friends');
+        if (storedFriends) {
+            try {
+                const parsed = JSON.parse(storedFriends);
+                if (Array.isArray(parsed)) {
+                    setFriends(parsed as Friend[]);
+                }
+            } catch (e) {
+                console.warn('Failed to parse friends list', e);
+            }
+        }
+        
+        const storedMessages = localStorage.getItem('neon_dms');
+        if (storedMessages) setMessages(JSON.parse(storedMessages));
+
+        // 2. Initialize Peer (Persistent ID)
+        let storedId = localStorage.getItem('neon_social_id');
+        if (!storedId) {
+            storedId = 'neon_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('neon_social_id', storedId);
+        }
+        setMyPeerId(storedId);
+
+        const peer = new Peer(storedId);
+        peerRef.current = peer;
+
+        peer.on('open', (id) => {
+            console.log('Social Peer Open:', id);
+        });
+
+        peer.on('connection', (conn) => {
+            handleConnection(conn);
+        });
+
+        peer.on('error', (err) => {
+            console.warn('Social Peer Error:', err);
+        });
 
         return () => {
-            window.removeEventListener('beforeinstallprompt', handler);
+            peer.destroy();
+            peerRef.current = null;
         };
     }, []);
 
+    // Update unread count
+    useEffect(() => {
+        let count = 0;
+        Object.values(messages).forEach(msgs => {
+            msgs.forEach(m => {
+                if (!m.read && m.senderId !== myPeerId) count++;
+            });
+        });
+        setUnreadCount(count);
+    }, [messages, myPeerId]);
+
+    // Handle Incoming Connections & Data
+    const handleConnection = useCallback((conn: DataConnection) => {
+        conn.on('open', () => {
+            connectionsRef.current[conn.peer] = conn;
+        });
+
+        conn.on('data', (data: any) => {
+            if (data.type === 'HELLO_FRIEND') {
+                // Auto-accept: Add to friends if not exists, update if exists
+                const newFriend: Friend = {
+                    id: conn.peer,
+                    name: data.name,
+                    avatarId: data.avatarId,
+                    status: 'online',
+                    lastSeen: Date.now()
+                };
+                
+                setFriends(prev => {
+                    const exists = prev.find(f => f.id === newFriend.id);
+                    let updated;
+                    if (exists) {
+                        updated = prev.map(f => f.id === newFriend.id ? { ...f, ...newFriend } : f);
+                    } else {
+                        updated = [...prev, newFriend];
+                    }
+                    localStorage.setItem('neon_friends', JSON.stringify(updated));
+                    return updated;
+                });
+
+                // Reply with my info
+                conn.send({
+                    type: 'WELCOME_FRIEND',
+                    name: username,
+                    avatarId: currentAvatarId
+                });
+            }
+            else if (data.type === 'WELCOME_FRIEND') {
+                 // Update friend info (became online)
+                 setFriends(prev => {
+                    const updated = prev.map(f => f.id === conn.peer ? { ...f, name: data.name, avatarId: data.avatarId, status: 'online' as const, lastSeen: Date.now() } : f);
+                    localStorage.setItem('neon_friends', JSON.stringify(updated));
+                    return updated;
+                 });
+            }
+            else if (data.type === 'DM') {
+                const msg: PrivateMessage = {
+                    id: Date.now().toString() + Math.random(),
+                    senderId: conn.peer,
+                    text: data.text,
+                    timestamp: Date.now(),
+                    read: false
+                };
+                
+                setMessages(prev => {
+                    const chat = prev[conn.peer] || [];
+                    const updated = { ...prev, [conn.peer]: [...chat, msg] };
+                    localStorage.setItem('neon_dms', JSON.stringify(updated));
+                    return updated;
+                });
+                
+                // Play notification sound if available
+                // audio.playCoin(); // reusing a sound for now
+            }
+            else if (data.type === 'PING') {
+                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
+                 conn.send({ type: 'PONG' });
+            }
+            else if (data.type === 'PONG') {
+                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
+            }
+        });
+        
+        conn.on('close', () => {
+            delete connectionsRef.current[conn.peer];
+            setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' } : f));
+        });
+
+        conn.on('error', () => {
+            delete connectionsRef.current[conn.peer];
+             setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' } : f));
+        });
+
+    }, [username, currentAvatarId]);
+
+    // Check status of friends when opening social hub
+    useEffect(() => {
+        if (showSocial && peerRef.current) {
+            (friends as Friend[]).forEach(f => {
+                const conn = peerRef.current!.connect(f.id);
+                handleConnection(conn);
+                conn.on('open', () => {
+                    conn.send({ type: 'PING' });
+                    setFriends(prev => prev.map(fr => fr.id === f.id ? { ...fr, status: 'online' } : fr));
+                });
+                 // If connection fails immediately, likely offline (PeerJS doesn't always throw error on connect for offline peers immediately, but we assume offline until PONG)
+            });
+        }
+    }, [showSocial, friends.length, handleConnection]); // Added friends.length dependency to refresh on add
+
+    // Scroll chat
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, activeChatId, showSocial]);
+
+
+    const addFriend = () => {
+        if (!friendInput.trim() || friendInput === myPeerId) return;
+        if (friends.find(f => f.id === friendInput)) {
+            alert('Déjà dans votre liste d\'amis !');
+            return;
+        }
+
+        // Optimistically add to list (will update name later)
+        const newFriend: Friend = {
+            id: friendInput,
+            name: 'Inconnu...',
+            avatarId: 'av_bot',
+            status: 'offline',
+            lastSeen: 0
+        };
+        
+        setFriends(prev => {
+            const updated = [...prev, newFriend];
+            localStorage.setItem('neon_friends', JSON.stringify(updated));
+            return updated;
+        });
+
+        // Try to connect and say hello
+        if (peerRef.current) {
+            const conn = peerRef.current.connect(friendInput);
+            handleConnection(conn);
+            conn.on('open', () => {
+                conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId });
+                setFriends(prev => prev.map(f => f.id === friendInput ? { ...f, status: 'online' } : f));
+            });
+        }
+        
+        setFriendInput('');
+        setSocialTab('FRIENDS');
+    };
+
+    const removeFriend = (id: string) => {
+        setFriends(prev => {
+            const updated = prev.filter(f => f.id !== id);
+            localStorage.setItem('neon_friends', JSON.stringify(updated));
+            return updated;
+        });
+        if (activeChatId === id) setActiveChatId(null);
+    };
+
+    const sendPrivateMessage = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!chatInput.trim() || !activeChatId) return;
+
+        const msg: PrivateMessage = {
+            id: Date.now().toString(),
+            senderId: myPeerId,
+            text: chatInput.trim(),
+            timestamp: Date.now(),
+            read: true
+        };
+
+        setMessages(prev => {
+            const chat = prev[activeChatId] || [];
+            const updated = { ...prev, [activeChatId]: [...chat, msg] };
+            localStorage.setItem('neon_dms', JSON.stringify(updated));
+            return updated;
+        });
+
+        // Send over network
+        const conn = connectionsRef.current[activeChatId];
+        if (conn && conn.open) {
+            conn.send({ type: 'DM', text: chatInput.trim() });
+        } else if (peerRef.current) {
+            // Try reconnecting just in case
+            const newConn = peerRef.current.connect(activeChatId);
+            handleConnection(newConn);
+            newConn.on('open', () => {
+                 newConn.send({ type: 'DM', text: chatInput.trim() });
+            });
+        }
+
+        setChatInput('');
+    };
+
+    const openChat = (friendId: string) => {
+        setActiveChatId(friendId);
+        setSocialTab('CHAT');
+        // Mark as read
+        setMessages(prev => {
+            const chat = prev[friendId];
+            if (!chat) return prev;
+            const updatedChat = chat.map(m => ({ ...m, read: true }));
+            const updated = { ...prev, [friendId]: updatedChat };
+            localStorage.setItem('neon_dms', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
     const handleInstallClick = () => {
         if (!installPrompt) return;
-        // Show the install prompt
         installPrompt.prompt();
-        // Wait for the user to respond to the prompt
         installPrompt.userChoice.then((choiceResult: any) => {
-            if (choiceResult.outcome === 'accepted') {
-                console.log('User accepted the install prompt');
-            } else {
-                console.log('User dismissed the install prompt');
-            }
             setInstallPrompt(null);
         });
     };
@@ -196,7 +473,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             {/* Note: bg-transparent here allows the fixed app-background div to show through */}
 
             {/* Dynamic Ambient Light Reflection on Wall (Interactive Only) */}
-            {/* 150vmax ensures it covers the screen even on very long mobile screens, removing the "cut off" look */}
             <div 
                 className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`}
                 style={{
@@ -214,6 +490,20 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 </div>
 
                 <div className="flex gap-3">
+                     {/* SOCIAL BUTTON */}
+                    <button 
+                        onClick={() => setShowSocial(true)}
+                        className="p-2 bg-gray-900/80 rounded-full text-blue-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform relative group"
+                        title="Amis & Social"
+                    >
+                        <Users size={20} />
+                        {unreadCount > 0 && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white animate-bounce">
+                                {unreadCount}
+                            </div>
+                        )}
+                    </button>
+
                     {/* Install Button (Visible only if prompt captured) */}
                     {installPrompt && (
                         <button 
@@ -243,6 +533,163 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     </button>
                 </div>
             </div>
+
+            {/* --- SOCIAL OVERLAY --- */}
+            {showSocial && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-gray-900 w-full max-w-md h-[600px] max-h-full rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden relative">
+                        {/* Header */}
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
+                            <h2 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-2">
+                                <Users className="text-blue-400" /> HUB SOCIAL
+                            </h2>
+                            <button onClick={() => setShowSocial(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                <X size={24} className="text-gray-400 hover:text-white" />
+                            </button>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex p-2 gap-2 bg-black/20">
+                            <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${socialTab === 'FRIENDS' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
+                                AMIS ({friends.length})
+                            </button>
+                            <button onClick={() => setSocialTab('ADD')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${socialTab === 'ADD' ? 'bg-green-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
+                                AJOUTER
+                            </button>
+                             {activeChatId && (
+                                <button onClick={() => setSocialTab('CHAT')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${socialTab === 'CHAT' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
+                                    TCHAT
+                                </button>
+                             )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/20">
+                            
+                            {/* TAB: ADD FRIEND */}
+                            {socialTab === 'ADD' && (
+                                <div className="flex flex-col gap-6">
+                                    <div className="bg-gray-800/50 p-4 rounded-xl border border-white/10 text-center">
+                                        <p className="text-gray-400 text-xs font-bold mb-2 uppercase tracking-widest">Mon Code Ami</p>
+                                        <div className="flex items-center gap-2 bg-black/50 p-3 rounded-lg border border-blue-500/30">
+                                            <code className="flex-1 font-mono text-blue-300 text-lg font-bold tracking-wider">{myPeerId}</code>
+                                            <button 
+                                                onClick={() => navigator.clipboard.writeText(myPeerId)}
+                                                className="p-2 bg-blue-600 rounded hover:bg-blue-500 transition-colors"
+                                                title="Copier"
+                                            >
+                                                <Copy size={16} />
+                                            </button>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 mt-2">Partage ce code pour qu'on t'ajoute !</p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Ajouter un ami</p>
+                                        <div className="flex gap-2">
+                                            <input 
+                                                type="text" 
+                                                value={friendInput}
+                                                onChange={(e) => setFriendInput(e.target.value)}
+                                                placeholder="Coller le code ami ici..."
+                                                className="flex-1 bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-green-500 transition-colors font-mono"
+                                            />
+                                            <button 
+                                                onClick={addFriend}
+                                                className="px-4 bg-green-600 rounded-lg hover:bg-green-500 transition-colors text-white font-bold"
+                                            >
+                                                <Plus size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB: FRIENDS LIST */}
+                            {socialTab === 'FRIENDS' && (
+                                <div className="space-y-2">
+                                    {friends.length === 0 ? (
+                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center">
+                                            <Ghost size={48} className="mb-4 opacity-50" />
+                                            <p>Aucun ami pour le moment.</p>
+                                            <button onClick={() => setSocialTab('ADD')} className="mt-4 text-blue-400 underline text-sm">Ajouter quelqu'un ?</button>
+                                        </div>
+                                    ) : (
+                                        friends.map(friend => {
+                                            const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
+                                            const AvIcon = avatar.icon;
+                                            const unread = (messages[friend.id] || []).filter(m => !m.read && m.senderId !== myPeerId).length;
+                                            
+                                            return (
+                                                <div key={friend.id} onClick={() => openChat(friend.id)} className="group flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border border-white/10`}>
+                                                            <AvIcon size={20} className={avatar.color} />
+                                                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${friend.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-white group-hover:text-blue-300 transition-colors">{friend.name}</h4>
+                                                            <p className="text-[10px] text-gray-500 font-mono">
+                                                                {friend.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        {unread > 0 && (
+                                                            <div className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">
+                                                                {unread}
+                                                            </div>
+                                                        )}
+                                                        <MessageSquare size={18} className="text-gray-500 group-hover:text-white" />
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); removeFriend(friend.id); }}
+                                                            className="p-2 hover:bg-red-500/20 rounded-full text-gray-600 hover:text-red-500 transition-colors"
+                                                            title="Supprimer"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
+
+                            {/* TAB: CHAT */}
+                            {socialTab === 'CHAT' && activeChatId && (
+                                <div className="flex flex-col h-full">
+                                    <div className="flex-1 overflow-y-auto mb-4 space-y-2 pr-1 custom-scrollbar">
+                                        {(messages[activeChatId] || []).length === 0 && (
+                                            <p className="text-center text-gray-600 text-xs py-4">Début de la conversation</p>
+                                        )}
+                                        {(messages[activeChatId] || []).map(msg => (
+                                            <div key={msg.id} className={`flex ${msg.senderId === myPeerId ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.senderId === myPeerId ? 'bg-purple-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-200 rounded-bl-none'}`}>
+                                                    {msg.text}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div ref={chatEndRef} />
+                                    </div>
+                                    <form onSubmit={sendPrivateMessage} className="flex gap-2 pt-2 border-t border-white/10">
+                                        <input 
+                                            type="text" 
+                                            value={chatInput}
+                                            onChange={(e) => setChatInput(e.target.value)}
+                                            placeholder="Message..."
+                                            className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white outline-none focus:border-purple-500 transition-colors text-sm"
+                                        />
+                                        <button type="submit" disabled={!chatInput.trim()} className="p-2 bg-purple-600 text-white rounded-lg disabled:opacity-50 hover:bg-purple-500">
+                                            <Send size={20} />
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-10 mt-12">
                  
@@ -684,7 +1131,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.8.7 • SUPER BRIGHT EDITION
+                    v1.8.8 • SOCIAL UPDATE
                  </div>
              </div>
         </div>
