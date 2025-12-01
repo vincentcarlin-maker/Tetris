@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -648,21 +649,25 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                         {cards.map(card => renderCard(card))}
                     </div>
 
-                    {/* CHAT BAR (Online Only) */}
+                    {/* REACTION BAR */}
                     {gameMode === 'ONLINE' && !isGameOver && !isWaitingForDeck && (
-                        <div className="w-full max-w-lg mt-auto z-20 px-2 flex flex-col gap-2 pb-4">
-                            {/* Reactions */}
-                            <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
+                        <div className="w-full max-w-lg z-20 px-2 mb-2">
+                             <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
                                 {REACTIONS.map(reaction => {
                                     const Icon = reaction.icon;
                                     return (
-                                        <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border`}>
+                                        <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}>
                                             <Icon size={16} className={reaction.color} />
                                         </button>
                                     );
                                 })}
                             </div>
-                            
+                        </div>
+                    )}
+
+                    {/* CHAT BAR (Online Only) */}
+                    {gameMode === 'ONLINE' && !isGameOver && !isWaitingForDeck && (
+                        <div className="w-full max-w-lg mt-auto z-20 px-2 flex flex-col gap-2 pb-4">
                             {/* Chat Input & Display */}
                             <div className="flex flex-col gap-1 max-h-20 overflow-y-auto px-2 py-1 bg-black/40 rounded-xl border border-white/5 custom-scrollbar">
                                 {chatHistory.map((msg) => (
