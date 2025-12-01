@@ -1,9 +1,10 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, User, Users, Globe, Wind, Copy, Plus, MessageSquare, Send, Circle, X, Trash2, Bell } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, User, Users, Globe, Wind, Copy, Plus, MessageSquare, Send, Circle, X, Trash2, Bell, UserPlus, CheckCircle, XCircle } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
+import { useMultiplayer } from '../hooks/useMultiplayer';
 import { Peer, DataConnection } from 'peerjs';
 
 interface MainMenuProps {
@@ -27,6 +28,13 @@ interface PrivateMessage {
     text: string;
     timestamp: number;
     read: boolean;
+}
+
+interface FriendRequest {
+    id: string; // Peer ID of sender
+    name: string;
+    avatarId: string;
+    timestamp: number;
 }
 
 // Composant pour le logo stylisé avec manette arcade
@@ -119,6 +127,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
     
+    // Multiplayer Hook for "Community" tab (Global Presence)
+    const mp = useMultiplayer();
+    
     // State pour la lumière dynamique (Interaction)
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
 
@@ -127,9 +138,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
     // Social System State
     const [showSocial, setShowSocial] = useState(false);
-    const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD'>('FRIENDS');
+    const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('FRIENDS');
     const [myPeerId, setMyPeerId] = useState<string>('');
     const [friends, setFriends] = useState<Friend[]>([]);
+    const [requests, setRequests] = useState<FriendRequest[]>([]);
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [friendInput, setFriendInput] = useState('');
@@ -220,7 +232,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         };
     }, []);
 
-    // Update unread count
+    // Sync Presence in Global Lobby (useMultiplayer)
+    // We reuse the multiplayer hook to connect to the game lobby, allowing us to see everyone
+    // We pass our persistent Social ID as 'extraInfo' so others can add us.
+    useEffect(() => {
+        if (showSocial) {
+            mp.updateSelfInfo(username, currentAvatarId, myPeerId); // Broadcast Social ID
+            mp.connect();
+        } else {
+            mp.disconnect();
+        }
+    }, [showSocial, username, currentAvatarId, myPeerId]);
+
+    // Update unread count (Messages + Requests)
     useEffect(() => {
         let count = 0;
         Object.values(messages).forEach(msgs => {
@@ -228,8 +252,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 if (!m.read && m.senderId !== myPeerId) count++;
             });
         });
+        count += requests.length;
         setUnreadCount(count);
-    }, [messages, myPeerId]);
+    }, [messages, myPeerId, requests]);
 
     // Handle Incoming Connections & Data
     const handleConnection = useCallback((conn: DataConnection) => {
@@ -239,33 +264,51 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
         conn.on('data', (data: any) => {
             if (data.type === 'HELLO_FRIEND') {
-                // Auto-accept: Add to friends if not exists, update if exists
+                // Auto-accept handshake only if already friends (status update)
+                // OR if this is part of the add flow
+                // For simplified "Add Friend" we used logic below
+                
+                // NOTE: This logic was for the direct code exchange.
+                // We keep it for backward compatibility if manual code adding is used.
+                setFriends(prev => {
+                    const exists = prev.find(f => f.id === conn.peer);
+                    if (exists) {
+                        return prev.map(f => f.id === conn.peer ? { ...f, name: data.name, avatarId: data.avatarId, status: 'online', lastSeen: Date.now() } : f);
+                    }
+                    return prev;
+                });
+            }
+            else if (data.type === 'FRIEND_REQUEST') {
+                // Check if already friends
+                setFriends(prev => {
+                    if (prev.find(f => f.id === data.senderId)) return prev;
+                    
+                    // Check if request already exists
+                    setRequests(currReq => {
+                        if (currReq.find(r => r.id === data.senderId)) return currReq;
+                        return [...currReq, { id: data.senderId, name: data.name, avatarId: data.avatarId, timestamp: Date.now() }];
+                    });
+                    return prev;
+                });
+            }
+            else if (data.type === 'FRIEND_ACCEPT') {
+                // They accepted my request! Add them.
                 const newFriend: Friend = {
-                    id: conn.peer,
+                    id: data.senderId,
                     name: data.name,
                     avatarId: data.avatarId,
                     status: 'online',
                     lastSeen: Date.now()
                 };
-                
                 setFriends(prev => {
                     const exists = prev.find(f => f.id === newFriend.id);
-                    let updated;
-                    if (exists) {
-                        updated = prev.map(f => f.id === newFriend.id ? { ...f, ...newFriend } : f);
-                    } else {
-                        updated = [...prev, newFriend];
-                    }
+                    if (exists) return prev;
+                    const updated = [...prev, newFriend];
                     localStorage.setItem('neon_friends', JSON.stringify(updated));
                     return updated;
                 });
-
-                // Reply with my info
-                conn.send({
-                    type: 'WELCOME_FRIEND',
-                    name: username,
-                    avatarId: currentAvatarId
-                });
+                // Remove from requests if it was there (edge case)
+                setRequests(prev => prev.filter(r => r.id !== data.senderId));
             }
             else if (data.type === 'WELCOME_FRIEND') {
                  // Update friend info (became online)
@@ -290,9 +333,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     localStorage.setItem('neon_dms', JSON.stringify(updated));
                     return updated;
                 });
-                
-                // Play notification sound if available
-                // audio.playCoin(); // reusing a sound for now
             }
             else if (data.type === 'PING') {
                  setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
@@ -318,17 +358,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Check status of friends when opening social hub
     useEffect(() => {
         if (showSocial && peerRef.current) {
-            (friends as Friend[]).forEach(f => {
+            friends.forEach(f => {
                 const conn = peerRef.current!.connect(f.id);
                 handleConnection(conn);
                 conn.on('open', () => {
                     conn.send({ type: 'PING' });
                     setFriends(prev => prev.map(fr => fr.id === f.id ? { ...fr, status: 'online' } : fr));
                 });
-                 // If connection fails immediately, likely offline (PeerJS doesn't always throw error on connect for offline peers immediately, but we assume offline until PONG)
             });
         }
-    }, [showSocial, friends.length, handleConnection]); // Added friends.length dependency to refresh on add
+    }, [showSocial, friends.length, handleConnection]);
 
     // Scroll chat
     useEffect(() => {
@@ -336,20 +375,40 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     }, [messages, activeChatId, showSocial]);
 
 
-    const addFriend = () => {
+    const addFriendByCode = () => {
         if (!friendInput.trim() || friendInput === myPeerId) return;
         if (friends.find(f => f.id === friendInput)) {
             alert('Déjà dans votre liste d\'amis !');
             return;
         }
+        sendFriendRequest(friendInput);
+        setFriendInput('');
+        alert('Demande envoyée !');
+    };
 
-        // Optimistically add to list (will update name later)
+    const sendFriendRequest = (targetId: string) => {
+        if (targetId === myPeerId) return;
+        if (peerRef.current) {
+            const conn = peerRef.current.connect(targetId);
+            conn.on('open', () => {
+                conn.send({ 
+                    type: 'FRIEND_REQUEST', 
+                    senderId: myPeerId, 
+                    name: username, 
+                    avatarId: currentAvatarId 
+                });
+            });
+        }
+    };
+
+    const acceptRequest = (req: FriendRequest) => {
+        // 1. Add to friends
         const newFriend: Friend = {
-            id: friendInput,
-            name: 'Inconnu...',
-            avatarId: 'av_bot',
-            status: 'offline',
-            lastSeen: 0
+            id: req.id,
+            name: req.name,
+            avatarId: req.avatarId,
+            status: 'online',
+            lastSeen: Date.now()
         };
         
         setFriends(prev => {
@@ -358,18 +417,26 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             return updated;
         });
 
-        // Try to connect and say hello
+        // 2. Remove request
+        setRequests(prev => prev.filter(r => r.id !== req.id));
+
+        // 3. Notify sender
         if (peerRef.current) {
-            const conn = peerRef.current.connect(friendInput);
-            handleConnection(conn);
+            const conn = peerRef.current.connect(req.id);
             conn.on('open', () => {
-                conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId });
-                setFriends(prev => prev.map(f => f.id === friendInput ? { ...f, status: 'online' } : f));
+                conn.send({ 
+                    type: 'FRIEND_ACCEPT', 
+                    senderId: myPeerId, 
+                    name: username, 
+                    avatarId: currentAvatarId 
+                });
+                handleConnection(conn); // Establish persistent connection for DM
             });
         }
-        
-        setFriendInput('');
-        setSocialTab('FRIENDS');
+    };
+
+    const rejectRequest = (id: string) => {
+        setRequests(prev => prev.filter(r => r.id !== id));
     };
 
     const removeFriend = (id: string) => {
@@ -468,6 +535,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const pacmanHighScore = highScores.pacman || 0;
     const memoryBestMoves = highScores.memory || 0;
 
+    // Get Community (Strangers from Lobby)
+    // We filter out ourselves AND existing friends
+    const communityPlayers = mp.players.filter(p => {
+        if (p.id === mp.peerId) return false; // Self (Lobby ID)
+        if (p.extraInfo === myPeerId) return false; // Self (Social ID check)
+        const isFriend = friends.find(f => f.id === p.extraInfo);
+        return !isFriend;
+    });
+
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
             {/* Note: bg-transparent here allows the fixed app-background div to show through */}
@@ -537,7 +613,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             {/* --- SOCIAL OVERLAY --- */}
             {showSocial && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
-                    <div className="bg-gray-900 w-full max-w-md h-[600px] max-h-full rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden relative">
+                    <div className="bg-gray-900 w-full max-w-md h-[650px] max-h-full rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden relative">
                         {/* Header */}
                         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
                             <h2 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-2">
@@ -549,15 +625,18 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex p-2 gap-2 bg-black/20">
-                            <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${socialTab === 'FRIENDS' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
+                        <div className="flex p-2 gap-2 bg-black/20 overflow-x-auto">
+                            <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'FRIENDS' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
                                 AMIS ({friends.length})
                             </button>
-                            <button onClick={() => setSocialTab('ADD')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${socialTab === 'ADD' ? 'bg-green-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
-                                AJOUTER
+                            <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
+                                COMMUNAUTÉ
+                            </button>
+                            <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
+                                DEMANDES {requests.length > 0 && `(${requests.length})`}
                             </button>
                              {activeChatId && (
-                                <button onClick={() => setSocialTab('CHAT')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${socialTab === 'CHAT' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
+                                <button onClick={() => setSocialTab('CHAT')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'CHAT' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>
                                     TCHAT
                                 </button>
                              )}
@@ -566,7 +645,102 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/20">
                             
-                            {/* TAB: ADD FRIEND */}
+                            {/* TAB: COMMUNITY (Nearby Players) */}
+                            {socialTab === 'COMMUNITY' && (
+                                <div className="space-y-4">
+                                    <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-4">
+                                        <p className="text-purple-300 text-xs font-bold">JOUEURS CONNECTÉS SUR LE SITE</p>
+                                    </div>
+                                    
+                                    {communityPlayers.length === 0 ? (
+                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center">
+                                            <Globe size={48} className="mb-4 opacity-50" />
+                                            <p className="text-sm">Personne d'autre n'est connecté...</p>
+                                            <p className="text-xs mt-2">Invitez vos amis avec votre code !</p>
+                                        </div>
+                                    ) : (
+                                        communityPlayers.map(player => {
+                                            const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                            const AvIcon = avatar.icon;
+                                            
+                                            // The Peer ID to connect to is in extraInfo (Shared by Lobby)
+                                            const socialId = player.extraInfo;
+                                            // If no social ID shared, fallback to lobby ID (might fail if not bridged correctly, but better than nothing)
+                                            const targetId = socialId || player.id; 
+
+                                            // Check if I already sent a request (optimistic)
+                                            const isRequested = false; // TODO: Track sent requests
+
+                                            return (
+                                                <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border border-white/10`}>
+                                                            <AvIcon size={18} className={avatar.color} />
+                                                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-gray-900 bg-green-500 shadow-[0_0_8px_#22c55e]" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-white text-sm">{player.name}</h4>
+                                                            <p className="text-[10px] text-gray-500 font-mono">EN LIGNE</p>
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => {
+                                                            sendFriendRequest(targetId);
+                                                            alert(`Demande envoyée à ${player.name}`);
+                                                        }}
+                                                        className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"
+                                                        title="Ajouter en ami"
+                                                    >
+                                                        <UserPlus size={16} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                    
+                                    <div className="pt-4 border-t border-white/10 mt-4">
+                                        <button onClick={() => setSocialTab('ADD')} className="w-full py-3 text-xs text-gray-400 hover:text-white border border-dashed border-white/20 rounded-lg hover:bg-white/5 transition-colors">
+                                            Ajouter par Code Ami manuel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB: REQUESTS */}
+                            {socialTab === 'REQUESTS' && (
+                                <div className="space-y-2">
+                                    {requests.length === 0 ? (
+                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center">
+                                            <Bell size={48} className="mb-4 opacity-50" />
+                                            <p>Aucune demande en attente.</p>
+                                        </div>
+                                    ) : (
+                                        requests.map(req => {
+                                            const avatar = avatarsCatalog.find(a => a.id === req.avatarId) || avatarsCatalog[0];
+                                            const AvIcon = avatar.icon;
+                                            return (
+                                                <div key={req.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-xl border border-pink-500/30">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border border-white/10`}>
+                                                            <AvIcon size={18} className={avatar.color} />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-white text-sm">{req.name}</h4>
+                                                            <p className="text-[10px] text-pink-400 font-mono">VEUT ÊTRE TON AMI</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => rejectRequest(req.id)} className="p-2 hover:bg-red-500/20 text-red-500 rounded-full transition-colors"><XCircle size={20} /></button>
+                                                        <button onClick={() => acceptRequest(req)} className="p-2 bg-green-600 hover:bg-green-500 text-white rounded-full transition-colors shadow-lg"><CheckCircle size={20} /></button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
+
+                            {/* TAB: ADD FRIEND (Manual) */}
                             {socialTab === 'ADD' && (
                                 <div className="flex flex-col gap-6">
                                     <div className="bg-gray-800/50 p-4 rounded-xl border border-white/10 text-center">
@@ -595,7 +769,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                                 className="flex-1 bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-green-500 transition-colors font-mono"
                                             />
                                             <button 
-                                                onClick={addFriend}
+                                                onClick={addFriendByCode}
                                                 className="px-4 bg-green-600 rounded-lg hover:bg-green-500 transition-colors text-white font-bold"
                                             >
                                                 <Plus size={20} />
@@ -612,7 +786,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                         <div className="text-center text-gray-500 py-10 flex flex-col items-center">
                                             <Ghost size={48} className="mb-4 opacity-50" />
                                             <p>Aucun ami pour le moment.</p>
-                                            <button onClick={() => setSocialTab('ADD')} className="mt-4 text-blue-400 underline text-sm">Ajouter quelqu'un ?</button>
+                                            <button onClick={() => setSocialTab('COMMUNITY')} className="mt-4 text-blue-400 underline text-sm">Voir la communauté</button>
                                         </div>
                                     ) : (
                                         friends.map(friend => {
