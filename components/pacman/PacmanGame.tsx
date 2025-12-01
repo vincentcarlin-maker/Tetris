@@ -489,7 +489,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                     <div className="absolute flex items-center justify-center" 
                          style={{
                              ...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y), 
-                             transform: `scale(1.3) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`, 
+                             transform: `scale(0.9) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`, 
                              transition: 'none'
                          }}>
                         <div className="w-full h-full relative">
