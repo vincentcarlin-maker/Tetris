@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, User, Globe, Loader2, ArrowLeft } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
-import { MemoryCard, MemoryGameState } from './types';
+import { useCurrency } from '../../hooks/useCurrency'; // Added for Avatar/Name sync
+import { MemoryCard } from './types';
 
 interface MemoryGameProps {
     onBack: () => void;
@@ -42,6 +43,9 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
     // Multiplayer Hook
     const mp = useMultiplayer();
     
+    // Identity for Lobby
+    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
+    
     // Game State
     const [cards, setCards] = useState<MemoryCard[]>([]);
     const [flippedIndices, setFlippedIndices] = useState<number[]>([]);
@@ -57,8 +61,10 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
     const [isWaitingForDeck, setIsWaitingForDeck] = useState(false);
 
-    // Refs
-    const processingTimeoutRef = useRef<any>(null);
+    // Sync Self Info to Multiplayer State (Important for Lobby)
+    useEffect(() => {
+        mp.updateSelfInfo(username, currentAvatarId);
+    }, [username, currentAvatarId, mp]);
 
     // --- GAME LOGIC ---
 
@@ -111,11 +117,36 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         return () => mp.disconnect();
     }, [gameMode]);
 
+    // Initial Start & Mode Switch
+    useEffect(() => {
+        if (gameMode === 'SOLO') {
+            startSoloGame();
+        } else {
+            // Clear board for online mode to ensure we don't carry over local random deck
+            setCards([]);
+            setFlippedIndices([]);
+            setScores({ p1: 0, p2: 0 });
+            setMoves(0);
+            setIsGameOver(false);
+            setEarnedCoins(0);
+            setIsWaitingForDeck(false);
+        }
+    }, [gameMode]);
+
     useEffect(() => {
         if (mp.mode === 'lobby') {
             const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
+
+            // Reset game state when returning to lobby
+            if (cards.length > 0) {
+                 setCards([]);
+                 setFlippedIndices([]);
+                 setIsGameOver(false);
+                 setIsWaitingForDeck(false);
+            }
+
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             
@@ -128,7 +159,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                      const deckData = deck.map(c => c.iconId); // Send simplified deck (just IDs)
                      mp.sendData({ type: 'MEMORY_INIT', deckIds: deckData });
                      
-                     // Init local
+                     // Init local (Host uses the exact same deck he just generated)
                      setCards(deck);
                      setFlippedIndices([]);
                      setScores({ p1: 0, p2: 0 });
@@ -141,13 +172,13 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                 if (cards.length === 0) setIsWaitingForDeck(true);
             }
         }
-    }, [mp.mode, mp.isHost]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
     // --- ONLINE DATA HANDLING ---
     useEffect(() => {
         const handleData = (data: any) => {
             if (data.type === 'MEMORY_INIT') {
-                // Reconstruct deck from IDs
+                // Reconstruct deck from IDs (The Guest MUST use this exact order)
                 const deckIds: string[] = data.deckIds;
                 const newDeck: MemoryCard[] = deckIds.map((iconId, i) => ({
                     id: i,
@@ -229,8 +260,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                     const matchedCards = [...newCards];
                     matchedCards[idx1].isMatched = true;
                     matchedCards[idx2].isMatched = true;
-                    // Reset flipped status visually (but keep matched status to hide/dim them or keep them face up)
-                    // Actually standard memory keeps them face up.
                     setCards(matchedCards);
                     setFlippedIndices([]);
                     
@@ -243,7 +272,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                         }));
                         // Online rule: If you match, you play again?
                         // Let's do: Match = Play Again.
-                        // So currentPlayer doesn't change.
                     }
                     
                     setIsProcessing(false);
@@ -278,13 +306,10 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
     const handleGameOver = (finalCards: MemoryCard[]) => {
         setIsGameOver(true);
         if (gameMode === 'SOLO') {
-            // Check High Score (Lower moves is better)
-            // If highScore is 0, it's first time playing
             if (highScore === 0 || moves < highScore) {
                 updateHighScore('memory', moves + 1); // +1 because the last move just happened
             }
             
-            // Coins reward
             const reward = 20;
             addCoins(reward);
             setEarnedCoins(reward);
@@ -312,14 +337,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         }
     };
     
-    // Initial Start
-    useEffect(() => {
-        if (gameMode === 'SOLO') {
-            startSoloGame();
-        }
-    }, [gameMode]);
-
-
     // --- RENDER HELPERS ---
 
     const renderCard = (card: MemoryCard) => {
@@ -327,7 +344,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         const Icon = iconData ? iconData.icon : RefreshCw;
         const color = iconData ? iconData.color : 'text-white';
         
-        // Animation classes
         const flipClass = card.isFlipped || card.isMatched ? 'rotate-y-180' : '';
         const matchClass = card.isMatched ? 'opacity-50 shadow-[0_0_15px_#22c55e] border-green-500' : 'border-white/20';
         
@@ -338,12 +354,12 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                 onClick={() => handleCardClick(card.id)}
             >
                 <div className={`w-full h-full relative preserve-3d transition-transform duration-500 ${flipClass}`}>
-                    {/* FRONT (Hidden initially) - The Content */}
+                    {/* FRONT (Hidden initially) */}
                     <div className={`absolute inset-0 backface-hidden rotate-y-180 bg-gray-900 border-2 rounded-md flex items-center justify-center ${matchClass} shadow-lg`}>
                         <Icon size={32} className={`${color} drop-shadow-[0_0_10px_currentColor]`} />
                     </div>
 
-                    {/* BACK (Visible initially) - The App Logo */}
+                    {/* BACK (Visible initially) */}
                     <div className="absolute inset-0 backface-hidden bg-gray-800 border border-white/10 rounded-md flex flex-col items-center justify-center group hover:border-white/40 transition-colors shadow-inner">
                          <div className="flex flex-col items-center gap-1">
                              <span className="font-script text-cyan-400 text-[14px] leading-none drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]">Neon</span>
@@ -355,26 +371,65 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         );
     };
 
+    // --- LOBBY RENDERER (Connect 4 Style) ---
     const renderLobby = () => {
-         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
-         
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+
          return (
-             <div className="flex flex-col w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4 animate-in fade-in">
-                 <h2 className="text-xl font-bold text-center text-purple-400 mb-6">LOBBY MEMORY</h2>
-                 <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-bold rounded-lg mb-4 hover:bg-green-400">
-                     CRÉER UNE PARTIE
-                 </button>
-                 
-                 <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-2">Parties disponibles</p>
-                 <div className="flex-1 overflow-y-auto space-y-2 max-h-[250px] custom-scrollbar">
-                     {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic py-4">Aucune partie trouvée.</p>}
-                     {hostingPlayers.map(p => (
-                         <div key={p.id} className="flex justify-between items-center p-3 bg-gray-800 rounded-lg border border-white/10">
-                             <span className="font-bold">{p.name}</span>
-                             <button onClick={() => mp.joinRoom(p.id)} className="px-3 py-1 bg-neon-blue text-black text-xs font-bold rounded">REJOINDRE</button>
-                         </div>
-                     ))}
-                 </div>
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex items-center justify-between mb-2">
+                     <h3 className="text-lg font-bold text-center text-purple-300 tracking-wider">LOBBY MEMORY</h3>
+                     <button onClick={mp.createRoom} className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg text-xs hover:bg-green-400 transition-colors flex items-center gap-2">
+                        <Play size={14}/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">
+                                            REJOINDRE
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+                    
+                    {hostingPlayers.length === 0 && (
+                         <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>
+                    )}
+                    
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
+                </div>
              </div>
          );
     };
@@ -387,7 +442,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                 .preserve-3d { transform-style: preserve-3d; }
                 .backface-hidden { backface-visibility: hidden; }
                 .rotate-y-180 { transform: rotateY(180deg); }
-                .animate-spin-slow { animation: spin 8s linear infinite; }
             `}</style>
             
             {/* Ambient Light */}
