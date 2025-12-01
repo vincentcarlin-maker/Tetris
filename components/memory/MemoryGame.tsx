@@ -88,8 +88,15 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
 
     // Sync Self Info
     useEffect(() => {
-        mp.updateSelfInfo(username, currentAvatarId);
-    }, [username, currentAvatarId, mp]);
+        // En mode online, on met à jour notre info
+        // Si on est hôte, on inclut la difficulté
+        const diffName = DIFFICULTY_CONFIG[difficulty].name;
+        if (mp.isHost) {
+             mp.updateSelfInfo(username, currentAvatarId, diffName);
+        } else {
+             mp.updateSelfInfo(username, currentAvatarId);
+        }
+    }, [username, currentAvatarId, difficulty, mp.isHost, mp.updateSelfInfo]);
 
     // Scroll Chat
     useEffect(() => {
@@ -467,7 +474,15 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
-                                            <span className="font-bold">{player.name}</span>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold">{player.name}</span>
+                                                {/* Affichage de la difficulté */}
+                                                {player.extraInfo && (
+                                                    <span className="text-[10px] text-purple-300 font-bold tracking-widest bg-purple-500/10 px-1.5 rounded border border-purple-500/20 w-fit">
+                                                        {player.extraInfo}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">
                                             REJOINDRE
@@ -619,7 +634,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                     {/* Status Message */}
                     {gameMode === 'ONLINE' && !isGameOver && (
                         <div className="mb-2 z-10 text-sm font-bold animate-pulse text-center h-6 shrink-0">
-                            {isWaitingForDeck ? "Attente de la configuration..." : 
+                            {isWaitingForDeck ? `Partie en ${DIFFICULTY_CONFIG[difficulty].name} rejointe...` : 
                             isProcessing ? "..." : 
                             ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2)) ? <span className="text-green-400">C'EST TON TOUR !</span> : <span className="text-gray-500">L'ADVERSAIRE JOUE...</span>}
                         </div>
@@ -754,6 +769,24 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                     <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
                     <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
                     <p className="text-sm text-gray-400 mb-8">Difficulté: {DIFFICULTY_CONFIG[difficulty].name}</p>
+                    
+                    {/* Selecteur de difficulté en attente */}
+                    <div className="flex bg-gray-900 rounded-full border border-white/10 overflow-hidden mb-6">
+                            {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => (
+                                <button
+                                    key={d}
+                                    onClick={() => setDifficulty(d)}
+                                    className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${
+                                        difficulty === d 
+                                        ? 'bg-purple-500 text-white' 
+                                        : 'text-gray-400 hover:text-white'
+                                    }`}
+                                >
+                                    {DIFFICULTY_CONFIG[d].name}
+                                </button>
+                            ))}
+                    </div>
+
                     <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
                 </div>
             )}

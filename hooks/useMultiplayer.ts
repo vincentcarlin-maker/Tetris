@@ -6,6 +6,7 @@ export interface PlayerInfo {
     id: string; // Peer ID
     name: string;
     avatarId: string;
+    extraInfo?: string; // Info additionnelle (ex: Difficulté du jeu)
     status: 'idle' | 'hosting' | 'in_game';
 }
 
@@ -34,7 +35,7 @@ export const useMultiplayer = () => {
     const hostConnectionRef = useRef<DataConnection | null>(null); // For guests
     const guestConnectionsRef = useRef<DataConnection[]>([]); // For host
     const onDataCallbackRef = useRef<((data: any) => void) | null>(null);
-    const myInfoRef = useRef<{name: string, avatarId: string}>({name: 'Joueur', avatarId: 'av_bot'});
+    const myInfoRef = useRef<{name: string, avatarId: string, extraInfo?: string}>({name: 'Joueur', avatarId: 'av_bot'});
     const isHostRef = useRef(false);
     
     // Track host status explicitly since it's not stored in a connection object
@@ -96,8 +97,19 @@ export const useMultiplayer = () => {
                     (conn as any).playerInfo = { id: senderId, name: data.name, avatarId: data.avatarId, status: 'idle' };
                     broadcastPlayerList();
                     break;
+                case 'UPDATE_INFO':
+                    if (senderInfo) {
+                        senderInfo.name = data.name;
+                        senderInfo.avatarId = data.avatarId;
+                        senderInfo.extraInfo = data.extraInfo;
+                    }
+                    broadcastPlayerList();
+                    break;
                 case 'CREATE_ROOM':
-                    if (senderInfo) senderInfo.status = 'hosting';
+                    if (senderInfo) {
+                        senderInfo.status = 'hosting';
+                        senderInfo.extraInfo = data.extraInfo; // Store difficulty if passed
+                    }
                     broadcastPlayerList();
                     break;
                 case 'CANCEL_HOSTING':
@@ -207,9 +219,11 @@ export const useMultiplayer = () => {
                      }
                      broadcastPlayerList();
                      break;
-                 // Forward other data types (Reaction, Chat)
+                 // Forward other data types (Reaction, Chat, Memory Init, Flip)
                  case 'REACTION':
                  case 'CHAT':
+                 case 'MEMORY_INIT':
+                 case 'MEMORY_FLIP':
                      if (state.gameOpponent?.id === senderId) {
                          // For Host
                          if(onDataCallbackRef.current) onDataCallbackRef.current(data);
@@ -249,6 +263,12 @@ export const useMultiplayer = () => {
                 break;
             case 'LEAVE_GAME':
                 setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false, amIP1: false}));
+                break;
+            case 'MEMORY_INIT':
+            case 'MEMORY_FLIP':
+            case 'CHAT':
+            case 'REACTION':
+                if(onDataCallbackRef.current) onDataCallbackRef.current(data);
                 break;
             default:
                  if(onDataCallbackRef.current) onDataCallbackRef.current(data);
@@ -346,6 +366,17 @@ export const useMultiplayer = () => {
         });
     }, [disconnect, handleHostConnection]); 
 
+    const updateSelfInfo = useCallback((name: string, avatarId: string, extraInfo?: string) => {
+        myInfoRef.current = { name, avatarId, extraInfo };
+        // If we are currently connected, we should try to broadcast this update
+        if (state.isConnected && !isHostRef.current && hostConnectionRef.current) {
+            hostConnectionRef.current.send({ type: 'UPDATE_INFO', ...myInfoRef.current });
+        } else if (isHostRef.current) {
+            // If I am host, I update my list and broadcast
+            broadcastPlayerList();
+        }
+    }, [state.isConnected, broadcastPlayerList]);
+
     const createRoom = () => {
         if (isHostRef.current) {
             hostStatusRef.current = 'hosting';
@@ -353,7 +384,7 @@ export const useMultiplayer = () => {
             setState(prev => ({ ...prev, mode: 'lobby' })); 
             broadcastPlayerList();
         } else {
-            sendData({ type: 'CREATE_ROOM' });
+            sendData({ type: 'CREATE_ROOM', extraInfo: myInfoRef.current.extraInfo });
         }
     };
     
@@ -454,10 +485,6 @@ export const useMultiplayer = () => {
              }
         }
     };
-
-    const updateSelfInfo = useCallback((name: string, avatarId: string) => {
-        myInfoRef.current = { name, avatarId };
-    }, []);
 
     const setOnDataReceived = useCallback((callback: ((data: any) => void) | null) => {
         onDataCallbackRef.current = callback;
