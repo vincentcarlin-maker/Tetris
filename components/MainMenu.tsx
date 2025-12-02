@@ -210,6 +210,45 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
 
+    // --- HEARTBEAT SYSTEM TO DETECT DISCONNECTIONS ---
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = Date.now();
+            
+            // 1. Ping everyone we are connected to
+            (Object.values(connectionsRef.current) as DataConnection[]).forEach(conn => {
+                if (conn.open) {
+                    try {
+                        conn.send({ type: 'PING' });
+                    } catch (e) {
+                        console.warn('Failed to ping', conn.peer);
+                    }
+                }
+            });
+
+            // 2. Check for timeouts (User offline check)
+            setFriends(prev => prev.map(f => {
+                // If friend is marked online but hasn't been seen recently
+                if (f.status === 'online') {
+                    // Grace period: allow 15s. 
+                    // Note: lastSeen is updated on PING, PONG, HELLO, etc.
+                    if (!f.lastSeen || (now - f.lastSeen > 15000)) {
+                        // Force disconnect
+                        const conn = connectionsRef.current[f.id];
+                        if (conn) {
+                            conn.close();
+                            delete connectionsRef.current[f.id];
+                        }
+                        return { ...f, status: 'offline' };
+                    }
+                }
+                return f;
+            }));
+        }, 5000); // Run check every 5 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
     // --- SOCIAL SYSTEM INITIALIZATION ---
     useEffect(() => {
         // 1. Load Data
@@ -218,7 +257,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             try {
                 const parsed = JSON.parse(storedFriends);
                 if (Array.isArray(parsed)) {
-                    setFriends(parsed as Friend[]);
+                    // Force offline status on init to prevent "ghosts" from localStorage
+                    setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: 0 }))); 
                 }
             } catch (e) {
                 console.warn('Failed to parse friends list', e);
