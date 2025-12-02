@@ -701,8 +701,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const memoryBestMoves = highScores.memory || 0;
 
     // Get Community (Strangers from Lobby)
-    // We filter out existing friends
+    // We filter out existing friends AND ourselves
     const communityPlayers = mp.players.filter(p => {
+        if (p.id === myPeerId) return false; // Filter out self
         if (p.extraInfo) {
             try {
                 const data = JSON.parse(p.extraInfo);
@@ -711,7 +712,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 // Ignore parsing error, keep player if IDs don't match
             }
         }
-        // Pas de filtre sur 'soi-même' pour apparaître dans la liste si désiré
         return true;
     });
 
@@ -1578,6 +1578,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                     <h3 className="text-2xl font-black text-white tracking-wide italic group-hover:text-blue-400 transition-colors drop-shadow-md">BATAILLE NAVALE</h3>
                                     <div className="flex gap-1 mt-1 mb-0.5">
                                         <GameBadge type="SOLO" />
+                                        <GameBadge type="ONLINE" />
                                     </div>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
                                 </div>

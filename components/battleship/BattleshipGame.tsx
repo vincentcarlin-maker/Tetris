@@ -302,10 +302,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            // If just entering game, ensure setup
-            if (phase === 'GAMEOVER') {
-                resetGame();
-            }
+            // DO NOT auto reset here if phase is GAMEOVER, let user see the screen
         }
   }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
@@ -386,6 +383,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
               if (playerShips.every(s => s.sunk)) {
                   handleGameOver('CPU'); // I lost
+                  // Send result then return immediately to avoid setting turn
+                  mp.sendData({
+                      type: 'BATTLESHIP_RESULT',
+                      r, c,
+                      status: resultStatus,
+                      shipDetails: sunkShipDetails
+                  });
+                  return; 
               }
           } else {
               playWallHit();
@@ -436,6 +441,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           const sunkCount = cpuShips.length + (status === 'SUNK' ? 1 : 0);
           if (sunkCount >= SHIPS_CONFIG.length) {
                handleGameOver('PLAYER');
+               return; // STOP HERE, DO NOT SET TURN
           }
           
           // I hit, so it's still my turn!
@@ -969,6 +975,98 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
       const Icon = reaction.icon;
+
+      if (reactionId === 'sad') {
+          return (
+              <div className="relative">
+                  <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                  <div className="absolute top-[22px] left-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite]"></div>
+                  <div className="absolute top-[22px] right-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite_0.5s]"></div>
+                  <style>{`
+                    @keyframes tear-fall {
+                        0% { top: 22px; opacity: 1; transform: scale(1); }
+                        80% { top: 45px; opacity: 0; transform: scale(0.5); }
+                        100% { top: 45px; opacity: 0; }
+                    }
+                  `}</style>
+              </div>
+          );
+      }
+
+      if (reactionId === 'happy') {
+        return (
+            <div className="relative animate-[grow-laugh_0.8s_ease-in-out_infinite]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <style>{`
+                  @keyframes grow-laugh {
+                      0%, 100% { transform: scale(1) rotate(-5deg); }
+                      50% { transform: scale(1.3) rotate(5deg); }
+                  }
+                `}</style>
+            </div>
+        );
+      }
+
+      if (reactionId === 'angry') {
+        return (
+            <div className="relative animate-[shake_0.2s_linear_infinite]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <div className={`absolute top-[10px] -left-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[-45deg] animate-pulse`}></div>
+                <div className={`absolute top-[10px] -right-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[45deg] animate-pulse`}></div>
+                 <style>{`
+                  @keyframes shake {
+                      0% { transform: translate(1px, 1px) rotate(0deg); }
+                      25% { transform: translate(-1px, -2px) rotate(-1deg); }
+                      50% { transform: translate(-3px, 0px) rotate(1deg); }
+                      75% { transform: translate(3px, 2px) rotate(0deg); }
+                      100% { transform: translate(1px, -1px) rotate(-1deg); }
+                  }
+                `}</style>
+            </div>
+        );
+      }
+      
+      if (reactionId === 'love') {
+          return (
+            <div className="relative animate-[heart-beat_1.2s_ease-in-out_infinite]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <div className={`absolute inset-0 ${color} opacity-30 animate-ping rounded-full`}></div>
+                <style>{`
+                    @keyframes heart-beat {
+                        0% { transform: scale(1); }
+                        14% { transform: scale(1.3); }
+                        28% { transform: scale(1); }
+                        42% { transform: scale(1.3); }
+                        70% { transform: scale(1); }
+                    }
+                `}</style>
+            </div>
+          );
+      }
+
+      if (reactionId === 'wave') {
+          return (
+            <div className="relative animate-[wave_1.5s_ease-in-out_infinite] origin-bottom-right">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <style>{`@keyframes wave { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-20deg); } 75% { transform: rotate(10deg); } }`}</style>
+            </div>
+          );
+      }
+
+      if (reactionId === 'good') {
+          return (
+            <div className="relative animate-[stamp_0.5s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_-0.2s]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <style>{`
+                    @keyframes stamp {
+                        0% { transform: scale(2); opacity: 0; }
+                        100% { transform: scale(1); opacity: 1; }
+                    }
+                `}</style>
+            </div>
+          );
+      }
+
       return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };
 
@@ -1177,7 +1275,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                                 onClick={() => { mp.leaveGame(); resetGame(); }} 
                                 className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
                             >
-                                <LogOut size={16}/> RETOUR AU MENU
+                                <LogOut size={16}/> RETOUR AU LOBBY
                             </button>
                           </>
                       ) : (
