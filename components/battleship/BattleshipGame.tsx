@@ -341,9 +341,12 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             }
         };
         mp.setOnDataReceived(handleData);
-  }, [mp, playerGrid, playerShips, cpuGrid, cpuShips]); // Deps important for callbacks
+  }, [mp, playerGrid, playerShips, cpuGrid, cpuShips, phase]); // Deps important for callbacks
 
   const handleOnlineShotReceived = (r: number, c: number) => {
+      // Guard: Do not process shots if game is already over
+      if (phase === 'GAMEOVER') return;
+
       // Opponent fired at (r, c) on my grid
       // Animation first
       launchAttack(r, c, 'PLAYER', () => {
@@ -401,6 +404,9 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   };
 
   const handleOnlineResultReceived = (r: number, c: number, status: 'HIT'|'MISS'|'SUNK', shipDetails: any) => {
+      // Guard: Do not process results if game is already over
+      if (phase === 'GAMEOVER') return;
+
       // Update my view of enemy grid
       const newCpuGrid = [...cpuGrid];
       newCpuGrid[r] = [...newCpuGrid[r]];
@@ -1137,7 +1143,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       {/* GAMEOVER OVERLAY */}
       {(phase === 'GAMEOVER' || opponentLeft) && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
-              <div className="bg-gray-900 border-2 border-white/10 p-6 rounded-2xl flex flex-col items-center max-w-sm w-full shadow-2xl">
+              <div className="bg-gray-900 border-2 border-white/10 p-6 rounded-2xl flex flex-col items-center max-w-sm w-full shadow-2xl z-[100]">
                   {opponentLeft ? (
                       <>
                         <LogOut size={48} className="text-red-500 mb-2" />
@@ -1146,14 +1152,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                   ) : winner === 'PLAYER' ? (
                       <>
                         <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_15px_#facc15]" />
-                        <h2 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2">VICTOIRE !</h2>
+                        <h2 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2 text-center">VOUS AVEZ GAGNÉ !</h2>
                         <p className="text-gray-400 mb-4 text-center">La flotte ennemie a été anéantie.</p>
                         {earnedCoins > 0 && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
                       </>
                   ) : (
                       <>
                         <Ship size={64} className="text-red-500 mb-4" />
-                        <h2 className="text-4xl font-black italic text-red-500 mb-2">DÉFAITE</h2>
+                        <h2 className="text-4xl font-black italic text-red-500 mb-2 text-center">VOUS AVEZ PERDU...</h2>
                         <p className="text-gray-400 mb-4 text-center">Votre flotte a coulé.</p>
                       </>
                   )}
@@ -1171,13 +1177,13 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                                 onClick={() => { mp.leaveGame(); resetGame(); }} 
                                 className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
                             >
-                                <LogOut size={16}/> MENU PRINCIPAL
+                                <LogOut size={16}/> RETOUR AU MENU
                             </button>
                           </>
                       ) : (
                           <>
                             <button onClick={resetGame} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors">REJOUER</button>
-                            <button onClick={() => { onBack(); }} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors">MENU PRINCIPAL</button>
+                            <button onClick={() => { onBack(); }} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors">RETOUR AU MENU</button>
                           </>
                       )}
                   </div>
