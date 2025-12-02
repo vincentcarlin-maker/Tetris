@@ -177,6 +177,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [unreadCount, setUnreadCount] = useState(0);
     const [selectedPlayer, setSelectedPlayer] = useState<Friend | null>(null);
     
+    // Refs for state access inside callbacks
+    const activeChatIdRef = useRef<string | null>(null);
+    const showSocialRef = useRef<boolean>(false);
+
     const peerRef = useRef<Peer | null>(null);
     const connectionsRef = useRef<Record<string, DataConnection>>({});
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -207,6 +211,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [tempName, setTempName] = useState(username);
     const inputRef = useRef<HTMLInputElement>(null);
     
+    // Update Refs
+    useEffect(() => {
+        activeChatIdRef.current = activeChatId;
+        showSocialRef.current = showSocial;
+    }, [activeChatId, showSocial]);
+
     useEffect(() => {
         audio.resumeAudio(); // Déverrouille le contexte audio, crucial pour iOS
     }, [audio]);
@@ -346,6 +356,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         let count = 0;
         (Object.values(messages) as PrivateMessage[][]).forEach(msgs => {
             msgs.forEach(m => {
+                // Ignore messages sent by me, only count unread from others
                 if (!m.read && m.senderId !== myPeerId) count++;
             });
         });
@@ -424,12 +435,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 audio.playCoin(); // Notification sound
             }
             else if (data.type === 'DM') {
+                // Check if we are currently looking at this conversation
+                const isCurrentlyReading = showSocialRef.current && activeChatIdRef.current === conn.peer;
+
                 const msg: PrivateMessage = {
                     id: Date.now().toString() + Math.random(),
                     senderId: conn.peer,
                     text: data.text,
                     timestamp: Date.now(),
-                    read: false
+                    read: isCurrentlyReading // Mark as read immediately if chat is open
                 };
                 
                 setMessages(prev => {
@@ -439,7 +453,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     return updated;
                 });
                 
-                audio.playCoin(); // Notification sound
+                if (!isCurrentlyReading) {
+                    audio.playCoin(); // Notification sound only if not reading
+                }
             }
             else if (data.type === 'PING') {
                  setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
@@ -651,11 +667,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         setActiveChatId(friendId);
         setSocialTab('CHAT');
         setSelectedPlayer(null); // Close profile if open
-        // Mark as read
+        
+        // Mark all messages from this friend as read IMMEDIATELY
         setMessages(prev => {
             const chat = prev[friendId];
             if (!chat) return prev;
-            const updatedChat = chat.map(m => ({ ...m, read: true }));
+            
+            // Optimization: Only update if there are unread messages
+            const hasUnread = chat.some(m => !m.read && m.senderId !== myPeerId);
+            if (!hasUnread) return prev;
+
+            const updatedChat = chat.map(m => m.senderId !== myPeerId ? { ...m, read: true } : m);
             const updated = { ...prev, [friendId]: updatedChat };
             localStorage.setItem('neon_dms', JSON.stringify(updated));
             return updated;
