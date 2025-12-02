@@ -65,8 +65,8 @@ const checkWinFull = (board: BoardState): WinState => {
   }
   for (let r = 0; r < ROWS - 3; r++) {
     for (let c = 0; c < COLS - 3; c++) {
-      if (board[r][c] && board[r][c] === board[r+1][c+1] && board[r][c] === board[r+2][c+2] && board[r][c] === board[r+3][c+3]) {
-        return { winner: board[r][c] as Player, line: [[r,c], [r+1,c+1], [r+2,c+2], [r+3,c+3]] };
+      if (board[r][c] && board[r][c] === board[r+1][c] && board[r][c] === board[r+2][c] && board[r][c] === board[r+3][c]) {
+        return { winner: board[r][c] as Player, line: [[r,c], [r+1,c], [r+2,c], [r+3,c]] };
       }
     }
   }
@@ -378,7 +378,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // ... render functions ...
   
-  // RENDER VISUAL FOR REACTION
+  // RENDER VISUAL FOR REACTION (ADVANCED ANIMATIONS)
   const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
@@ -417,10 +417,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
       if (reactionId === 'angry') {
         return (
-            <div className="relative animate-[shake_0.3s_linear_infinite]">
+            <div className="relative animate-[shake_0.2s_linear_infinite]">
                 <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <div className={`absolute top-[14px] left-[10px] w-3 h-1 ${color.replace('text-', 'bg-')} rotate-[30deg] rounded-full shadow-[0_0_5px_currentColor]`}></div>
-                <div className={`absolute top-[14px] right-[10px] w-3 h-1 ${color.replace('text-', 'bg-')} -rotate-[30deg] rounded-full shadow-[0_0_5px_currentColor]`}></div>
+                <div className={`absolute top-[10px] -left-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[-45deg] animate-pulse`}></div>
+                <div className={`absolute top-[10px] -right-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[45deg] animate-pulse`}></div>
                  <style>{`
                   @keyframes shake {
                       0% { transform: translate(1px, 1px) rotate(0deg); }
@@ -434,8 +434,46 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         );
       }
       
-      if (reactionId === 'love') return <div className="relative animate-[ping_1s_cubic-bezier(0,0,0.2,1)_infinite]"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
-      if (reactionId === 'wave') return <div className="relative animate-[wave_1s_ease-in-out_infinite]"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /><style>{`@keyframes wave { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-20deg); } 75% { transform: rotate(20deg); } }`}</style></div>;
+      if (reactionId === 'love') {
+          return (
+            <div className="relative animate-[heart-beat_1.2s_ease-in-out_infinite]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <div className={`absolute inset-0 ${color} opacity-30 animate-ping rounded-full`}></div>
+                <style>{`
+                    @keyframes heart-beat {
+                        0% { transform: scale(1); }
+                        14% { transform: scale(1.3); }
+                        28% { transform: scale(1); }
+                        42% { transform: scale(1.3); }
+                        70% { transform: scale(1); }
+                    }
+                `}</style>
+            </div>
+          );
+      }
+
+      if (reactionId === 'wave') {
+          return (
+            <div className="relative animate-[wave_1.5s_ease-in-out_infinite] origin-bottom-right">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <style>{`@keyframes wave { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-20deg); } 75% { transform: rotate(10deg); } }`}</style>
+            </div>
+          );
+      }
+
+      if (reactionId === 'good') {
+          return (
+            <div className="relative animate-[stamp_0.5s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_-0.2s]">
+                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
+                <style>{`
+                    @keyframes stamp {
+                        0% { transform: scale(2); opacity: 0; }
+                        100% { transform: scale(1); opacity: 1; }
+                    }
+                `}</style>
+            </div>
+          );
+      }
 
       return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };

@@ -688,15 +688,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         return (
             <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
                 <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/20 shadow-2xl overflow-hidden relative">
-                    {/* Header bg */}
-                    <div className={`h-24 bg-gradient-to-br ${avatar.bgGradient} relative`}>
-                        <button onClick={() => setSelectedPlayer(null)} className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white transition-colors">
-                            <X size={20} />
-                        </button>
-                    </div>
                     
-                    {/* Avatar Bubble */}
-                    <div className="flex justify-center -mt-12 mb-3">
+                    {/* Close Button - Moved here */}
+                    <button onClick={() => setSelectedPlayer(null)} className="absolute top-2 right-2 p-2 bg-black/20 hover:bg-black/40 rounded-full text-gray-400 hover:text-white transition-colors z-10">
+                        <X size={20} />
+                    </button>
+                    
+                    {/* Avatar Bubble - Adjusted margins */}
+                    <div className="flex justify-center mt-8 mb-3">
                         <div className={`w-24 h-24 rounded-2xl bg-gray-900 p-1`}>
                             <div className={`w-full h-full rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border-2 border-white/20 shadow-lg`}>
                                 <AvIcon size={48} className={avatar.color} />
