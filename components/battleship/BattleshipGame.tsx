@@ -601,7 +601,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 handleGameOver('PLAYER');
                 return;
             }
-            setTurn('CPU');
+            // If hit, player plays again! Do not switch turn.
         } else {
             playWallHit(); // Splash
             setTurn('CPU');
@@ -647,7 +647,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             if (playerShips.every(s => s.sunk)) {
                 handleGameOver('CPU');
             } else {
-                setTurn('PLAYER'); 
+                // If hit, CPU plays again! Do not switch turn.
             }
         } else {
             playWallHit();

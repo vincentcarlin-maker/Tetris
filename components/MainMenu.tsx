@@ -378,17 +378,27 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 localStorage.setItem('neon_friends', JSON.stringify(updatedStorage));
             }
             else if (data.type === 'FRIEND_REQUEST') {
-                // Check if already friends
-                setFriends(prev => {
-                    if (prev.find(f => f.id === data.senderId)) return prev;
-                    
-                    // Check if request already exists
+                // Determine if we are already friends (Check local storage directly to be safe)
+                const currentFriends = JSON.parse(localStorage.getItem('neon_friends') || '[]');
+                const alreadyFriend = currentFriends.some((f: any) => f.id === data.senderId);
+
+                if (!alreadyFriend) {
                     setRequests(currReq => {
+                        // Avoid duplicates
                         if (currReq.find(r => r.id === data.senderId)) return currReq;
-                        return [...currReq, { id: data.senderId, name: data.name, avatarId: data.avatarId, timestamp: Date.now(), stats: data.stats }];
+                        
+                        // Play Notification Sound
+                        audio.playCoin(); 
+                        
+                        return [...currReq, { 
+                            id: data.senderId, 
+                            name: data.name, 
+                            avatarId: data.avatarId, 
+                            timestamp: Date.now(), 
+                            stats: data.stats 
+                        }];
                     });
-                    return prev;
-                });
+                }
             }
             else if (data.type === 'FRIEND_ACCEPT') {
                 // They accepted my request! Add them.
@@ -400,6 +410,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     lastSeen: Date.now(),
                     stats: data.stats
                 };
+                
                 setFriends(prev => {
                     const exists = prev.find(f => f.id === newFriend.id);
                     if (exists) return prev;
@@ -409,6 +420,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 });
                 // Remove from requests if it was there (edge case)
                 setRequests(prev => prev.filter(r => r.id !== data.senderId));
+                
+                audio.playCoin(); // Notification sound
             }
             else if (data.type === 'DM') {
                 const msg: PrivateMessage = {
@@ -425,6 +438,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     localStorage.setItem('neon_dms', JSON.stringify(updated));
                     return updated;
                 });
+                
+                audio.playCoin(); // Notification sound
             }
             else if (data.type === 'PING') {
                  setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
@@ -454,7 +469,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
              });
         });
 
-    }, [username, currentAvatarId]);
+    }, [username, currentAvatarId, audio]);
 
     // Keep the ref updated with the latest handleConnection function
     useEffect(() => {
@@ -465,6 +480,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     useEffect(() => {
         if (showSocial && peerRef.current) {
             (friends as Friend[]).forEach(f => {
+                // Don't reconnect if already connected
+                if (connectionsRef.current[f.id] && connectionsRef.current[f.id].open) return;
+                
                 const conn = peerRef.current!.connect(f.id);
                 handleConnection(conn);
                 conn.on('open', () => {
@@ -489,13 +507,30 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         }
         sendFriendRequest(friendInput);
         setFriendInput('');
-        alert('Demande envoyée !');
     };
 
     const sendFriendRequest = (targetId: string) => {
         if (targetId === myPeerId) return;
+        
+        // Reuse existing connection if valid
+        if (connectionsRef.current[targetId] && connectionsRef.current[targetId].open) {
+            const conn = connectionsRef.current[targetId];
+            conn.send({ 
+                type: 'FRIEND_REQUEST', 
+                senderId: myPeerId, 
+                name: username, 
+                avatarId: currentAvatarId,
+                stats: getMyStats()
+            });
+            alert('Demande envoyée !');
+            return;
+        }
+
         if (peerRef.current) {
             const conn = peerRef.current.connect(targetId);
+            // Handle connection logic so we can receive the acceptance later
+            handleConnection(conn); 
+            
             conn.on('open', () => {
                 // ADDED DELAY: Ensure connection is stable and receiver has listeners attached
                 setTimeout(() => {
@@ -511,6 +546,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             conn.on('error', (err) => {
                 alert("Impossible de joindre le joueur (Hors ligne ou ID invalide)");
             });
+            
+            // Assume success if no error immediately
+            alert('Demande envoyée !');
         }
     };
 
@@ -535,7 +573,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         setRequests(prev => prev.filter(r => r.id !== req.id));
 
         // 3. Notify sender
-        if (peerRef.current) {
+        // Check for existing connection first
+        if (connectionsRef.current[req.id] && connectionsRef.current[req.id].open) {
+             const conn = connectionsRef.current[req.id];
+             conn.send({ 
+                type: 'FRIEND_ACCEPT', 
+                senderId: myPeerId, 
+                name: username, 
+                avatarId: currentAvatarId,
+                stats: getMyStats()
+            });
+        } else if (peerRef.current) {
             const conn = peerRef.current.connect(req.id);
             conn.on('open', () => {
                 conn.send({ 
@@ -729,7 +777,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                         e.stopPropagation();
                                         sendFriendRequest(selectedPlayer.id); 
                                         setSelectedPlayer(null); 
-                                        alert("Demande d'ami envoyée !");
                                     }}
                                     className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-sm transition-colors shadow-lg"
                                 >
@@ -958,7 +1005,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 sendFriendRequest(targetId);
-                                                                alert(`Demande envoyée à ${player.name}`);
                                                             }}
                                                             className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"
                                                             title="Ajouter en ami"
@@ -1585,7 +1631,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.9.0 • METADATA UPDATE
+                    v1.9.0 • SOCIAL FIX
                  </div>
              </div>
         </div>
