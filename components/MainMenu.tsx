@@ -132,6 +132,23 @@ const GameBadge = ({ type }: { type: 'SOLO' | 'VS' | 'ONLINE' }) => {
     );
 };
 
+// Helper pour formater la date de dernière connexion
+const formatLastSeen = (timestamp: number) => {
+    if (!timestamp || timestamp === 0) return 'Jamais';
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return 'À l\'instant';
+    if (minutes < 60) return `Il y a ${minutes} min`;
+    if (hours < 24) return `Il y a ${hours} h`;
+    if (days === 1) return 'Hier';
+    if (days < 7) return `Il y a ${days} j`;
+    return new Date(timestamp).toLocaleDateString();
+};
+
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog } = currency;
@@ -227,23 +244,33 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             });
 
             // 2. Check for timeouts (User offline check)
-            setFriends(prev => prev.map(f => {
-                // If friend is marked online but hasn't been seen recently
-                if (f.status === 'online') {
-                    // Grace period: allow 15s. 
-                    // Note: lastSeen is updated on PING, PONG, HELLO, etc.
-                    if (!f.lastSeen || (now - f.lastSeen > 15000)) {
-                        // Force disconnect
-                        const conn = connectionsRef.current[f.id];
-                        if (conn) {
-                            conn.close();
-                            delete connectionsRef.current[f.id];
+            setFriends(prev => {
+                let changed = false;
+                const newFriends = prev.map(f => {
+                    // If friend is marked online but hasn't been seen recently
+                    if (f.status === 'online') {
+                        // Grace period: allow 15s. 
+                        // Note: lastSeen is updated on PING, PONG, HELLO, etc.
+                        if (!f.lastSeen || (now - f.lastSeen > 15000)) {
+                            // Force disconnect
+                            const conn = connectionsRef.current[f.id];
+                            if (conn) {
+                                conn.close();
+                                delete connectionsRef.current[f.id];
+                            }
+                            changed = true;
+                            // Set to offline but keep the lastSeen time (it was updated on last successful ping)
+                            return { ...f, status: 'offline' as const };
                         }
-                        return { ...f, status: 'offline' };
                     }
+                    return f;
+                });
+                
+                if (changed) {
+                    localStorage.setItem('neon_friends', JSON.stringify(newFriends));
                 }
-                return f;
-            }));
+                return newFriends;
+            });
         }, 5000); // Run check every 5 seconds
 
         return () => clearInterval(interval);
@@ -257,8 +284,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             try {
                 const parsed = JSON.parse(storedFriends);
                 if (Array.isArray(parsed)) {
-                    // Force offline status on init to prevent "ghosts" from localStorage
-                    setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: 0 }))); 
+                    // Force offline status on init to prevent "ghosts" but KEEP lastSeen
+                    setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: f.lastSeen || 0 }))); 
                 }
             } catch (e) {
                 console.warn('Failed to parse friends list', e);
@@ -347,7 +374,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 });
                 // Persist minimal info, not online status
                 const currentFriends = JSON.parse(localStorage.getItem('neon_friends') || '[]');
-                const updatedStorage = currentFriends.map((f: Friend) => f.id === conn.peer ? { ...f, name: data.name, avatarId: data.avatarId, stats: data.stats } : f);
+                const updatedStorage = currentFriends.map((f: Friend) => f.id === conn.peer ? { ...f, name: data.name, avatarId: data.avatarId, stats: data.stats, lastSeen: Date.now() } : f);
                 localStorage.setItem('neon_friends', JSON.stringify(updatedStorage));
             }
             else if (data.type === 'FRIEND_REQUEST') {
@@ -410,12 +437,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         
         conn.on('close', () => {
             delete connectionsRef.current[conn.peer];
-            setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' } : f));
+            setFriends(prev => {
+                const newFriends = prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' as const } : f);
+                // Also update storage to mark as offline but keep last seen
+                localStorage.setItem('neon_friends', JSON.stringify(newFriends));
+                return newFriends;
+            });
         });
 
         conn.on('error', () => {
             delete connectionsRef.current[conn.peer];
-             setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' } : f));
+             setFriends(prev => {
+                const newFriends = prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' as const } : f);
+                localStorage.setItem('neon_friends', JSON.stringify(newFriends));
+                return newFriends;
+             });
         });
 
     }, [username, currentAvatarId]);
@@ -670,9 +706,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
                     <div className="px-6 pb-6 text-center">
                         <h2 className="text-2xl font-black text-white italic mb-1">{selectedPlayer.name}</h2>
-                        <div className="flex items-center justify-center gap-2 mb-6">
-                            <div className={`w-2 h-2 rounded-full ${selectedPlayer.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
-                            <span className="text-xs text-gray-400 font-bold tracking-widest">{selectedPlayer.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</span>
+                        <div className="flex flex-col items-center mb-6">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className={`w-2 h-2 rounded-full ${selectedPlayer.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
+                                <span className="text-xs text-gray-400 font-bold tracking-widest">{selectedPlayer.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</span>
+                            </div>
+                            {selectedPlayer.status === 'offline' && selectedPlayer.lastSeen > 0 && (
+                                <span className="text-[10px] text-gray-600 font-mono">
+                                    VU : {formatLastSeen(selectedPlayer.lastSeen)}
+                                </span>
+                            )}
                         </div>
 
                         {/* Actions */}
