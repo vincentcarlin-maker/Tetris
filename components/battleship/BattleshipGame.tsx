@@ -45,9 +45,9 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
         fillColor = isValid ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
         detailColor = isValid ? '#4ade80' : '#f87171';
     } else if (isSelected) {
-        strokeColor = '#ffffff';
-        fillColor = 'rgba(40, 40, 60, 0.95)'; // Lighter, distinct background
-        detailColor = '#ffffff';
+        strokeColor = '#22c55e'; // Green outline when selected
+        fillColor = 'rgba(34, 197, 94, 0.2)'; // Greenish tint
+        detailColor = '#22c55e';
     }
 
     const renderShipSVG = () => {
@@ -153,6 +153,7 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
             <svg 
                 viewBox={viewBox} 
                 className="w-full h-full" 
+                style={isSelected ? { filter: 'drop-shadow(0 0 4px #22c55e)' } : {}}
             >
                 <path d={path} fill={fillColor} stroke={strokeColor} strokeWidth={isSelected ? "4" : "3"} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
                 {details}
@@ -425,16 +426,19 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     if (!isDragStartedRef.current && !isDragging) {
         if (pressedShipRef.current) {
             const shipId = pressedShipRef.current.id;
-            // If tapping an already selected ship -> Rotate it
+            
+            // Selection Logic:
             if (selectedShipId === shipId) {
-                attemptRotateShip(pressedShipRef.current);
+                // Already selected -> Rotate? No, rotation is button only now for stability.
+                // Just keep selected.
+                // Optionally: deselect if tapped again? Let's stick to simple "Select"
             } else {
-                // Else select it
+                // New Selection
                 setSelectedShipId(shipId);
                 playPaddleHit(); // "Click" sound
             }
         } else {
-            // Tapped empty space
+            // Tapped empty space -> Deselect
             setSelectedShipId(null);
         }
         
@@ -831,7 +835,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       {/* SETUP PHASE UI */}
       {phase === 'SETUP' && (
         <div className="flex flex-col items-center gap-4 z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4">
-            <div className="bg-gray-900/80 p-4 rounded-xl border border-blue-500/30 w-full">
+            <div className="bg-gray-900/80 p-4 rounded-xl border border-blue-500/30 w-full max-w-[min(90vw,400px)]">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-blue-300 font-bold flex items-center gap-2"><Anchor size={18}/> DÉPLOIEMENT</h3>
                     <div className="flex gap-2">
@@ -896,7 +900,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         <div className="flex flex-col gap-4 z-10 w-full max-w-4xl lg:flex-row items-start justify-center animate-in zoom-in duration-300">
             
             {/* ENEMY GRID (Top/Left) */}
-            <div className={`flex flex-col gap-2 w-full max-w-md ${turn === 'PLAYER' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
+            <div className={`flex flex-col gap-2 w-full max-w-[min(90vw,380px)] ${turn === 'PLAYER' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
                 <div className="flex justify-between items-center bg-red-900/30 px-3 py-2 rounded-t-lg border-t border-l border-r border-red-500/30">
                     <span className="text-red-400 font-bold flex items-center gap-2"><Target size={16}/> ZONE ENNEMIE</span>
                     <div className="flex gap-1">
@@ -936,7 +940,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             </div>
 
             {/* PLAYER GRID (Bottom/Right) */}
-            <div className={`flex flex-col gap-2 w-full max-w-md ${turn === 'CPU' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
+            <div className={`flex flex-col gap-2 w-full max-w-[min(90vw,380px)] ${turn === 'CPU' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
                 <div className="flex justify-between items-center bg-blue-900/30 px-3 py-2 rounded-t-lg border-t border-l border-r border-blue-500/30">
                     <span className="text-blue-400 font-bold flex items-center gap-2"><ShieldAlert size={16}/> MA FLOTTE</span>
                     <div className="flex gap-1">
