@@ -215,20 +215,19 @@ const RAW_LEVELS = [
     c(9, 4, 4, 2, 'h'),
     c(10, 4, 1, 2, 'v')
   ],
-  // --- NIVEAU 17 (CORRIGÉ V2 - Expert) ---
-  // Configuration plus ouverte mais stratégique
+  // --- NIVEAU 17 (CORRIGÉ V3 - Classic Expert) ---
   [
-    c(0, 1, 2, 2, 'h', true), // Target
-    c(1, 0, 0, 3, 'v'), // Wall left
-    c(2, 3, 0, 3, 'v'), // Wall mid
-    c(3, 1, 0, 2, 'h'), 
+    c(0, 1, 2, 2, 'h', true),
+    c(1, 0, 0, 2, 'v'),
+    c(2, 1, 0, 2, 'h'),
+    c(3, 3, 0, 3, 'v'),
     c(4, 4, 1, 2, 'v'),
-    c(5, 0, 3, 2, 'h'),
-    c(6, 2, 3, 2, 'h'),
-    c(7, 2, 4, 2, 'h'),
-    c(8, 4, 3, 3, 'v'),
-    c(9, 0, 5, 2, 'h'),
-    c(10, 2, 5, 2, 'h')
+    c(5, 5, 0, 3, 'v'),
+    c(6, 0, 3, 2, 'h'),
+    c(7, 2, 3, 2, 'v'),
+    c(8, 0, 4, 2, 'v'),
+    c(9, 3, 4, 2, 'h'),
+    c(10, 5, 3, 3, 'v')
   ],
   // --- NIVEAU 18 (CORRIGÉ - Expert+) ---
   [
