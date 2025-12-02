@@ -215,50 +215,71 @@ const RAW_LEVELS = [
     c(9, 4, 4, 2, 'h'),
     c(10, 4, 1, 2, 'v')
   ],
-  // --- NIVEAU 17 (Nouveau Challenge) ---
+  // --- NIVEAU 17 (CORRIGÉ - Expert) ---
   [
     c(0, 0, 2, 2, 'h', true),
     c(1, 2, 0, 3, 'v'),
     c(2, 3, 0, 3, 'v'),
     c(3, 0, 0, 2, 'h'),
     c(4, 4, 0, 2, 'h'),
-    c(5, 5, 1, 3, 'v'),
-    c(6, 0, 3, 2, 'v'),
-    c(7, 1, 4, 2, 'h'),
-    c(8, 2, 3, 2, 'h'),
-    c(9, 3, 4, 2, 'v'),
+    c(5, 0, 3, 2, 'v'),
+    c(6, 1, 4, 2, 'h'),
+    c(7, 2, 3, 2, 'h'),
+    c(8, 4, 2, 2, 'v'),
+    c(9, 5, 1, 3, 'v'),
     c(10, 4, 5, 2, 'h')
   ],
-  // --- NIVEAU 18 (Défi Complexe) ---
+  // --- NIVEAU 18 (CORRIGÉ - Expert+) ---
   [
-    c(0, 1, 2, 2, 'h', true),
+    c(0, 2, 2, 2, 'h', true),
     c(1, 0, 0, 3, 'v'),
     c(2, 1, 0, 2, 'h'),
-    c(3, 3, 0, 2, 'v'),
-    c(4, 4, 0, 2, 'h'),
-    c(5, 5, 1, 3, 'v'),
-    c(6, 1, 3, 2, 'v'),
-    c(7, 2, 4, 2, 'h'),
+    c(3, 4, 0, 2, 'v'),
+    c(4, 1, 1, 2, 'v'),
+    c(5, 2, 1, 2, 'h'),
+    c(6, 0, 3, 2, 'h'),
+    c(7, 2, 3, 2, 'v'),
     c(8, 3, 3, 2, 'h'),
-    c(9, 4, 4, 2, 'v'),
-    c(10, 0, 3, 3, 'h'),
-    c(11, 2, 5, 2, 'h')
+    c(9, 0, 4, 2, 'h'),
+    c(10, 3, 4, 2, 'v'),
+    c(11, 0, 5, 3, 'h'),
+    c(12, 4, 5, 2, 'h')
   ],
-  // --- NIVEAU 19 (Maître Absolu) ---
+  // --- NIVEAU 19 (CORRIGÉ - Grand Maître) ---
   [
     c(0, 0, 2, 2, 'h', true),
-    c(1, 2, 1, 2, 'v'),
-    c(2, 3, 1, 2, 'v'),
-    c(3, 0, 0, 2, 'h'),
-    c(4, 2, 0, 2, 'h'),
-    c(5, 4, 0, 2, 'v'),
-    c(6, 5, 1, 3, 'v'),
-    c(7, 0, 3, 2, 'v'),
-    c(8, 1, 4, 2, 'h'),
-    c(9, 2, 3, 2, 'h'),
-    c(10, 4, 2, 2, 'h'),
-    c(11, 3, 4, 2, 'v'),
-    c(12, 4, 5, 2, 'h')
+    c(1, 0, 0, 3, 'h'),
+    c(2, 2, 1, 2, 'v'),
+    c(3, 3, 1, 2, 'v'),
+    c(4, 4, 0, 3, 'v'),
+    c(5, 5, 0, 3, 'v'),
+    c(6, 0, 3, 2, 'h'),
+    c(7, 2, 3, 2, 'h'),
+    c(8, 0, 4, 2, 'v'),
+    c(9, 1, 4, 2, 'v'),
+    c(10, 2, 4, 2, 'h'),
+    c(11, 4, 4, 2, 'v'),
+    c(12, 0, 5, 2, 'h'),
+    c(13, 2, 5, 2, 'h')
+  ],
+  // --- NIVEAU 20 (NOUVEAU - Le Mur) ---
+  [
+    c(0, 1, 2, 2, 'h', true),
+    c(1, 0, 0, 2, 'v'),
+    c(2, 1, 0, 2, 'h'),
+    c(3, 3, 0, 2, 'h'),
+    c(4, 5, 0, 3, 'v'),
+    c(5, 1, 1, 2, 'v'),
+    c(6, 2, 1, 2, 'v'),
+    c(7, 3, 1, 2, 'v'),
+    c(8, 4, 2, 2, 'v'), // Le gardien
+    c(9, 0, 3, 2, 'h'),
+    c(10, 2, 3, 2, 'h'),
+    c(11, 0, 4, 2, 'v'),
+    c(12, 1, 4, 2, 'v'),
+    c(13, 3, 4, 2, 'h'),
+    c(14, 2, 5, 2, 'h'),
+    c(15, 4, 5, 2, 'h')
   ]
 ];
 
@@ -273,12 +294,13 @@ export const getLevel = (levelIndex: number): LevelData => {
   const cars = rawData.map(c => ({...c}));
   
   // Détermination de la difficulté basée sur l'index
-  // 1-4: Facile, 5-9: Moyen, 10+: Difficile
   let difficulty = 'FACILE';
   if (loopIndex >= 4 && loopIndex < 9) {
     difficulty = 'MOYEN';
-  } else if (loopIndex >= 9) {
+  } else if (loopIndex >= 9 && loopIndex < 14) {
     difficulty = 'DIFFICILE';
+  } else if (loopIndex >= 14) {
+    difficulty = 'EXPERT';
   }
 
   return {
