@@ -6,7 +6,7 @@ export interface PlayerInfo {
     id: string; // Peer ID
     name: string;
     avatarId: string;
-    extraInfo?: string; // Info additionnelle (ex: Difficulté du jeu)
+    extraInfo?: string; // Info additionnelle (ex: Difficulté du jeu, Stats, Social ID)
     status: 'idle' | 'hosting' | 'in_game';
 }
 
@@ -45,6 +45,56 @@ export const useMultiplayer = () => {
         isHostRef.current = state.isHost;
     }, [state.isHost]);
 
+    // --- HEARTBEAT & CLEANUP SYSTEM (Fixes Ghost Users) ---
+    useEffect(() => {
+        let interval: any;
+
+        if (state.isHost && state.peerId) {
+            interval = setInterval(() => {
+                let listChanged = false;
+                
+                // Filter out closed or dead connections
+                const activeConnections = guestConnectionsRef.current.filter(conn => {
+                    if (!conn.open) {
+                        listChanged = true;
+                        return false; 
+                    }
+                    return true;
+                });
+
+                if (listChanged || activeConnections.length !== guestConnectionsRef.current.length) {
+                    guestConnectionsRef.current = activeConnections;
+                    broadcastPlayerList();
+                } else {
+                    // Optional: Send a PING to ensure connection is really alive
+                    try {
+                        activeConnections.forEach(conn => conn.send({ type: 'HEARTBEAT' }));
+                    } catch (e) {
+                        // Ignore send errors, clean up next tick
+                    }
+                }
+            }, 3000); // Check every 3 seconds
+        }
+
+        return () => clearInterval(interval);
+    }, [state.isHost, state.peerId]);
+
+    // Handle Tab Close
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (hostConnectionRef.current) {
+                hostConnectionRef.current.send({ type: 'DISCONNECTING' });
+                hostConnectionRef.current.close();
+            }
+            if (peerRef.current) {
+                peerRef.current.destroy();
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, []);
+
+
     const disconnect = useCallback(() => {
         if (peerRef.current) {
             peerRef.current.destroy();
@@ -61,8 +111,10 @@ export const useMultiplayer = () => {
 
     const sendData = useCallback((data: any) => {
         if (isHostRef.current) {
-            guestConnectionsRef.current.forEach(conn => conn.send(data));
-        } else if (hostConnectionRef.current) {
+            guestConnectionsRef.current.forEach(conn => {
+                if (conn.open) conn.send(data);
+            });
+        } else if (hostConnectionRef.current && hostConnectionRef.current.open) {
             hostConnectionRef.current.send(data);
         }
     }, []);
@@ -81,13 +133,17 @@ export const useMultiplayer = () => {
 
         const fullList = [hostSelfInfo, ...guestPlayerList];
         
-        guestConnectionsRef.current.forEach(conn => conn.send({ type: 'PLAYER_LIST', players: fullList }));
+        guestConnectionsRef.current.forEach(conn => {
+            if(conn.open) conn.send({ type: 'PLAYER_LIST', players: fullList });
+        });
         setState(prev => ({ ...prev, players: fullList }));
 
     }, [state.mode]);
     
     // Core data handling logic
     const handleDataReceived = useCallback((data: any, conn: DataConnection) => {
+        if (data.type === 'HEARTBEAT') return; // Ignore pings
+
         // --- HOST LOGIC ---
         if (isHostRef.current) {
             const senderId = conn.peer;
@@ -95,6 +151,11 @@ export const useMultiplayer = () => {
             switch (data.type) {
                 case 'HELLO':
                     (conn as any).playerInfo = { id: senderId, name: data.name, avatarId: data.avatarId, status: 'idle' };
+                    broadcastPlayerList();
+                    break;
+                case 'DISCONNECTING':
+                    // Explicit disconnect from guest
+                    guestConnectionsRef.current = guestConnectionsRef.current.filter(c => c.peer !== conn.peer);
                     broadcastPlayerList();
                     break;
                 case 'UPDATE_INFO':

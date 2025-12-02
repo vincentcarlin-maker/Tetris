@@ -418,6 +418,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     avatarId: currentAvatarId,
                     stats: getMyStats()
                 });
+                // Note: Feedback provided by UI calling this function if successful init
+            });
+            conn.on('error', (err) => {
+                alert("Impossible de joindre le joueur (Hors ligne ou ID invalide)");
             });
         }
     };
@@ -571,6 +575,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 // Ignore parsing error, keep player if IDs don't match
             }
         }
+        // Pas de filtre sur 'soi-même' pour apparaître dans la liste si désiré
         return true;
     });
 
@@ -588,6 +593,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         const avatar = avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0];
         const AvIcon = avatar.icon;
         const isFriend = friends.some(f => f.id === selectedPlayer.id);
+        // On considère que c'est "Moi" si l'ID correspond à mon PeerID social
+        const isMe = selectedPlayer.id === myPeerId;
         const stats = selectedPlayer.stats;
 
         return (
@@ -618,9 +625,18 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
                         {/* Actions */}
                         <div className="flex gap-2 justify-center mb-6">
-                            {!isFriend ? (
+                            {isMe ? (
+                                <div className="px-4 py-2 bg-gray-800 rounded-full font-bold text-sm text-gray-400 border border-white/10">
+                                    C'est votre profil
+                                </div>
+                            ) : !isFriend ? (
                                 <button 
-                                    onClick={() => { sendFriendRequest(selectedPlayer.id); setSelectedPlayer(null); }}
+                                    onClick={(e) => { 
+                                        e.stopPropagation();
+                                        sendFriendRequest(selectedPlayer.id); 
+                                        setSelectedPlayer(null); 
+                                        alert("Demande d'ami envoyée !");
+                                    }}
                                     className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-sm transition-colors shadow-lg"
                                 >
                                     <UserPlus size={16} /> AJOUTER
@@ -810,9 +826,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                             
                                             const extra = parseExtraInfo(player);
                                             const socialId = extra?.id;
-                                            // Fallback ID if not available (might fail social connection if bridging is wrong)
                                             const targetId = socialId || player.id; 
                                             const stats = extra?.stats;
+                                            const isMe = targetId === myPeerId;
 
                                             // Construct Friend Object for Profile View
                                             const tempFriend: Friend = {
@@ -828,7 +844,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                                 <div 
                                                     key={player.id} 
                                                     onClick={() => setSelectedPlayer(tempFriend)}
-                                                    className="flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group"
+                                                    className={`flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group ${isMe ? 'border-purple-500/50 bg-purple-900/20' : ''}`}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border border-white/10`}>
@@ -836,21 +852,26 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                                             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-gray-900 bg-green-500 shadow-[0_0_8px_#22c55e]" />
                                                         </div>
                                                         <div>
-                                                            <h4 className="font-bold text-white text-sm group-hover:text-blue-300 transition-colors">{player.name}</h4>
+                                                            <h4 className="font-bold text-white text-sm group-hover:text-blue-300 transition-colors flex items-center gap-2">
+                                                                {player.name}
+                                                                {isMe && <span className="text-[9px] bg-purple-600 px-1.5 rounded text-white">(Moi)</span>}
+                                                            </h4>
                                                             <p className="text-[10px] text-gray-500 font-mono">CLIQUEZ POUR VOIR PROFIL</p>
                                                         </div>
                                                     </div>
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            sendFriendRequest(targetId);
-                                                            alert(`Demande envoyée à ${player.name}`);
-                                                        }}
-                                                        className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"
-                                                        title="Ajouter en ami"
-                                                    >
-                                                        <UserPlus size={16} />
-                                                    </button>
+                                                    {!isMe && (
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                sendFriendRequest(targetId);
+                                                                alert(`Demande envoyée à ${player.name}`);
+                                                            }}
+                                                            className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"
+                                                            title="Ajouter en ami"
+                                                        >
+                                                            <UserPlus size={16} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             );
                                         })
@@ -1461,7 +1482,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.8.8 • SOCIAL UPDATE
+                    v1.8.9 • SOCIAL UPDATE
                  </div>
              </div>
         </div>
