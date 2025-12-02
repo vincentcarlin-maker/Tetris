@@ -474,6 +474,53 @@ export const useGameAudio = () => {
         osc2.stop(now + 0.4);
     }, [isMuted, resume]);
 
+    // BATTLESHIP: Sinking Ship Sound
+    const playShipSink = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+
+        // 1. Low rumble (Explosion/Sinking)
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+        const filter = audioCtx.current.createBiquadFilter();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(10, now + 1.5);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(200, now);
+        filter.frequency.linearRampToValueAtTime(50, now + 1.5);
+
+        gain.gain.setValueAtTime(0.5, now); 
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.current.destination);
+
+        osc.start(now);
+        osc.stop(now + 1.5);
+
+        // 2. Metallic/Creaking noise
+        const osc2 = audioCtx.current.createOscillator();
+        const gain2 = audioCtx.current.createGain();
+        
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(80, now);
+        osc2.frequency.exponentialRampToValueAtTime(20, now + 1.0);
+        
+        gain2.gain.setValueAtTime(0.1, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+        
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.current.destination);
+        osc2.start(now);
+        osc2.stop(now + 1.0);
+
+    }, [isMuted, resume]);
+
     return { 
         playMove, 
         playRotate, 
@@ -495,6 +542,7 @@ export const useGameAudio = () => {
         playPacmanEatGhost,
         playPacmanPower,
         playCoin,
+        playShipSink,
         isMuted, 
         toggleMute,
         resumeAudio: resume

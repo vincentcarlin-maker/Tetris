@@ -852,6 +852,10 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                                 {gameMode === 'ONLINE' && (
                                     <button onClick={mp.leaveGame} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>
                                 )}
+                                {/* Solo Mode Menu Button */}
+                                {gameMode === 'SOLO' && (
+                                    <button onClick={onBack} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">MENU</button>
+                                )}
                             </div>
                         </>
                     )}

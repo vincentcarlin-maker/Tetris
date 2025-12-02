@@ -1513,6 +1513,35 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         </div>
                      </button>
                      
+                     {/* Battleship (AVAILABLE) */}
+                     <button 
+                        onClick={() => onSelectGame('battleship')}
+                        {...bindGlow('rgba(59, 130, 246, 0.9)')}
+                        className="group relative w-full h-24 bg-black/60 border border-blue-500/30 rounded-xl overflow-hidden transition-all duration-200
+                        hover:border-blue-500 hover:shadow-[0_0_50px_rgba(59,130,246,0.7)] hover:ring-2 hover:ring-blue-500
+                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(59,130,246,1)]
+                        backdrop-blur-md"
+                     >
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="flex items-center justify-between px-6 h-full relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-3 bg-gray-800 rounded-lg text-blue-400 group-hover:bg-blue-500 group-hover:text-white shadow-lg transition-colors group-hover:shadow-[0_0_15px_#3b82f6]">
+                                    <Ship size={28} />
+                                 </div>
+                                 <div className="text-left">
+                                    <h3 className="text-2xl font-black text-white tracking-wide italic group-hover:text-blue-400 transition-colors drop-shadow-md">BATAILLE NAVALE</h3>
+                                    <div className="flex gap-1 mt-1 mb-0.5">
+                                        <GameBadge type="SOLO" />
+                                    </div>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#3b82f6]">
+                                <Play size={16} className="ml-1" />
+                            </div>
+                        </div>
+                     </button>
+                     
                      {/* Air Hockey (Coming Soon) */}
                      <button 
                         disabled
@@ -1525,26 +1554,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  </div>
                                  <div className="text-left">
                                     <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">AIR HOCKEY</h3>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                                        <Lock size={10} /> BIENTÔT DISPONIBLE
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                     </button>
-
-                     {/* Battleship (Coming Soon) */}
-                     <button 
-                        disabled
-                        className="group relative w-full h-24 bg-black/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
-                     >
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-gray-400 shadow-lg">
-                                    <Ship size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">BATAILLE NAVALE</h3>
                                     <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
                                         <Lock size={10} /> BIENTÔT DISPONIBLE
                                     </span>
