@@ -163,6 +163,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const peerRef = useRef<Peer | null>(null);
     const connectionsRef = useRef<Record<string, DataConnection>>({});
     const chatEndRef = useRef<HTMLDivElement>(null);
+    
+    // Ref to hold the latest handleConnection function
+    const handleConnectionRef = useRef<((conn: DataConnection) => void) | null>(null);
 
     // Construct current stats
     const getMyStats = (): PlayerStats => ({
@@ -241,7 +244,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         });
 
         peer.on('connection', (conn) => {
-            handleConnection(conn);
+            // Use ref to always call the latest version of handleConnection
+            if (handleConnectionRef.current) {
+                handleConnectionRef.current(conn);
+            }
         });
 
         peer.on('error', (err) => {
@@ -266,12 +272,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         } else {
             mp.disconnect();
         }
-    }, [showSocial, username, currentAvatarId, myPeerId, highScores]); // Added highScores to update stats in real-time
+    }, [showSocial, username, currentAvatarId, myPeerId, highScores]);
 
     // Update unread count (Messages + Requests)
     useEffect(() => {
         let count = 0;
-        // Fix: Explicitly cast Object.values result to handle potential type inference issues
         (Object.values(messages) as PrivateMessage[][]).forEach(msgs => {
             msgs.forEach(m => {
                 if (!m.read && m.senderId !== myPeerId) count++;
@@ -375,6 +380,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
     }, [username, currentAvatarId]);
 
+    // Keep the ref updated with the latest handleConnection function
+    useEffect(() => {
+        handleConnectionRef.current = handleConnection;
+    }, [handleConnection]);
+
     // Check status of friends when opening social hub
     useEffect(() => {
         if (showSocial && peerRef.current) {
@@ -411,14 +421,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         if (peerRef.current) {
             const conn = peerRef.current.connect(targetId);
             conn.on('open', () => {
-                conn.send({ 
-                    type: 'FRIEND_REQUEST', 
-                    senderId: myPeerId, 
-                    name: username, 
-                    avatarId: currentAvatarId,
-                    stats: getMyStats()
-                });
-                // Note: Feedback provided by UI calling this function if successful init
+                // ADDED DELAY: Ensure connection is stable and receiver has listeners attached
+                setTimeout(() => {
+                    conn.send({ 
+                        type: 'FRIEND_REQUEST', 
+                        senderId: myPeerId, 
+                        name: username, 
+                        avatarId: currentAvatarId,
+                        stats: getMyStats()
+                    });
+                }, 500);
             });
             conn.on('error', (err) => {
                 alert("Impossible de joindre le joueur (Hors ligne ou ID invalide)");
