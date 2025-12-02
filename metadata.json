@@ -1,5 +1,5 @@
 {
-  "name": "React Tetris",
-  "description": "Un jeu de puzzle classique d'empilement de blocs construit avec React, TypeScript et Tailwind CSS. Utilisez vos touches fléchées pour déplacer et faire pivoter les pièces, effacer les lignes et marquer des points.",
+  "name": "Neon Arcade",
+  "description": "Une suite de jeux d'arcade rétro au style néon : Tetris, Casse-briques, Pacman, Rush, Puissance 4, Sudoku et Memory. Jouez en solo ou défiez vos amis en ligne !",
   "requestFramePermissions": []
 }

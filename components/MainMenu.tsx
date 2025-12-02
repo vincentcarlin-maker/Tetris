@@ -1482,7 +1482,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.8.9 • SOCIAL UPDATE
+                    v1.9.0 • METADATA UPDATE
                  </div>
              </div>
         </div>
