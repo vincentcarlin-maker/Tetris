@@ -11,6 +11,7 @@ interface MemoryGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    mp: ReturnType<typeof useMultiplayer>; // Shared connection
 }
 
 // --- CONFIGURATION ---
@@ -52,14 +53,11 @@ const REACTIONS = [
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
 ];
 
-export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins }) => {
+export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins, mp }) => {
     const { playMove, playLand, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.memory || 0; 
 
-    // Multiplayer Hook
-    const mp = useMultiplayer();
-    
     // Identity for Lobby
     const { username, currentAvatarId, avatarsCatalog } = useCurrency();
     
@@ -88,8 +86,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
 
     // Sync Self Info
     useEffect(() => {
-        // En mode online, on met à jour notre info
-        // Si on est hôte, on inclut la difficulté
         const diffName = DIFFICULTY_CONFIG[difficulty].name;
         if (mp.isHost) {
              mp.updateSelfInfo(username, currentAvatarId, diffName);
@@ -98,7 +94,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         }
     }, [username, currentAvatarId, difficulty, mp.isHost, mp.updateSelfInfo]);
 
-    // Scroll Chat
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory]);
@@ -111,20 +106,16 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         
         let deck: MemoryCard[] = [];
         selectedIcons.forEach((item, index) => {
-            // Create Pair
             deck.push({ id: index * 2, iconId: item.id, isFlipped: false, isMatched: false });
             deck.push({ id: index * 2 + 1, iconId: item.id, isFlipped: false, isMatched: false });
         });
 
-        // Shuffle
         for (let i = deck.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [deck[i], deck[j]] = [deck[j], deck[i]];
         }
         
-        // Re-assign IDs to be index-based for easier sync
         deck = deck.map((c, i) => ({ ...c, id: i }));
-
         return deck;
     };
 
@@ -158,7 +149,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         if (gameMode === 'SOLO') {
             startSoloGame();
         } else {
-            // Reset for online
             setCards([]);
             setFlippedIndices([]);
             setScores({ p1: 0, p2: 0 });
@@ -190,14 +180,11 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
             setOnlineStep('game');
             setOpponentLeft(false);
             
-            // Host logic: Generate and send deck
             if (mp.isHost && !isWaitingForDeck && cards.length === 0) {
                  const deck = generateDeck(difficulty);
                  setTimeout(() => {
                      const deckData = deck.map(c => c.iconId); 
                      mp.sendData({ type: 'MEMORY_INIT', deckIds: deckData, difficulty });
-                     
-                     // Init local
                      setCards(deck);
                      setFlippedIndices([]);
                      setScores({ p1: 0, p2: 0 });
@@ -217,15 +204,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
             if (data.type === 'MEMORY_INIT') {
                 const deckIds: string[] = data.deckIds;
                 const newDifficulty: Difficulty = data.difficulty;
-                
-                setDifficulty(newDifficulty); // Sync difficulty
-                
-                const newDeck: MemoryCard[] = deckIds.map((iconId, i) => ({
-                    id: i,
-                    iconId,
-                    isFlipped: false,
-                    isMatched: false
-                }));
+                setDifficulty(newDifficulty); 
+                const newDeck: MemoryCard[] = deckIds.map((iconId, i) => ({ id: i, iconId, isFlipped: false, isMatched: false }));
                 setCards(newDeck);
                 setFlippedIndices([]);
                 setScores({ p1: 0, p2: 0 });
@@ -263,27 +243,16 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
             }
             if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
-                // Reset basic game state but keep the overlay up
                 setIsGameOver(true); 
             }
         };
         mp.setOnDataReceived(handleData);
     }, [mp, cards, isProcessing, difficulty]);
 
-    // --- GAME ACTIONS ---
-
     const sendChat = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!chatInput.trim() || mp.mode !== 'in_game') return;
-        
-        const msg: ChatMessage = {
-            id: Date.now(),
-            text: chatInput.trim(),
-            senderName: username,
-            isMe: true,
-            timestamp: Date.now()
-        };
-        
+        const msg: ChatMessage = { id: Date.now(), text: chatInput.trim(), senderName: username, isMe: true, timestamp: Date.now() };
         setChatHistory(prev => [...prev, msg]);
         mp.sendData({ type: 'CHAT', text: msg.text, senderName: username });
         setChatInput('');
@@ -330,7 +299,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                 // MATCH
                 setTimeout(() => {
                     playVictory();
-                    
                     const matchedCards = [...newCards];
                     matchedCards[idx1].isMatched = true;
                     matchedCards[idx2].isMatched = true;
@@ -344,13 +312,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                             p2: currentPlayer === 2 ? prev.p2 + 1 : prev.p2
                         }));
                     }
-                    
                     setIsProcessing(false);
-
-                    if (matchedCards.every(c => c.isMatched)) {
-                        handleGameOver(matchedCards);
-                    }
-
+                    if (matchedCards.every(c => c.isMatched)) handleGameOver(matchedCards);
                 }, 500);
             } else {
                 // MISS
@@ -361,11 +324,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                     resetCards[idx2].isFlipped = false;
                     setCards(resetCards);
                     setFlippedIndices([]);
-                    
-                    if (gameMode === 'ONLINE') {
-                        setCurrentPlayer(prev => prev === 1 ? 2 : 1);
-                    }
-                    
+                    if (gameMode === 'ONLINE') setCurrentPlayer(prev => prev === 1 ? 2 : 1);
                     setIsProcessing(false);
                 }, 1000);
             }
@@ -375,9 +334,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
     const handleGameOver = (finalCards: MemoryCard[]) => {
         setIsGameOver(true);
         if (gameMode === 'SOLO') {
-            if (highScore === 0 || moves < highScore) {
-                updateHighScore('memory', moves + 1);
-            }
+            if (highScore === 0 || moves < highScore) updateHighScore('memory', moves + 1);
             const reward = DIFFICULTY_CONFIG[difficulty].bonus;
             addCoins(reward);
             setEarnedCoins(reward);
@@ -387,7 +344,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
             const winner = p1Score > p2Score ? 1 : p2Score > p1Score ? 2 : 0;
             const isMeP1 = mp.amIP1;
             const didIWin = (isMeP1 && winner === 1) || (!isMeP1 && winner === 2);
-            
             if (didIWin) {
                 addCoins(50);
                 setEarnedCoins(50);
@@ -408,28 +364,19 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         setOpponentLeft(false);
     };
 
-    // --- RENDERERS ---
-
     const renderCard = (card: MemoryCard) => {
         const iconData = ICONS.find(i => i.id === card.iconId);
         const Icon = iconData ? iconData.icon : RefreshCw;
         const color = iconData ? iconData.color : 'text-white';
-        
         const flipClass = card.isFlipped || card.isMatched ? 'rotate-y-180' : '';
         const matchClass = card.isMatched ? 'opacity-50 shadow-[0_0_15px_#22c55e] border-green-500' : 'border-white/20';
         
         return (
-            <div 
-                key={card.id} 
-                className="relative w-full aspect-[3/4] perspective-1000 cursor-pointer"
-                onClick={() => handleCardClick(card.id)}
-            >
+            <div key={card.id} className="relative w-full aspect-[3/4] perspective-1000 cursor-pointer" onClick={() => handleCardClick(card.id)}>
                 <div className={`w-full h-full relative preserve-3d transition-transform duration-500 ${flipClass}`}>
-                    {/* FRONT */}
                     <div className={`absolute inset-0 backface-hidden rotate-y-180 bg-gray-900 border-2 rounded-md flex items-center justify-center ${matchClass} shadow-lg`}>
                         <Icon size={32} className={`${color} drop-shadow-[0_0_10px_currentColor]`} />
                     </div>
-                    {/* BACK */}
                     <div className="absolute inset-0 backface-hidden bg-gray-800 border border-white/10 rounded-md flex flex-col items-center justify-center group hover:border-white/40 transition-colors shadow-inner">
                          <div className="flex flex-col items-center gap-1">
                              <span className="font-script text-cyan-400 text-[14px] leading-none drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]">Neon</span>
@@ -441,103 +388,10 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         );
     };
 
-    // RENDER VISUAL FOR REACTION (ADVANCED ANIMATIONS)
     const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
       const Icon = reaction.icon;
-
-      if (reactionId === 'sad') {
-          return (
-              <div className="relative">
-                  <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                  <div className="absolute top-[22px] left-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite]"></div>
-                  <div className="absolute top-[22px] right-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite_0.5s]"></div>
-                  <style>{`
-                    @keyframes tear-fall {
-                        0% { top: 22px; opacity: 1; transform: scale(1); }
-                        80% { top: 45px; opacity: 0; transform: scale(0.5); }
-                        100% { top: 45px; opacity: 0; }
-                    }
-                  `}</style>
-              </div>
-          );
-      }
-
-      if (reactionId === 'happy') {
-        return (
-            <div className="relative animate-[grow-laugh_0.8s_ease-in-out_infinite]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <style>{`
-                  @keyframes grow-laugh {
-                      0%, 100% { transform: scale(1) rotate(-5deg); }
-                      50% { transform: scale(1.3) rotate(5deg); }
-                  }
-                `}</style>
-            </div>
-        );
-      }
-
-      if (reactionId === 'angry') {
-        return (
-            <div className="relative animate-[shake_0.2s_linear_infinite]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <div className={`absolute top-[10px] -left-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[-45deg] animate-pulse`}></div>
-                <div className={`absolute top-[10px] -right-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[45deg] animate-pulse`}></div>
-                 <style>{`
-                  @keyframes shake {
-                      0% { transform: translate(1px, 1px) rotate(0deg); }
-                      25% { transform: translate(-1px, -2px) rotate(-1deg); }
-                      50% { transform: translate(-3px, 0px) rotate(1deg); }
-                      75% { transform: translate(3px, 2px) rotate(0deg); }
-                      100% { transform: translate(1px, -1px) rotate(-1deg); }
-                  }
-                `}</style>
-            </div>
-        );
-      }
-      
-      if (reactionId === 'love') {
-          return (
-            <div className="relative animate-[heart-beat_1.2s_ease-in-out_infinite]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <div className={`absolute inset-0 ${color} opacity-30 animate-ping rounded-full`}></div>
-                <style>{`
-                    @keyframes heart-beat {
-                        0% { transform: scale(1); }
-                        14% { transform: scale(1.3); }
-                        28% { transform: scale(1); }
-                        42% { transform: scale(1.3); }
-                        70% { transform: scale(1); }
-                    }
-                `}</style>
-            </div>
-          );
-      }
-
-      if (reactionId === 'wave') {
-          return (
-            <div className="relative animate-[wave_1.5s_ease-in-out_infinite] origin-bottom-right">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <style>{`@keyframes wave { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-20deg); } 75% { transform: rotate(10deg); } }`}</style>
-            </div>
-          );
-      }
-
-      if (reactionId === 'good') {
-          return (
-            <div className="relative animate-[stamp_0.5s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_-0.2s]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <style>{`
-                    @keyframes stamp {
-                        0% { transform: scale(2); opacity: 0; }
-                        100% { transform: scale(1); opacity: 1; }
-                    }
-                `}</style>
-            </div>
-          );
-      }
-
       return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
     };
 
@@ -553,7 +407,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                         <Play size={14}/> CRÉER UNE PARTIE
                      </button>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {hostingPlayers.length > 0 && (
                         <>
@@ -567,27 +420,16 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
                                             <div className="flex flex-col">
                                                 <span className="font-bold">{player.name}</span>
-                                                {/* Affichage de la difficulté */}
-                                                {player.extraInfo && (
-                                                    <span className="text-[10px] text-purple-300 font-bold tracking-widest bg-purple-500/10 px-1.5 rounded border border-purple-500/20 w-fit">
-                                                        {player.extraInfo}
-                                                    </span>
-                                                )}
+                                                {player.extraInfo && <span className="text-[10px] text-purple-300 font-bold tracking-widest bg-purple-500/10 px-1.5 rounded border border-purple-500/20 w-fit">{player.extraInfo}</span>}
                                             </div>
                                         </div>
-                                        <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">
-                                            REJOINDRE
-                                        </button>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
                                     </div>
                                 );
                             })}
                         </>
                     )}
-                    
-                    {hostingPlayers.length === 0 && (
-                         <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>
-                    )}
-                    
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
                     {otherPlayers.length > 0 && (
                         <>
                              <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
@@ -613,208 +455,117 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
-            <style>{`
-                .perspective-1000 { perspective: 1000px; }
-                .preserve-3d { transform-style: preserve-3d; }
-                .backface-hidden { backface-visibility: hidden; }
-                .rotate-y-180 { transform: rotateY(180deg); }
-            `}</style>
+            <style>{`.perspective-1000 { perspective: 1000px; } .preserve-3d { transform-style: preserve-3d; } .backface-hidden { backface-visibility: hidden; } .rotate-y-180 { transform: rotateY(180deg); }`}</style>
             
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
-            {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
-                    <Home size={20} />
-                </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
-                    NEON MEMORY
-                </h1>
-                {gameMode === 'SOLO' ? (
-                    <button onClick={startSoloGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
-                        <RefreshCw size={20} />
-                    </button>
-                ) : <div className="w-10"/>}
+                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">NEON MEMORY</h1>
+                {gameMode === 'SOLO' ? <button onClick={startSoloGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button> : <div className="w-10"/>}
             </div>
 
-            {/* Mode & Difficulty Selector */}
             {(!mp.gameOpponent || isGameOver) && onlineStep !== 'lobby' && (
                 <div className="flex flex-col items-center gap-2 mb-2 z-10 shrink-0 w-full max-w-lg">
-                    {/* Mode */}
                     <div className="flex bg-gray-900 rounded-full border border-white/10 p-1">
                         <button onClick={() => setGameMode('SOLO')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'SOLO' ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>SOLO</button>
                         <button onClick={() => setGameMode('ONLINE')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'ONLINE' ? 'bg-green-500 text-black shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'text-gray-400 hover:text-white'}`}>EN LIGNE</button>
                     </div>
-
-                    {/* Difficulty (Solo or Host) */}
                     {(gameMode === 'SOLO' || (gameMode === 'ONLINE' && mp.isHost)) && (
                          <div className="flex bg-gray-900 rounded-full border border-white/10 overflow-hidden">
                             {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => (
-                                <button
-                                    key={d}
-                                    onClick={() => setDifficulty(d)}
-                                    className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${
-                                        difficulty === d 
-                                        ? 'bg-purple-500 text-white' 
-                                        : 'text-gray-400 hover:text-white'
-                                    }`}
-                                >
-                                    {DIFFICULTY_CONFIG[d].name}
-                                </button>
+                                <button key={d} onClick={() => setDifficulty(d)} className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${difficulty === d ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}>{DIFFICULTY_CONFIG[d].name}</button>
                             ))}
                          </div>
                     )}
                 </div>
             )}
 
-            {/* MAIN CONTENT */}
             {gameMode === 'ONLINE' && onlineStep === 'connecting' ? (
-                 <div className="flex-1 flex flex-col items-center justify-center">
-                     <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
-                     <p className="text-purple-300 font-bold">CONNEXION...</p>
-                 </div>
+                 <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-purple-400 animate-spin mb-4" /><p className="text-purple-300 font-bold">CONNEXION...</p></div>
             ) : gameMode === 'ONLINE' && onlineStep === 'lobby' ? (
-                 <div className="flex-1 w-full flex items-start justify-center pt-4">
-                     {renderLobby()}
-                 </div>
+                 <div className="flex-1 w-full flex items-start justify-center pt-4">{renderLobby()}</div>
             ) : (
                  <>
-                    {/* Active Reactions */}
                     {activeReaction && (() => {
                         const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                         if (!reaction) return null;
                         const positionClass = activeReaction.isMe ? 'bottom-20 right-4' : 'top-20 left-4';
-                        return (
-                            <div className={`absolute z-50 pointer-events-none ${positionClass}`}>
-                                <div className="p-3 drop-shadow-2xl">
-                                    {renderReactionVisual(reaction.id, reaction.color)}
-                                </div>
-                            </div>
-                        );
+                        return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className="p-3 drop-shadow-2xl">{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
                     })()}
 
-                    {/* HUD */}
                     <div className="w-full max-w-lg flex justify-between items-center mb-2 z-10 px-4 shrink-0">
                         {gameMode === 'SOLO' ? (
                             <>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-gray-500 font-bold tracking-widest">COUPS</span>
-                                    <span className="text-2xl font-mono font-bold text-white">{moves}</span>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span>
-                                    <span className="text-2xl font-mono font-bold text-yellow-400">{highScore > 0 ? highScore : '-'}</span>
-                                </div>
+                                <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">COUPS</span><span className="text-2xl font-mono font-bold text-white">{moves}</span></div>
+                                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-2xl font-mono font-bold text-yellow-400">{highScore > 0 ? highScore : '-'}</span></div>
                             </>
                         ) : (
                             <>
-                                <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 1 ? 'bg-neon-pink/20 border-neon-pink' : 'bg-gray-800/50 border-transparent'}`}>
-                                    <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{mp.amIP1 ? 'TOI (P1)' : 'ADV (P1)'}</span>
-                                    <span className="text-2xl font-mono font-bold text-neon-pink">{scores.p1}</span>
-                                </div>
+                                <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 1 ? 'bg-neon-pink/20 border-neon-pink' : 'bg-gray-800/50 border-transparent'}`}><span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{mp.amIP1 ? 'TOI (P1)' : 'ADV (P1)'}</span><span className="text-2xl font-mono font-bold text-neon-pink">{scores.p1}</span></div>
                                 <div className="text-gray-500 font-black text-xl">VS</div>
-                                <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 2 ? 'bg-neon-blue/20 border-neon-blue' : 'bg-gray-800/50 border-transparent'}`}>
-                                    <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{!mp.amIP1 ? 'TOI (P2)' : 'ADV (P2)'}</span>
-                                    <span className="text-2xl font-mono font-bold text-neon-blue">{scores.p2}</span>
-                                </div>
+                                <div className={`flex flex-col items-center px-4 py-2 rounded-lg border ${currentPlayer === 2 ? 'bg-neon-blue/20 border-neon-blue' : 'bg-gray-800/50 border-transparent'}`}><span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mb-1">{!mp.amIP1 ? 'TOI (P2)' : 'ADV (P2)'}</span><span className="text-2xl font-mono font-bold text-neon-blue">{scores.p2}</span></div>
                             </>
                         )}
                     </div>
                     
-                    {/* Status Message */}
                     {gameMode === 'ONLINE' && !isGameOver && (
                         <div className="mb-2 z-10 text-sm font-bold animate-pulse text-center h-6 shrink-0">
-                            {isWaitingForDeck ? `Partie en ${DIFFICULTY_CONFIG[difficulty].name} rejointe...` : 
-                            isProcessing ? "..." : 
-                            ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2)) ? <span className="text-green-400">C'EST TON TOUR !</span> : <span className="text-gray-500">L'ADVERSAIRE JOUE...</span>}
+                            {isWaitingForDeck ? `Partie en ${DIFFICULTY_CONFIG[difficulty].name} rejointe...` : isProcessing ? "..." : ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2)) ? <span className="text-green-400">C'EST TON TOUR !</span> : <span className="text-gray-500">L'ADVERSAIRE JOUE...</span>}
                         </div>
                     )}
 
-                    {/* GRID */}
-                    <div 
-                        className="w-full max-w-lg grid gap-1 z-10 p-1 mb-2"
-                        style={{ gridTemplateColumns: `repeat(${DIFFICULTY_CONFIG[difficulty].cols}, minmax(0, 1fr))` }}
-                    >
+                    <div className="w-full max-w-lg grid gap-1 z-10 p-1 mb-2" style={{ gridTemplateColumns: `repeat(${DIFFICULTY_CONFIG[difficulty].cols}, minmax(0, 1fr))` }}>
                         {cards.map(card => renderCard(card))}
                     </div>
 
-                    {/* REACTION BAR */}
                     {gameMode === 'ONLINE' && !isGameOver && !isWaitingForDeck && (
                         <div className="w-full max-w-lg z-20 px-2 mb-2">
                              <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
                                 {REACTIONS.map(reaction => {
                                     const Icon = reaction.icon;
-                                    return (
-                                        <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}>
-                                            <Icon size={16} className={reaction.color} />
-                                        </button>
-                                    );
+                                    return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
                                 })}
                             </div>
                         </div>
                     )}
 
-                    {/* CHAT BAR (Online Only) */}
                     {gameMode === 'ONLINE' && !isGameOver && !isWaitingForDeck && (
                         <div className="w-full max-w-lg mt-auto z-20 px-2 flex flex-col gap-2 pb-4">
-                            {/* Chat Input & Display */}
                             <div className="flex flex-col gap-1 max-h-20 overflow-y-auto px-2 py-1 bg-black/40 rounded-xl border border-white/5 custom-scrollbar">
                                 {chatHistory.map((msg) => (
                                     <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${msg.isMe ? 'bg-purple-500/20 text-purple-100' : 'bg-gray-700/50 text-gray-300'}`}>
-                                            {!msg.isMe && <span className="mr-1 opacity-50">{msg.senderName}:</span>}
-                                            {msg.text}
-                                        </div>
+                                        <div className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${msg.isMe ? 'bg-purple-500/20 text-purple-100' : 'bg-gray-700/50 text-gray-300'}`}>{!msg.isMe && <span className="mr-1 opacity-50">{msg.senderName}:</span>}{msg.text}</div>
                                     </div>
                                 ))}
                                 <div ref={chatEndRef} />
                             </div>
-
                             <form onSubmit={sendChat} className="flex gap-2">
-                                <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3">
-                                    <MessageSquare size={14} className="text-gray-500 mr-2" />
-                                    <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" />
-                                </div>
-                                <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-purple-500 text-white rounded-xl disabled:opacity-50">
-                                    <Send size={14} />
-                                </button>
+                                <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
+                                <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-purple-500 text-white rounded-xl disabled:opacity-50"><Send size={14} /></button>
                             </form>
                         </div>
                     )}
                  </>
             )}
 
-            {/* Game Over / Opponent Left Overlay */}
             {(isGameOver || opponentLeft) && (
                 <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
-                    
                     {opponentLeft ? (
                         <>
                             <LogOut size={64} className="text-red-500 mb-4" />
                             <h2 className="text-3xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
                             <p className="text-gray-400 text-center mb-8">L'autre joueur a quitté la partie.</p>
-                            
                             <div className="flex flex-col gap-3 w-full max-w-xs">
-                                <button 
-                                    onClick={() => handleOpponentLeftAction('wait')}
-                                    className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Users size={18} /> ATTENDRE UN JOUEUR
-                                </button>
-                                <button 
-                                    onClick={() => handleOpponentLeftAction('lobby')}
-                                    className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <ArrowLeft size={18} /> RETOUR AU LOBBY
-                                </button>
+                                <button onClick={() => handleOpponentLeftAction('wait')} className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"><Users size={18} /> ATTENDRE UN JOUEUR</button>
+                                <button onClick={() => handleOpponentLeftAction('lobby')} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"><ArrowLeft size={18} /> RETOUR AU LOBBY</button>
                             </div>
                         </>
                     ) : (
                         <>
                             <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_20px_#facc15]" />
                             <h2 className="text-4xl font-black italic text-white mb-2 text-center">PARTIE TERMINÉE</h2>
-                            
                             {gameMode === 'SOLO' ? (
                                 <div className="text-center mb-6">
                                     <p className="text-gray-400 text-sm tracking-widest mb-1">COUPS TOTAL</p>
@@ -823,69 +574,31 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                                 </div>
                             ) : (
                                 <div className="text-center mb-6">
-                                    <p className="text-xl font-bold mb-2">
-                                        {scores.p1 > scores.p2 ? (mp.amIP1 ? "TU AS GAGNÉ !" : "L'ADVERSAIRE A GAGNÉ") : 
-                                        scores.p2 > scores.p1 ? (!mp.amIP1 ? "TU AS GAGNÉ !" : "L'ADVERSAIRE A GAGNÉ") : 
-                                        "MATCH NUL !"}
-                                    </p>
-                                    <div className="flex gap-8 text-2xl font-mono justify-center">
-                                        <div className="text-neon-pink">P1: {scores.p1}</div>
-                                        <div className="text-neon-blue">P2: {scores.p2}</div>
-                                    </div>
+                                    <p className="text-xl font-bold mb-2">{scores.p1 > scores.p2 ? (mp.amIP1 ? "TU AS GAGNÉ !" : "L'ADVERSAIRE A GAGNÉ") : scores.p2 > scores.p1 ? (!mp.amIP1 ? "TU AS GAGNÉ !" : "L'ADVERSAIRE A GAGNÉ") : "MATCH NUL !"}</p>
+                                    <div className="flex gap-8 text-2xl font-mono justify-center"><div className="text-neon-pink">P1: {scores.p1}</div><div className="text-neon-blue">P2: {scores.p2}</div></div>
                                 </div>
                             )}
-
-                            {earnedCoins > 0 && (
-                                <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500">
-                                    <Coins className="text-yellow-400" size={20} />
-                                    <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
-                                </div>
-                            )}
-
+                            {earnedCoins > 0 && <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
                             <div className="flex gap-4">
-                                <button 
-                                    onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : startSoloGame}
-                                    className="px-8 py-3 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-500 transition-colors shadow-lg active:scale-95 flex items-center gap-2"
-                                >
-                                    <RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}
-                                </button>
-                                {gameMode === 'ONLINE' && (
-                                    <button onClick={mp.leaveGame} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>
-                                )}
-                                {/* Solo Mode Menu Button */}
-                                {gameMode === 'SOLO' && (
-                                    <button onClick={onBack} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">MENU</button>
-                                )}
+                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : startSoloGame} className="px-8 py-3 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-500 transition-colors shadow-lg active:scale-95 flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                                {gameMode === 'ONLINE' && <button onClick={mp.leaveGame} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                                {gameMode === 'SOLO' && <button onClick={onBack} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">MENU</button>}
                             </div>
                         </>
                     )}
                 </div>
             )}
             
-            {/* Hosting Waiting Overlay */}
             {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
                     <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
                     <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
                     <p className="text-sm text-gray-400 mb-8">Difficulté: {DIFFICULTY_CONFIG[difficulty].name}</p>
-                    
-                    {/* Selecteur de difficulté en attente */}
                     <div className="flex bg-gray-900 rounded-full border border-white/10 overflow-hidden mb-6">
                             {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => (
-                                <button
-                                    key={d}
-                                    onClick={() => setDifficulty(d)}
-                                    className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${
-                                        difficulty === d 
-                                        ? 'bg-purple-500 text-white' 
-                                        : 'text-gray-400 hover:text-white'
-                                    }`}
-                                >
-                                    {DIFFICULTY_CONFIG[d].name}
-                                </button>
+                                <button key={d} onClick={() => setDifficulty(d)} className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${difficulty === d ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}>{DIFFICULTY_CONFIG[d].name}</button>
                             ))}
                     </div>
-
                     <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
                 </div>
             )}

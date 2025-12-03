@@ -11,6 +11,7 @@ interface BattleshipGameProps {
   onBack: () => void;
   audio: ReturnType<typeof useGameAudio>;
   addCoins: (amount: number) => void;
+  mp: ReturnType<typeof useMultiplayer>; // Shared connection
 }
 
 // Réactions Néon
@@ -49,27 +50,25 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
         opacity: isGhost ? 0.7 : 1
     };
 
-    // Couleurs Dynamiques
     let strokeColor = '#00f3ff';
     let fillColor = 'rgba(10, 10, 20, 0.9)';
     let detailColor = 'rgba(0, 243, 255, 0.3)';
 
     if (isSunk) {
-        strokeColor = '#ef4444'; // Red warning color
-        fillColor = 'rgba(40, 0, 0, 0.95)'; // Very dark red background
-        detailColor = '#7f1d1d'; // Dark red details
+        strokeColor = '#ef4444'; 
+        fillColor = 'rgba(40, 0, 0, 0.95)';
+        detailColor = '#7f1d1d';
     } else if (isGhost) {
-        strokeColor = isValid ? '#22c55e' : '#ef4444'; // Vert ou Rouge
+        strokeColor = isValid ? '#22c55e' : '#ef4444'; 
         fillColor = isValid ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
         detailColor = isValid ? '#4ade80' : '#f87171';
     } else if (isSelected) {
-        strokeColor = '#22c55e'; // Green outline when selected
-        fillColor = 'rgba(34, 197, 94, 0.2)'; // Greenish tint
+        strokeColor = '#22c55e';
+        fillColor = 'rgba(34, 197, 94, 0.2)'; 
         detailColor = '#22c55e';
     }
 
     const renderShipSVG = () => {
-        // Pour éviter l'étirement, on définit un viewBox fixe de 100x100 par cellule
         const vbWidth = isVertical ? 100 : size * 100;
         const vbHeight = isVertical ? size * 100 : 100;
         const viewBox = `0 0 ${vbWidth} ${vbHeight}`;
@@ -77,79 +76,38 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
         let path = "";
         let details = null;
 
-        // Dimensions logiques
         const W = isVertical ? 100 : size * 100;
         const H = isVertical ? size * 100 : 100;
-
-        // Margins pour faire le bateau plus fin (Sleek look)
-        const mx = isVertical ? 25 : 5; // Marge X
-        const my = isVertical ? 5 : 25; // Marge Y
-
-        // Zone de dessin effective
+        const mx = isVertical ? 25 : 5;
+        const my = isVertical ? 5 : 25;
         const dw = W - 2 * mx;
         const dh = H - 2 * my;
 
-        if (type === 'CARRIER') { // Porte-avions (5)
+        if (type === 'CARRIER') {
             if (!isVertical) {
-                // Horizontal Sleek Carrier
                 path = `M ${mx+10},${my} L ${W-mx-10},${my} L ${W-mx},${my+dh/2} L ${W-mx-10},${H-my} L ${mx+10},${H-my} L ${mx},${my+dh/2} Z`;
-                details = (
-                    <>
-                        <line x1={mx+20} y1={H/2} x2={W-mx-30} y2={H/2} stroke={detailColor} strokeWidth="3" strokeDasharray="10,10" />
-                        <rect x={W-mx-50} y={my+5} width="20" height="15" fill={detailColor} rx="2" />
-                    </>
-                );
+                details = (<><line x1={mx+20} y1={H/2} x2={W-mx-30} y2={H/2} stroke={detailColor} strokeWidth="3" strokeDasharray="10,10" /><rect x={W-mx-50} y={my+5} width="20" height="15" fill={detailColor} rx="2" /></>);
             } else {
                 path = `M ${mx},${my+10} L ${mx},${H-my-10} L ${mx+dw/2},${H-my} L ${W-mx},${H-my-10} L ${W-mx},${my+10} L ${mx+dw/2},${my} Z`;
-                details = (
-                    <>
-                        <line x1={W/2} y1={my+20} x2={W/2} y2={H-my-30} stroke={detailColor} strokeWidth="3" strokeDasharray="10,10" />
-                        <rect x={W-mx-20} y={H-my-50} width="15" height="20" fill={detailColor} rx="2" />
-                    </>
-                );
+                details = (<><line x1={W/2} y1={my+20} x2={W/2} y2={H-my-30} stroke={detailColor} strokeWidth="3" strokeDasharray="10,10" /><rect x={W-mx-20} y={H-my-50} width="15" height="20" fill={detailColor} rx="2" /></>);
             }
-        } else if (type === 'BATTLESHIP') { // Cuirassé (4)
+        } else if (type === 'BATTLESHIP') {
             if (!isVertical) {
                 path = `M ${mx},${H/2} L ${mx+30},${my} L ${W-mx-10},${my} L ${W-mx-10},${H-my} L ${mx+30},${H-my} Z`;
-                details = (
-                    <>
-                        <circle cx={mx+50} cy={H/2} r="8" fill="none" stroke={detailColor} strokeWidth="2" />
-                        <line x1={mx+50} y1={H/2} x2={mx+80} y2={H/2} stroke={detailColor} strokeWidth="2" />
-                        <circle cx={W-mx-50} cy={H/2} r="8" fill="none" stroke={detailColor} strokeWidth="2" />
-                        <line x1={W-mx-50} y1={H/2} x2={W-mx-80} y2={H/2} stroke={detailColor} strokeWidth="2" />
-                        <rect x={W/2-20} y={my+10} width="40" height="30" fill={detailColor} opacity="0.5" />
-                    </>
-                );
+                details = (<><circle cx={mx+50} cy={H/2} r="8" fill="none" stroke={detailColor} strokeWidth="2" /><line x1={mx+50} y1={H/2} x2={mx+80} y2={H/2} stroke={detailColor} strokeWidth="2" /><circle cx={W-mx-50} cy={H/2} r="8" fill="none" stroke={detailColor} strokeWidth="2" /><line x1={W-mx-50} y1={H/2} x2={W-mx-80} y2={H/2} stroke={detailColor} strokeWidth="2" /><rect x={W/2-20} y={my+10} width="40" height="30" fill={detailColor} opacity="0.5" /></>);
             } else {
                 path = `M ${W/2},${my} L ${mx},${my+30} L ${mx},${H-my-10} L ${W-mx},${H-my-10} L ${W-mx},${my+30} Z`;
-                details = (
-                    <>
-                        <circle cx={W/2} cy={my+50} r="8" fill="none" stroke={detailColor} strokeWidth="2" />
-                        <line x1={W/2} y1={my+50} x2={W/2} y2={my+80} stroke={detailColor} strokeWidth="2" />
-                        <circle cx={W/2} cy={H-my-50} r="8" fill="none" stroke={detailColor} strokeWidth="2" />
-                        <rect x={mx+10} y={H/2-20} width="30" height="40" fill={detailColor} opacity="0.5" />
-                    </>
-                );
+                details = (<><circle cx={W/2} cy={my+50} r="8" fill="none" stroke={detailColor} strokeWidth="2" /><line x1={W/2} y1={my+50} x2={W/2} y2={my+80} stroke={detailColor} strokeWidth="2" /><circle cx={W/2} cy={H-my-50} r="8" fill="none" stroke={detailColor} strokeWidth="2" /><rect x={mx+10} y={H/2-20} width="30" height="40" fill={detailColor} opacity="0.5" /></>);
             }
-        } else if (type === 'CRUISER') { // Croiseur (3)
+        } else if (type === 'CRUISER') {
             if (!isVertical) {
                 path = `M ${mx},${H/2} L ${mx+20},${my} L ${W-mx-15},${my} L ${W-mx},${H/2} L ${W-mx-15},${H-my} L ${mx+20},${H-my} Z`;
-                details = (
-                    <>
-                        <circle cx={W/2} cy={H/2} r="10" stroke={detailColor} strokeWidth="2" fill="none" />
-                        <line x1={mx+40} y1={H/2} x2={mx+60} y2={H/2} stroke={detailColor} strokeWidth="2" />
-                    </>
-                );
+                details = (<><circle cx={W/2} cy={H/2} r="10" stroke={detailColor} strokeWidth="2" fill="none" /><line x1={mx+40} y1={H/2} x2={mx+60} y2={H/2} stroke={detailColor} strokeWidth="2" /></>);
             } else {
                 path = `M ${W/2},${my} L ${mx},${my+20} L ${mx},${H-my-15} L ${W/2},${H-my} L ${W-mx},${H-my-15} L ${W-mx},${my+20} Z`;
-                details = (
-                    <>
-                        <circle cx={W/2} cy={H/2} r="10" stroke={detailColor} strokeWidth="2" fill="none" />
-                        <line x1={W/2} y1={my+40} x2={W/2} y2={my+60} stroke={detailColor} strokeWidth="2" />
-                    </>
-                );
+                details = (<><circle cx={W/2} cy={H/2} r="10" stroke={detailColor} strokeWidth="2" fill="none" /><line x1={W/2} y1={my+40} x2={W/2} y2={my+60} stroke={detailColor} strokeWidth="2" /></>);
             }
-        } else if (type === 'SUBMARINE') { // Sous-marin (3)
+        } else if (type === 'SUBMARINE') {
             if (!isVertical) {
                 path = `M ${mx+10},${H/2} Q ${mx+10},${my} ${W/2},${my} Q ${W-mx-10},${my} ${W-mx-10},${H/2} Q ${W-mx-10},${H-my} ${W/2},${H-my} Q ${mx+10},${H-my} ${mx+10},${H/2}`;
                 details = <circle cx={W/2} cy={H/2} r="6" fill={detailColor} />;
@@ -157,7 +115,7 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
                 path = `M ${W/2},${my+10} Q ${mx},${my+10} ${mx},${H/2} Q ${mx},${H-my-10} ${W/2},${H-my-10} Q ${W-mx},${H-my-10} ${W-mx},${H/2} Q ${W-mx},${my+10} ${W/2},${my+10}`;
                 details = <circle cx={W/2} cy={H/2} r="6" fill={detailColor} />;
             }
-        } else if (type === 'DESTROYER') { // Destroyer (2)
+        } else if (type === 'DESTROYER') {
             if (!isVertical) {
                 path = `M ${mx},${H/2} L ${mx+15},${my+5} L ${W-mx},${my+5} L ${W-mx},${H-my-5} L ${mx+15},${H-my-5} Z`;
                 details = <line x1={mx+20} y1={H/2} x2={mx+35} y2={H/2} stroke={detailColor} strokeWidth="2" />;
@@ -168,34 +126,19 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
         }
 
         return (
-            <svg 
-                viewBox={viewBox} 
-                className="w-full h-full" 
-                style={isSelected ? { filter: 'drop-shadow(0 0 4px #22c55e)' } : {}}
-            >
+            <svg viewBox={viewBox} className="w-full h-full" style={isSelected ? { filter: 'drop-shadow(0 0 4px #22c55e)' } : {}}>
                 <path d={path} fill={fillColor} stroke={strokeColor} strokeWidth={isSelected ? "4" : "3"} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
                 {details}
-                {isSunk && (
-                    <>
-                        {/* Dramatic Red Cross for Sunk Ships - Thicker and Bolder */}
-                        <line x1="5" y1="5" x2={vbWidth-5} y2={vbHeight-5} stroke="#ef4444" strokeWidth="12" strokeLinecap="round" opacity="0.8" />
-                        <line x1={vbWidth-5} y1="5" x2="5" y2={vbHeight-5} stroke="#ef4444" strokeWidth="12" strokeLinecap="round" opacity="0.8" />
-                        <rect x="2" y="2" width={vbWidth-4} height={vbHeight-4} fill="none" stroke="#ef4444" strokeWidth="6" rx="5" />
-                    </>
-                )}
+                {isSunk && (<><line x1="5" y1="5" x2={vbWidth-5} y2={vbHeight-5} stroke="#ef4444" strokeWidth="12" strokeLinecap="round" opacity="0.8" /><line x1={vbWidth-5} y1="5" x2="5" y2={vbHeight-5} stroke="#ef4444" strokeWidth="12" strokeLinecap="round" opacity="0.8" /><rect x="2" y="2" width={vbWidth-4} height={vbHeight-4} fill="none" stroke="#ef4444" strokeWidth="6" rx="5" /></>)}
             </svg>
         );
     };
 
-    return (
-        <div style={style}>
-            {renderShipSVG()}
-        </div>
-    );
+    return <div style={style}>{renderShipSVG()}</div>;
 };
 
 
-export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, addCoins }) => {
+export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, addCoins, mp }) => {
   // --- Game State ---
   const [phase, setPhase] = useState<'SETUP' | 'PLAYING' | 'GAMEOVER'>('SETUP');
   const [turn, setTurn] = useState<'PLAYER' | 'CPU'>('PLAYER');
@@ -215,10 +158,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   // --- Grids ---
   const [playerGrid, setPlayerGrid] = useState<Grid>(createEmptyGrid());
   const [cpuGrid, setCpuGrid] = useState<Grid>(createEmptyGrid());
-  const [cpuRealGrid, setCpuRealGrid] = useState<Grid>(createEmptyGrid()); // Used for Solo logic
+  const [cpuRealGrid, setCpuRealGrid] = useState<Grid>(createEmptyGrid()); 
   
   const [playerShips, setPlayerShips] = useState<ShipType[]>([]);
-  const [cpuShips, setCpuShips] = useState<ShipType[]>([]); // In Online, this holds enemy ship statuses
+  const [cpuShips, setCpuShips] = useState<ShipType[]>([]);
   
   // --- Setup Phase ---
   const [currentShipIndex, setCurrentShipIndex] = useState(0);
@@ -236,48 +179,32 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const isDragStartedRef = useRef(false);
   const [draggedShipOriginal, setDraggedShipOriginal] = useState<ShipType | null>(null);
 
-  // --- Notification State ---
   const [notification, setNotification] = useState<{text: string, subtext?: string, type: 'HIT'|'SUNK'|'MISS'} | null>(null);
-
-  // --- Animation State ---
   const [missile, setMissile] = useState<{ r: number, c: number, target: 'PLAYER' | 'CPU' } | null>(null);
-
-  // --- AI Memory ---
   const lastCpuHitRef = useRef<{ r: number, c: number } | null>(null);
-  
   const [earnedCoins, setEarnedCoins] = useState(0);
   const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, resumeAudio } = audio;
-  
-  // --- Hooks ---
-  const mp = useMultiplayer();
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
 
-  // Initialisation
   useEffect(() => {
     resetGame();
   }, []);
 
-  // Clear Notification timer
   useEffect(() => {
       if (notification) {
-          const timer = setTimeout(() => {
-              setNotification(null);
-          }, 2000);
+          const timer = setTimeout(() => { setNotification(null); }, 2000);
           return () => clearTimeout(timer);
       }
   }, [notification]);
 
-  // Scroll Chat
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  // Sync Self Info
   useEffect(() => {
       mp.updateSelfInfo(username, currentAvatarId);
   }, [username, currentAvatarId, mp]);
 
-  // --- MULTIPLAYER SETUP ---
   useEffect(() => {
         if (gameMode === 'ONLINE') {
             setOnlineStep('connecting');
@@ -291,66 +218,36 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
   useEffect(() => {
         const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
-
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
-            // Reset if returning to lobby
-            if (phase === 'PLAYING') {
-                resetGame();
-            }
+            if (phase === 'PLAYING') resetGame();
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            // DO NOT auto reset here if phase is GAMEOVER, let user see the screen
         }
   }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
-  // --- ONLINE DATA HANDLING ---
   useEffect(() => {
         const handleData = (data: any) => {
-            if (data.type === 'BATTLESHIP_READY') {
-                setOpponentReady(true);
-            }
-            if (data.type === 'BATTLESHIP_SHOT') {
-                // Opponent shot at me
-                const { r, c } = data;
-                handleOnlineShotReceived(r, c);
-            }
-            if (data.type === 'BATTLESHIP_RESULT') {
-                // Result of my shot
-                const { r, c, status, shipDetails } = data;
-                handleOnlineResultReceived(r, c, status, shipDetails);
-            }
-            if (data.type === 'REMATCH_START') {
-                 resetGame();
-            }
-            if (data.type === 'CHAT') {
-                setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
-            }
-            if (data.type === 'REACTION') {
-                setActiveReaction({ id: data.id, isMe: false });
-                setTimeout(() => setActiveReaction(null), 3000);
-            }
-            if (data.type === 'LEAVE_GAME') {
-                setOpponentLeft(true);
-                setPhase('GAMEOVER');
-            }
+            if (data.type === 'BATTLESHIP_READY') setOpponentReady(true);
+            if (data.type === 'BATTLESHIP_SHOT') handleOnlineShotReceived(data.r, data.c);
+            if (data.type === 'BATTLESHIP_RESULT') handleOnlineResultReceived(data.r, data.c, data.status, data.shipDetails);
+            if (data.type === 'REMATCH_START') resetGame();
+            if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
+            if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
+            if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setPhase('GAMEOVER'); }
         };
         mp.setOnDataReceived(handleData);
-  }, [mp, playerGrid, playerShips, cpuGrid, cpuShips, phase]); // Deps important for callbacks
+  }, [mp, playerGrid, playerShips, cpuGrid, cpuShips, phase]);
 
   const handleOnlineShotReceived = (r: number, c: number) => {
-      // Guard: Do not process shots if game is already over
       if (phase === 'GAMEOVER') return;
-
-      // Opponent fired at (r, c) on my grid
-      // Animation first
       launchAttack(r, c, 'PLAYER', () => {
-          const isHit = playerGrid[r][c] === 1; // 1 is ship
+          const isHit = playerGrid[r][c] === 1;
           const newPlayerGrid = [...playerGrid];
           newPlayerGrid[r] = [...newPlayerGrid[r]];
-          newPlayerGrid[r][c] = isHit ? 3 : 2; // 3 hit, 2 miss
+          newPlayerGrid[r][c] = isHit ? 3 : 2;
           setPlayerGrid(newPlayerGrid);
 
           let resultStatus = isHit ? 'HIT' : 'MISS';
@@ -358,61 +255,32 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
           if (isHit) {
               playBlockHit();
-              const update = checkHit(r, c, playerShips); // Updates hits count in place in ref logic but we need state update
+              const update = checkHit(r, c, playerShips);
               if (update.sunk) {
                   playShipSink();
                   resultStatus = 'SUNK';
                   const sunkShip = playerShips.find(s => s.id === update.shipId);
-                  if (sunkShip) {
-                      sunkShipDetails = {
-                          type: sunkShip.type,
-                          size: sunkShip.size,
-                          orientation: sunkShip.orientation,
-                          row: sunkShip.row,
-                          col: sunkShip.col,
-                          sunk: true
-                      };
-                  }
+                  if (sunkShip) sunkShipDetails = { type: sunkShip.type, size: sunkShip.size, orientation: sunkShip.orientation, row: sunkShip.row, col: sunkShip.col, sunk: true };
                   setNotification({ text: "ALERTE !", subtext: "NAVIRE COULÉ", type: 'SUNK' });
               } else {
                   setNotification({ text: "IMPACT !", type: 'HIT' });
               }
-              
-              // Force update ships state
               setPlayerShips([...playerShips]);
-
               if (playerShips.every(s => s.sunk)) {
-                  handleGameOver('CPU'); // I lost
-                  // Send result then return immediately to avoid setting turn
-                  mp.sendData({
-                      type: 'BATTLESHIP_RESULT',
-                      r, c,
-                      status: resultStatus,
-                      shipDetails: sunkShipDetails
-                  });
+                  handleGameOver('CPU');
+                  mp.sendData({ type: 'BATTLESHIP_RESULT', r, c, status: resultStatus, shipDetails: sunkShipDetails });
                   return; 
               }
           } else {
               playWallHit();
-              // Turn switches to me
               setTurn('PLAYER');
           }
-
-          // Send result back to shooter
-          mp.sendData({
-              type: 'BATTLESHIP_RESULT',
-              r, c,
-              status: resultStatus,
-              shipDetails: sunkShipDetails
-          });
+          mp.sendData({ type: 'BATTLESHIP_RESULT', r, c, status: resultStatus, shipDetails: sunkShipDetails });
       });
   };
 
   const handleOnlineResultReceived = (r: number, c: number, status: 'HIT'|'MISS'|'SUNK', shipDetails: any) => {
-      // Guard: Do not process results if game is already over
       if (phase === 'GAMEOVER') return;
-
-      // Update my view of enemy grid
       const newCpuGrid = [...cpuGrid];
       newCpuGrid[r] = [...newCpuGrid[r]];
       newCpuGrid[r][c] = (status === 'HIT' || status === 'SUNK') ? 3 : 2;
@@ -423,32 +291,17 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           if (status === 'SUNK') {
               playShipSink();
               setNotification({ text: "COULÉ !", type: 'SUNK' });
-              
-              // If sunk, we receive the full ship details to render it
-              if (shipDetails) {
-                  setCpuShips(prev => [...prev, { ...shipDetails, id: `enemy-ship-${Date.now()}` }]);
-              } else {
-                  // Fallback if no details
-                  setCpuShips(prev => [...prev, { id: 'unknown', sunk: true } as ShipType]);
-              }
+              if (shipDetails) setCpuShips(prev => [...prev, { ...shipDetails, id: `enemy-ship-${Date.now()}` }]);
+              else setCpuShips(prev => [...prev, { id: 'unknown', sunk: true } as ShipType]);
           } else {
               setNotification({ text: "TOUCHÉ !", type: 'HIT' });
           }
-          
-          // Check Win Condition based on sunken ships count
-          // In online, we count sinking confirmations.
-          // Note: cpuShips accumulates only SUNK ships in online logic
           const sunkCount = cpuShips.length + (status === 'SUNK' ? 1 : 0);
-          if (sunkCount >= SHIPS_CONFIG.length) {
-               handleGameOver('PLAYER');
-               return; // STOP HERE, DO NOT SET TURN
-          }
-          
-          // I hit, so it's still my turn!
+          if (sunkCount >= SHIPS_CONFIG.length) { handleGameOver('PLAYER'); return; }
           setTurn('PLAYER'); 
       } else {
           playWallHit();
-          setTurn('CPU'); // Opponent's turn
+          setTurn('CPU');
       }
   };
 
@@ -475,8 +328,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     pointerStartRef.current = null;
     pressedShipRef.current = null;
     isDragStartedRef.current = false;
-    
-    // Online Reset
     setIsReady(false);
     setOpponentReady(false);
     setOpponentLeft(false);
@@ -489,27 +340,20 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       setSelectedShipId(null);
   };
 
-  // --- SETUP PHASE ---
-
   const randomizePlayerShips = () => {
     const { grid, ships } = generateRandomShips();
     setSetupGrid(grid);
     setPlayerShips(ships);
-    setCurrentShipIndex(SHIPS_CONFIG.length); // All placed
+    setCurrentShipIndex(SHIPS_CONFIG.length);
     setSelectedShipId(null);
     playMove();
   };
 
   const findNextAvailableShipIndex = (currentShips: ShipType[]) => {
       const placedCounts: {[key: string]: number} = {};
-      currentShips.forEach(s => {
-          placedCounts[s.type] = (placedCounts[s.type] || 0) + 1;
-      });
+      currentShips.forEach(s => { placedCounts[s.type] = (placedCounts[s.type] || 0) + 1; });
       for (let i = 0; i < SHIPS_CONFIG.length; i++) {
-          const type = SHIPS_CONFIG[i].type;
-          if (!placedCounts[type]) {
-              return i;
-          }
+          if (!placedCounts[SHIPS_CONFIG[i].type]) return i;
       }
       return SHIPS_CONFIG.length;
   };
@@ -520,18 +364,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     const rect = setupGridRef.current.getBoundingClientRect();
     let clientX, clientY;
     // @ts-ignore
-    if (e.touches && e.touches.length > 0) {
-        // @ts-ignore
-        clientX = e.touches[0].clientX;
-        // @ts-ignore
-        clientY = e.touches[0].clientY;
-    } else if ((e as any).changedTouches && (e as any).changedTouches.length > 0) {
-         clientX = (e as any).changedTouches[0].clientX;
-         clientY = (e as any).changedTouches[0].clientY;
-    } else {
-        clientX = (e as any).clientX;
-        clientY = (e as any).clientY;
-    }
+    if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+    // @ts-ignore
+    else if ((e as any).changedTouches && (e as any).changedTouches.length > 0) { clientX = (e as any).changedTouches[0].clientX; clientY = (e as any).changedTouches[0].clientY; }
+    else { clientX = (e as any).clientX; clientY = (e as any).clientY; }
     const x = clientX - rect.left;
     const y = clientY - rect.top;
     let c = Math.floor((x / rect.width) * 10);
@@ -546,18 +382,13 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     pointerStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
     isDragStartedRef.current = false;
     pressedShipRef.current = null;
-    if (setupGridRef.current) {
-        setupGridRef.current.setPointerCapture(e.pointerId);
-    }
+    if (setupGridRef.current) { setupGridRef.current.setPointerCapture(e.pointerId); }
     const coords = getGridCoords(e);
     if (!coords) return;
     const { r, c } = coords;
     const existingShip = playerShips.find(s => {
-        if (s.orientation === 'horizontal') {
-            return r === s.row && c >= s.col && c < s.col + s.size;
-        } else {
-            return c === s.col && r >= s.row && r < s.row + s.size;
-        }
+        if (s.orientation === 'horizontal') return r === s.row && c >= s.col && c < s.col + s.size;
+        else return c === s.col && r >= s.row && r < s.row + s.size;
     });
     if (existingShip) {
         pressedShipRef.current = existingShip;
@@ -609,22 +440,13 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (phase !== 'SETUP') return;
-    if (setupGridRef.current) {
-        setupGridRef.current.releasePointerCapture(e.pointerId);
-    }
+    if (setupGridRef.current) { setupGridRef.current.releasePointerCapture(e.pointerId); }
     if (!isDragStartedRef.current && !isDragging) {
         if (pressedShipRef.current) {
             const shipId = pressedShipRef.current.id;
-            if (selectedShipId !== shipId) {
-                setSelectedShipId(shipId);
-                playPaddleHit();
-            }
-        } else {
-            setSelectedShipId(null);
-        }
-        pressedShipRef.current = null;
-        pointerStartRef.current = null;
-        return;
+            if (selectedShipId !== shipId) { setSelectedShipId(shipId); playPaddleHit(); }
+        } else { setSelectedShipId(null); }
+        pressedShipRef.current = null; pointerStartRef.current = null; return;
     }
     setIsDragging(false);
     isDragStartedRef.current = false;
@@ -636,16 +458,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
             const shipConfig = SHIPS_CONFIG[currentShipIndex];
             if (isValidPlacement(setupGrid, r, c, shipConfig.size, orientation)) {
-                 const newShip: ShipType = {
-                    id: draggedShipOriginal?.id || `p-ship-${currentShipIndex}-${Date.now()}`,
-                    type: shipConfig.type,
-                    size: shipConfig.size,
-                    hits: 0,
-                    orientation,
-                    row: r,
-                    col: c,
-                    sunk: false
-                  };
+                 const newShip: ShipType = { id: draggedShipOriginal?.id || `p-ship-${currentShipIndex}-${Date.now()}`, type: shipConfig.type, size: shipConfig.size, hits: 0, orientation, row: r, col: c, sunk: false };
                   const newGrid = setupGrid.map(row => [...row]);
                   placeShipOnGrid(newGrid, newShip);
                   const updatedShips = [...playerShips, newShip];
@@ -688,23 +501,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   };
 
   const handleOrientationToggle = () => {
-      if (selectedShipId) {
-          const ship = playerShips.find(s => s.id === selectedShipId);
-          if (ship) attemptRotateShip(ship);
-      } else {
-          setOrientation(o => o === 'horizontal' ? 'vertical' : 'horizontal');
-      }
+      if (selectedShipId) { const ship = playerShips.find(s => s.id === selectedShipId); if (ship) attemptRotateShip(ship); } 
+      else { setOrientation(o => o === 'horizontal' ? 'vertical' : 'horizontal'); }
   };
   
-  const handleSetupRightClick = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      handleOrientationToggle();
-  };
+  const handleSetupRightClick = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); handleOrientationToggle(); };
 
   const startGame = () => {
     if (playerShips.length < SHIPS_CONFIG.length) return;
-    
     if (gameMode === 'SOLO') {
         setPlayerGrid(setupGrid);
         const { grid: cpuReal, ships: cpuS } = generateRandomShips();
@@ -713,14 +517,12 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         setPhase('PLAYING');
         playVictory();
     } else {
-        // ONLINE START
         setIsReady(true);
         mp.sendData({ type: 'BATTLESHIP_READY' });
     }
     setSelectedShipId(null);
   };
 
-  // Watch for both ready in Online
   useEffect(() => {
       if (gameMode === 'ONLINE' && isReady && opponentReady && phase === 'SETUP') {
           setPlayerGrid(setupGrid);
@@ -730,14 +532,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       }
   }, [gameMode, isReady, opponentReady, phase, setupGrid, mp.isHost]);
 
-  // --- BATTLE PHASE ---
   const launchAttack = (r: number, c: number, target: 'CPU' | 'PLAYER', callback: () => void) => {
       playLaserShoot();
       setMissile({ r, c, target });
-      setTimeout(() => {
-          setMissile(null);
-          callback();
-      }, 500);
+      setTimeout(() => { setMissile(null); callback(); }, 500);
   };
 
   const handleCellClick = (r: number, c: number) => {
@@ -747,7 +545,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     if (gameMode === 'ONLINE') {
         mp.sendData({ type: 'BATTLESHIP_SHOT', r, c });
     } else {
-        // Solo Logic
         launchAttack(r, c, 'CPU', () => {
             const isHit = cpuRealGrid[r][c] === 1;
             const newCpuGrid = cpuGrid.map(row => [...row]);
@@ -762,14 +559,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     const sunkShip = cpuShips.find(s => s.id === shipUpdate.shipId);
                     const shipName = SHIPS_CONFIG.find(sc => sc.type === sunkShip?.type)?.label || sunkShip?.type;
                     setNotification({ text: "COULÉ !", subtext: shipName, type: 'SUNK' });
-                } else {
-                    setNotification({ text: "TOUCHÉ !", type: 'HIT' });
-                }
-                
-                if (cpuShips.every(s => s.sunk)) {
-                    handleGameOver('PLAYER');
-                    return;
-                }
+                } else { setNotification({ text: "TOUCHÉ !", type: 'HIT' }); }
+                if (cpuShips.every(s => s.sunk)) { handleGameOver('PLAYER'); return; }
             } else {
                 playWallHit();
                 setTurn('CPU');
@@ -778,12 +569,9 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     }
   };
 
-  // CPU Turn (Solo)
   useEffect(() => {
     if (gameMode === 'SOLO' && phase === 'PLAYING' && turn === 'CPU' && !missile) {
-      const timer = setTimeout(() => {
-        cpuFire();
-      }, 1000);
+      const timer = setTimeout(() => { cpuFire(); }, 1000);
       return () => clearTimeout(timer);
     }
   }, [turn, phase, missile, gameMode]);
@@ -791,7 +579,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const cpuFire = () => {
     const move = getCpuMove(playerGrid, lastCpuHitRef.current);
     const { r, c } = move;
-    
     launchAttack(r, c, 'PLAYER', () => {
         const isHit = playerGrid[r][c] === 1;
         const newPlayerGrid = playerGrid.map(row => [...row]);
@@ -808,13 +595,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 const sunkShip = playerShips.find(s => s.id === shipUpdate.shipId);
                 const shipName = SHIPS_CONFIG.find(sc => sc.type === sunkShip?.type)?.label || sunkShip?.type;
                 setNotification({ text: "ALERTE !", subtext: `${shipName} COULÉ`, type: 'SUNK' });
-            } else {
-                setNotification({ text: "IMPACT !", type: 'HIT' });
-            }
-
-            if (playerShips.every(s => s.sunk)) {
-                handleGameOver('CPU');
-            }
+            } else { setNotification({ text: "IMPACT !", type: 'HIT' }); }
+            if (playerShips.every(s => s.sunk)) { handleGameOver('CPU'); }
         } else {
             playWallHit();
             setTurn('PLAYER');
@@ -830,9 +612,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       const reward = 100;
       addCoins(reward);
       setEarnedCoins(reward);
-    } else {
-      playGameOver();
-    }
+    } else { playGameOver(); }
   };
 
   // --- ACTIONS SOCIALES ---
@@ -853,21 +633,13 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       }
   };
 
-  // --- RENDER HELPERS ---
   const renderCell = (status: CellStatus, isCpuBoard: boolean, r: number, c: number) => {
     let content = null;
     let bgClass = "bg-blue-900/20 border-blue-500/20";
-    if (status === 2) { 
-      content = <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full opacity-50 animate-pulse"></div>;
-    } else if (status === 3) {
+    if (status === 2) { content = <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full opacity-50 animate-pulse"></div>; } 
+    else if (status === 3) {
       bgClass = "bg-red-900/40 border-red-500/50 z-20";
-      // Visuel impact plus fort
-      content = (
-          <div className="w-full h-full flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-red-500/30 animate-pulse rounded-full"></div>
-              <div className="w-[70%] h-[70%] bg-red-600 rotate-45 transform skew-x-12 shadow-[0_0_10px_red]"></div>
-          </div>
-      );
+      content = (<div className="w-full h-full flex items-center justify-center relative"><div className="absolute inset-0 bg-red-500/30 animate-pulse rounded-full"></div><div className="w-[70%] h-[70%] bg-red-600 rotate-45 transform skew-x-12 shadow-[0_0_10px_red]"></div></div>);
     } 
     const hoverClass = (isCpuBoard && phase === 'PLAYING' && turn === 'PLAYER' && status === 0 && !missile) ? "hover:bg-red-500/20 hover:border-red-400 cursor-crosshair" : "";
     return <div key={`${r}-${c}`} className={`relative w-full h-full border ${bgClass} ${hoverClass} flex items-center justify-center transition-colors pointer-events-none`}>{content}</div>;
@@ -877,9 +649,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       return (
           <div className="absolute inset-0 w-full h-full pointer-events-none p-1">
               {ships.map((ship) => {
-                  // GUARD: Fix "Red Spot" bug by ignoring invalid ships (dummy online ships)
                   if (ship.row === undefined || ship.col === undefined) return null;
-                  
                   if (!isPreview && phase === 'PLAYING' && !ship.sunk) return null;
                   return (
                       <div key={ship.id} style={{ position: 'absolute', left: `${ship.col * 10}%`, top: `${ship.row * 10}%`, width: ship.orientation === 'horizontal' ? `${ship.size * 10}%` : '10%', height: ship.orientation === 'vertical' ? `${ship.size * 10}%` : '10%', zIndex: 5 }}>
@@ -975,102 +745,9 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
       const Icon = reaction.icon;
-
-      if (reactionId === 'sad') {
-          return (
-              <div className="relative">
-                  <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                  <div className="absolute top-[22px] left-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite]"></div>
-                  <div className="absolute top-[22px] right-[13px] w-1.5 h-1.5 bg-blue-300 rounded-full animate-[tear-fall_1s_infinite_0.5s]"></div>
-                  <style>{`
-                    @keyframes tear-fall {
-                        0% { top: 22px; opacity: 1; transform: scale(1); }
-                        80% { top: 45px; opacity: 0; transform: scale(0.5); }
-                        100% { top: 45px; opacity: 0; }
-                    }
-                  `}</style>
-              </div>
-          );
-      }
-
-      if (reactionId === 'happy') {
-        return (
-            <div className="relative animate-[grow-laugh_0.8s_ease-in-out_infinite]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <style>{`
-                  @keyframes grow-laugh {
-                      0%, 100% { transform: scale(1) rotate(-5deg); }
-                      50% { transform: scale(1.3) rotate(5deg); }
-                  }
-                `}</style>
-            </div>
-        );
-      }
-
-      if (reactionId === 'angry') {
-        return (
-            <div className="relative animate-[shake_0.2s_linear_infinite]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <div className={`absolute top-[10px] -left-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[-45deg] animate-pulse`}></div>
-                <div className={`absolute top-[10px] -right-[10px] w-2 h-6 ${color.replace('text-', 'bg-')} opacity-60 rounded-full rotate-[45deg] animate-pulse`}></div>
-                 <style>{`
-                  @keyframes shake {
-                      0% { transform: translate(1px, 1px) rotate(0deg); }
-                      25% { transform: translate(-1px, -2px) rotate(-1deg); }
-                      50% { transform: translate(-3px, 0px) rotate(1deg); }
-                      75% { transform: translate(3px, 2px) rotate(0deg); }
-                      100% { transform: translate(1px, -1px) rotate(-1deg); }
-                  }
-                `}</style>
-            </div>
-        );
-      }
-      
-      if (reactionId === 'love') {
-          return (
-            <div className="relative animate-[heart-beat_1.2s_ease-in-out_infinite]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <div className={`absolute inset-0 ${color} opacity-30 animate-ping rounded-full`}></div>
-                <style>{`
-                    @keyframes heart-beat {
-                        0% { transform: scale(1); }
-                        14% { transform: scale(1.3); }
-                        28% { transform: scale(1); }
-                        42% { transform: scale(1.3); }
-                        70% { transform: scale(1); }
-                    }
-                `}</style>
-            </div>
-          );
-      }
-
-      if (reactionId === 'wave') {
-          return (
-            <div className="relative animate-[wave_1.5s_ease-in-out_infinite] origin-bottom-right">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <style>{`@keyframes wave { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-20deg); } 75% { transform: rotate(10deg); } }`}</style>
-            </div>
-          );
-      }
-
-      if (reactionId === 'good') {
-          return (
-            <div className="relative animate-[stamp_0.5s_cubic-bezier(0.175, 0.885, 0.32, 1.275)_-0.2s]">
-                <Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} />
-                <style>{`
-                    @keyframes stamp {
-                        0% { transform: scale(2); opacity: 0; }
-                        100% { transform: scale(1); opacity: 1; }
-                    }
-                `}</style>
-            </div>
-          );
-      }
-
       return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };
 
-  // --- RENDER ---
   if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
       return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
@@ -1087,18 +764,11 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
   return (
     <div className="h-full w-full flex flex-col items-center justify-center bg-black/20 relative overflow-hidden text-white font-sans p-2">
-      <style>{`
-        @keyframes drop-missile {
-            0% { transform: translateY(-600px) scale(1.5); opacity: 0; }
-            50% { opacity: 1; }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
-      `}</style>
+      <style>{`@keyframes drop-missile { 0% { transform: translateY(-600px) scale(1.5); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }`}</style>
 
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/20 via-black to-transparent pointer-events-none"></div>
 
-      {/* NOTIFICATION */}
       {notification && (
           <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
               <div className="bg-black/80 backdrop-blur-sm px-8 py-6 rounded-2xl border-2 border-white/20 animate-in zoom-in fade-in duration-300 flex flex-col items-center shadow-[0_0_50px_rgba(0,0,0,0.8)]">
@@ -1108,7 +778,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           </div>
       )}
 
-      {/* ACTIVE REACTION */}
       {activeReaction && (() => {
             const reaction = REACTIONS.find(r => r.id === activeReaction.id);
             if (!reaction) return null;
@@ -1116,14 +785,12 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className="p-3 drop-shadow-2xl">{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
       })()}
 
-      {/* HEADER */}
       <div className="w-full max-w-2xl flex items-center justify-between z-10 mb-2 shrink-0 h-[50px]">
         <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
         <h1 className="text-xl sm:text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]">BATAILLE NAVALE</h1>
         <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
       </div>
 
-      {/* MODE SELECTOR */}
       {phase === 'SETUP' && !mp.gameOpponent && (
           <div className="flex bg-gray-900 rounded-full border border-white/10 p-1 mb-2 z-10 shrink-0">
                 <button onClick={() => setGameMode('SOLO')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'SOLO' ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'text-gray-400 hover:text-white'}`}>SOLO</button>
@@ -1131,7 +798,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           </div>
       )}
 
-      {/* SETUP PHASE */}
       {phase === 'SETUP' && (
         <div className="flex flex-col items-center justify-center z-10 w-full h-full max-h-[80vh] overflow-hidden">
             <div className="bg-gray-900/80 p-3 rounded-xl border border-blue-500/30 w-full max-w-[min(90vw,400px)] flex flex-col">
@@ -1174,38 +840,28 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         </div>
       )}
 
-      {/* PLAYING PHASE */}
       {(phase === 'PLAYING' || phase === 'GAMEOVER') && (
         <div className="flex flex-col gap-2 z-10 w-full max-w-4xl lg:flex-row items-center justify-center flex-1 min-h-0">
-            {/* ENEMY GRID (TOP) */}
             <div className={`flex flex-col gap-1 w-[85vw] max-w-[320px] lg:max-w-[380px] ${turn === 'PLAYER' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
                 <div className="flex justify-between items-center bg-red-900/30 px-3 py-1 rounded-t-lg border-t border-l border-r border-red-500/30">
                     <span className="text-red-400 font-bold flex items-center gap-2 text-xs sm:text-sm"><Target size={14}/> {gameMode === 'ONLINE' ? 'ADVERSAIRE' : 'CPU'}</span>
                     <div className="flex gap-0.5">{cpuShips.filter(s => s.id !== 'unknown').map((s, i) => <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-500 ${s.sunk ? 'bg-red-600 shadow-[0_0_5px_red]' : 'bg-gray-600'}`}/>)}</div>
                 </div>
                 <div className="relative aspect-square w-full bg-black/40 border-2 border-red-500/30 rounded-b-lg shadow-[0_0_20px_rgba(239,68,68,0.1)] overflow-hidden">
-                    {/* Render Missile Conditionally only for CPU target */}
                     {missile?.target === 'CPU' && renderMissile()}
-                    
                     {turn === 'CPU' && phase === 'PLAYING' && !missile && <div className="absolute inset-0 z-30 bg-black/50 flex items-center justify-center backdrop-blur-[1px]"><span className="text-red-500 font-bold animate-pulse tracking-widest flex items-center gap-2 text-xs"><AlertCircle size={16}/> TOUR ADVERSE...</span></div>}
-                    
-                    {/* Render Sunk Enemy Ships */}
                     {renderShipsLayer(cpuShips, phase === 'GAMEOVER')}
-                    
                     <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-0.5 p-1 z-10">{cpuGrid.map((row, r) => row.map((cell, c) => <div key={`${r}-${c}`} className={`relative w-full h-full pointer-events-auto`} onClick={() => handleCellClick(r, c)}>{renderCell(cell, true, r, c)}</div>))}</div>
                 </div>
             </div>
 
-            {/* PLAYER GRID (BOTTOM) */}
             <div className={`flex flex-col gap-1 w-[85vw] max-w-[320px] lg:max-w-[380px] ${turn === 'CPU' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
                 <div className="flex justify-between items-center bg-blue-900/30 px-3 py-1 rounded-t-lg border-t border-l border-r border-blue-500/30">
                     <span className="text-blue-400 font-bold flex items-center gap-2 text-xs sm:text-sm"><ShieldAlert size={14}/> MA FLOTTE</span>
                     <div className="flex gap-0.5">{playerShips.map((s, i) => <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-500 ${s.sunk ? 'bg-red-600' : 'bg-green-500 shadow-[0_0_5px_lime]'}`}/>)}</div>
                 </div>
                 <div className="relative aspect-square w-full bg-black/40 border-2 border-blue-500/30 rounded-b-lg overflow-hidden">
-                     {/* Render Missile Conditionally only for PLAYER target */}
                      {missile?.target === 'PLAYER' && renderMissile()}
-                     
                      {turn === 'PLAYER' && phase === 'PLAYING' && !missile && <div className="absolute inset-0 z-30 bg-blue-500/5 flex items-center justify-center pointer-events-none"><Crosshair size={48} className="text-blue-400/20 animate-pulse" /></div>}
                     {renderShipsLayer(playerShips, true)}
                     <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-0.5 p-1 z-10 pointer-events-none">{playerGrid.map((row, r) => row.map((cell, c) => renderCell(cell, false, r, c)))}</div>
@@ -1214,7 +870,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         </div>
       )}
 
-      {/* CHAT & REACTION BAR (ONLINE) */}
       {gameMode === 'ONLINE' && phase !== 'SETUP' && !opponentLeft && (
             <div className="w-full max-w-lg mt-2 flex flex-col gap-2 z-20 px-2 shrink-0">
                 <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
@@ -1238,7 +893,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             </div>
       )}
 
-      {/* GAMEOVER OVERLAY */}
       {(phase === 'GAMEOVER' || opponentLeft) && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
               <div className="bg-gray-900 border-2 border-white/10 p-6 rounded-2xl flex flex-col items-center max-w-sm w-full shadow-2xl z-[100]">
@@ -1265,18 +919,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                   <div className="flex flex-col gap-2 w-full">
                       {gameMode === 'ONLINE' ? (
                           <>
-                            <button 
-                                onClick={() => mp.requestRematch()} 
-                                className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <Play size={16}/> REVANCHE
-                            </button>
-                            <button 
-                                onClick={() => { mp.leaveGame(); resetGame(); }} 
-                                className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <LogOut size={16}/> RETOUR AU LOBBY
-                            </button>
+                            <button onClick={() => mp.requestRematch()} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"><Play size={16}/> REVANCHE</button>
+                            <button onClick={() => { mp.leaveGame(); resetGame(); }} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> RETOUR AU LOBBY</button>
                           </>
                       ) : (
                           <>

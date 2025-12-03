@@ -10,8 +10,10 @@ import { PacmanGame } from './components/pacman/PacmanGame';
 import { MemoryGame } from './components/memory/MemoryGame';
 import { BattleshipGame } from './components/battleship/BattleshipGame';
 import { Shop } from './components/Shop';
+import { SocialOverlay } from './components/SocialOverlay';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
+import { useMultiplayer } from './hooks/useMultiplayer';
 
 
 type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'shop';
@@ -20,6 +22,13 @@ const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
     const audio = useGameAudio();
     const currency = useCurrency();
+    const mp = useMultiplayer(); // Global Multiplayer Lobby Connection
+
+    // Connect global lobby on mount
+    useEffect(() => {
+        mp.connect();
+        return () => mp.disconnect();
+    }, []);
 
     useEffect(() => {
         const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship'];
@@ -64,44 +73,51 @@ const App: React.FC = () => {
         setCurrentView('menu');
     };
 
-    if (currentView === 'shop') {
-        return <Shop onBack={handleBackToMenu} currency={currency} />;
-    }
+    return (
+        <>
+            <SocialOverlay audio={audio} currency={currency} mp={mp} />
+            
+            {currentView === 'shop' && (
+                <Shop onBack={handleBackToMenu} currency={currency} />
+            )}
 
-    if (currentView === 'tetris') {
-        return <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
+            {currentView === 'tetris' && (
+                <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+            )}
 
-    if (currentView === 'rush') {
-        // Pour RushGame qui prend tout l'objet currency, on remplace la méthode addCoins
-        return <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSound}} />;
-    }
+            {currentView === 'rush' && (
+                <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSound}} />
+            )}
 
-    if (currentView === 'connect4') {
-        return <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
+            {currentView === 'connect4' && (
+                <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} mp={mp} />
+            )}
 
-    if (currentView === 'sudoku') {
-        return <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
+            {currentView === 'sudoku' && (
+                <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+            )}
 
-    if (currentView === 'breaker') {
-        return <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-    
-    if (currentView === 'pacman') {
-        return <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-    
-    if (currentView === 'memory') {
-        return <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
+            {currentView === 'breaker' && (
+                <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+            )}
+            
+            {currentView === 'pacman' && (
+                <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+            )}
+            
+            {currentView === 'memory' && (
+                <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} mp={mp} />
+            )}
 
-    if (currentView === 'battleship') {
-        return <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
+            {currentView === 'battleship' && (
+                <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} mp={mp} />
+            )}
 
-    return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} />;
+            {currentView === 'menu' && (
+                <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} mp={mp} />
+            )}
+        </>
+    );
 }
 
 export default App;
