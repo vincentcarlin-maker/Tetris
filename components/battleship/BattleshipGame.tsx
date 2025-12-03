@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Ship, Trash2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, LogOut, Loader2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -63,9 +62,9 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
         fillColor = isValid ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)';
         detailColor = isValid ? '#4ade80' : '#f87171';
     } else if (isSelected) {
-        strokeColor = '#22c55e';
-        fillColor = 'rgba(34, 197, 94, 0.2)'; 
-        detailColor = '#22c55e';
+        strokeColor = '#ff00ff'; // Pink instead of green
+        fillColor = 'rgba(255, 0, 255, 0.2)'; 
+        detailColor = '#ff00ff';
     }
 
     const renderShipSVG = () => {
@@ -126,7 +125,7 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
         }
 
         return (
-            <svg viewBox={viewBox} className="w-full h-full" style={isSelected ? { filter: 'drop-shadow(0 0 4px #22c55e)' } : {}}>
+            <svg viewBox={viewBox} className="w-full h-full" style={isSelected ? { filter: 'drop-shadow(0 0 4px #ff00ff)' } : {}}>
                 <path d={path} fill={fillColor} stroke={strokeColor} strokeWidth={isSelected ? "4" : "3"} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
                 {details}
                 {isSunk && (<><line x1="5" y1="5" x2={vbWidth-5} y2={vbHeight-5} stroke="#ef4444" strokeWidth="12" strokeLinecap="round" opacity="0.8" /><line x1={vbWidth-5} y1="5" x2="5" y2={vbHeight-5} stroke="#ef4444" strokeWidth="12" strokeLinecap="round" opacity="0.8" /><rect x="2" y="2" width={vbWidth-4} height={vbHeight-4} fill="none" stroke="#ef4444" strokeWidth="6" rx="5" /></>)}
@@ -755,7 +754,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">BATAILLE NAVALE</h1>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 pr-2 pb-1">BATAILLE NAVALE</h1>
                 <div className="w-10"></div>
             </div>
             {renderLobby()}
@@ -789,7 +788,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
       <div className="w-full max-w-2xl flex items-center justify-between z-10 mb-2 shrink-0 h-[50px]">
         <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
-        <h1 className="text-xl sm:text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]">BATAILLE NAVALE</h1>
+        <h1 className="text-xl sm:text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)] pr-2 pb-1">BATAILLE NAVALE</h1>
         <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
       </div>
 

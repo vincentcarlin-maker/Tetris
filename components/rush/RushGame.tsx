@@ -491,7 +491,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
           <Home size={20} />
         </button>
         <div className="flex flex-col items-center">
-          <h2 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
+          <h2 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 pr-2 pb-1">
             NEON RUSH
           </h2>
           <div className="flex gap-4 text-xs font-mono text-cyan-500 items-center">

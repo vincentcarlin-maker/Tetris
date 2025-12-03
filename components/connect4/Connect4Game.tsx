@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Swords, Clipboard, X, Check } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
@@ -489,7 +488,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
              </button>
          </div>
          <div className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none w-full">
-            <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] truncate">NEON CONNECT</h1>
+            <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] pr-2 pb-1">NEON CONNECT</h1>
          </div>
          <div className="z-20 relative min-w-[40px] flex justify-end">
             {(gameMode !== 'ONLINE' || onlineStep === 'game') && !isHostingAndWaiting && (
