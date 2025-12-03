@@ -401,38 +401,38 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
 
                  {/* --- DAILY QUESTS PANEL (NEW DESIGN) --- */}
-                 <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className="w-full bg-black/80 border border-green-500/30 rounded-xl p-4 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300">
+                 <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className="w-full bg-black/80 border border-green-500/30 rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300">
                      {/* Decorative background glow */}
                      <div className="absolute -right-6 -top-6 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full pointer-events-none"></div>
                      <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full pointer-events-none"></div>
 
                      <div 
                         onClick={() => setIsQuestsExpanded(!isQuestsExpanded)} 
-                        className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-4 pb-2' : ''}`}
+                        className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}
                      >
-                         <div className="flex items-center gap-3">
-                             <h3 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)]">
-                                <CheckCircle size={18} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
+                         <div className="flex items-center gap-2 overflow-hidden">
+                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap">
+                                <CheckCircle size={16} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
                                 DÉFIS DU JOUR
                              </h3>
                              
                              {/* Show quick status when collapsed */}
                              {!isQuestsExpanded && (
-                                 <div className="flex gap-1.5 ml-1 animate-in fade-in duration-300">
+                                 <div className="flex gap-1 ml-1 animate-in fade-in duration-300 shrink-0">
                                      {quests.map((q, i) => (
-                                         <div key={q.id} title={q.description} className={`w-4 h-4 flex items-center justify-center rounded-full border transition-colors ${q.isCompleted ? 'bg-green-500 border-green-400 shadow-[0_0_5px_#22c55e]' : 'bg-gray-800/50 border-white/10'}`}>
-                                             {q.isCompleted && <Check size={10} className="text-black" strokeWidth={4} />}
+                                         <div key={q.id} title={q.description} className={`w-3 h-3 flex items-center justify-center rounded-full border transition-colors ${q.isCompleted ? 'bg-green-500 border-green-400 shadow-[0_0_5px_#22c55e]' : 'bg-gray-800/50 border-white/10'}`}>
+                                             {q.isCompleted && <Check size={8} className="text-black" strokeWidth={4} />}
                                          </div>
                                      ))}
                                  </div>
                              )}
                          </div>
 
-                         <div className="flex items-center gap-2">
-                             <span className="text-[10px] text-green-400 font-mono font-bold tracking-widest bg-green-900/30 border border-green-500/30 px-2 py-1 rounded shadow-[0_0_10px_rgba(34,197,94,0.1)]">
-                                {new Date().toLocaleDateString()}
+                         <div className="flex items-center gap-2 shrink-0">
+                             <span className="text-[9px] text-green-400 font-mono font-bold tracking-widest bg-green-900/30 border border-green-500/30 px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+                                {new Date().toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'})}
                              </span>
-                             <ChevronDown size={20} className={`text-green-400 transition-transform duration-300 ${isQuestsExpanded ? 'rotate-180' : ''}`} />
+                             <ChevronDown size={16} className={`text-green-400 transition-transform duration-300 ${isQuestsExpanded ? 'rotate-180' : ''}`} />
                          </div>
                      </div>
                      
