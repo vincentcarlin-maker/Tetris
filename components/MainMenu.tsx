@@ -1,10 +1,12 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
 import { useMultiplayer } from '../hooks/useMultiplayer';
+import { useDailySystem } from '../hooks/useDailySystem';
+import { DailyBonusModal } from './DailyBonusModal';
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
@@ -158,10 +160,13 @@ const ArcadeLogo = () => {
 };
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp }) => {
-    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog } = currency;
+    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, addCoins } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
     
+    // --- DAILY SYSTEM INTEGRATION ---
+    const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, completeQuest } = useDailySystem(addCoins);
+
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
     const [installPrompt, setInstallPrompt] = useState<any>(null);
 
@@ -178,6 +183,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         onTouchEnd: () => setActiveGlow(null)
     });
     
+    // Helper to complete quest when starting a game
+    const handleGameStart = (gameId: string) => {
+        completeQuest(gameId);
+        onSelectGame(gameId);
+    };
+
     useEffect(() => {
         audio.resumeAudio(); 
     }, [audio]);
@@ -245,6 +256,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
             
+            {showDailyModal && (
+                <DailyBonusModal streak={streak} reward={todaysReward} onClaim={claimDailyBonus} />
+            )}
+
             <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
 
             {/* Top Bar */}
@@ -255,8 +270,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 </div>
 
                 <div className="flex gap-3">
-                    {/* Note: Social Button moved to SocialOverlay in App.tsx */}
-
                     <button onClick={() => onSelectGame('shop')} className="p-2 bg-gray-900/80 rounded-full text-yellow-400 hover:text-white border border-yellow-500/30 backdrop-blur-sm active:scale-95 transition-transform shadow-[0_0_10px_rgba(234,179,8,0.2)]" title="Boutique">
                         <ShoppingBag size={20} />
                     </button>
@@ -310,11 +323,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 )}
                             </div>
                             <span className={`text-xs font-bold tracking-widest uppercase ${playerRank.color}`}>{playerRank.title}</span>
+                            
+                            {/* Streak Badge */}
+                            <div className="flex items-center gap-1 mt-1 text-xs text-yellow-500 font-bold bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-500/20 w-fit">
+                                <Calendar size={12} /> SÉRIE : {streak} JOURS
+                            </div>
                         </div>
                      </div>
 
                      <div className="w-full h-px bg-white/10" />
 
+                     {/* BADGES */}
                      {ownedBadges.length > 0 ? (
                          <div className="flex gap-3 overflow-x-auto w-full justify-start py-2 no-scrollbar z-10 mask-linear">
                              {ownedBadges.slice().reverse().map(badge => {
@@ -331,6 +350,35 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      ) : (
                          <div className="text-xs text-gray-600 italic py-2 w-full text-center">Joue pour gagner des badges !</div>
                      )}
+                 </div>
+
+                 {/* --- DAILY QUESTS PANEL --- */}
+                 <div className="w-full bg-black/40 border border-white/10 rounded-xl p-3 backdrop-blur-sm">
+                     <div className="flex items-center justify-between mb-2 px-1">
+                         <h3 className="text-sm font-bold text-white flex items-center gap-2"><CheckCircle size={14} className="text-green-400" /> DÉFIS DU JOUR</h3>
+                         <span className="text-[10px] text-gray-500 font-mono">{new Date().toLocaleDateString()}</span>
+                     </div>
+                     <div className="space-y-2">
+                         {quests.map(quest => (
+                             <div key={quest.id} className={`flex items-center justify-between p-2 rounded-lg border transition-all ${quest.isCompleted ? 'bg-green-900/20 border-green-500/30' : 'bg-gray-800/50 border-white/5'}`}>
+                                 <div className="flex items-center gap-3">
+                                     <div className={`w-2 h-2 rounded-full ${quest.isCompleted ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                     <span className={`text-xs ${quest.isCompleted ? 'text-gray-300 line-through decoration-green-500' : 'text-white'}`}>{quest.description}</span>
+                                 </div>
+                                 {quest.isCompleted && !quest.isClaimed ? (
+                                     <button onClick={() => claimQuestReward(quest.id)} className="px-3 py-1 bg-yellow-500 text-black text-[10px] font-bold rounded hover:bg-yellow-400 animate-pulse flex items-center gap-1">
+                                         <Coins size={10} /> +{quest.reward}
+                                     </button>
+                                 ) : quest.isClaimed ? (
+                                     <span className="text-[10px] font-bold text-green-500 px-2">FAIT</span>
+                                 ) : (
+                                     <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-500/20">
+                                         <Coins size={10} /> {quest.reward}
+                                     </div>
+                                 )}
+                             </div>
+                         ))}
+                     </div>
                  </div>
 
                  {/* High Scores Panel */}
@@ -366,7 +414,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  {/* --- GAME GRID --- */}
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                     {GAMES_CONFIG.map((game) => (
-                        <button key={game.id} onClick={() => onSelectGame(game.id)} {...bindGlow(game.glow)} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border ${game.border} rounded-xl overflow-hidden transition-all duration-300 ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95 backdrop-blur-md`}>
+                        <button key={game.id} onClick={() => handleGameStart(game.id)} {...bindGlow(game.glow)} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border ${game.border} rounded-xl overflow-hidden transition-all duration-300 ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95 backdrop-blur-md`}>
                             <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>
                             <div className="w-full flex justify-end gap-1 relative z-10">
                                 {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
@@ -389,7 +437,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     ))}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.1 • GRID UPDATE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.2 • RETENTION UPDATE</div>
              </div>
         </div>
     );
