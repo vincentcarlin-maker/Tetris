@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState, useRef } from 'react';
 import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -27,6 +28,19 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-cyan-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', 
         glow: 'rgba(34,211,238,0.8)', 
+        badges: { solo: true, online: false, vs: false }, 
+        reward: 'GAINS' 
+    },
+    { 
+        id: 'snake', 
+        name: 'SNAKE', 
+        icon: Activity, 
+        color: 'text-green-500', 
+        bg: 'bg-green-900/20',
+        border: 'border-green-500/30',
+        hoverBorder: 'hover:border-green-500', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', 
+        glow: 'rgba(34,197,94,0.8)', 
         badges: { solo: true, online: false, vs: false }, 
         reward: 'GAINS' 
     },
@@ -251,6 +265,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const sudokuHardBest = highScores.sudoku?.hard;
     const breakerHighScore = highScores.breaker || 0;
     const pacmanHighScore = highScores.pacman || 0;
+    const snakeHighScore = highScores.snake || 0;
     const memoryBestMoves = highScores.memory || 0;
 
     return (
@@ -394,6 +409,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     {showScores && (
                         <div className="px-4 pb-4 border-t border-white/10 animate-in fade-in duration-300">
                             <div className="py-2"><h4 className="font-bold text-neon-blue">TETRIS NÉON</h4><p className="text-2xl font-mono">{highScores.tetris?.toLocaleString() || 0}</p></div>
+                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-green-500">NEON SNAKE</h4><p className="text-2xl font-mono">{snakeHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-pink">NEON BREAKER</h4><p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-yellow-400">NEON PAC</h4><p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-purple-400">NEON MEMORY</h4><p className="text-2xl font-mono">{memoryBestMoves > 0 ? memoryBestMoves + ' coups' : '-'}</p></div>
@@ -437,7 +453,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     ))}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.2 • RETENTION UPDATE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.5 • RETENTION UPDATE</div>
              </div>
         </div>
     );

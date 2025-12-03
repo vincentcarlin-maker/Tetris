@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
@@ -9,6 +10,7 @@ import { BreakerGame } from './components/breaker/BreakerGame';
 import { PacmanGame } from './components/pacman/PacmanGame';
 import { MemoryGame } from './components/memory/MemoryGame';
 import { BattleshipGame } from './components/battleship/BattleshipGame';
+import { SnakeGame } from './components/snake/SnakeGame';
 import { Shop } from './components/Shop';
 import { SocialOverlay } from './components/SocialOverlay';
 import { useGameAudio } from './hooks/useGameAudio';
@@ -16,7 +18,7 @@ import { useCurrency } from './hooks/useCurrency';
 import { useMultiplayer } from './hooks/useMultiplayer';
 
 
-type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -31,7 +33,7 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship'];
+        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -66,6 +68,7 @@ const App: React.FC = () => {
         else if (game === 'pacman') setCurrentView('pacman');
         else if (game === 'memory') setCurrentView('memory');
         else if (game === 'battleship') setCurrentView('battleship');
+        else if (game === 'snake') setCurrentView('snake');
         else if (game === 'shop') setCurrentView('shop');
     };
 
@@ -111,6 +114,10 @@ const App: React.FC = () => {
 
             {currentView === 'battleship' && (
                 <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} mp={mp} />
+            )}
+
+            {currentView === 'snake' && (
+                <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
             )}
 
             {currentView === 'menu' && (
