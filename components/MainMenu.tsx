@@ -1,7 +1,9 @@
 
+
+
 // ... imports
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle } from 'lucide-react';
+import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -43,6 +45,19 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-green-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', 
         glow: 'rgba(34,197,94,0.8)', 
+        badges: { solo: true, online: false, vs: false }, 
+        reward: 'GAINS' 
+    },
+    { 
+        id: 'invaders', 
+        name: 'INVADERS', 
+        icon: Rocket, 
+        color: 'text-rose-500', 
+        bg: 'bg-rose-900/20',
+        border: 'border-rose-500/30',
+        hoverBorder: 'hover:border-rose-500', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', 
+        glow: 'rgba(244,63,94,0.8)', 
         badges: { solo: true, online: false, vs: false }, 
         reward: 'GAINS' 
     },
@@ -269,6 +284,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const breakerHighScore = highScores.breaker || 0;
     const pacmanHighScore = highScores.pacman || 0;
     const snakeHighScore = highScores.snake || 0;
+    const invadersHighScore = highScores.invaders || 0;
     const memoryBestMoves = highScores.memory || 0;
 
     return (
@@ -414,6 +430,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     {showScores && (
                         <div className="px-4 pb-4 border-t border-white/10 animate-in fade-in duration-300">
                             <div className="py-2"><h4 className="font-bold text-neon-blue">TETRIS NÉON</h4><p className="text-2xl font-mono">{highScores.tetris?.toLocaleString() || 0}</p></div>
+                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-rose-500">NEON INVADERS</h4><p className="text-2xl font-mono">{invadersHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-green-500">NEON SNAKE</h4><p className="text-2xl font-mono">{snakeHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-pink">NEON BREAKER</h4><p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-yellow-400">NEON PAC</h4><p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p></div>

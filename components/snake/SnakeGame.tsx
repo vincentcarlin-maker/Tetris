@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Pause, RotateCcw } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Pause, RotateCcw, XCircle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -27,11 +28,15 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins })
     const [isPaused, setIsPaused] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [speed, setSpeed] = useState(INITIAL_SPEED);
+    
+    // Crash effects
+    const [crashPos, setCrashPos] = useState<Position | null>(null);
+    const [isShaking, setIsShaking] = useState(false);
 
     const gameLoopRef = useRef<any>(null);
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
 
-    const { playCoin, playGameOver, playVictory, resumeAudio } = audio;
+    const { playCoin, playGameOver, playVictory, playWallHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.snake || 0;
 
@@ -60,6 +65,8 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins })
         setIsPaused(false);
         setEarnedCoins(0);
         setSpeed(INITIAL_SPEED);
+        setCrashPos(null);
+        setIsShaking(false);
     };
 
     // Initialize game on mount
@@ -134,12 +141,18 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins })
 
             // Check Walls
             if (newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE) {
+                setCrashPos(head); // Crash at last valid position
+                setIsShaking(true);
+                playWallHit();
                 handleGameOver();
                 return prevSnake;
             }
 
             // Check Self Collision
             if (prevSnake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
+                setCrashPos(newHead); // Crash at impact point
+                setIsShaking(true);
+                playWallHit();
                 handleGameOver();
                 return prevSnake;
             }
@@ -163,7 +176,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins })
         // Schedule next tick
         gameLoopRef.current = setTimeout(moveSnake, speed);
 
-    }, [gameOver, isPlaying, isPaused, nextDirection, direction, food, speed, playCoin, playGameOver, generateFood]);
+    }, [gameOver, isPlaying, isPaused, nextDirection, direction, food, speed, playCoin, playGameOver, playWallHit, generateFood]);
 
     // Handle Game Loop
     useEffect(() => {
@@ -274,6 +287,17 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins })
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
+            <style>{`
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-5px); }
+                    75% { transform: translateX(5px); }
+                }
+                .animate-shake-board {
+                    animation: shake 0.3s ease-in-out;
+                }
+            `}</style>
+            
             {/* Ambient Light */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-green-500/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-900/10 via-black to-transparent pointer-events-none"></div>
@@ -299,7 +323,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins })
             </div>
 
             {/* Game Grid */}
-            <div className="relative w-full max-w-md aspect-square bg-black/80 border-2 border-green-500/30 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.2)] overflow-hidden backdrop-blur-md z-10">
+            <div className={`relative w-full max-w-md aspect-square bg-black/80 border-2 border-green-500/30 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.2)] overflow-hidden backdrop-blur-md z-10 ${isShaking ? 'animate-shake-board' : ''}`}>
                 {/* Grid Lines */}
                 <div className="absolute inset-0 opacity-20 pointer-events-none" 
                      style={{ 
@@ -346,6 +370,23 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins })
                 >
                     <div className="w-full h-full bg-red-500 rounded-full shadow-[0_0_15px_#ef4444] transform scale-75 border-2 border-white/20"></div>
                 </div>
+
+                {/* Crash Marker */}
+                {crashPos && (
+                    <div 
+                        className="absolute z-30 animate-ping"
+                        style={{
+                            left: `${(crashPos.x / GRID_SIZE) * 100}%`,
+                            top: `${(crashPos.y / GRID_SIZE) * 100}%`,
+                            width: `${100 / GRID_SIZE}%`,
+                            height: `${100 / GRID_SIZE}%`,
+                        }}
+                    >
+                        <div className="w-full h-full flex items-center justify-center">
+                            <XCircle className="text-red-500 drop-shadow-[0_0_10px_red]" size={24} strokeWidth={3} />
+                        </div>
+                    </div>
+                )}
 
                 {/* Start Overlay */}
                 {!isPlaying && !gameOver && !isPaused && (

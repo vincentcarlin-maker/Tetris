@@ -521,6 +521,50 @@ export const useGameAudio = () => {
 
     }, [isMuted, resume]);
 
+    const playExplosion = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+        const filter = audioCtx.current.createBiquadFilter();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(20, now + 0.5);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.linearRampToValueAtTime(100, now + 0.4);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.current.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.5);
+        
+        // Add some noise texture (simulated with random freq mod)
+        const osc2 = audioCtx.current.createOscillator();
+        const gain2 = audioCtx.current.createGain();
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(100, now);
+        osc2.frequency.linearRampToValueAtTime(50, now + 0.3);
+        
+        gain2.gain.setValueAtTime(0.2, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.current.destination);
+        osc2.start(now);
+        osc2.stop(now + 0.3);
+
+    }, [isMuted, resume]);
+
     return { 
         playMove, 
         playRotate, 
@@ -543,6 +587,7 @@ export const useGameAudio = () => {
         playPacmanPower,
         playCoin,
         playShipSink,
+        playExplosion,
         isMuted, 
         toggleMute,
         resumeAudio: resume

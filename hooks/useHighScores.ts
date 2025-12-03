@@ -1,5 +1,4 @@
 
-
 import { useState, useCallback, useEffect } from 'react';
 
 export interface HighScores {
@@ -7,6 +6,7 @@ export interface HighScores {
   breaker: number;
   pacman: number;
   snake: number;
+  invaders: number; // Add this
   rush: { [level: number]: number }; // level: minMoves
   sudoku: { [difficulty: string]: number }; // difficulty: minMistakes
   memory: number; // minMoves (Lower is better)
@@ -17,6 +17,7 @@ const initialHighScores: HighScores = {
   breaker: 0,
   pacman: 0,
   snake: 0,
+  invaders: 0, // Add this
   rush: {},
   sudoku: {},
   memory: 0,
@@ -37,6 +38,7 @@ export const useHighScores = () => {
         if (!parsed.breaker) parsed.breaker = 0;
         if (!parsed.pacman) parsed.pacman = 0;
         if (!parsed.snake) parsed.snake = 0;
+        if (!parsed.invaders) parsed.invaders = 0; // Add this
         if (!parsed.memory) parsed.memory = 0;
         setHighScores(parsed);
       } else {
@@ -59,7 +61,7 @@ export const useHighScores = () => {
       const newScores = JSON.parse(JSON.stringify(prev)); // Deep copy
       let shouldUpdate = false;
 
-      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake') {
+      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders') {
         if (value > (prev[game] || 0)) {
           newScores[game] = value;
           shouldUpdate = true;

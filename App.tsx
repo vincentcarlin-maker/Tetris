@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
@@ -11,6 +12,7 @@ import { PacmanGame } from './components/pacman/PacmanGame';
 import { MemoryGame } from './components/memory/MemoryGame';
 import { BattleshipGame } from './components/battleship/BattleshipGame';
 import { SnakeGame } from './components/snake/SnakeGame';
+import { InvadersGame } from './components/invaders/InvadersGame';
 import { Shop } from './components/Shop';
 import { SocialOverlay } from './components/SocialOverlay';
 import { useGameAudio } from './hooks/useGameAudio';
@@ -18,7 +20,7 @@ import { useCurrency } from './hooks/useCurrency';
 import { useMultiplayer } from './hooks/useMultiplayer';
 
 
-type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -33,7 +35,7 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake'];
+        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -69,6 +71,7 @@ const App: React.FC = () => {
         else if (game === 'memory') setCurrentView('memory');
         else if (game === 'battleship') setCurrentView('battleship');
         else if (game === 'snake') setCurrentView('snake');
+        else if (game === 'invaders') setCurrentView('invaders');
         else if (game === 'shop') setCurrentView('shop');
     };
 
@@ -118,6 +121,10 @@ const App: React.FC = () => {
 
             {currentView === 'snake' && (
                 <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+            )}
+
+            {currentView === 'invaders' && (
+                <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
             )}
 
             {currentView === 'menu' && (
