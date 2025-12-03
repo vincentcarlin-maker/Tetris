@@ -12,7 +12,9 @@ import { BattleshipGame } from './components/battleship/BattleshipGame';
 import { Shop } from './components/Shop';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
-
+import { useSocialSystem } from './hooks/useSocialSystem';
+import { SocialHub } from './components/SocialHub';
+import { MessageSquare } from 'lucide-react';
 
 type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'shop';
 
@@ -20,6 +22,7 @@ const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
     const audio = useGameAudio();
     const currency = useCurrency();
+    const social = useSocialSystem(audio, currency);
 
     useEffect(() => {
         const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship'];
@@ -33,14 +36,12 @@ const App: React.FC = () => {
             document.body.style.touchAction = 'auto';
         }
 
-        // Cleanup function to restore default on component unmount
         return () => {
             document.body.classList.remove('overflow-hidden');
             document.body.style.touchAction = 'auto';
         };
     }, [currentView]);
 
-    // Wrapper pour déclencher le son à chaque gain
     const addCoinsWithSound = (amount: number) => {
         currency.addCoins(amount);
         if (amount > 0) {
@@ -64,44 +65,58 @@ const App: React.FC = () => {
         setCurrentView('menu');
     };
 
-    if (currentView === 'shop') {
-        return <Shop onBack={handleBackToMenu} currency={currency} />;
-    }
+    const FloatingChatButton = () => (
+        <button 
+            onClick={() => social.setShowSocial(true)}
+            className="fixed bottom-6 right-6 z-50 p-4 bg-purple-600 rounded-full text-white shadow-[0_0_20px_rgba(147,51,234,0.6)] hover:scale-110 active:scale-95 transition-transform border-2 border-white/20"
+        >
+            <MessageSquare size={24} />
+            {social.unreadCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold border border-white">
+                    {social.unreadCount}
+                </div>
+            )}
+        </button>
+    );
 
-    if (currentView === 'tetris') {
-        return <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
+    const renderContent = () => {
+        if (currentView === 'shop') {
+            return <Shop onBack={handleBackToMenu} currency={currency} />;
+        }
+        if (currentView === 'tetris') {
+            return <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
+        }
+        if (currentView === 'rush') {
+            return <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSound}} />;
+        }
+        if (currentView === 'connect4') {
+            return <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
+        }
+        if (currentView === 'sudoku') {
+            return <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
+        }
+        if (currentView === 'breaker') {
+            return <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
+        }
+        if (currentView === 'pacman') {
+            return <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
+        }
+        if (currentView === 'memory') {
+            return <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
+        }
+        if (currentView === 'battleship') {
+            return <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
+        }
+        return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} social={social} />;
+    };
 
-    if (currentView === 'rush') {
-        // Pour RushGame qui prend tout l'objet currency, on remplace la méthode addCoins
-        return <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSound}} />;
-    }
-
-    if (currentView === 'connect4') {
-        return <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-
-    if (currentView === 'sudoku') {
-        return <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-
-    if (currentView === 'breaker') {
-        return <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-    
-    if (currentView === 'pacman') {
-        return <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-    
-    if (currentView === 'memory') {
-        return <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-
-    if (currentView === 'battleship') {
-        return <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />;
-    }
-
-    return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} />;
+    return (
+        <>
+            {renderContent()}
+            <SocialHub social={social} currency={currency} />
+            {!social.showSocial && <FloatingChatButton />}
+        </>
+    );
 }
 
 export default App;
