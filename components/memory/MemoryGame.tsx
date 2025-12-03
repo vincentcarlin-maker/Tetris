@@ -84,6 +84,13 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
     const chatEndRef = useRef<HTMLDivElement>(null);
     const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
 
+    // Helper to sanitize extraInfo (hide JSON stats)
+    const isInfoValid = (info?: string) => {
+        if (!info) return false;
+        if (info.startsWith('{') || info.includes('stats')) return false; // Basic detection of JSON string
+        return true;
+    };
+
     // Sync Self Info
     useEffect(() => {
         const diffName = DIFFICULTY_CONFIG[difficulty].name;
@@ -420,7 +427,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
                                             <div className="flex flex-col">
                                                 <span className="font-bold">{player.name}</span>
-                                                {player.extraInfo && <span className="text-[10px] text-purple-300 font-bold tracking-widest bg-purple-500/10 px-1.5 rounded border border-purple-500/20 w-fit">{player.extraInfo}</span>}
+                                                {/* Filter out raw JSON data from extraInfo */}
+                                                {isInfoValid(player.extraInfo) && <span className="text-[10px] text-purple-300 font-bold tracking-widest bg-purple-500/10 px-1.5 rounded border border-purple-500/20 w-fit">{player.extraInfo}</span>}
                                             </div>
                                         </div>
                                         <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>

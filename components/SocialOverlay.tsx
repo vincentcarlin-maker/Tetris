@@ -143,17 +143,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     // Sync Global Lobby Presence
     useEffect(() => {
+        // IMPORTANT: Prevent overwriting game specific info (like "FACILE") if hosting a game
+        if (mp.isHost) return;
+
         // We always update self info in the global lobby, even if social modal is closed
         // This allows people to see us in the "Community" tab
         const socialPayload = {
             id: myPeerId,
             stats: { 
-                tetris: 0, breaker: 0, pacman: 0, memory: 0, rush: 0, sudoku: 0 // Placeholder, handled in individual games mostly
+                tetris: 0, breaker: 0, pacman: 0, memory: 0, rush: 0, sudoku: 0 // Placeholder
             }
         };
         mp.updateSelfInfo(username, currentAvatarId, JSON.stringify(socialPayload));
-        // We do NOT call mp.connect() here, App.tsx handles the global connection.
-    }, [username, currentAvatarId, myPeerId, mp]);
+    }, [username, currentAvatarId, myPeerId, mp, mp.isHost]);
 
     // Unread Count - SECURED LOOP
     useEffect(() => {
@@ -170,6 +172,23 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         count += requests.length;
         setUnreadCount(count);
     }, [messages, myPeerId, requests]);
+
+    // Auto-mark messages as read if chat is open
+    useEffect(() => {
+        if (showSocial && activeChatId && messages[activeChatId]) {
+            const hasUnread = messages[activeChatId].some(m => !m.read && m.senderId !== myPeerId);
+            if (hasUnread) {
+                setMessages(prev => {
+                    const chat = prev[activeChatId];
+                    if (!chat) return prev;
+                    const updatedChat = chat.map(m => m.senderId !== myPeerId && !m.read ? { ...m, read: true } : m);
+                    const updated = { ...prev, [activeChatId]: updatedChat };
+                    localStorage.setItem('neon_dms', JSON.stringify(updated));
+                    return updated;
+                });
+            }
+        }
+    }, [messages, activeChatId, showSocial, myPeerId]);
 
     // --- PEER JS HANDLERS ---
     const handleConnection = useCallback((conn: DataConnection) => {
@@ -226,6 +245,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 audio.playCoin();
             }
             else if (data.type === 'DM') {
+                // If social is open and we are looking at this chat, mark as read immediately
                 const isCurrentlyReading = showSocialRef.current && activeChatIdRef.current === conn.peer;
                 const msg: PrivateMessage = {
                     id: Date.now().toString() + Math.random(),
