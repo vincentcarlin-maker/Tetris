@@ -24,6 +24,30 @@ const App: React.FC = () => {
     const currency = useCurrency();
     const social = useSocialSystem(audio, currency);
 
+    // Handle visibility change (App Resume)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('App resumed: Attempting to recover context...');
+                // 1. Recover Audio Context (often suspended on mobile background)
+                audio.resumeAudio();
+                
+                // 2. Force reflow/repaint to ensure UI is up to date
+                requestAnimationFrame(() => {
+                    document.body.style.display = 'none';
+                    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                    document.body.offsetHeight; // trigger reflow
+                    document.body.style.display = '';
+                });
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [audio]);
+
     useEffect(() => {
         const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship'];
         const isGameView = gameViews.includes(currentView);
