@@ -147,6 +147,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
             mp.connect();
         } else {
             mp.disconnect();
+            setOnlineStep('connecting'); // Reset explicitly
             setOpponentLeft(false);
         }
         return () => mp.disconnect();
@@ -475,13 +476,13 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                 {gameMode === 'SOLO' ? <button onClick={startSoloGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button> : <div className="w-10"/>}
             </div>
 
-            {(!mp.gameOpponent || isGameOver) && onlineStep !== 'lobby' && (
+            {(!mp.gameOpponent || isGameOver) && (
                 <div className="flex flex-col items-center gap-2 mb-2 z-10 shrink-0 w-full max-w-lg">
                     <div className="flex bg-gray-900 rounded-full border border-white/10 p-1">
                         <button onClick={() => setGameMode('SOLO')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'SOLO' ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>SOLO</button>
                         <button onClick={() => setGameMode('ONLINE')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'ONLINE' ? 'bg-green-500 text-black shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'text-gray-400 hover:text-white'}`}>EN LIGNE</button>
                     </div>
-                    {(gameMode === 'SOLO' || (gameMode === 'ONLINE' && mp.isHost)) && (
+                    {(gameMode === 'SOLO' || (gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game')) && (
                          <div className="flex bg-gray-900 rounded-full border border-white/10 overflow-hidden">
                             {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => (
                                 <button key={d} onClick={() => setDifficulty(d)} className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${difficulty === d ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}>{DIFFICULTY_CONFIG[d].name}</button>
