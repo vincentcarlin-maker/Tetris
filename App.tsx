@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
@@ -33,6 +31,25 @@ const App: React.FC = () => {
         mp.connect();
         return () => mp.disconnect();
     }, []);
+
+    // Apply Background Wallpaper
+    useEffect(() => {
+        const bgElement = document.getElementById('app-background');
+        if (bgElement) {
+            const wallpaper = currency.wallpapersCatalog.find(w => w.id === currency.currentWallpaperId);
+            if (wallpaper) {
+                bgElement.style.backgroundImage = wallpaper.cssValue;
+                // Ajustements pour les backgrounds complexes (pas le mur de brique par défaut)
+                if (currency.currentWallpaperId !== 'bg_brick') {
+                    bgElement.style.backgroundSize = 'cover';
+                    bgElement.style.backgroundPosition = 'center';
+                } else {
+                    // Reset to default style for brick
+                    bgElement.style.backgroundSize = '100% 100%, 200px 60px';
+                }
+            }
+        }
+    }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
         const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders'];

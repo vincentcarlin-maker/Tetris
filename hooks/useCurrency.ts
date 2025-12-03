@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box } from 'lucide-react';
+import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type } from 'lucide-react';
 
 export interface Badge {
   id: string;
@@ -25,6 +25,22 @@ export interface Frame {
     name: string;
     price: number;
     cssClass: string; // Tailwind classes for the border/glow
+    description: string;
+}
+
+export interface Wallpaper {
+    id: string;
+    name: string;
+    price: number;
+    cssValue: string; // CSS background property
+    description: string;
+}
+
+export interface Title {
+    id: string;
+    name: string; // The text displayed
+    price: number;
+    color: string; // Tailwind text color class
     description: string;
 }
 
@@ -67,6 +83,25 @@ export const FRAMES_CATALOG: Frame[] = [
     { id: 'fr_diamond', name: 'Diamant', price: 20000, cssClass: 'border-cyan-200 shadow-[0_0_20px_#a5f3fc] ring-2 ring-white/50', description: 'Incassable et brillant.' },
 ];
 
+export const WALLPAPERS_CATALOG: Wallpaper[] = [
+    { id: 'bg_brick', name: 'Briques Sombres', price: 0, cssValue: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.95) 100%), url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'60\' viewBox=\'0 0 200 60\'%3E%3Cdefs%3E%3Cfilter id=\'roughEdges\' x=\'-20%25\' y=\'-20%25\' width=\'140%25\' height=\'140%25\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.05\' numOctaves=\'4\' result=\'noise\'/%3E%3CfeDisplacementMap in=\'SourceGraphic\' in2=\'noise\' scale=\'1.5\' xChannelSelector=\'R\' yChannelSelector=\'G\'/%3E%3C/filter%3E%3Cfilter id=\'grain\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3C/defs%3E%3Crect width=\'200\' height=\'60\' fill=\'%23050505\'/%3E%3Cg filter=\'url(%23roughEdges)\'%3E%3Crect x=\'2\' y=\'2\' width=\'96\' height=\'26\' fill=\'%2315151a\' /%3E%3Crect x=\'102\' y=\'2\' width=\'96\' height=\'26\' fill=\'%23131318\' /%3E%3Crect x=\'-2\' y=\'32\' width=\'50\' height=\'26\' fill=\'%23111116\' /%3E%3Crect x=\'52\' y=\'32\' width=\'96\' height=\'26\' fill=\'%23141419\' /%3E%3Crect x=\'152\' y=\'32\' width=\'50\' height=\'26\' fill=\'%23121217\' /%3E%3C/g%3E%3Crect width=\'200\' height=\'60\' fill=\'%23fff\' opacity=\'0.05\' filter=\'url(%23grain)\'/%3E%3C/svg%3E")', description: 'L\'atmosphère originale.' },
+    { id: 'bg_grid', name: 'Grille Rétro', price: 1000, cssValue: 'linear-gradient(rgba(0, 0, 0, 0.9) 0%, rgba(20, 0, 30, 0.9) 100%), repeating-linear-gradient(0deg, transparent 0, transparent 49px, rgba(255, 0, 255, 0.1) 50px), repeating-linear-gradient(90deg, transparent 0, transparent 49px, rgba(0, 243, 255, 0.1) 50px)', description: 'Le cyber-espace classique.' },
+    { id: 'bg_stars', name: 'Espace Profond', price: 2000, cssValue: 'radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)', description: 'Perdu dans les étoiles.' },
+    { id: 'bg_matrix', name: 'Le Code', price: 5000, cssValue: 'linear-gradient(0deg, rgba(0,0,0,0.9), rgba(0,20,0,0.9)), repeating-linear-gradient(0deg, transparent 0, transparent 2px, #0f0 3px)', description: 'Vous voyez la matrice.' },
+    { id: 'bg_hex', name: 'Hexagones', price: 8000, cssValue: 'radial-gradient(circle, #2a2a2a 0%, #000000 100%), url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M10 0L20 10L10 20L0 10Z\' fill=\'%23333\' fill-opacity=\'0.4\'/%3E%3C/svg%3E")', description: 'Structure alvéolaire.' },
+];
+
+export const TITLES_CATALOG: Title[] = [
+    { id: 't_none', name: '', price: 0, color: 'text-gray-500', description: 'Aucun titre.' },
+    { id: 't_novice', name: 'NOVICE', price: 100, color: 'text-gray-400', description: 'On commence tous quelque part.' },
+    { id: 't_tryhard', name: 'TRYHARD', price: 1000, color: 'text-red-500', description: 'Tu ne lâches rien.' },
+    { id: 't_pro', name: 'PRO PLAYER', price: 2500, color: 'text-blue-400', description: 'C\'est du sérieux.' },
+    { id: 't_boss', name: 'LE BOSS', price: 5000, color: 'text-yellow-400', description: 'Respect.' },
+    { id: 't_glitch', name: 'GLITCH HUNTER', price: 7500, color: 'text-green-400', description: 'Tu vois ce que les autres ne voient pas.' },
+    { id: 't_legend', name: 'LÉGENDE', price: 15000, color: 'text-purple-400', description: 'Ton nom est connu de tous.' },
+    { id: 't_god', name: 'DIEU DU JEU', price: 50000, color: 'text-amber-400', description: 'Au-dessus de la mêlée.' },
+];
+
 export const SOLUTION_COST = 200;
 
 export const useCurrency = () => {
@@ -80,6 +115,12 @@ export const useCurrency = () => {
     
     const [currentFrameId, setCurrentFrameId] = useState("fr_none");
     const [ownedFrames, setOwnedFrames] = useState<string[]>(["fr_none"]);
+
+    const [currentWallpaperId, setCurrentWallpaperId] = useState("bg_brick");
+    const [ownedWallpapers, setOwnedWallpapers] = useState<string[]>(["bg_brick"]);
+
+    const [currentTitleId, setCurrentTitleId] = useState("t_none");
+    const [ownedTitles, setOwnedTitles] = useState<string[]>(["t_none"]);
 
     // Game Unlocks
     const [unlockedSolutions, setUnlockedSolutions] = useState<number[]>([]);
@@ -97,6 +138,10 @@ export const useCurrency = () => {
         const storedOwnedAvatars = localStorage.getItem('neon-owned-avatars');
         const storedFrame = localStorage.getItem('neon-frame');
         const storedOwnedFrames = localStorage.getItem('neon-owned-frames');
+        const storedWallpaper = localStorage.getItem('neon-wallpaper');
+        const storedOwnedWallpapers = localStorage.getItem('neon-owned-wallpapers');
+        const storedTitle = localStorage.getItem('neon-title');
+        const storedOwnedTitles = localStorage.getItem('neon-owned-titles');
 
         if (storedName) setUsername(storedName);
         if (storedAvatar) setCurrentAvatarId(storedAvatar);
@@ -104,6 +149,12 @@ export const useCurrency = () => {
         
         if (storedFrame) setCurrentFrameId(storedFrame);
         if (storedOwnedFrames) setOwnedFrames(JSON.parse(storedOwnedFrames));
+
+        if (storedWallpaper) setCurrentWallpaperId(storedWallpaper);
+        if (storedOwnedWallpapers) setOwnedWallpapers(JSON.parse(storedOwnedWallpapers));
+
+        if (storedTitle) setCurrentTitleId(storedTitle);
+        if (storedOwnedTitles) setOwnedTitles(JSON.parse(storedOwnedTitles));
 
         // Load Solutions
         const storedSolutions = localStorage.getItem('neon-rush-solutions');
@@ -189,6 +240,54 @@ export const useCurrency = () => {
         }
     }, [ownedFrames]);
 
+    const buyWallpaper = useCallback((wallpaperId: string, cost: number) => {
+        setCoins(prev => {
+            if (prev >= cost) {
+                const newBalance = prev - cost;
+                localStorage.setItem('neon-coins', newBalance.toString());
+                
+                setOwnedWallpapers(prevOwned => {
+                    const newOwned = [...prevOwned, wallpaperId];
+                    localStorage.setItem('neon-owned-wallpapers', JSON.stringify(newOwned));
+                    return newOwned;
+                });
+                return newBalance;
+            }
+            return prev;
+        });
+    }, []);
+
+    const selectWallpaper = useCallback((wallpaperId: string) => {
+        if (ownedWallpapers.includes(wallpaperId)) {
+            setCurrentWallpaperId(wallpaperId);
+            localStorage.setItem('neon-wallpaper', wallpaperId);
+        }
+    }, [ownedWallpapers]);
+
+    const buyTitle = useCallback((titleId: string, cost: number) => {
+        setCoins(prev => {
+            if (prev >= cost) {
+                const newBalance = prev - cost;
+                localStorage.setItem('neon-coins', newBalance.toString());
+                
+                setOwnedTitles(prevOwned => {
+                    const newOwned = [...prevOwned, titleId];
+                    localStorage.setItem('neon-owned-titles', JSON.stringify(newOwned));
+                    return newOwned;
+                });
+                return newBalance;
+            }
+            return prev;
+        });
+    }, []);
+
+    const selectTitle = useCallback((titleId: string) => {
+        if (ownedTitles.includes(titleId)) {
+            setCurrentTitleId(titleId);
+            localStorage.setItem('neon-title', titleId);
+        }
+    }, [ownedTitles]);
+
     const buySolution = useCallback((levelId: number) => {
         setCoins(prev => {
             if (prev >= SOLUTION_COST) {
@@ -238,6 +337,18 @@ export const useCurrency = () => {
         buyFrame,
         ownedFrames,
         framesCatalog: FRAMES_CATALOG,
+        // Wallpapers
+        currentWallpaperId,
+        selectWallpaper,
+        buyWallpaper,
+        ownedWallpapers,
+        wallpapersCatalog: WALLPAPERS_CATALOG,
+        // Titles
+        currentTitleId,
+        selectTitle,
+        buyTitle,
+        ownedTitles,
+        titlesCatalog: TITLES_CATALOG,
         // Game Unlocks
         unlockedSolutions,
         buySolution

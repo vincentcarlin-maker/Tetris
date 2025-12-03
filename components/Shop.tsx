@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb, ShoppingBag, Frame } from 'lucide-react';
-import { useCurrency, Badge, Avatar, Frame as FrameType, SOLUTION_COST } from '../hooks/useCurrency';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb, ShoppingBag, Frame, Image, Type } from 'lucide-react';
+import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, SOLUTION_COST } from '../hooks/useCurrency';
 import { TOTAL_LEVELS } from './rush/levels';
 
 interface ShopProps {
@@ -14,10 +14,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         coins, inventory, buyBadge, catalog, 
         currentAvatarId, selectAvatar, buyAvatar, ownedAvatars, avatarsCatalog,
         currentFrameId, selectFrame, buyFrame, ownedFrames, framesCatalog,
+        currentWallpaperId, selectWallpaper, buyWallpaper, ownedWallpapers, wallpapersCatalog,
+        currentTitleId, selectTitle, buyTitle, ownedTitles, titlesCatalog,
         unlockedSolutions, buySolution
     } = currency;
 
-    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'SOLUTIONS'>('BADGES');
+    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'WALLPAPERS' | 'TITLES' | 'SOLUTIONS'>('BADGES');
 
     const handleBuyBadge = (badge: Badge) => {
         if (coins >= badge.price && !inventory.includes(badge.id)) {
@@ -34,6 +36,18 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const handleBuyFrame = (frame: FrameType) => {
         if (coins >= frame.price && !ownedFrames.includes(frame.id)) {
             buyFrame(frame.id, frame.price);
+        }
+    };
+
+    const handleBuyWallpaper = (wp: Wallpaper) => {
+        if (coins >= wp.price && !ownedWallpapers.includes(wp.id)) {
+            buyWallpaper(wp.id, wp.price);
+        }
+    };
+
+    const handleBuyTitle = (title: Title) => {
+        if (coins >= title.price && !ownedTitles.includes(title.id)) {
+            buyTitle(title.id, title.price);
         }
     };
 
@@ -65,6 +79,8 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                     <button onClick={() => setActiveTab('BADGES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'BADGES' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>BADGES</button>
                     <button onClick={() => setActiveTab('AVATARS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'AVATARS' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>AVATARS</button>
                     <button onClick={() => setActiveTab('FRAMES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'FRAMES' ? 'bg-pink-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>CADRES</button>
+                    <button onClick={() => setActiveTab('WALLPAPERS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'WALLPAPERS' ? 'bg-green-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>FONDS</button>
+                    <button onClick={() => setActiveTab('TITLES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'TITLES' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>TITRES</button>
                     <button onClick={() => setActiveTab('SOLUTIONS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'SOLUTIONS' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>SOLUTIONS</button>
                 </div>
             </div>
@@ -206,6 +222,103 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                             }`}
                                         >
                                             ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{frame.price}</span>
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* WALLPAPERS TAB */}
+                {activeTab === 'WALLPAPERS' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {wallpapersCatalog.map(wp => {
+                            const isOwned = ownedWallpapers.includes(wp.id);
+                            const isSelected = currentWallpaperId === wp.id;
+                            const canAfford = coins >= wp.price;
+
+                            return (
+                                <div key={wp.id} className={`p-3 rounded-xl border ${isSelected ? 'bg-green-900/20 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
+                                    <div className="w-full h-20 rounded-lg mb-3 border border-white/20 relative overflow-hidden">
+                                        <div className="absolute inset-0" style={{ background: wp.cssValue, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                                        {isSelected && <div className="absolute top-1 right-1 w-5 h-5 bg-green-500 rounded-full border border-black flex items-center justify-center text-black"><Check size={12} strokeWidth={4} /></div>}
+                                    </div>
+                                    
+                                    <h3 className="font-bold text-sm text-white mb-1">{wp.name}</h3>
+                                    <p className="text-[10px] text-gray-500 mb-3 leading-tight px-2 h-8">{wp.description}</p>
+                                    
+                                    {isOwned ? (
+                                        <button 
+                                            onClick={() => selectWallpaper(wp.id)}
+                                            disabled={isSelected}
+                                            className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                                isSelected 
+                                                ? 'bg-green-600/20 text-green-400 cursor-default' 
+                                                : 'bg-green-600 text-white hover:bg-green-500'
+                                            }`}
+                                        >
+                                            {isSelected ? 'SÉLECTIONNÉ' : 'CHOISIR'}
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => handleBuyWallpaper(wp)}
+                                            disabled={!canAfford}
+                                            className={`w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                                                canAfford 
+                                                ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' 
+                                                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{wp.price}</span>
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* TITLES TAB */}
+                {activeTab === 'TITLES' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {titlesCatalog.map(title => {
+                            const isOwned = ownedTitles.includes(title.id);
+                            const isSelected = currentTitleId === title.id;
+                            const canAfford = coins >= title.price;
+
+                            return (
+                                <div key={title.id} className={`p-3 rounded-xl border ${isSelected ? 'bg-orange-900/20 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
+                                    <div className="h-12 w-full flex items-center justify-center mb-2 bg-black/40 rounded-lg border border-white/5">
+                                        <span className={`font-black text-sm uppercase tracking-widest ${title.color}`}>{title.name || '(Aucun)'}</span>
+                                    </div>
+                                    
+                                    <h3 className="font-bold text-sm text-white mb-1">Titre : {title.name || 'Vide'}</h3>
+                                    <p className="text-[10px] text-gray-500 mb-3 leading-tight px-2 h-8">{title.description}</p>
+                                    
+                                    {isOwned ? (
+                                        <button 
+                                            onClick={() => selectTitle(title.id)}
+                                            disabled={isSelected}
+                                            className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                                isSelected 
+                                                ? 'bg-green-600/20 text-green-400 cursor-default' 
+                                                : 'bg-orange-500 text-white hover:bg-orange-400'
+                                            }`}
+                                        >
+                                            {isSelected ? 'SÉLECTIONNÉ' : 'CHOISIR'}
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => handleBuyTitle(title)}
+                                            disabled={!canAfford}
+                                            className={`w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                                                canAfford 
+                                                ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' 
+                                                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{title.price}</span>
                                         </button>
                                     )}
                                 </div>

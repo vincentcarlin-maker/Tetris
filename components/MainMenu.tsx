@@ -1,6 +1,4 @@
 
-
-
 // ... imports
 import React, { useEffect, useState, useRef } from 'react';
 import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket } from 'lucide-react';
@@ -191,7 +189,7 @@ const ArcadeLogo = () => {
 };
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp }) => {
-    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins } = currency;
+    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
     
@@ -271,9 +269,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Récupération des badges possédés
     const ownedBadges = catalog.filter(b => inventory.includes(b.id));
 
-    // Current Avatar & Frame
+    // Current Avatar & Frame & Title
     const currentAvatar = avatarsCatalog.find(a => a.id === currentAvatarId) || avatarsCatalog[0];
     const currentFrame = framesCatalog.find(f => f.id === currentFrameId) || framesCatalog[0];
+    const currentTitle = titlesCatalog.find(t => t.id === currentTitleId);
     const AvatarIcon = currentAvatar.icon;
 
     // Calcul des stats pour affichage
@@ -358,6 +357,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                     </button>
                                 )}
                             </div>
+                            
+                            {/* DISPLAY EQUIPPED TITLE IF EXISTS */}
+                            {currentTitle && currentTitle.id !== 't_none' && (
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${currentTitle.color} mb-1 bg-gray-900/50 px-2 py-0.5 rounded w-fit border border-white/10`}>
+                                    {currentTitle.name}
+                                </span>
+                            )}
+
                             <span className={`text-xs font-bold tracking-widest uppercase ${playerRank.color}`}>{playerRank.title}</span>
                             
                             {/* Streak Badge */}
