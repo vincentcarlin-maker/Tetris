@@ -13,6 +13,119 @@ interface MainMenuProps {
     currency: ReturnType<typeof useCurrency>;
 }
 
+// --- CONFIGURATION DES JEUX ---
+const GAMES_CONFIG = [
+    { 
+        id: 'tetris', 
+        name: 'TETRIS', 
+        icon: Grid3X3, 
+        color: 'text-cyan-400', 
+        bg: 'bg-cyan-900/20',
+        border: 'border-cyan-500/30',
+        hoverBorder: 'hover:border-cyan-400', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', 
+        glow: 'rgba(34,211,238,0.8)', 
+        badges: { solo: true, online: false, vs: false }, 
+        reward: 'GAINS' 
+    },
+    { 
+        id: 'breaker', 
+        name: 'BREAKER', 
+        icon: Layers, 
+        color: 'text-fuchsia-500', 
+        bg: 'bg-fuchsia-900/20',
+        border: 'border-fuchsia-500/30',
+        hoverBorder: 'hover:border-fuchsia-500', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(217,70,239,0.3)]', 
+        glow: 'rgba(217,70,239,0.8)', 
+        badges: { solo: true, online: false, vs: false }, 
+        reward: 'GAINS' 
+    },
+    { 
+        id: 'pacman', 
+        name: 'PACMAN', 
+        icon: Ghost, 
+        color: 'text-yellow-400', 
+        bg: 'bg-yellow-900/20',
+        border: 'border-yellow-500/30',
+        hoverBorder: 'hover:border-yellow-400', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', 
+        glow: 'rgba(250,204,21,0.8)', 
+        badges: { solo: true, online: false, vs: false }, 
+        reward: 'GAINS' 
+    },
+    { 
+        id: 'rush', 
+        name: 'RUSH', 
+        icon: Car, 
+        color: 'text-purple-500', 
+        bg: 'bg-purple-900/20',
+        border: 'border-purple-500/30',
+        hoverBorder: 'hover:border-purple-500', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', 
+        glow: 'rgba(168,85,247,0.8)', 
+        badges: { solo: true, online: false, vs: false }, 
+        reward: '50' 
+    },
+    { 
+        id: 'sudoku', 
+        name: 'SUDOKU', 
+        icon: Brain, 
+        color: 'text-sky-400', 
+        bg: 'bg-sky-900/20',
+        border: 'border-sky-500/30',
+        hoverBorder: 'hover:border-sky-400', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', 
+        glow: 'rgba(56,189,248,0.8)', 
+        badges: { solo: true, online: false, vs: false }, 
+        reward: '50' 
+    },
+    { 
+        id: 'connect4', 
+        name: 'CONNECT 4', 
+        icon: CircleDot, 
+        color: 'text-pink-500', 
+        bg: 'bg-pink-900/20',
+        border: 'border-pink-500/30',
+        hoverBorder: 'hover:border-pink-500', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]', 
+        glow: 'rgba(236,72,153,0.8)', 
+        badges: { solo: true, online: true, vs: true }, 
+        reward: '30' 
+    },
+    { 
+        id: 'memory', 
+        name: 'MEMORY', 
+        icon: Sparkles, 
+        color: 'text-violet-400', 
+        bg: 'bg-violet-900/20',
+        border: 'border-violet-500/30',
+        hoverBorder: 'hover:border-violet-400', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(167,139,250,0.3)]', 
+        glow: 'rgba(167,139,250,0.8)', 
+        badges: { solo: true, online: true, vs: false }, 
+        reward: 'GAINS' 
+    },
+    { 
+        id: 'battleship', 
+        name: 'BATAILLE', 
+        icon: Ship, 
+        color: 'text-blue-500', 
+        bg: 'bg-blue-900/20',
+        border: 'border-blue-500/30',
+        hoverBorder: 'hover:border-blue-500', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', 
+        glow: 'rgba(59,130,246,0.8)', 
+        badges: { solo: true, online: true, vs: false }, 
+        reward: 'GAINS' 
+    },
+];
+
+const COMING_SOON = [
+    { name: 'AIR HOCKEY', icon: Wind },
+    { name: 'MASTERMIND', icon: BrainCircuit }
+];
+
 // --- TYPES POUR LE SYSTÈME SOCIAL ---
 interface PlayerStats {
     tetris: number;
@@ -51,7 +164,7 @@ interface FriendRequest {
 // Composant pour le logo stylisé avec manette arcade
 const ArcadeLogo = () => {
     return (
-        <div className="flex flex-col items-center justify-center py-6 animate-in fade-in slide-in-from-top-8 duration-700 mb-4 relative">
+        <div className="flex flex-col items-center justify-center py-6 animate-in fade-in slide-in-from-top-8 duration-700 mb-2 relative">
             
             {/* LUMIÈRE PERMANENTE DU LOGO SUR LE MUR DE BRIQUES */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-gradient-to-b from-neon-pink/40 to-neon-blue/40 blur-[60px] rounded-full pointer-events-none -z-10 mix-blend-hard-light opacity-80" />
@@ -106,29 +219,6 @@ const ArcadeLogo = () => {
             </div>
 
         </div>
-    );
-};
-
-// Helper pour les badges de mode de jeu
-const GameBadge = ({ type }: { type: 'SOLO' | 'VS' | 'ONLINE' }) => {
-    let styles = "";
-    let icon = null;
-
-    if (type === 'SOLO') {
-        styles = "text-cyan-400 border-cyan-500/30 bg-cyan-500/10";
-        icon = <User size={8} />;
-    } else if (type === 'VS') {
-        styles = "text-pink-400 border-pink-500/30 bg-pink-500/10";
-        icon = <Users size={8} />;
-    } else if (type === 'ONLINE') {
-        styles = "text-green-400 border-green-500/30 bg-green-500/10";
-        icon = <Globe size={8} />;
-    }
-
-    return (
-        <span className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${styles}`}>
-            {icon} {type}
-        </span>
     );
 };
 
@@ -1204,7 +1294,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 </div>
             )}
 
-             <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-10 mt-12">
+             <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  
                  <ArcadeLogo />
 
@@ -1352,13 +1442,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     )}
                 </div>
 
-                 {/* Shop Button */}
+                 {/* Shop Banner */}
                  <button
                     onClick={() => onSelectGame('shop')}
                     {...bindGlow('rgba(234, 179, 8, 0.9)')}
                     className="w-full bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border border-yellow-500/40 rounded-xl p-4 flex items-center justify-between transition-all group active:scale-[0.98] 
                     hover:border-yellow-500 hover:shadow-[0_0_50px_rgba(234,179,8,0.6)] hover:ring-2 hover:ring-yellow-500 hover:bg-yellow-600/20
-                    backdrop-blur-md shadow-lg"
+                    backdrop-blur-md shadow-lg mb-2"
                  >
                      <div className="flex items-center gap-4">
                          <div className="p-3 bg-yellow-500/20 rounded-lg text-yellow-400 group-hover:text-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
@@ -1374,287 +1464,63 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      </div>
                  </button>
 
-                 <div className="w-full grid gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                     {/* Tetris Button */}
-                     <button
-                        onClick={() => onSelectGame('tetris')}
-                        {...bindGlow('rgba(0, 243, 255, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-neon-blue/30 rounded-xl overflow-hidden transition-all duration-200 
-                        hover:border-neon-blue hover:shadow-[0_0_50px_rgba(0,243,255,0.7)] hover:ring-2 hover:ring-neon-blue
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(0,243,255,1)] active:ring-neon-blue
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-neon-blue group-hover:bg-neon-blue group-hover:text-black transition-colors shadow-lg group-hover:shadow-[0_0_15px_#00f3ff]">
-                                    <Grid3X3 size={28} />
-                                </div>
-                                <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-blue transition-colors italic drop-shadow-md">TETRIS NÉON</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
-                                 </div>
+                 {/* --- GAME GRID --- */}
+                 <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
+                    {GAMES_CONFIG.map((game) => (
+                        <button
+                            key={game.id}
+                            onClick={() => onSelectGame(game.id)}
+                            {...bindGlow(game.glow)}
+                            className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border ${game.border} rounded-xl overflow-hidden transition-all duration-300
+                            ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95
+                            backdrop-blur-md`}
+                        >
+                            {/* Hover Gradient Background */}
+                            <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>
+                            
+                            {/* Badges */}
+                            <div className="w-full flex justify-end gap-1 relative z-10">
+                                {game.badges.online && (
+                                    <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>
+                                )}
+                                {game.badges.vs && (
+                                    <div className="p-1 rounded bg-black/40 text-pink-400 border border-pink-500/30" title="Versus"><Users size={10} /></div>
+                                )}
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-blue group-hover:text-black transition-all group-hover:shadow-[0_0_15px_#00f3ff]">
-                                <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
-                     
-                     {/* Breaker Button */}
-                     <button 
-                        onClick={() => onSelectGame('breaker')}
-                        {...bindGlow('rgba(255, 0, 255, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-neon-pink/30 rounded-xl overflow-hidden transition-all duration-200
-                        hover:border-neon-pink hover:shadow-[0_0_50px_rgba(255,0,255,0.7)] hover:ring-2 hover:ring-neon-pink
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(255,0,255,1)]
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-neon-pink/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                             <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-neon-pink group-hover:bg-neon-pink group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#ff00ff]">
-                                    <Layers size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic drop-shadow-md">NEON BREAKER</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
-                                 </div>
-                            </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#ff00ff]">
-                                <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
 
-                     {/* Neon Rush Button */}
-                     <button 
-                        onClick={() => onSelectGame('rush')}
-                        {...bindGlow('rgba(168, 85, 247, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-purple-500/30 rounded-xl overflow-hidden transition-all duration-200
-                        hover:border-purple-500 hover:shadow-[0_0_50px_rgba(168,85,247,0.7)] hover:ring-2 hover:ring-purple-500
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(168,85,247,1)]
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                             <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#a855f7]">
-                                    <Car size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-purple-400 transition-colors italic drop-shadow-md">NEON RUSH</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Niveau</span>
-                                 </div>
+                            {/* Icon */}
+                            <div className={`p-2 rounded-lg bg-gray-900/50 ${game.color} group-hover:scale-110 transition-transform relative z-10 shadow-lg border border-white/5`}>
+                                <game.icon size={32} />
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#a855f7]">
-                                <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
-                     
-                     {/* Memory (UNLOCKED) */}
-                     <button 
-                        onClick={() => onSelectGame('memory')}
-                        {...bindGlow('rgba(168, 85, 247, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-purple-400/30 rounded-xl overflow-hidden transition-all duration-200
-                        hover:border-purple-400 hover:shadow-[0_0_50px_rgba(192,132,252,0.7)] hover:ring-2 hover:ring-purple-400
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(192,132,252,1)]
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-purple-400 group-hover:bg-purple-400 group-hover:text-black transition-colors shadow-lg group-hover:shadow-[0_0_15px_currentColor]">
-                                    <Sparkles size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-purple-300 transition-colors italic drop-shadow-md">NEON MEMORY</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                        <GameBadge type="ONLINE" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
-                                </div>
-                            </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-400 group-hover:text-black transition-all group-hover:shadow-[0_0_15px_currentColor]">
-                                <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
 
-                     {/* Connect 4 Button */}
-                     <button 
-                        onClick={() => onSelectGame('connect4')}
-                        {...bindGlow('rgba(255, 0, 255, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-neon-pink/30 rounded-xl overflow-hidden transition-all duration-200
-                        hover:border-neon-pink hover:shadow-[0_0_50px_rgba(255,0,255,0.7)] hover:ring-2 hover:ring-neon-pink
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(255,0,255,1)]
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-neon-pink/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                             <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-neon-pink group-hover:bg-neon-pink group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#ff00ff]">
-                                    <CircleDot size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-neon-pink transition-colors italic drop-shadow-md">NEON CONNECT</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                        <GameBadge type="VS" />
-                                        <GameBadge type="ONLINE" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 30 Pièces / Victoire</span>
-                                 </div>
+                            {/* Title & Reward */}
+                            <div className="text-center relative z-10 w-full">
+                                <h3 className={`font-black italic text-sm tracking-wider text-white group-hover:${game.color} transition-colors uppercase`}>
+                                    {game.name}
+                                </h3>
+                                {/* Reward */}
+                                {game.reward && (
+                                     <div className="flex items-center justify-center gap-1 mt-0.5 opacity-60 text-[8px] font-mono text-gray-300">
+                                        <Coins size={8} className="text-yellow-500" />
+                                        <span>{game.reward}</span>
+                                     </div>
+                                )}
                             </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-neon-pink group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#ff00ff]">
-                                <Play size={16} className="ml-1" />
-                            </div>
+                        </button>
+                    ))}
+                    
+                    {/* Coming Soon Items */}
+                    {COMING_SOON.map((game, i) => (
+                        <div key={i} className="flex flex-col items-center justify-center p-3 h-32 bg-black/30 border border-white/5 rounded-xl opacity-50 grayscale">
+                            <game.icon size={24} className="text-gray-500 mb-2" />
+                            <span className="font-bold text-xs text-gray-500">{game.name}</span>
+                            <span className="text-[8px] text-gray-600 mt-1 flex items-center gap-1"><Lock size={8}/> BIENTÔT</span>
                         </div>
-                     </button>
-
-                     {/* Sudoku Button */}
-                     <button 
-                        onClick={() => onSelectGame('sudoku')}
-                        {...bindGlow('rgba(6, 182, 212, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-cyan-500/30 rounded-xl overflow-hidden transition-all duration-200
-                        hover:border-cyan-500 hover:shadow-[0_0_50px_rgba(6,182,212,0.7)] hover:ring-2 hover:ring-cyan-500
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(6,182,212,1)]
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                             <div className="flex items-center gap-5">
-                                 <div className="p-3 bg-gray-800 rounded-lg text-cyan-500 group-hover:bg-cyan-500 group-hover:text-white transition-colors shadow-lg group-hover:shadow-[0_0_15px_#06b6d4]">
-                                    <Brain size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-cyan-400 transition-colors italic drop-shadow-md">NEON SUDOKU</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> 50 Pièces / Victoire</span>
-                                 </div>
-                            </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-cyan-500 group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#06b6d4]">
-                                <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
-                     
-                     {/* Pac-Man (UNLOCKED) */}
-                     <button 
-                        onClick={() => onSelectGame('pacman')}
-                        {...bindGlow('rgba(234, 179, 8, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-yellow-500/30 rounded-xl overflow-hidden transition-all duration-200
-                        hover:border-yellow-500 hover:shadow-[0_0_50px_rgba(234,179,8,0.7)] hover:ring-2 hover:ring-yellow-500
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(234,179,8,1)]
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-yellow-500 group-hover:bg-yellow-500 group-hover:text-black transition-colors shadow-lg group-hover:shadow-[0_0_15px_#facc15]">
-                                    <Ghost size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide group-hover:text-yellow-400 transition-colors italic drop-shadow-md">NEON PAC</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
-                                 </div>
-                            </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-black transition-all group-hover:shadow-[0_0_15px_#facc15]">
-                                <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
-                     
-                     {/* Battleship (AVAILABLE) */}
-                     <button 
-                        onClick={() => onSelectGame('battleship')}
-                        {...bindGlow('rgba(59, 130, 246, 0.9)')}
-                        className="group relative w-full h-24 bg-black/60 border border-blue-500/30 rounded-xl overflow-hidden transition-all duration-200
-                        hover:border-blue-500 hover:shadow-[0_0_50px_rgba(59,130,246,0.7)] hover:ring-2 hover:ring-blue-500
-                        active:scale-[0.98] active:shadow-[0_0_70px_rgba(59,130,246,1)]
-                        backdrop-blur-md"
-                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-blue-400 group-hover:bg-blue-500 group-hover:text-white shadow-lg transition-colors group-hover:shadow-[0_0_15px_#3b82f6]">
-                                    <Ship size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-white tracking-wide italic group-hover:text-blue-400 transition-colors drop-shadow-md">BATAILLE NAVALE</h3>
-                                    <div className="flex gap-1 mt-1 mb-0.5">
-                                        <GameBadge type="SOLO" />
-                                        <GameBadge type="ONLINE" />
-                                    </div>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><Coins size={10} className="text-yellow-500"/> Gains possibles</span>
-                                </div>
-                            </div>
-                            <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all group-hover:shadow-[0_0_15px_#3b82f6]">
-                                <Play size={16} className="ml-1" />
-                            </div>
-                        </div>
-                     </button>
-                     
-                     {/* Air Hockey (Coming Soon) */}
-                     <button 
-                        disabled
-                        className="group relative w-full h-24 bg-black/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
-                     >
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-gray-400 shadow-lg">
-                                    <Wind size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">AIR HOCKEY</h3>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                                        <Lock size={10} /> BIENTÔT DISPONIBLE
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                     </button>
-                     
-                     {/* Mastermind (Coming Soon) */}
-                     <button 
-                        disabled
-                        className="group relative w-full h-24 bg-black/30 border border-white/5 rounded-xl overflow-hidden cursor-not-allowed opacity-70 grayscale"
-                     >
-                        <div className="flex items-center justify-between px-6 h-full relative z-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-3 bg-gray-800 rounded-lg text-gray-400 shadow-lg">
-                                    <BrainCircuit size={28} />
-                                 </div>
-                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-gray-400 tracking-wide italic">MASTERMIND</h3>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                                        <Lock size={10} /> BIENTÔT DISPONIBLE
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                     </button>
-
+                    ))}
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.9.0 • SOCIAL FIX
+                    v1.9.1 • GRID UPDATE
                  </div>
              </div>
         </div>
