@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Swords, Clipboard, X, Check, Bot } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Swords, Clipboard, X, Check } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -204,6 +204,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   };
 
   // Determine if it's my turn in online mode
+  // CORRECTED LOGIC: Use mp.amIP1 to decide if I am Player 1 or 2, instead of mp.isHost
   const isMyTurnOnline = mp.mode === 'in_game' && ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2));
   
   const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
@@ -505,22 +506,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 </div>
                 
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {/* BOT ENTRY IF LIST EMPTY */}
-                    {hostingPlayers.length === 0 && (
-                        <>
-                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
-                            <div className="flex items-center justify-between p-2 bg-cyan-900/20 rounded-lg border border-cyan-500/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-cyan-900 flex items-center justify-center"><Bot size={24} className="text-cyan-400"/></div>
-                                    <span className="font-bold text-cyan-200">Neon Bot 🤖</span>
-                                </div>
-                                <button onClick={() => { setGameMode('PVE'); resetGame(); }} className="px-3 py-1.5 bg-cyan-500 text-black font-bold rounded text-xs hover:bg-white transition-colors">
-                                    JOUER
-                                </button>
-                            </div>
-                        </>
-                    )}
-
                     {hostingPlayers.length > 0 && (
                         <>
                             <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
@@ -542,8 +527,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                         </>
                     )}
                     
-                    {hostingPlayers.length === 0 && otherPlayers.length === 0 && (
-                         <p className="text-center text-gray-500 italic text-sm py-4">Le bot est toujours prêt pour une partie !</p>
+                    {hostingPlayers.length === 0 && (
+                         <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>
                     )}
                     
                     {otherPlayers.length > 0 && (
@@ -573,7 +558,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   return (
     <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
-       {/* ... existing render code ... */}
        <style>{`
             @keyframes dropIn {
                 0% { transform: translateY(var(--drop-start)); opacity: 1; }

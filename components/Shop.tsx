@@ -1,9 +1,7 @@
-
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb, Glasses } from 'lucide-react';
-import { useCurrency, Badge, Avatar, SOLUTION_COST, ACCESSORIES_CATALOG, AccessoryType } from '../hooks/useCurrency';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb } from 'lucide-react';
+import { useCurrency, Badge, Avatar, SOLUTION_COST } from '../hooks/useCurrency';
 import { TOTAL_LEVELS } from './rush/levels';
-import { AvatarDisplay } from './AvatarDisplay';
 
 interface ShopProps {
     onBack: () => void;
@@ -11,15 +9,8 @@ interface ShopProps {
 }
 
 export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
-    const { 
-        coins, inventory, buyBadge, catalog, 
-        avatarsCatalog, ownedAvatars, buyAvatar, selectAvatar, currentAvatarId, 
-        unlockedSolutions, buySolution,
-        accessoriesCatalog, ownedAccessories, equippedAccessories, buyAccessory, equipAccessory
-    } = currency;
-    
-    const [activeTab, setActiveTab] = useState<'avatars' | 'accessories' | 'badges' | 'helps'>('avatars');
-    const [accessoryFilter, setAccessoryFilter] = useState<AccessoryType | 'ALL'>('ALL');
+    const { coins, inventory, buyBadge, catalog, avatarsCatalog, ownedAvatars, buyAvatar, selectAvatar, currentAvatarId, unlockedSolutions, buySolution } = currency;
+    const [activeTab, setActiveTab] = useState<'avatars' | 'badges' | 'helps'>('avatars');
 
     // Récupérer le niveau max débloqué pour savoir quelles solutions afficher
     const maxUnlockedLevel = parseInt(localStorage.getItem('rush-unlocked-level') || '1', 10);
@@ -49,7 +40,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
 
     return (
         <div className="flex flex-col items-center min-h-screen w-full bg-black/20 text-white overflow-y-auto pb-10">
-            {/* Ambient Light Reflection */}
+            {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
             {/* Header Sticky */}
@@ -78,13 +69,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                         onClick={() => setActiveTab('avatars')}
                         className={`flex-1 py-3 px-2 text-sm font-bold tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'avatars' ? 'border-neon-blue text-white bg-white/5' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                     >
-                        <User size={16} /> Skins
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('accessories')}
-                        className={`flex-1 py-3 px-2 text-sm font-bold tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'accessories' ? 'border-green-500 text-white bg-white/5' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
-                    >
-                        <Glasses size={16} /> Items
+                        <User size={16} /> Avatars
                     </button>
                     <button 
                         onClick={() => setActiveTab('badges')}
@@ -104,28 +89,14 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
             {/* CONTENT */}
             <div className="w-full max-w-2xl mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 
-                {/* PREVIEW CARD FOR CUSTOMIZATION */}
-                {(activeTab === 'avatars' || activeTab === 'accessories') && (
-                    <div className="flex justify-center mb-6">
-                        <div className="bg-gray-900/80 p-6 rounded-2xl border border-white/10 flex flex-col items-center shadow-2xl relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none"></div>
-                            <h3 className="text-gray-400 text-xs font-bold tracking-widest uppercase mb-4 z-10">VOTRE STYLE ACTUEL</h3>
-                            <AvatarDisplay 
-                                avatarId={currentAvatarId} 
-                                accessories={equippedAccessories}
-                                size="xl"
-                            />
-                        </div>
-                    </div>
-                )}
-
                 {activeTab === 'avatars' && (
                     <div className="grid grid-cols-2 gap-4 p-4">
                         {avatarsCatalog.map((avatar) => {
                             const isOwned = ownedAvatars.includes(avatar.id);
                             const isEquipped = currentAvatarId === avatar.id;
                             const canBuy = coins >= avatar.price;
-                            
+                            const Icon = avatar.icon;
+
                             return (
                                 <button
                                     key={avatar.id}
@@ -143,9 +114,14 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                         }
                                     `}
                                 >
-                                    {/* Using AvatarDisplay for preview consistency */}
-                                    <div className="mb-3 pointer-events-none">
-                                        <AvatarDisplay avatarId={avatar.id} size="md" showBackground={true} />
+                                    {/* Avatar Visual */}
+                                    <div className={`w-24 h-24 rounded-2xl bg-gradient-to-br ${avatar.bgGradient} p-0.5 mb-3 shadow-lg relative`}>
+                                        <div className="w-full h-full bg-black/40 rounded-[14px] flex items-center justify-center backdrop-blur-sm">
+                                            <Icon size={48} className={avatar.color} />
+                                        </div>
+                                        {isEquipped && (
+                                            <div className="absolute top-2 right-2 w-3 h-3 bg-neon-blue rounded-full shadow-[0_0_8px_#00f3ff]"></div>
+                                        )}
                                     </div>
 
                                     <div className="text-center w-full relative z-10">
@@ -172,80 +148,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </button>
                             );
                         })}
-                    </div>
-                )}
-
-                {activeTab === 'accessories' && (
-                    <div className="flex flex-col gap-4 p-4">
-                        {/* Filters */}
-                        <div className="flex gap-2 justify-center mb-2">
-                            {(['ALL', 'HEAD', 'EYES', 'EFFECT'] as const).map(filter => (
-                                <button 
-                                    key={filter}
-                                    onClick={() => setAccessoryFilter(filter)}
-                                    className={`px-3 py-1 text-[10px] font-bold rounded-full border transition-all ${accessoryFilter === filter ? 'bg-white text-black border-white' : 'bg-gray-900 text-gray-400 border-gray-700 hover:border-gray-500'}`}
-                                >
-                                    {filter === 'ALL' ? 'TOUT' : filter === 'HEAD' ? 'TÊTE' : filter === 'EYES' ? 'YEUX' : 'AURA'}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                            {accessoriesCatalog.filter(a => accessoryFilter === 'ALL' || a.type === accessoryFilter).map((acc) => {
-                                const isOwned = ownedAccessories.includes(acc.id);
-                                const isEquipped = 
-                                    (acc.type === 'HEAD' && equippedAccessories.head === acc.id) ||
-                                    (acc.type === 'EYES' && equippedAccessories.eyes === acc.id) ||
-                                    (acc.type === 'EFFECT' && equippedAccessories.effect === acc.id);
-                                const canBuy = coins >= acc.price;
-                                const Icon = acc.icon;
-
-                                return (
-                                    <button
-                                        key={acc.id}
-                                        disabled={!isOwned && !canBuy}
-                                        onClick={() => isOwned ? equipAccessory(acc.type, isEquipped ? null : acc.id) : buyAccessory(acc.id, acc.price)}
-                                        className={`
-                                            relative group flex flex-col items-center p-3 rounded-xl border transition-all duration-300
-                                            ${isEquipped
-                                                ? 'bg-gray-800 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]'
-                                                : isOwned
-                                                    ? 'bg-gray-900/60 border-gray-700 hover:border-gray-500'
-                                                    : canBuy
-                                                        ? 'bg-gray-900/40 border-yellow-500/30 hover:border-yellow-500 hover:bg-yellow-500/10'
-                                                        : 'bg-black/40 border-gray-800 opacity-60 cursor-not-allowed'
-                                            }
-                                        `}
-                                    >
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${isOwned ? 'bg-gray-800' : 'bg-black/50'}`}>
-                                            <Icon size={24} className={acc.color} />
-                                        </div>
-
-                                        <div className="text-center w-full">
-                                            <h3 className={`font-bold text-xs mb-2 ${isOwned ? 'text-white' : 'text-gray-400'}`}>{acc.name}</h3>
-                                            
-                                            {isEquipped ? (
-                                                <div className="text-black bg-green-500 text-[10px] font-bold tracking-widest uppercase py-1 px-2 rounded-full shadow-lg">
-                                                    PORTÉ
-                                                </div>
-                                            ) : isOwned ? (
-                                                <div className="text-white border border-white/20 hover:bg-white/10 text-[10px] font-bold tracking-widest uppercase py-1 px-2 rounded-full">
-                                                    PORTER
-                                                </div>
-                                            ) : (
-                                                <div className={`
-                                                    flex items-center justify-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded-full w-full
-                                                    ${canBuy ? 'bg-yellow-500 text-black shadow-lg' : 'bg-gray-800 text-gray-500'}
-                                                `}>
-                                                    {canBuy ? <Coins size={10} fill="black" /> : <Lock size={10} />}
-                                                    {acc.price}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
                     </div>
                 )}
 

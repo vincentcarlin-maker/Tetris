@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Ship, Trash2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, LogOut, Loader2, Bot } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Ship, Trash2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, LogOut, Loader2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -31,6 +31,7 @@ interface ChatMessage {
     timestamp: number;
 }
 
+// --- COMPOSANT VISUEL NAVIRE ---
 const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'horizontal' | 'vertical', isSunk: boolean, isGhost?: boolean, isValid?: boolean, isSelected?: boolean }> = ({ type, size, orientation, isSunk, isGhost, isValid, isSelected }) => {
     const isVertical = orientation === 'vertical';
     
@@ -195,10 +196,12 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
 
 
 export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, addCoins }) => {
+  // --- Game State ---
   const [phase, setPhase] = useState<'SETUP' | 'PLAYING' | 'GAMEOVER'>('SETUP');
   const [turn, setTurn] = useState<'PLAYER' | 'CPU'>('PLAYER');
   const [winner, setWinner] = useState<'PLAYER' | 'CPU' | null>(null);
   
+  // --- Online State ---
   const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
   const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
   const [isReady, setIsReady] = useState(false);
@@ -209,18 +212,21 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
   const [opponentLeft, setOpponentLeft] = useState(false);
 
+  // --- Grids ---
   const [playerGrid, setPlayerGrid] = useState<Grid>(createEmptyGrid());
   const [cpuGrid, setCpuGrid] = useState<Grid>(createEmptyGrid());
-  const [cpuRealGrid, setCpuRealGrid] = useState<Grid>(createEmptyGrid()); 
+  const [cpuRealGrid, setCpuRealGrid] = useState<Grid>(createEmptyGrid()); // Used for Solo logic
   
   const [playerShips, setPlayerShips] = useState<ShipType[]>([]);
-  const [cpuShips, setCpuShips] = useState<ShipType[]>([]); 
+  const [cpuShips, setCpuShips] = useState<ShipType[]>([]); // In Online, this holds enemy ship statuses
   
+  // --- Setup Phase ---
   const [currentShipIndex, setCurrentShipIndex] = useState(0);
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
   const [setupGrid, setSetupGrid] = useState<Grid>(createEmptyGrid());
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
   
+  // --- Input Handling ---
   const setupGridRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<{r: number, c: number}>({ r: 0, c: 0 });
@@ -230,22 +236,28 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const isDragStartedRef = useRef(false);
   const [draggedShipOriginal, setDraggedShipOriginal] = useState<ShipType | null>(null);
 
+  // --- Notification State ---
   const [notification, setNotification] = useState<{text: string, subtext?: string, type: 'HIT'|'SUNK'|'MISS'} | null>(null);
 
+  // --- Animation State ---
   const [missile, setMissile] = useState<{ r: number, c: number, target: 'PLAYER' | 'CPU' } | null>(null);
 
+  // --- AI Memory ---
   const lastCpuHitRef = useRef<{ r: number, c: number } | null>(null);
   
   const [earnedCoins, setEarnedCoins] = useState(0);
   const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, resumeAudio } = audio;
   
+  // --- Hooks ---
   const mp = useMultiplayer();
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
 
+  // Initialisation
   useEffect(() => {
     resetGame();
   }, []);
 
+  // Clear Notification timer
   useEffect(() => {
       if (notification) {
           const timer = setTimeout(() => {
@@ -255,14 +267,17 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       }
   }, [notification]);
 
+  // Scroll Chat
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
+  // Sync Self Info
   useEffect(() => {
       mp.updateSelfInfo(username, currentAvatarId);
   }, [username, currentAvatarId, mp]);
 
+  // --- MULTIPLAYER SETUP ---
   useEffect(() => {
         if (gameMode === 'ONLINE') {
             setOnlineStep('connecting');
@@ -280,25 +295,30 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
+            // Reset if returning to lobby
             if (phase === 'PLAYING') {
                 resetGame();
             }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
+            // DO NOT auto reset here if phase is GAMEOVER, let user see the screen
         }
   }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
+  // --- ONLINE DATA HANDLING ---
   useEffect(() => {
         const handleData = (data: any) => {
             if (data.type === 'BATTLESHIP_READY') {
                 setOpponentReady(true);
             }
             if (data.type === 'BATTLESHIP_SHOT') {
+                // Opponent shot at me
                 const { r, c } = data;
                 handleOnlineShotReceived(r, c);
             }
             if (data.type === 'BATTLESHIP_RESULT') {
+                // Result of my shot
                 const { r, c, status, shipDetails } = data;
                 handleOnlineResultReceived(r, c, status, shipDetails);
             }
@@ -318,16 +338,19 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             }
         };
         mp.setOnDataReceived(handleData);
-  }, [mp, playerGrid, playerShips, cpuGrid, cpuShips, phase]);
+  }, [mp, playerGrid, playerShips, cpuGrid, cpuShips, phase]); // Deps important for callbacks
 
   const handleOnlineShotReceived = (r: number, c: number) => {
+      // Guard: Do not process shots if game is already over
       if (phase === 'GAMEOVER') return;
 
+      // Opponent fired at (r, c) on my grid
+      // Animation first
       launchAttack(r, c, 'PLAYER', () => {
-          const isHit = playerGrid[r][c] === 1;
+          const isHit = playerGrid[r][c] === 1; // 1 is ship
           const newPlayerGrid = [...playerGrid];
           newPlayerGrid[r] = [...newPlayerGrid[r]];
-          newPlayerGrid[r][c] = isHit ? 3 : 2; 
+          newPlayerGrid[r][c] = isHit ? 3 : 2; // 3 hit, 2 miss
           setPlayerGrid(newPlayerGrid);
 
           let resultStatus = isHit ? 'HIT' : 'MISS';
@@ -335,7 +358,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
           if (isHit) {
               playBlockHit();
-              const update = checkHit(r, c, playerShips); 
+              const update = checkHit(r, c, playerShips); // Updates hits count in place in ref logic but we need state update
               if (update.sunk) {
                   playShipSink();
                   resultStatus = 'SUNK';
@@ -355,10 +378,12 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                   setNotification({ text: "IMPACT !", type: 'HIT' });
               }
               
+              // Force update ships state
               setPlayerShips([...playerShips]);
 
               if (playerShips.every(s => s.sunk)) {
-                  handleGameOver('CPU'); 
+                  handleGameOver('CPU'); // I lost
+                  // Send result then return immediately to avoid setting turn
                   mp.sendData({
                       type: 'BATTLESHIP_RESULT',
                       r, c,
@@ -369,9 +394,11 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
               }
           } else {
               playWallHit();
+              // Turn switches to me
               setTurn('PLAYER');
           }
 
+          // Send result back to shooter
           mp.sendData({
               type: 'BATTLESHIP_RESULT',
               r, c,
@@ -382,8 +409,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   };
 
   const handleOnlineResultReceived = (r: number, c: number, status: 'HIT'|'MISS'|'SUNK', shipDetails: any) => {
+      // Guard: Do not process results if game is already over
       if (phase === 'GAMEOVER') return;
 
+      // Update my view of enemy grid
       const newCpuGrid = [...cpuGrid];
       newCpuGrid[r] = [...newCpuGrid[r]];
       newCpuGrid[r][c] = (status === 'HIT' || status === 'SUNK') ? 3 : 2;
@@ -395,25 +424,31 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
               playShipSink();
               setNotification({ text: "COULÉ !", type: 'SUNK' });
               
+              // If sunk, we receive the full ship details to render it
               if (shipDetails) {
                   setCpuShips(prev => [...prev, { ...shipDetails, id: `enemy-ship-${Date.now()}` }]);
               } else {
+                  // Fallback if no details
                   setCpuShips(prev => [...prev, { id: 'unknown', sunk: true } as ShipType]);
               }
           } else {
               setNotification({ text: "TOUCHÉ !", type: 'HIT' });
           }
           
+          // Check Win Condition based on sunken ships count
+          // In online, we count sinking confirmations.
+          // Note: cpuShips accumulates only SUNK ships in online logic
           const sunkCount = cpuShips.length + (status === 'SUNK' ? 1 : 0);
           if (sunkCount >= SHIPS_CONFIG.length) {
                handleGameOver('PLAYER');
-               return; 
+               return; // STOP HERE, DO NOT SET TURN
           }
           
+          // I hit, so it's still my turn!
           setTurn('PLAYER'); 
       } else {
           playWallHit();
-          setTurn('CPU'); 
+          setTurn('CPU'); // Opponent's turn
       }
   };
 
@@ -441,6 +476,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     pressedShipRef.current = null;
     isDragStartedRef.current = false;
     
+    // Online Reset
     setIsReady(false);
     setOpponentReady(false);
     setOpponentLeft(false);
@@ -453,11 +489,13 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       setSelectedShipId(null);
   };
 
+  // --- SETUP PHASE ---
+
   const randomizePlayerShips = () => {
     const { grid, ships } = generateRandomShips();
     setSetupGrid(grid);
     setPlayerShips(ships);
-    setCurrentShipIndex(SHIPS_CONFIG.length); 
+    setCurrentShipIndex(SHIPS_CONFIG.length); // All placed
     setSelectedShipId(null);
     playMove();
   };
@@ -476,6 +514,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       return SHIPS_CONFIG.length;
   };
 
+  // --- POINTER EVENTS ---
   const getGridCoords = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
     if (!setupGridRef.current) return null;
     const rect = setupGridRef.current.getBoundingClientRect();
@@ -674,12 +713,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         setPhase('PLAYING');
         playVictory();
     } else {
+        // ONLINE START
         setIsReady(true);
         mp.sendData({ type: 'BATTLESHIP_READY' });
     }
     setSelectedShipId(null);
   };
 
+  // Watch for both ready in Online
   useEffect(() => {
       if (gameMode === 'ONLINE' && isReady && opponentReady && phase === 'SETUP') {
           setPlayerGrid(setupGrid);
@@ -689,6 +730,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       }
   }, [gameMode, isReady, opponentReady, phase, setupGrid, mp.isHost]);
 
+  // --- BATTLE PHASE ---
   const launchAttack = (r: number, c: number, target: 'CPU' | 'PLAYER', callback: () => void) => {
       playLaserShoot();
       setMissile({ r, c, target });
@@ -705,6 +747,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     if (gameMode === 'ONLINE') {
         mp.sendData({ type: 'BATTLESHIP_SHOT', r, c });
     } else {
+        // Solo Logic
         launchAttack(r, c, 'CPU', () => {
             const isHit = cpuRealGrid[r][c] === 1;
             const newCpuGrid = cpuGrid.map(row => [...row]);
@@ -735,6 +778,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     }
   };
 
+  // CPU Turn (Solo)
   useEffect(() => {
     if (gameMode === 'SOLO' && phase === 'PLAYING' && turn === 'CPU' && !missile) {
       const timer = setTimeout(() => {
@@ -791,6 +835,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     }
   };
 
+  // --- ACTIONS SOCIALES ---
   const sendChat = (e?: React.FormEvent) => {
       if (e) e.preventDefault();
       if (!chatInput.trim() || mp.mode !== 'in_game') return;
@@ -808,6 +853,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       }
   };
 
+  // --- RENDER HELPERS ---
   const renderCell = (status: CellStatus, isCpuBoard: boolean, r: number, c: number) => {
     let content = null;
     let bgClass = "bg-blue-900/20 border-blue-500/20";
@@ -815,6 +861,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       content = <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full opacity-50 animate-pulse"></div>;
     } else if (status === 3) {
       bgClass = "bg-red-900/40 border-red-500/50 z-20";
+      // Visuel impact plus fort
       content = (
           <div className="w-full h-full flex items-center justify-center relative">
               <div className="absolute inset-0 bg-red-500/30 animate-pulse rounded-full"></div>
@@ -830,6 +877,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       return (
           <div className="absolute inset-0 w-full h-full pointer-events-none p-1">
               {ships.map((ship) => {
+                  // GUARD: Fix "Red Spot" bug by ignoring invalid ships (dummy online ships)
                   if (ship.row === undefined || ship.col === undefined) return null;
                   
                   if (!isPreview && phase === 'PLAYING' && !ship.sunk) return null;
@@ -881,21 +929,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                      </button>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {hostingPlayers.length === 0 && (
-                        <>
-                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
-                            <div className="flex items-center justify-between p-2 bg-blue-900/20 rounded-lg border border-blue-500/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center"><Bot size={24} className="text-blue-400"/></div>
-                                    <span className="font-bold text-blue-200">Neon Bot 🤖</span>
-                                </div>
-                                <button onClick={() => { setGameMode('SOLO'); resetGame(); }} className="px-3 py-1.5 bg-blue-500 text-white font-bold rounded text-xs hover:bg-blue-400 transition-colors">
-                                    JOUER
-                                </button>
-                            </div>
-                        </>
-                    )}
-
                     {hostingPlayers.length > 0 && (
                         <>
                             <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
@@ -914,11 +947,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                             })}
                         </>
                     )}
-                    
-                    {hostingPlayers.length === 0 && otherPlayers.length === 0 && (
-                         <p className="text-center text-gray-500 italic text-sm py-4">Le bot amiral attend votre défi !</p>
-                    )}
-                    
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
                     {otherPlayers.length > 0 && (
                         <>
                              <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
@@ -942,7 +971,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
          );
   };
 
-  // Helper for reaction visual
   const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
@@ -1042,6 +1070,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };
 
+  // --- RENDER ---
   if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
       return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
@@ -1069,6 +1098,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/20 via-black to-transparent pointer-events-none"></div>
 
+      {/* NOTIFICATION */}
       {notification && (
           <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
               <div className="bg-black/80 backdrop-blur-sm px-8 py-6 rounded-2xl border-2 border-white/20 animate-in zoom-in fade-in duration-300 flex flex-col items-center shadow-[0_0_50px_rgba(0,0,0,0.8)]">
@@ -1078,6 +1108,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           </div>
       )}
 
+      {/* ACTIVE REACTION */}
       {activeReaction && (() => {
             const reaction = REACTIONS.find(r => r.id === activeReaction.id);
             if (!reaction) return null;
@@ -1085,12 +1116,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className="p-3 drop-shadow-2xl">{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
       })()}
 
+      {/* HEADER */}
       <div className="w-full max-w-2xl flex items-center justify-between z-10 mb-2 shrink-0 h-[50px]">
         <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
         <h1 className="text-xl sm:text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]">BATAILLE NAVALE</h1>
         <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
       </div>
 
+      {/* MODE SELECTOR */}
       {phase === 'SETUP' && !mp.gameOpponent && (
           <div className="flex bg-gray-900 rounded-full border border-white/10 p-1 mb-2 z-10 shrink-0">
                 <button onClick={() => setGameMode('SOLO')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'SOLO' ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'text-gray-400 hover:text-white'}`}>SOLO</button>
@@ -1098,6 +1131,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           </div>
       )}
 
+      {/* SETUP PHASE */}
       {phase === 'SETUP' && (
         <div className="flex flex-col items-center justify-center z-10 w-full h-full max-h-[80vh] overflow-hidden">
             <div className="bg-gray-900/80 p-3 rounded-xl border border-blue-500/30 w-full max-w-[min(90vw,400px)] flex flex-col">
@@ -1140,28 +1174,38 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         </div>
       )}
 
+      {/* PLAYING PHASE */}
       {(phase === 'PLAYING' || phase === 'GAMEOVER') && (
         <div className="flex flex-col gap-2 z-10 w-full max-w-4xl lg:flex-row items-center justify-center flex-1 min-h-0">
+            {/* ENEMY GRID (TOP) */}
             <div className={`flex flex-col gap-1 w-[85vw] max-w-[320px] lg:max-w-[380px] ${turn === 'PLAYER' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
                 <div className="flex justify-between items-center bg-red-900/30 px-3 py-1 rounded-t-lg border-t border-l border-r border-red-500/30">
                     <span className="text-red-400 font-bold flex items-center gap-2 text-xs sm:text-sm"><Target size={14}/> {gameMode === 'ONLINE' ? 'ADVERSAIRE' : 'CPU'}</span>
                     <div className="flex gap-0.5">{cpuShips.filter(s => s.id !== 'unknown').map((s, i) => <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-500 ${s.sunk ? 'bg-red-600 shadow-[0_0_5px_red]' : 'bg-gray-600'}`}/>)}</div>
                 </div>
                 <div className="relative aspect-square w-full bg-black/40 border-2 border-red-500/30 rounded-b-lg shadow-[0_0_20px_rgba(239,68,68,0.1)] overflow-hidden">
+                    {/* Render Missile Conditionally only for CPU target */}
                     {missile?.target === 'CPU' && renderMissile()}
+                    
                     {turn === 'CPU' && phase === 'PLAYING' && !missile && <div className="absolute inset-0 z-30 bg-black/50 flex items-center justify-center backdrop-blur-[1px]"><span className="text-red-500 font-bold animate-pulse tracking-widest flex items-center gap-2 text-xs"><AlertCircle size={16}/> TOUR ADVERSE...</span></div>}
+                    
+                    {/* Render Sunk Enemy Ships */}
                     {renderShipsLayer(cpuShips, phase === 'GAMEOVER')}
+                    
                     <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-0.5 p-1 z-10">{cpuGrid.map((row, r) => row.map((cell, c) => <div key={`${r}-${c}`} className={`relative w-full h-full pointer-events-auto`} onClick={() => handleCellClick(r, c)}>{renderCell(cell, true, r, c)}</div>))}</div>
                 </div>
             </div>
 
+            {/* PLAYER GRID (BOTTOM) */}
             <div className={`flex flex-col gap-1 w-[85vw] max-w-[320px] lg:max-w-[380px] ${turn === 'CPU' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
                 <div className="flex justify-between items-center bg-blue-900/30 px-3 py-1 rounded-t-lg border-t border-l border-r border-blue-500/30">
                     <span className="text-blue-400 font-bold flex items-center gap-2 text-xs sm:text-sm"><ShieldAlert size={14}/> MA FLOTTE</span>
                     <div className="flex gap-0.5">{playerShips.map((s, i) => <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-500 ${s.sunk ? 'bg-red-600' : 'bg-green-500 shadow-[0_0_5px_lime]'}`}/>)}</div>
                 </div>
                 <div className="relative aspect-square w-full bg-black/40 border-2 border-blue-500/30 rounded-b-lg overflow-hidden">
+                     {/* Render Missile Conditionally only for PLAYER target */}
                      {missile?.target === 'PLAYER' && renderMissile()}
+                     
                      {turn === 'PLAYER' && phase === 'PLAYING' && !missile && <div className="absolute inset-0 z-30 bg-blue-500/5 flex items-center justify-center pointer-events-none"><Crosshair size={48} className="text-blue-400/20 animate-pulse" /></div>}
                     {renderShipsLayer(playerShips, true)}
                     <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-0.5 p-1 z-10 pointer-events-none">{playerGrid.map((row, r) => row.map((cell, c) => renderCell(cell, false, r, c)))}</div>
@@ -1170,6 +1214,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         </div>
       )}
 
+      {/* CHAT & REACTION BAR (ONLINE) */}
       {gameMode === 'ONLINE' && phase !== 'SETUP' && !opponentLeft && (
             <div className="w-full max-w-lg mt-2 flex flex-col gap-2 z-20 px-2 shrink-0">
                 <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
@@ -1193,6 +1238,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             </div>
       )}
 
+      {/* GAMEOVER OVERLAY */}
       {(phase === 'GAMEOVER' || opponentLeft) && (
           <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
               <div className="bg-gray-900 border-2 border-white/10 p-6 rounded-2xl flex flex-col items-center max-w-sm w-full shadow-2xl z-[100]">

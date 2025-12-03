@@ -23,7 +23,7 @@ export interface MultiplayerState {
     amIP1: boolean; // Am I Player 1 (Game Creator/Host)?
 }
 
-const LOBBY_ID = 'NEON-ARCADE-LOBBY-V2';
+const LOBBY_ID = 'NEON-ARCADE-C4-LOBBY';
 
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
@@ -400,22 +400,7 @@ export const useMultiplayer = () => {
                     const conn = guestPeer.connect(LOBBY_ID);
                     hostConnectionRef.current = conn;
                     
-                    // TIMEOUT LOGIC: If we can't connect to lobby in 8s, it means host is zombie
-                    const timeoutId = setTimeout(() => {
-                        if (!conn.open) {
-                            console.warn("Connection timed out");
-                            conn.close();
-                            setState(prev => ({ 
-                                ...prev, 
-                                error: "Le lobby ne répond pas (Timeout). Réessayez.", 
-                                mode: 'disconnected',
-                                isLoading: false
-                            }));
-                        }
-                    }, 8000);
-
                     conn.on('open', () => {
-                        clearTimeout(timeoutId);
                         setState(prev => ({ ...prev, peerId: guestId, isHost: false, isConnected: true, isLoading: false, mode: 'lobby', amIP1: false }));
                         conn.send({ type: 'HELLO', ...myInfoRef.current });
                     });
@@ -423,12 +408,10 @@ export const useMultiplayer = () => {
                         handleDataRef.current?.(data, conn);
                     });
                     conn.on('close', () => {
-                        clearTimeout(timeoutId);
                         setState(prev => ({ ...prev, error: "Déconnecté du lobby." }));
                         disconnect();
                     });
                     conn.on('error', (connErr) => {
-                         clearTimeout(timeoutId);
                          setState(prev => ({ ...prev, error: `Erreur de connexion au lobby: ${connErr.type}` }));
                          disconnect();
                     });
