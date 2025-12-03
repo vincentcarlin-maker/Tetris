@@ -127,9 +127,10 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         });
     }, []);
 
-    // Called when coins are earned
+    // Called when coins are earned in ANY game
     const checkCoinQuest = useCallback((amount: number) => {
         if (amount <= 0) return;
+        
         setQuests(prev => {
             let changed = false;
             const updated = prev.map(q => {
@@ -147,6 +148,7 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
                 }
                 return q;
             });
+            
             if (changed) {
                 localStorage.setItem('neon_daily_quests', JSON.stringify(updated));
             }
