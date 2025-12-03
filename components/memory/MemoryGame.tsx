@@ -43,14 +43,14 @@ const DIFFICULTY_CONFIG: Record<Difficulty, { pairs: number, cols: number, name:
     HARD: { pairs: 12, cols: 6, name: 'DIFFICILE', bonus: 40 } // 24 cards -> 6 cols x 4 rows
 };
 
-// Réactions Néon (Same as Connect 4)
+// Réactions Néon Animées
 const REACTIONS = [
-    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' },
-    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500' },
-    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
-    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500' },
-    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500' },
-    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
+    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
+    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
+    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500', anim: 'animate-pulse' },
+    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500', anim: 'animate-ping' },
+    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
+    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
 ];
 
 export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins, mp }) => {
@@ -399,7 +399,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
       const Icon = reaction.icon;
-      return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
+      const anim = reaction.anim || 'animate-bounce';
+      return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
     };
 
     const renderLobby = () => {
@@ -500,7 +501,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                         const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                         if (!reaction) return null;
                         const positionClass = activeReaction.isMe ? 'bottom-20 right-4' : 'top-20 left-4';
-                        return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className="p-3 drop-shadow-2xl">{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
+                        const anim = reaction.anim || 'animate-bounce';
+                        return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
                     })()}
 
                     <div className="w-full max-w-lg flex justify-between items-center mb-2 z-10 px-4 shrink-0">

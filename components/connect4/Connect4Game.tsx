@@ -17,14 +17,14 @@ interface Connect4GameProps {
 const ROWS = 6;
 const COLS = 7;
 
-// Réactions Néon
+// Réactions Néon Animées
 const REACTIONS = [
-    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' },
-    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500' },
-    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
-    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500' },
-    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500' },
-    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
+    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
+    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
+    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500', anim: 'animate-pulse' },
+    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500', anim: 'animate-ping' },
+    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
+    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
 ];
 
 interface ChatMessage {
@@ -120,6 +120,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   useEffect(() => {
     mp.updateSelfInfo(username, currentAvatarId);
   }, [username, currentAvatarId, mp]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+      return () => {
+          if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+          isAnimatingRef.current = false;
+      };
+  }, []);
 
   // Reset Game
   const resetGame = useCallback((isOnlineReset = false) => {
@@ -347,12 +355,38 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     }
   }, [gameMode, currentPlayer, winState.winner, isAiThinking]);
 
+  // AI SAFETY: Force stop thinking if too long (2s)
+  useEffect(() => {
+      let safetyTimer: any;
+      if (isAiThinking) {
+          safetyTimer = setTimeout(() => {
+              if (isAiThinking) {
+                  // Fallback random move to unfreeze
+                  const validCols = [];
+                  for(let c=0; c<COLS; c++) {
+                      if (board[0][c] === 0) validCols.push(c);
+                  }
+                  if (validCols.length > 0) {
+                      const randomCol = validCols[Math.floor(Math.random() * validCols.length)];
+                      handleColumnClick(randomCol, true);
+                  }
+                  setIsAiThinking(false);
+              }
+          }, 2000);
+      }
+      return () => { if (safetyTimer) clearTimeout(safetyTimer); }
+  }, [isAiThinking, board, handleColumnClick]);
+
   useEffect(() => {
     if (!isAiThinking) return;
     const timer = setTimeout(() => {
-        const bestCol = getBestMove(board, difficulty);
-        if (bestCol !== -1) {
-            handleColumnClick(bestCol, true);
+        try {
+            const bestCol = getBestMove(board, difficulty);
+            if (bestCol !== -1) {
+                handleColumnClick(bestCol, true);
+            }
+        } catch (e) {
+            console.error("AI Error", e);
         }
         setIsAiThinking(false);
     }, 600);
@@ -364,7 +398,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
       const Icon = reaction.icon;
-      return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
+      const anim = reaction.anim || 'animate-bounce';
+      return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };
 
   const renderOnlineLobby = () => {
@@ -506,7 +541,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                         const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                         if (!reaction) return null;
                         const positionClass = activeReaction.isMe ? 'bottom-[-20px] right-[-20px] sm:right-[-40px]' : 'top-[-20px] left-[-20px] sm:left-[-40px]';
-                        return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className="p-3 drop-shadow-2xl">{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
+                        const anim = reaction.anim || 'animate-bounce';
+                        return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
                     })()}
 
                     <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">

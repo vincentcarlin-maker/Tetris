@@ -14,14 +14,14 @@ interface BattleshipGameProps {
   mp: ReturnType<typeof useMultiplayer>; // Shared connection
 }
 
-// Réactions Néon
+// Réactions Néon Animées
 const REACTIONS = [
-    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600' },
-    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500' },
-    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500' },
-    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500' },
-    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500' },
-    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500' },
+    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
+    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
+    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500', anim: 'animate-pulse' },
+    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500', anim: 'animate-ping' },
+    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
+    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
 ];
 
 interface ChatMessage {
@@ -745,7 +745,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
       const Icon = reaction.icon;
-      return <div className="animate-bounce"><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
+      const anim = reaction.anim || 'animate-bounce';
+      return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };
 
   if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
@@ -782,7 +783,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             const reaction = REACTIONS.find(r => r.id === activeReaction.id);
             if (!reaction) return null;
             const positionClass = activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
-            return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className="p-3 drop-shadow-2xl">{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
+            const anim = reaction.anim || 'animate-bounce';
+            return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
       })()}
 
       <div className="w-full max-w-2xl flex items-center justify-between z-10 mb-2 shrink-0 h-[50px]">

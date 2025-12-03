@@ -46,6 +46,16 @@ interface FriendRequest {
     stats?: PlayerStats;
 }
 
+// Updated Reactions with Animations
+const REACTIONS = [
+    { id: 'angry', icon: '😡', anim: 'animate-shake' },
+    { id: 'wave', icon: '👋', anim: 'animate-bounce' },
+    { id: 'happy', icon: '😄', anim: 'animate-pulse' },
+    { id: 'love', icon: '❤️', anim: 'animate-ping' },
+    { id: 'good', icon: '👍', anim: 'animate-bounce' },
+    { id: 'sad', icon: '😢', anim: 'animate-pulse' },
+];
+
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
     const { username, currentAvatarId, avatarsCatalog } = currency;
     
@@ -61,6 +71,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const [unreadCount, setUnreadCount] = useState(0);
     const [selectedPlayer, setSelectedPlayer] = useState<Friend | null>(null);
 
+    // Draggable Button State
+    const [btnTop, setBtnTop] = useState(window.innerHeight / 3);
+    const isDraggingRef = useRef(false);
+    const dragStartRef = useRef(0);
+    const initialTopRef = useRef(0);
+
     const activeChatIdRef = useRef<string | null>(null);
     const showSocialRef = useRef<boolean>(false);
     const peerRef = useRef<Peer | null>(null);
@@ -73,6 +89,43 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         activeChatIdRef.current = activeChatId;
         showSocialRef.current = showSocial;
     }, [activeChatId, showSocial]);
+
+    // --- DRAG LOGIC ---
+    const handleDragStart = (clientY: number) => {
+        isDraggingRef.current = true;
+        dragStartRef.current = clientY;
+        initialTopRef.current = btnTop;
+    };
+
+    const handleDragMove = useCallback((clientY: number) => {
+        if (!isDraggingRef.current) return;
+        const delta = clientY - dragStartRef.current;
+        const newTop = Math.max(60, Math.min(window.innerHeight - 60, initialTopRef.current + delta));
+        setBtnTop(newTop);
+    }, []);
+
+    const handleDragEnd = useCallback(() => {
+        isDraggingRef.current = false;
+    }, []);
+
+    useEffect(() => {
+        const onMove = (e: MouseEvent) => handleDragMove(e.clientY);
+        const onUp = () => handleDragEnd();
+        const onTouchMove = (e: TouchEvent) => handleDragMove(e.touches[0].clientY);
+        
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchmove', onTouchMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+
+        return () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('touchend', onUp);
+        };
+    }, [handleDragMove, handleDragEnd]);
+
 
     // --- INITIALIZATION ---
     useEffect(() => {
@@ -143,11 +196,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     // Sync Global Lobby Presence
     useEffect(() => {
-        // IMPORTANT: Prevent overwriting game specific info (like "FACILE") if hosting a game
-        if (mp.isHost) return;
+        if (mp.isHost) return; // Don't overwrite if hosting game
 
-        // We always update self info in the global lobby, even if social modal is closed
-        // This allows people to see us in the "Community" tab
         const socialPayload = {
             id: myPeerId,
             stats: { 
@@ -200,7 +250,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             if (data.type === 'HELLO_FRIEND' || data.type === 'WELCOME_FRIEND') {
                 setFriends(prev => {
                     const exists = prev.find(f => f.id === conn.peer);
-                    if (!exists) return prev; // Don't add randoms as friends automatically
+                    if (!exists) return prev; 
                     
                     return prev.map(f => f.id === conn.peer ? { 
                         ...f, 
@@ -245,7 +295,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 audio.playCoin();
             }
             else if (data.type === 'DM') {
-                // If social is open and we are looking at this chat, mark as read immediately
                 const isCurrentlyReading = showSocialRef.current && activeChatIdRef.current === conn.peer;
                 const msg: PrivateMessage = {
                     id: Date.now().toString() + Math.random(),
@@ -456,19 +505,26 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     return (
         <>
-            {/* FLOATING BUTTON (Right Side Tab) */}
-            <button 
-                onClick={() => setShowSocial(true)}
-                className="fixed top-1/2 right-0 -translate-y-1/2 z-[100] p-3 bg-gray-900/90 rounded-l-2xl text-blue-400 hover:text-white border-l border-y border-blue-500/30 backdrop-blur-md active:scale-95 transition-all shadow-[-5px_0_15px_rgba(0,0,0,0.5)] group"
-                title="Amis & Social"
+            {/* DRAGGABLE FLOATING BUTTON */}
+            <div 
+                style={{ top: `${btnTop}px` }}
+                className="fixed right-0 z-[100] transition-none"
             >
-                <Users size={24} />
-                {unreadCount > 0 && (
-                    <div className="absolute top-2 left-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-bounce border-2 border-black">
-                        {unreadCount}
-                    </div>
-                )}
-            </button>
+                <div
+                    onMouseDown={(e) => handleDragStart(e.clientY)}
+                    onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
+                    onClick={() => { if (!isDraggingRef.current) setShowSocial(true); }}
+                    className="p-3 bg-gray-900/90 rounded-l-2xl text-blue-400 hover:text-white border-l border-y border-blue-500/30 backdrop-blur-md active:scale-95 shadow-[-5px_0_15px_rgba(0,0,0,0.5)] cursor-grab active:cursor-grabbing flex items-center justify-center relative touch-none"
+                    title="Amis & Social"
+                >
+                    <Users size={24} />
+                    {unreadCount > 0 && (
+                        <div className="absolute top-2 left-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-bounce border-2 border-black pointer-events-none">
+                            {unreadCount}
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* PLAYER PROFILE MODAL */}
             {selectedPlayer && (
