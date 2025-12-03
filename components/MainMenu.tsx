@@ -5,6 +5,7 @@ import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
 import { useSocialSystem } from '../hooks/useSocialSystem';
+import { AvatarDisplay } from './AvatarDisplay';
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
@@ -188,7 +189,7 @@ const ArcadeLogo = () => {
 };
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, social }) => {
-    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog } = currency;
+    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, equippedAccessories } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
     const { unreadCount, setShowSocial } = social;
@@ -255,8 +256,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     };
     
     const ownedBadges = catalog.filter(b => inventory.includes(b.id));
-    const currentAvatar = avatarsCatalog.find(a => a.id === currentAvatarId) || avatarsCatalog[0];
-    const AvatarIcon = currentAvatar.icon;
 
     // Calcul des stats pour affichage
     const rushLevelsCompleted = Object.keys(highScores.rush || {}).length;
@@ -357,12 +356,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         {/* Avatar */}
                         <div 
                             onClick={() => onSelectGame('shop')}
-                            className={`relative w-20 h-20 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 shadow-lg cursor-pointer hover:scale-105 transition-transform border border-white/10`}
+                            className="cursor-pointer hover:scale-105 transition-transform"
                         >
-                            <div className="w-full h-full bg-black/40 rounded-[10px] flex items-center justify-center backdrop-blur-sm">
-                                <AvatarIcon size={40} className={currentAvatar.color} />
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20">
+                            <AvatarDisplay 
+                                avatarId={currentAvatarId} 
+                                accessories={equippedAccessories}
+                                size="lg" 
+                            />
+                            <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20 z-40">
                                 EDIT
                             </div>
                         </div>
@@ -546,7 +547,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  </div>
                  
                  <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">
-                    v1.9.5 • GLOBAL CHAT
+                    v2.0 • STUDIO NÉON
                  </div>
              </div>
         </div>
