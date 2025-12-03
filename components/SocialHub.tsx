@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, X, Globe, Bell, Ghost, Copy, Plus, MessageSquare, Send, XCircle, CheckCircle, UserPlus, Trash2, Activity } from 'lucide-react';
+import { Users, X, Globe, Bell, Ghost, Copy, Plus, MessageSquare, Send, XCircle, CheckCircle, UserPlus, Trash2, Activity, Bot } from 'lucide-react';
 import { useSocialSystem, Friend, FriendRequest } from '../hooks/useSocialSystem';
 import { useCurrency } from '../hooks/useCurrency';
 
@@ -30,7 +30,7 @@ export const SocialHub: React.FC<SocialHubProps> = ({ social, currency }) => {
     const { 
         showSocial, setShowSocial, socialTab, setSocialTab, myPeerId, friends, requests, messages, activeChatId, 
         selectedPlayer, setSelectedPlayer, openChat, sendFriendRequest, acceptRequest, rejectRequest, 
-        removeFriend, sendPrivateMessage, mp 
+        removeFriend, sendPrivateMessage, mp, NEON_BOT_ID, NEON_BOT_NAME
     } = social;
     const { avatarsCatalog } = currency;
 
@@ -152,9 +152,22 @@ export const SocialHub: React.FC<SocialHubProps> = ({ social, currency }) => {
                     {socialTab === 'COMMUNITY' && (
                         <div className="space-y-4">
                             <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-4"><p className="text-purple-300 text-xs font-bold">JOUEURS CONNECTÉS SUR LE SITE</p></div>
-                            {communityPlayers.length === 0 ? (
-                                <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Globe size={48} className="mb-4 opacity-50" /><p className="text-sm">Personne d'autre n'est connecté...</p><p className="text-xs mt-2">Invitez vos amis avec votre code !</p></div>
-                            ) : (
+                            
+                            {/* BOT ENTRY IF EMPTY LIST OR ALWAYS VISIBLE */}
+                            {communityPlayers.length === 0 && (
+                                <div onClick={() => setSelectedPlayer({id: NEON_BOT_ID, name: NEON_BOT_NAME, avatarId: 'av_bot', status: 'online', lastSeen: Date.now(), stats: { tetris: 999999, breaker: 999999, pacman: 999999, memory: 1, rush: 20, sudoku: 100 }})} className="flex items-center justify-between p-3 bg-cyan-900/10 hover:bg-cyan-900/30 rounded-xl border border-cyan-500/20 hover:border-cyan-500/50 transition-all cursor-pointer group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-cyan-900 flex items-center justify-center relative border border-cyan-500/30">
+                                            <Bot size={18} className="text-cyan-400" />
+                                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-gray-900 bg-green-500 shadow-[0_0_8px_#22c55e]" />
+                                        </div>
+                                        <div><h4 className="font-bold text-cyan-300 text-sm group-hover:text-cyan-100 transition-colors flex items-center gap-2">{NEON_BOT_NAME}</h4><p className="text-[10px] text-cyan-600 font-mono">TOUJOURS LÀ POUR TOI</p></div>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); sendFriendRequest(NEON_BOT_ID); }} className="p-2 bg-cyan-600 hover:bg-cyan-500 rounded-full text-white transition-colors shadow-lg" title="Ajouter en ami"><UserPlus size={16} /></button>
+                                </div>
+                            )}
+
+                            {communityPlayers.length > 0 ? (
                                 communityPlayers.map(player => {
                                     const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                     const AvIcon = avatar.icon;
@@ -171,6 +184,10 @@ export const SocialHub: React.FC<SocialHubProps> = ({ social, currency }) => {
                                         </div>
                                     );
                                 })
+                            ) : (
+                                <div className="text-center text-gray-500 py-4 text-xs italic">
+                                    Invitez vos amis avec votre code pour remplir la liste !
+                                </div>
                             )}
                             <div className="pt-4 border-t border-white/10 mt-4"><button onClick={() => setSocialTab('ADD')} className="w-full py-3 text-xs text-gray-400 hover:text-white border border-dashed border-white/20 rounded-lg hover:bg-white/5 transition-colors">Ajouter par Code Ami manuel</button></div>
                         </div>

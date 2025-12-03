@@ -40,6 +40,9 @@ export interface FriendRequest {
     stats?: PlayerStats;
 }
 
+const NEON_BOT_ID = 'NEON_BOT_AI';
+const NEON_BOT_NAME = 'Neon Bot 🤖';
+
 export const useSocialSystem = (audio: ReturnType<typeof useGameAudio>, currency: ReturnType<typeof useCurrency>) => {
     const { username, currentAvatarId } = currency;
     const { highScores } = useHighScores();
@@ -89,6 +92,11 @@ export const useSocialSystem = (audio: ReturnType<typeof useGameAudio>, currency
             setFriends(prev => {
                 let changed = false;
                 const newFriends = prev.map(f => {
+                    // Bot always online
+                    if (f.id === NEON_BOT_ID) {
+                        return { ...f, status: 'online' as const, lastSeen: now };
+                    }
+
                     if (f.status === 'online') {
                         if (!f.lastSeen || (now - f.lastSeen > 15000)) {
                             const conn = connectionsRef.current[f.id];
@@ -258,6 +266,9 @@ export const useSocialSystem = (audio: ReturnType<typeof useGameAudio>, currency
     useEffect(() => {
         if (showSocial && peerRef.current) {
             (friends as Friend[]).forEach(f => {
+                // Skip Bot connection attempt
+                if (f.id === NEON_BOT_ID) return;
+
                 if (connectionsRef.current[f.id] && connectionsRef.current[f.id].open) return;
                 const conn = peerRef.current!.connect(f.id);
                 handleConnection(conn);
@@ -288,6 +299,28 @@ export const useSocialSystem = (audio: ReturnType<typeof useGameAudio>, currency
 
     const sendFriendRequest = (targetId: string) => {
         if (targetId === myPeerId) return;
+
+        // --- BOT FRIEND LOGIC ---
+        if (targetId === NEON_BOT_ID) {
+             const botFriend: Friend = { 
+                 id: NEON_BOT_ID, 
+                 name: NEON_BOT_NAME, 
+                 avatarId: 'av_bot', 
+                 status: 'online', 
+                 lastSeen: Date.now(), 
+                 stats: { tetris: 999999, breaker: 999999, pacman: 999999, memory: 1, rush: 20, sudoku: 100 } 
+             };
+             setFriends(prev => {
+                const exists = prev.find(f => f.id === botFriend.id);
+                if (exists) return prev;
+                const updated = [...prev, botFriend];
+                localStorage.setItem('neon_friends', JSON.stringify(updated));
+                return updated;
+             });
+             audio.playCoin();
+             return;
+        }
+
         if (connectionsRef.current[targetId] && connectionsRef.current[targetId].open) {
             connectionsRef.current[targetId].send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId, stats: getMyStats() });
             alert('Demande envoyée !');
@@ -340,6 +373,7 @@ export const useSocialSystem = (audio: ReturnType<typeof useGameAudio>, currency
 
     const sendPrivateMessage = (text: string) => {
         if (!text.trim() || !activeChatId) return;
+        
         const msg: PrivateMessage = { id: Date.now().toString(), senderId: myPeerId, text: text.trim(), timestamp: Date.now(), read: true };
         setMessages(prev => {
             const chat = prev[activeChatId] || [];
@@ -347,6 +381,36 @@ export const useSocialSystem = (audio: ReturnType<typeof useGameAudio>, currency
             localStorage.setItem('neon_dms', JSON.stringify(updated));
             return updated;
         });
+
+        // --- BOT CHAT LOGIC ---
+        if (activeChatId === NEON_BOT_ID) {
+            setTimeout(() => {
+                const replies = [
+                    "Bip boup ! Je suis un robot. 🤖",
+                    "Je m'entraîne pour Tetris là...",
+                    "Viens jouer contre moi en classé !",
+                    "01001000 01100101 01101100 01101100 01101111",
+                    "Tu veux un conseil ? Vise les coins."
+                ];
+                const reply = replies[Math.floor(Math.random() * replies.length)];
+                const botMsg: PrivateMessage = { 
+                    id: Date.now().toString(), 
+                    senderId: NEON_BOT_ID, 
+                    text: reply, 
+                    timestamp: Date.now(), 
+                    read: false 
+                };
+                setMessages(prev => {
+                    const chat = prev[NEON_BOT_ID] || [];
+                    const updated = { ...prev, [NEON_BOT_ID]: [...chat, botMsg] };
+                    localStorage.setItem('neon_dms', JSON.stringify(updated));
+                    return updated;
+                });
+                audio.playCoin();
+            }, 1000);
+            return;
+        }
+
         const conn = connectionsRef.current[activeChatId];
         if (conn && conn.open) {
             conn.send({ type: 'DM', text: text.trim() });
@@ -372,6 +436,8 @@ export const useSocialSystem = (audio: ReturnType<typeof useGameAudio>, currency
         removeFriend,
         sendPrivateMessage,
         mp, // Expose raw multiplayer hook for Lobby listing
-        getMyStats
+        getMyStats,
+        NEON_BOT_ID,
+        NEON_BOT_NAME
     };
 };

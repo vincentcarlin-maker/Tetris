@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut, Bot } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -441,7 +441,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
         );
     };
 
-    // RENDER VISUAL FOR REACTION (ADVANCED ANIMATIONS)
+    // ... existing reaction visual ...
     const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
@@ -555,6 +555,27 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                 </div>
                 
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {/* BOT ENTRY */}
+                    {hostingPlayers.length === 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            <div className="flex items-center justify-between p-2 bg-purple-900/20 rounded-lg border border-purple-500/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-purple-900 flex items-center justify-center"><Bot size={24} className="text-purple-400"/></div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-purple-200">Neon Bot 🤖</span>
+                                        <span className="text-[10px] text-purple-300 font-bold tracking-widest bg-purple-500/10 px-1.5 rounded border border-purple-500/20 w-fit">
+                                            {DIFFICULTY_CONFIG[difficulty].name}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button onClick={() => { setGameMode('SOLO'); }} className="px-3 py-1.5 bg-purple-500 text-white font-bold rounded text-xs hover:bg-purple-400 transition-colors">
+                                    JOUER
+                                </button>
+                            </div>
+                        </>
+                    )}
+
                     {hostingPlayers.length > 0 && (
                         <>
                             <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
@@ -584,8 +605,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins 
                         </>
                     )}
                     
-                    {hostingPlayers.length === 0 && (
-                         <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>
+                    {hostingPlayers.length === 0 && otherPlayers.length === 0 && (
+                         <p className="text-center text-gray-500 italic text-sm py-4">Le bot vous attend pour un duel de mémoire !</p>
                     )}
                     
                     {otherPlayers.length > 0 && (
