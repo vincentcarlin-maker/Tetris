@@ -16,6 +16,7 @@ import { SocialOverlay } from './components/SocialOverlay';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
 import { useMultiplayer } from './hooks/useMultiplayer';
+import { useDailySystem } from './hooks/useDailySystem';
 
 
 type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'shop';
@@ -25,6 +26,18 @@ const App: React.FC = () => {
     const audio = useGameAudio();
     const currency = useCurrency();
     const mp = useMultiplayer(); // Global Multiplayer Lobby Connection
+
+    // DAILY SYSTEM INTEGRATION - Lifted to App level to persist state
+    const { 
+        streak, 
+        showDailyModal, 
+        todaysReward, 
+        claimDailyBonus, 
+        quests, 
+        checkGameQuest, 
+        checkCoinQuest, 
+        claimQuestReward 
+    } = useDailySystem(currency.addCoins);
 
     // Connect global lobby on mount
     useEffect(() => {
@@ -70,15 +83,19 @@ const App: React.FC = () => {
         };
     }, [currentView]);
 
-    // Wrapper pour déclencher le son à chaque gain
-    const addCoinsWithSound = (amount: number) => {
-        currency.addCoins(amount);
+    // Wrapper pour déclencher le son à chaque gain ET vérifier les quêtes de pièces
+    const addCoinsWithSoundAndQuest = (amount: number) => {
         if (amount > 0) {
+            currency.addCoins(amount);
             audio.playCoin();
+            checkCoinQuest(amount); // Check if this completes a coin quest
         }
     };
 
     const handleSelectGame = (game: string) => {
+        // Trigger "Play X" quest immediately when starting
+        checkGameQuest(game);
+
         if (game === 'tetris') setCurrentView('tetris');
         else if (game === 'rush') setCurrentView('rush');
         else if (game === 'connect4') setCurrentView('connect4');
@@ -105,47 +122,60 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'tetris' && (
-                <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+                <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
             {currentView === 'rush' && (
-                <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSound}} />
+                <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSoundAndQuest}} />
             )}
 
             {currentView === 'connect4' && (
-                <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} mp={mp} />
+                <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
             {currentView === 'sudoku' && (
-                <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+                <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
             {currentView === 'breaker' && (
-                <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+                <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
             
             {currentView === 'pacman' && (
-                <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+                <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
             
             {currentView === 'memory' && (
-                <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} mp={mp} />
+                <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
             {currentView === 'battleship' && (
-                <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} mp={mp} />
+                <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
             {currentView === 'snake' && (
-                <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+                <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
             {currentView === 'invaders' && (
-                <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSound} />
+                <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
             {currentView === 'menu' && (
-                <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} mp={mp} />
+                <MainMenu 
+                    onSelectGame={handleSelectGame} 
+                    audio={audio} 
+                    currency={currency} 
+                    mp={mp}
+                    dailyData={{
+                        streak,
+                        showDailyModal,
+                        todaysReward,
+                        claimDailyBonus,
+                        quests,
+                        claimQuestReward
+                    }}
+                />
             )}
         </>
     );

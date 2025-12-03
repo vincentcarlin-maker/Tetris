@@ -6,7 +6,7 @@ import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
 import { useMultiplayer } from '../hooks/useMultiplayer';
-import { useDailySystem } from '../hooks/useDailySystem';
+import { DailyQuest } from '../hooks/useDailySystem'; // Import interface
 import { DailyBonusModal } from './DailyBonusModal';
 
 // ... (rest of imports and interfaces)
@@ -16,6 +16,14 @@ interface MainMenuProps {
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
     mp: ReturnType<typeof useMultiplayer>;
+    dailyData: {
+        streak: number;
+        showDailyModal: boolean;
+        todaysReward: number;
+        claimDailyBonus: () => void;
+        quests: DailyQuest[];
+        claimQuestReward: (id: string) => void;
+    };
 }
 
 // ... (GAMES_CONFIG and other constants remain same)
@@ -188,13 +196,13 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
     
-    // --- DAILY SYSTEM INTEGRATION ---
-    const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, completeQuest } = useDailySystem(addCoins);
+    // --- DAILY SYSTEM DATA (Passed from App) ---
+    const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward } = dailyData;
 
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
     const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -212,9 +220,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         onTouchEnd: () => setActiveGlow(null)
     });
     
-    // Helper to complete quest when starting a game
+    // Helper to start game
     const handleGameStart = (gameId: string) => {
-        completeQuest(gameId);
         onSelectGame(gameId);
     };
 
@@ -404,18 +411,26 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      <div className="space-y-2">
                          {quests.map(quest => (
                              <div key={quest.id} className={`flex items-center justify-between p-2 rounded-lg border transition-all ${quest.isCompleted ? 'bg-green-900/20 border-green-500/30' : 'bg-gray-800/50 border-white/5'}`}>
-                                 <div className="flex items-center gap-3">
-                                     <div className={`w-2 h-2 rounded-full ${quest.isCompleted ? 'bg-green-500' : 'bg-gray-500'}`} />
-                                     <span className={`text-xs ${quest.isCompleted ? 'text-gray-300 line-through decoration-green-500' : 'text-white'}`}>{quest.description}</span>
+                                 <div className="flex flex-col gap-1 flex-1">
+                                     <div className="flex items-center gap-2">
+                                         <div className={`w-2 h-2 rounded-full ${quest.isCompleted ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                         <span className={`text-xs ${quest.isCompleted ? 'text-gray-300 line-through decoration-green-500' : 'text-white'}`}>{quest.description}</span>
+                                     </div>
+                                     {/* Progress Bar for 'any' target (Coins) */}
+                                     {quest.targetGame === 'any' && !quest.isCompleted && (
+                                         <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden mt-1 max-w-[120px]">
+                                             <div className="h-full bg-yellow-500" style={{ width: `${(quest.progress / quest.target) * 100}%` }}></div>
+                                         </div>
+                                     )}
                                  </div>
                                  {quest.isCompleted && !quest.isClaimed ? (
-                                     <button onClick={() => claimQuestReward(quest.id)} className="px-3 py-1 bg-yellow-500 text-black text-[10px] font-bold rounded hover:bg-yellow-400 animate-pulse flex items-center gap-1">
+                                     <button onClick={() => claimQuestReward(quest.id)} className="px-3 py-1 bg-yellow-500 text-black text-[10px] font-bold rounded hover:bg-yellow-400 animate-pulse flex items-center gap-1 shrink-0">
                                          <Coins size={10} /> +{quest.reward}
                                      </button>
                                  ) : quest.isClaimed ? (
-                                     <span className="text-[10px] font-bold text-green-500 px-2">FAIT</span>
+                                     <span className="text-[10px] font-bold text-green-500 px-2 shrink-0">FAIT</span>
                                  ) : (
-                                     <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-500/20">
+                                     <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-500/20 shrink-0">
                                          <Coins size={10} /> {quest.reward}
                                      </div>
                                  )}

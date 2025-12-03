@@ -5,7 +5,7 @@ export interface DailyQuest {
     id: string;
     description: string;
     reward: number;
-    targetGame?: string;
+    targetGame?: string; // 'tetris', 'breaker', etc. or 'any' for coins
     isCompleted: boolean;
     isClaimed: boolean;
     progress: number;
@@ -13,18 +13,17 @@ export interface DailyQuest {
 }
 
 const QUEST_TEMPLATES = [
-    { desc: "Jouer une partie de Tetris", game: 'tetris', reward: 50 },
-    { desc: "Exploser 20 briques (Breaker)", game: 'breaker', reward: 75 },
-    { desc: "Faire une partie de Rush", game: 'rush', reward: 60 },
-    { desc: "Placer 5 navires (Bataille)", game: 'battleship', reward: 50 },
-    { desc: "Trouver 3 paires (Memory)", game: 'memory', reward: 80 },
-    { desc: "Manger un fantôme (Pacman)", game: 'pacman', reward: 100 },
-    { desc: "Gagner 200 pièces au total", game: 'any', reward: 150 },
+    { desc: "Jouer une partie de Tetris", game: 'tetris', reward: 50, target: 1 },
+    { desc: "Jouer au Casse-Briques", game: 'breaker', reward: 50, target: 1 },
+    { desc: "Faire une partie de Rush", game: 'rush', reward: 50, target: 1 },
+    { desc: "Jouer à la Bataille Navale", game: 'battleship', reward: 50, target: 1 },
+    { desc: "Jouer au Memory", game: 'memory', reward: 50, target: 1 },
+    { desc: "Jouer à Pacman", game: 'pacman', reward: 50, target: 1 },
+    { desc: "Gagner 200 pièces au total", game: 'any', reward: 150, target: 200 },
 ];
 
 export const useDailySystem = (addCoins: (amount: number) => void) => {
     const [streak, setStreak] = useState(0);
-    const [lastLoginDate, setLastLoginDate] = useState<string | null>(null);
     const [showDailyModal, setShowDailyModal] = useState(false);
     const [todaysReward, setTodaysReward] = useState(0);
     const [quests, setQuests] = useState<DailyQuest[]>([]);
@@ -59,7 +58,6 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
             }
 
             setStreak(newStreak);
-            setLastLoginDate(today);
             
             // Calculate Reward
             const baseReward = 50;
@@ -73,15 +71,16 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
             localStorage.setItem('neon_streak', newStreak.toString());
         } else {
             setStreak(storedStreak);
-            setLastLoginDate(storedLastLogin);
         }
 
         // --- DAILY QUESTS LOGIC ---
         if (storedDate !== today || !storedQuests) {
             // Generate new quests
             const newQuests: DailyQuest[] = [];
+            // Shuffle templates
             const shuffledTemplates = [...QUEST_TEMPLATES].sort(() => 0.5 - Math.random());
             
+            // Pick 3 unique quests
             for(let i=0; i<3; i++) {
                 const tmpl = shuffledTemplates[i];
                 newQuests.push({
@@ -92,7 +91,7 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
                     isCompleted: false,
                     isClaimed: false,
                     progress: 0,
-                    target: 1 // Simplified for MVP
+                    target: tmpl.target
                 });
             }
             setQuests(newQuests);
@@ -109,13 +108,15 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         setShowDailyModal(false);
     };
 
-    const completeQuest = (gameId: string) => {
+    // Called when a game starts
+    const checkGameQuest = useCallback((gameId: string) => {
         setQuests(prev => {
             let changed = false;
             const updated = prev.map(q => {
-                if (!q.isCompleted && (q.targetGame === gameId || q.targetGame === 'any')) {
+                // If it's a "Play X" quest and matches the game ID
+                if (!q.isCompleted && q.targetGame === gameId) {
                     changed = true;
-                    return { ...q, isCompleted: true, progress: 1 };
+                    return { ...q, isCompleted: true, progress: q.target };
                 }
                 return q;
             });
@@ -124,7 +125,34 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
             }
             return updated;
         });
-    };
+    }, []);
+
+    // Called when coins are earned
+    const checkCoinQuest = useCallback((amount: number) => {
+        if (amount <= 0) return;
+        setQuests(prev => {
+            let changed = false;
+            const updated = prev.map(q => {
+                // If it's the "Earn Coins" quest (targetGame === 'any')
+                if (!q.isCompleted && q.targetGame === 'any') {
+                    const newProgress = Math.min(q.progress + amount, q.target);
+                    if (newProgress !== q.progress) {
+                        changed = true;
+                        return { 
+                            ...q, 
+                            progress: newProgress,
+                            isCompleted: newProgress >= q.target 
+                        };
+                    }
+                }
+                return q;
+            });
+            if (changed) {
+                localStorage.setItem('neon_daily_quests', JSON.stringify(updated));
+            }
+            return updated;
+        });
+    }, []);
 
     const claimQuestReward = (questId: string) => {
         const quest = quests.find(q => q.id === questId);
@@ -142,7 +170,8 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         todaysReward,
         claimDailyBonus,
         quests,
-        completeQuest,
+        checkGameQuest,
+        checkCoinQuest,
         claimQuestReward
     };
 };
