@@ -63,12 +63,12 @@ export const AVATARS_CATALOG: Avatar[] = [
     { id: 'av_bot', name: 'Néon Bot', price: 0, icon: Bot, color: 'text-cyan-400', bgGradient: 'from-cyan-900/50 to-blue-900/50' },
     { id: 'av_human', name: 'Humain', price: 0, icon: User, color: 'text-gray-200', bgGradient: 'from-gray-800/50 to-slate-800/50' },
     
-    // Nouveaux avatars féminins/variés
+    // Nouveaux avatars variés
     { id: 'av_cat', name: 'Néon Cat', price: 1000, icon: Cat, color: 'text-pink-400', bgGradient: 'from-pink-900/50 to-purple-900/50' },
     { id: 'av_flower', name: 'Fleur', price: 1500, icon: Flower, color: 'text-fuchsia-400', bgGradient: 'from-fuchsia-900/50 to-pink-900/50' },
-    { id: 'av_heart', name: 'Love', price: 2000, icon: Heart, color: 'text-red-500', bgGradient: 'from-red-900/50 to-rose-900/50' },
-    { id: 'av_sparkles', name: 'Magie', price: 3000, icon: Sparkles, color: 'text-purple-300', bgGradient: 'from-purple-900/50 to-indigo-900/50' },
-    { id: 'av_gem', name: 'Précieux', price: 5000, icon: Gem, color: 'text-cyan-300', bgGradient: 'from-cyan-900/50 to-emerald-900/50' },
+    { id: 'av_love', name: 'Love', price: 2000, icon: Heart, color: 'text-red-500', bgGradient: 'from-red-900/50 to-rose-900/50' },
+    { id: 'av_magic', name: 'Magie', price: 3000, icon: Sparkles, color: 'text-purple-300', bgGradient: 'from-purple-900/50 to-indigo-900/50' },
+    { id: 'av_precious', name: 'Précieux', price: 5000, icon: Gem, color: 'text-cyan-300', bgGradient: 'from-cyan-900/50 to-emerald-900/50' },
 
     { id: 'av_smile', name: 'Good Vibes', price: 500, icon: Smile, color: 'text-yellow-400', bgGradient: 'from-yellow-900/50 to-orange-900/50' },
     { id: 'av_zap', name: 'Voltage', price: 1000, icon: Zap, color: 'text-blue-400', bgGradient: 'from-blue-900/50 to-cyan-900/50' },

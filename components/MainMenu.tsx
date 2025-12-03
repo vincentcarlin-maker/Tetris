@@ -207,8 +207,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [tempName, setTempName] = useState(username);
     const inputRef = useRef<HTMLInputElement>(null);
     
-    // Collapsible Quests State
-    const [isQuestsExpanded, setIsQuestsExpanded] = useState(true);
+    // Collapsible Quests State - Fermé par défaut
+    const [isQuestsExpanded, setIsQuestsExpanded] = useState(false);
     
     // Helpers pour gérer l'interaction tactile et souris
     const bindGlow = (color: string) => ({
@@ -410,10 +410,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         onClick={() => setIsQuestsExpanded(!isQuestsExpanded)} 
                         className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-4 pb-2' : ''}`}
                      >
-                         <h3 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)]">
-                            <CheckCircle size={18} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
-                            DÉFIS DU JOUR
-                         </h3>
+                         <div className="flex items-center gap-3">
+                             <h3 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)]">
+                                <CheckCircle size={18} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
+                                DÉFIS DU JOUR
+                             </h3>
+                             
+                             {/* Show quick status when collapsed */}
+                             {!isQuestsExpanded && (
+                                 <div className="flex gap-1.5 ml-1 animate-in fade-in duration-300">
+                                     {quests.map((q, i) => (
+                                         <div key={q.id} title={q.description} className={`w-4 h-4 flex items-center justify-center rounded-full border transition-colors ${q.isCompleted ? 'bg-green-500 border-green-400 shadow-[0_0_5px_#22c55e]' : 'bg-gray-800/50 border-white/10'}`}>
+                                             {q.isCompleted && <Check size={10} className="text-black" strokeWidth={4} />}
+                                         </div>
+                                     ))}
+                                 </div>
+                             )}
+                         </div>
+
                          <div className="flex items-center gap-2">
                              <span className="text-[10px] text-green-400 font-mono font-bold tracking-widest bg-green-900/30 border border-green-500/30 px-2 py-1 rounded shadow-[0_0_10px_rgba(34,197,94,0.1)]">
                                 {new Date().toLocaleDateString()}
