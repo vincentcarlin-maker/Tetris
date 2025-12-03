@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb, ShoppingBag } from 'lucide-react';
-import { useCurrency, Badge, Avatar, SOLUTION_COST } from '../hooks/useCurrency';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb, ShoppingBag, Frame } from 'lucide-react';
+import { useCurrency, Badge, Avatar, Frame as FrameType, SOLUTION_COST } from '../hooks/useCurrency';
 import { TOTAL_LEVELS } from './rush/levels';
 
 interface ShopProps {
@@ -12,10 +13,11 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const { 
         coins, inventory, buyBadge, catalog, 
         currentAvatarId, selectAvatar, buyAvatar, ownedAvatars, avatarsCatalog,
+        currentFrameId, selectFrame, buyFrame, ownedFrames, framesCatalog,
         unlockedSolutions, buySolution
     } = currency;
 
-    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'SOLUTIONS'>('BADGES');
+    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'SOLUTIONS'>('BADGES');
 
     const handleBuyBadge = (badge: Badge) => {
         if (coins >= badge.price && !inventory.includes(badge.id)) {
@@ -26,6 +28,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const handleBuyAvatar = (avatar: Avatar) => {
         if (coins >= avatar.price && !ownedAvatars.includes(avatar.id)) {
             buyAvatar(avatar.id, avatar.price);
+        }
+    };
+
+    const handleBuyFrame = (frame: FrameType) => {
+        if (coins >= frame.price && !ownedFrames.includes(frame.id)) {
+            buyFrame(frame.id, frame.price);
         }
     };
 
@@ -53,10 +61,11 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
 
             {/* Tabs */}
             <div className="w-full max-w-2xl mx-auto px-4 z-10 shrink-0 mb-4">
-                <div className="flex bg-gray-900/80 rounded-xl border border-white/10 p-1 backdrop-blur-md">
-                    <button onClick={() => setActiveTab('BADGES')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'BADGES' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>BADGES</button>
-                    <button onClick={() => setActiveTab('AVATARS')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'AVATARS' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>AVATARS</button>
-                    <button onClick={() => setActiveTab('SOLUTIONS')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'SOLUTIONS' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>SOLUTIONS</button>
+                <div className="flex bg-gray-900/80 rounded-xl border border-white/10 p-1 backdrop-blur-md overflow-x-auto no-scrollbar gap-1">
+                    <button onClick={() => setActiveTab('BADGES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'BADGES' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>BADGES</button>
+                    <button onClick={() => setActiveTab('AVATARS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'AVATARS' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>AVATARS</button>
+                    <button onClick={() => setActiveTab('FRAMES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'FRAMES' ? 'bg-pink-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>CADRES</button>
+                    <button onClick={() => setActiveTab('SOLUTIONS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'SOLUTIONS' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>SOLUTIONS</button>
                 </div>
             </div>
 
@@ -143,6 +152,60 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                             }`}
                                         >
                                             ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{avatar.price}</span>
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* FRAMES TAB */}
+                {activeTab === 'FRAMES' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {framesCatalog.map(frame => {
+                            const isOwned = ownedFrames.includes(frame.id);
+                            const isSelected = currentFrameId === frame.id;
+                            const canAfford = coins >= frame.price;
+                            
+                            // Mock Avatar for preview
+                            const PreviewAvatar = avatarsCatalog[0].icon;
+
+                            return (
+                                <div key={frame.id} className={`p-3 rounded-xl border ${isSelected ? 'bg-pink-900/20 border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
+                                    <div className="relative mb-3 pt-1">
+                                        <div className={`w-16 h-16 rounded-xl bg-gray-800 flex items-center justify-center border-4 ${frame.cssClass}`}>
+                                            <PreviewAvatar size={32} className="text-gray-500" />
+                                        </div>
+                                        {isSelected && <div className="absolute -top-1 -right-2 w-6 h-6 bg-green-500 rounded-full border-2 border-black flex items-center justify-center text-black"><Check size={14} strokeWidth={4} /></div>}
+                                    </div>
+                                    
+                                    <h3 className="font-bold text-sm text-white mb-1">{frame.name}</h3>
+                                    <p className="text-[10px] text-gray-500 mb-3 leading-tight px-2 h-8">{frame.description}</p>
+                                    
+                                    {isOwned ? (
+                                        <button 
+                                            onClick={() => selectFrame(frame.id)}
+                                            disabled={isSelected}
+                                            className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                                isSelected 
+                                                ? 'bg-green-600/20 text-green-400 cursor-default' 
+                                                : 'bg-pink-600 text-white hover:bg-pink-500'
+                                            }`}
+                                        >
+                                            {isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => handleBuyFrame(frame)}
+                                            disabled={!canAfford}
+                                            className={`w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                                                canAfford 
+                                                ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' 
+                                                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{frame.price}</span>
                                         </button>
                                     )}
                                 </div>

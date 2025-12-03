@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull } from 'lucide-react';
+import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box } from 'lucide-react';
 
 export interface Badge {
   id: string;
@@ -18,6 +18,14 @@ export interface Avatar {
     icon: any;
     color: string;
     bgGradient: string;
+}
+
+export interface Frame {
+    id: string;
+    name: string;
+    price: number;
+    cssClass: string; // Tailwind classes for the border/glow
+    description: string;
 }
 
 export const BADGES_CATALOG: Badge[] = [
@@ -48,6 +56,17 @@ export const AVATARS_CATALOG: Avatar[] = [
     { id: 'av_king', name: 'Le King', price: 25000, icon: Crown, color: 'text-amber-400', bgGradient: 'from-amber-900/50 to-yellow-900/50' },
 ];
 
+export const FRAMES_CATALOG: Frame[] = [
+    { id: 'fr_none', name: 'Aucun', price: 0, cssClass: 'border-white/10', description: 'Simple et efficace.' },
+    { id: 'fr_neon_blue', name: 'Néon Bleu', price: 500, cssClass: 'border-cyan-400 shadow-[0_0_10px_#22d3ee] animate-pulse', description: 'Une lueur froide.' },
+    { id: 'fr_neon_pink', name: 'Néon Rose', price: 500, cssClass: 'border-pink-500 shadow-[0_0_10px_#ec4899] animate-pulse', description: 'Flashy et stylé.' },
+    { id: 'fr_gold', name: 'Or Pur', price: 2500, cssClass: 'border-yellow-400 shadow-[0_0_15px_#facc15] bg-gradient-to-br from-yellow-300/20 to-yellow-600/20', description: 'Le luxe absolu.' },
+    { id: 'fr_glitch', name: 'Glitch', price: 5000, cssClass: 'border-red-500 shadow-[2px_0_0_#00f3ff,-2px_0_0_#ff00ff] animate-pulse', description: 'Erreur système détectée.' },
+    { id: 'fr_rainbow', name: 'Arc-en-ciel', price: 8000, cssClass: 'border-transparent bg-[linear-gradient(45deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] bg-[length:400%] animate-[gradient_3s_linear_infinite] shadow-lg', description: 'Toutes les couleurs.' },
+    { id: 'fr_fire', name: 'Infernal', price: 12000, cssClass: 'border-orange-600 shadow-[0_0_20px_#ea580c] animate-[pulse_0.5s_ease-in-out_infinite]', description: 'Brûlant.' },
+    { id: 'fr_diamond', name: 'Diamant', price: 20000, cssClass: 'border-cyan-200 shadow-[0_0_20px_#a5f3fc] ring-2 ring-white/50', description: 'Incassable et brillant.' },
+];
+
 export const SOLUTION_COST = 200;
 
 export const useCurrency = () => {
@@ -58,6 +77,9 @@ export const useCurrency = () => {
     const [username, setUsername] = useState("Joueur Néon");
     const [currentAvatarId, setCurrentAvatarId] = useState("av_bot");
     const [ownedAvatars, setOwnedAvatars] = useState<string[]>(["av_bot", "av_human"]);
+    
+    const [currentFrameId, setCurrentFrameId] = useState("fr_none");
+    const [ownedFrames, setOwnedFrames] = useState<string[]>(["fr_none"]);
 
     // Game Unlocks
     const [unlockedSolutions, setUnlockedSolutions] = useState<number[]>([]);
@@ -73,10 +95,15 @@ export const useCurrency = () => {
         const storedName = localStorage.getItem('neon-username');
         const storedAvatar = localStorage.getItem('neon-avatar');
         const storedOwnedAvatars = localStorage.getItem('neon-owned-avatars');
+        const storedFrame = localStorage.getItem('neon-frame');
+        const storedOwnedFrames = localStorage.getItem('neon-owned-frames');
 
         if (storedName) setUsername(storedName);
         if (storedAvatar) setCurrentAvatarId(storedAvatar);
         if (storedOwnedAvatars) setOwnedAvatars(JSON.parse(storedOwnedAvatars));
+        
+        if (storedFrame) setCurrentFrameId(storedFrame);
+        if (storedOwnedFrames) setOwnedFrames(JSON.parse(storedOwnedFrames));
 
         // Load Solutions
         const storedSolutions = localStorage.getItem('neon-rush-solutions');
@@ -138,6 +165,30 @@ export const useCurrency = () => {
         }
     }, [ownedAvatars]);
 
+    const buyFrame = useCallback((frameId: string, cost: number) => {
+        setCoins(prev => {
+            if (prev >= cost) {
+                const newBalance = prev - cost;
+                localStorage.setItem('neon-coins', newBalance.toString());
+                
+                setOwnedFrames(prevOwned => {
+                    const newOwned = [...prevOwned, frameId];
+                    localStorage.setItem('neon-owned-frames', JSON.stringify(newOwned));
+                    return newOwned;
+                });
+                return newBalance;
+            }
+            return prev;
+        });
+    }, []);
+
+    const selectFrame = useCallback((frameId: string) => {
+        if (ownedFrames.includes(frameId)) {
+            setCurrentFrameId(frameId);
+            localStorage.setItem('neon-frame', frameId);
+        }
+    }, [ownedFrames]);
+
     const buySolution = useCallback((levelId: number) => {
         setCoins(prev => {
             if (prev >= SOLUTION_COST) {
@@ -181,6 +232,12 @@ export const useCurrency = () => {
         buyAvatar,
         ownedAvatars,
         avatarsCatalog: AVATARS_CATALOG,
+        // Frames
+        currentFrameId,
+        selectFrame,
+        buyFrame,
+        ownedFrames,
+        framesCatalog: FRAMES_CATALOG,
         // Game Unlocks
         unlockedSolutions,
         buySolution

@@ -25,6 +25,7 @@ interface Friend {
     id: string;
     name: string;
     avatarId: string;
+    frameId?: string;
     status: 'online' | 'offline';
     lastSeen: number;
     stats?: PlayerStats;
@@ -42,6 +43,7 @@ interface FriendRequest {
     id: string;
     name: string;
     avatarId: string;
+    frameId?: string;
     timestamp: number;
     stats?: PlayerStats;
 }
@@ -57,7 +59,7 @@ const REACTIONS = [
 ];
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
-    const { username, currentAvatarId, avatarsCatalog } = currency;
+    const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     
     const [showSocial, setShowSocial] = useState(false);
     const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('FRIENDS');
@@ -200,12 +202,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
         const socialPayload = {
             id: myPeerId,
+            frameId: currentFrameId,
             stats: { 
                 tetris: 0, breaker: 0, pacman: 0, memory: 0, rush: 0, sudoku: 0 // Placeholder
             }
         };
         mp.updateSelfInfo(username, currentAvatarId, JSON.stringify(socialPayload));
-    }, [username, currentAvatarId, myPeerId, mp, mp.isHost]);
+    }, [username, currentAvatarId, currentFrameId, myPeerId, mp, mp.isHost]);
 
     // Unread Count - SECURED LOOP
     useEffect(() => {
@@ -256,6 +259,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                         ...f, 
                         name: data.name, 
                         avatarId: data.avatarId, 
+                        frameId: data.frameId,
                         status: 'online' as const, 
                         lastSeen: Date.now(),
                         stats: data.stats
@@ -270,7 +274,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     setRequests(currReq => {
                         if (currReq.find(r => r.id === data.senderId)) return currReq;
                         audio.playCoin(); 
-                        return [...currReq, { id: data.senderId, name: data.name, avatarId: data.avatarId, timestamp: Date.now(), stats: data.stats }];
+                        return [...currReq, { id: data.senderId, name: data.name, avatarId: data.avatarId, frameId: data.frameId, timestamp: Date.now(), stats: data.stats }];
                     });
                 }
             }
@@ -279,6 +283,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     id: data.senderId,
                     name: data.name,
                     avatarId: data.avatarId,
+                    frameId: data.frameId,
                     status: 'online',
                     lastSeen: Date.now(),
                     stats: data.stats
@@ -332,7 +337,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
              setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' as const } : f));
         });
 
-    }, [username, currentAvatarId, audio]);
+    }, [username, currentAvatarId, currentFrameId, audio]);
 
     useEffect(() => {
         handleConnectionRef.current = handleConnection;
@@ -348,7 +353,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     if (conn) {
                         handleConnection(conn);
                         conn.on('open', () => {
-                            conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId });
+                            conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId, frameId: currentFrameId });
                         });
                     }
                 } catch (e) {
@@ -356,7 +361,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 }
             });
         }
-    }, [showSocial, friends.length, handleConnection, username, currentAvatarId]);
+    }, [showSocial, friends.length, handleConnection, username, currentAvatarId, currentFrameId]);
 
     // Heartbeat
     useEffect(() => {
@@ -394,7 +399,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const sendFriendRequest = (targetId: string) => {
         if (targetId === myPeerId) return;
         if (connectionsRef.current[targetId]?.open) {
-            connectionsRef.current[targetId].send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId });
+            connectionsRef.current[targetId].send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
             alert('Demande envoyée !');
             return;
         }
@@ -404,7 +409,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 handleConnection(conn);
                 conn.on('open', () => {
                     setTimeout(() => {
-                        conn.send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId });
+                        conn.send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
                     }, 500);
                 });
                 alert('Demande envoyée !');
@@ -415,7 +420,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     };
 
     const acceptRequest = (req: FriendRequest) => {
-        const newFriend: Friend = { id: req.id, name: req.name, avatarId: req.avatarId, status: 'online', lastSeen: Date.now(), stats: req.stats };
+        const newFriend: Friend = { id: req.id, name: req.name, avatarId: req.avatarId, frameId: req.frameId, status: 'online', lastSeen: Date.now(), stats: req.stats };
         setFriends(prev => {
             const updated = [...prev, newFriend];
             localStorage.setItem('neon_friends', JSON.stringify(updated));
@@ -424,12 +429,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setRequests(prev => prev.filter(r => r.id !== req.id));
 
         if (connectionsRef.current[req.id]?.open) {
-             connectionsRef.current[req.id].send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId });
+             connectionsRef.current[req.id].send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
         } else if (peerRef.current) {
             try {
                 const conn = peerRef.current.connect(req.id);
                 conn.on('open', () => {
-                    conn.send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId });
+                    conn.send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
                     handleConnection(conn);
                 });
             } catch(e) { console.warn('Could not connect to accept request', e); }
@@ -503,6 +508,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         try { return JSON.parse(player.extraInfo); } catch (e) { return null; }
     };
 
+    const getFrameClass = (frameId?: string) => {
+        return framesCatalog.find(f => f.id === frameId)?.cssClass || 'border-white/10';
+    };
+
     return (
         <>
             {/* DRAGGABLE FLOATING BUTTON */}
@@ -533,12 +542,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                         <button onClick={() => setSelectedPlayer(null)} className="absolute top-2 right-2 p-2 bg-black/20 hover:bg-black/40 rounded-full text-gray-400 hover:text-white transition-colors z-10"><X size={20} /></button>
                         
                         <div className="flex justify-center mt-8 mb-3">
-                            <div className="w-24 h-24 rounded-2xl bg-gray-900 p-1">
+                            <div className={`w-24 h-24 rounded-2xl bg-gray-900 p-1 border-2 ${getFrameClass(selectedPlayer.frameId)}`}>
                                 {(() => {
                                     const avatar = avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0];
                                     const AvIcon = avatar.icon;
                                     return (
-                                        <div className={`w-full h-full rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border-2 border-white/20 shadow-lg`}>
+                                        <div className={`w-full h-full rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}>
                                             <AvIcon size={48} className={avatar.color} />
                                         </div>
                                     );
@@ -612,12 +621,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                             const extra = parseExtraInfo(player);
                                             const targetId = extra?.id || player.id; 
                                             const isMe = targetId === myPeerId;
-                                            const tempFriend: Friend = { id: targetId, name: player.name, avatarId: player.avatarId, status: 'online', lastSeen: Date.now(), stats: extra?.stats };
+                                            const tempFriend: Friend = { id: targetId, name: player.name, avatarId: player.avatarId, frameId: extra?.frameId, status: 'online', lastSeen: Date.now(), stats: extra?.stats };
 
                                             return (
                                                 <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group`}>
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border border-white/10`}><AvIcon size={18} className={avatar.color} /></div>
+                                                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(extra?.frameId)}`}>
+                                                            <AvIcon size={18} className={avatar.color} />
+                                                        </div>
                                                         <div><h4 className="font-bold text-white text-sm group-hover:text-blue-300 transition-colors">{player.name} {isMe && '(Moi)'}</h4></div>
                                                     </div>
                                                     {!isMe && <button onClick={(e) => { e.stopPropagation(); sendFriendRequest(targetId); }} className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"><UserPlus size={16} /></button>}
@@ -638,7 +649,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         return (
                                             <div key={req.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-xl border border-pink-500/30">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border border-white/10`}><AvIcon size={18} className={avatar.color} /></div>
+                                                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border-2 ${getFrameClass(req.frameId)}`}><AvIcon size={18} className={avatar.color} /></div>
                                                     <div><h4 className="font-bold text-white text-sm">{req.name}</h4></div>
                                                 </div>
                                                 <div className="flex gap-2"><button onClick={() => setRequests(prev => prev.filter(r => r.id !== req.id))} className="p-2 hover:bg-red-500/20 text-red-500 rounded-full"><XCircle size={20} /></button><button onClick={() => acceptRequest(req)} className="p-2 bg-green-600 hover:bg-green-500 text-white rounded-full shadow-lg"><CheckCircle size={20} /></button></div>
@@ -675,7 +686,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         return (
                                             <div key={friend.id} onClick={() => setSelectedPlayer(friend)} className="group flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border border-white/10`}>
+                                                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(friend.frameId)}`}>
                                                         <AvIcon size={20} className={avatar.color} />
                                                         <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${friend.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
                                                     </div>

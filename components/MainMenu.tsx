@@ -1,5 +1,5 @@
 
-
+// ... imports
 import React, { useEffect, useState, useRef } from 'react';
 import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -9,6 +9,8 @@ import { useMultiplayer } from '../hooks/useMultiplayer';
 import { useDailySystem } from '../hooks/useDailySystem';
 import { DailyBonusModal } from './DailyBonusModal';
 
+// ... (rest of imports and interfaces)
+
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
     audio: ReturnType<typeof useGameAudio>;
@@ -16,7 +18,7 @@ interface MainMenuProps {
     mp: ReturnType<typeof useMultiplayer>;
 }
 
-// --- CONFIGURATION DES JEUX ---
+// ... (GAMES_CONFIG and other constants remain same)
 const GAMES_CONFIG = [
     { 
         id: 'tetris', 
@@ -142,7 +144,7 @@ const COMING_SOON = [
     { name: 'MASTERMIND', icon: BrainCircuit }
 ];
 
-// Composant pour le logo stylisé avec manette arcade
+// ... (ArcadeLogo component)
 const ArcadeLogo = () => {
     return (
         <div className="flex flex-col items-center justify-center py-6 animate-in fade-in slide-in-from-top-8 duration-700 mb-2 relative">
@@ -174,7 +176,7 @@ const ArcadeLogo = () => {
 };
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp }) => {
-    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, addCoins } = currency;
+    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
     
@@ -254,8 +256,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Récupération des badges possédés
     const ownedBadges = catalog.filter(b => inventory.includes(b.id));
 
-    // Current Avatar
+    // Current Avatar & Frame
     const currentAvatar = avatarsCatalog.find(a => a.id === currentAvatarId) || avatarsCatalog[0];
+    const currentFrame = framesCatalog.find(f => f.id === currentFrameId) || framesCatalog[0];
     const AvatarIcon = currentAvatar.icon;
 
     // Calcul des stats pour affichage
@@ -314,12 +317,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
                      
                      <div className="flex items-center w-full gap-4 z-10">
-                        {/* Avatar */}
-                        <div onClick={() => onSelectGame('shop')} className={`relative w-20 h-20 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 shadow-lg cursor-pointer hover:scale-105 transition-transform border border-white/10`}>
-                            <div className="w-full h-full bg-black/40 rounded-[10px] flex items-center justify-center backdrop-blur-sm">
-                                <AvatarIcon size={40} className={currentAvatar.color} />
+                        {/* Avatar with Frame */}
+                        <div onClick={() => onSelectGame('shop')} className="relative cursor-pointer hover:scale-105 transition-transform">
+                            <div className={`w-20 h-20 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative z-10 border-2 ${currentFrame.cssClass}`}>
+                                <div className="w-full h-full bg-black/40 rounded-[8px] flex items-center justify-center backdrop-blur-sm">
+                                    <AvatarIcon size={40} className={currentAvatar.color} />
+                                </div>
                             </div>
-                            <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20">EDIT</div>
+                            <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20 z-20">EDIT</div>
                         </div>
 
                         {/* Player Info */}
