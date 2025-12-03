@@ -76,19 +76,38 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     // --- INITIALIZATION ---
     useEffect(() => {
-        // Load Data
+        // Load Data - SECURED
         const storedFriends = localStorage.getItem('neon_friends');
         if (storedFriends) {
             try {
                 const parsed = JSON.parse(storedFriends);
                 if (Array.isArray(parsed)) {
                     setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: f.lastSeen || 0 }))); 
+                } else {
+                    console.warn('Invalid friends structure, resetting');
+                    localStorage.removeItem('neon_friends');
                 }
-            } catch (e) { console.warn('Failed to parse friends', e); }
+            } catch (e) { 
+                console.warn('Failed to parse friends, resetting', e); 
+                localStorage.removeItem('neon_friends');
+            }
         }
         
         const storedMessages = localStorage.getItem('neon_dms');
-        if (storedMessages) setMessages(JSON.parse(storedMessages));
+        if (storedMessages) {
+            try {
+                const parsed = JSON.parse(storedMessages);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    setMessages(parsed);
+                } else {
+                    console.warn('Invalid DMs structure, resetting');
+                    localStorage.removeItem('neon_dms');
+                }
+            } catch (e) {
+                console.warn('Failed to parse DMs, resetting', e);
+                localStorage.removeItem('neon_dms');
+            }
+        }
 
         // Initialize Peer
         let storedId = localStorage.getItem('neon_social_id');
@@ -98,16 +117,27 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         }
         setMyPeerId(storedId);
 
-        const peer = new Peer(storedId);
-        peerRef.current = peer;
+        try {
+            const peer = new Peer(storedId);
+            peerRef.current = peer;
 
-        peer.on('connection', (conn) => {
-            if (handleConnectionRef.current) handleConnectionRef.current(conn);
-        });
+            peer.on('connection', (conn) => {
+                if (handleConnectionRef.current) handleConnectionRef.current(conn);
+            });
+            
+            peer.on('error', (err) => {
+                console.error("Social Peer Error:", err);
+                // Don't crash app on peer error
+            });
+        } catch (e) {
+            console.error("Failed to initialize PeerJS:", e);
+        }
 
         return () => {
-            peer.destroy();
-            peerRef.current = null;
+            if (peerRef.current) {
+                peerRef.current.destroy();
+                peerRef.current = null;
+            }
         };
     }, []);
 
@@ -125,14 +155,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         // We do NOT call mp.connect() here, App.tsx handles the global connection.
     }, [username, currentAvatarId, myPeerId, mp]);
 
-    // Unread Count
+    // Unread Count - SECURED LOOP
     useEffect(() => {
         let count = 0;
-        (Object.values(messages) as PrivateMessage[][]).forEach(msgs => {
-            msgs.forEach(m => {
-                if (!m.read && m.senderId !== myPeerId) count++;
+        if (messages && typeof messages === 'object') {
+            (Object.values(messages) as PrivateMessage[][]).forEach(msgs => {
+                if (Array.isArray(msgs)) {
+                    msgs.forEach(m => {
+                        if (m && !m.read && m.senderId !== myPeerId) count++;
+                    });
+                }
             });
-        });
+        }
         count += requests.length;
         setUnreadCount(count);
     }, [messages, myPeerId, requests]);
@@ -240,11 +274,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (showSocial && peerRef.current) {
             friends.forEach(f => {
                 if (connectionsRef.current[f.id] && connectionsRef.current[f.id].open) return;
-                const conn = peerRef.current!.connect(f.id);
-                handleConnection(conn);
-                conn.on('open', () => {
-                    conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId });
-                });
+                try {
+                    const conn = peerRef.current!.connect(f.id);
+                    if (conn) {
+                        handleConnection(conn);
+                        conn.on('open', () => {
+                            conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId });
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Failed to connect to friend", f.id, e);
+                }
             });
         }
     }, [showSocial, friends.length, handleConnection, username, currentAvatarId]);
@@ -290,14 +330,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             return;
         }
         if (peerRef.current) {
-            const conn = peerRef.current.connect(targetId);
-            handleConnection(conn);
-            conn.on('open', () => {
-                setTimeout(() => {
-                    conn.send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId });
-                }, 500);
-            });
-            alert('Demande envoyée !');
+            try {
+                const conn = peerRef.current.connect(targetId);
+                handleConnection(conn);
+                conn.on('open', () => {
+                    setTimeout(() => {
+                        conn.send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId });
+                    }, 500);
+                });
+                alert('Demande envoyée !');
+            } catch (e) {
+                alert('Erreur lors de l\'envoi de la demande.');
+            }
         }
     };
 
@@ -313,11 +357,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (connectionsRef.current[req.id]?.open) {
              connectionsRef.current[req.id].send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId });
         } else if (peerRef.current) {
-            const conn = peerRef.current.connect(req.id);
-            conn.on('open', () => {
-                conn.send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId });
-                handleConnection(conn);
-            });
+            try {
+                const conn = peerRef.current.connect(req.id);
+                conn.on('open', () => {
+                    conn.send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId });
+                    handleConnection(conn);
+                });
+            } catch(e) { console.warn('Could not connect to accept request', e); }
         }
     };
 
