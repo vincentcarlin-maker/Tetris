@@ -289,6 +289,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 </div>
 
                 <div className="flex gap-3">
+                     {/* SHOP BUTTON */}
+                     <button 
+                        onClick={() => onSelectGame('shop')}
+                        className="p-2 bg-gray-900/80 rounded-full text-yellow-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform"
+                        title="Boutique"
+                    >
+                        <ShoppingBag size={20} />
+                    </button>
+
                      {/* SOCIAL BUTTON */}
                     <button 
                         onClick={() => setShowSocial(true)}
@@ -480,28 +489,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         </div>
                     )}
                 </div>
-
-                 {/* Shop Banner */}
-                 <button
-                    onClick={() => onSelectGame('shop')}
-                    {...bindGlow('rgba(234, 179, 8, 0.9)')}
-                    className="w-full bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border border-yellow-500/40 rounded-xl p-4 flex items-center justify-between transition-all group active:scale-[0.98] 
-                    hover:border-yellow-500 hover:shadow-[0_0_50px_rgba(234,179,8,0.6)] hover:ring-2 hover:ring-yellow-500 hover:bg-yellow-600/20
-                    backdrop-blur-md shadow-lg mb-2"
-                 >
-                     <div className="flex items-center gap-4">
-                         <div className="p-3 bg-yellow-500/20 rounded-lg text-yellow-400 group-hover:text-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
-                             <ShoppingBag size={24} />
-                         </div>
-                         <div className="text-left">
-                             <h3 className="text-xl font-black text-yellow-100 italic">BOUTIQUE</h3>
-                             <p className="text-xs text-yellow-400/70 font-mono">BADGES & AVATARS</p>
-                         </div>
-                     </div>
-                     <div className="px-4 py-1.5 bg-yellow-500 text-black text-xs font-bold rounded-full group-hover:scale-105 transition-transform shadow-[0_0_15px_#facc15]">
-                         OUVRIR
-                     </div>
-                 </button>
 
                  {/* --- GAME GRID --- */}
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
