@@ -356,14 +356,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         {/* Avatar */}
                         <div 
                             onClick={() => onSelectGame('shop')}
-                            className="cursor-pointer hover:scale-105 transition-transform"
+                            className="relative cursor-pointer hover:scale-105 transition-transform"
                         >
                             <AvatarDisplay 
                                 avatarId={currentAvatarId} 
                                 accessories={equippedAccessories}
                                 size="lg" 
                             />
-                            <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20 z-40">
+                            <div className="absolute -bottom-2 -right-2 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20 z-40 shadow-lg font-bold tracking-wider">
                                 EDIT
                             </div>
                         </div>
