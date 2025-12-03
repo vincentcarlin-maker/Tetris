@@ -207,6 +207,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [tempName, setTempName] = useState(username);
     const inputRef = useRef<HTMLInputElement>(null);
     
+    // Collapsible Quests State
+    const [isQuestsExpanded, setIsQuestsExpanded] = useState(true);
+    
     // Helpers pour gérer l'interaction tactile et souris
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
@@ -403,63 +406,71 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      <div className="absolute -right-6 -top-6 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full pointer-events-none"></div>
                      <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full pointer-events-none"></div>
 
-                     <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-2 relative z-10">
+                     <div 
+                        onClick={() => setIsQuestsExpanded(!isQuestsExpanded)} 
+                        className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-4 pb-2' : ''}`}
+                     >
                          <h3 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)]">
                             <CheckCircle size={18} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
                             DÉFIS DU JOUR
                          </h3>
-                         <span className="text-[10px] text-green-400 font-mono font-bold tracking-widest bg-green-900/30 border border-green-500/30 px-2 py-1 rounded shadow-[0_0_10px_rgba(34,197,94,0.1)]">
-                            {new Date().toLocaleDateString()}
-                         </span>
+                         <div className="flex items-center gap-2">
+                             <span className="text-[10px] text-green-400 font-mono font-bold tracking-widest bg-green-900/30 border border-green-500/30 px-2 py-1 rounded shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+                                {new Date().toLocaleDateString()}
+                             </span>
+                             <ChevronDown size={20} className={`text-green-400 transition-transform duration-300 ${isQuestsExpanded ? 'rotate-180' : ''}`} />
+                         </div>
                      </div>
                      
-                     <div className="space-y-3 relative z-10">
-                         {quests.map(quest => (
-                             <div key={quest.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
-                                 quest.isCompleted 
-                                 ? 'bg-green-950/40 border-green-500/50 shadow-[inset_0_0_10px_rgba(34,197,94,0.1)]' 
-                                 : 'bg-gray-900/60 border-white/5 hover:border-white/20'
-                             }`}>
-                                 <div className="flex flex-col gap-1.5 flex-1">
-                                     <div className="flex items-center gap-3">
-                                         <div className={`w-2.5 h-2.5 rounded-sm rotate-45 ${
-                                             quest.isCompleted 
-                                             ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' 
-                                             : 'bg-gray-700 border border-white/20'
-                                         }`} />
-                                         <span className={`text-xs font-bold tracking-wide ${
-                                             quest.isCompleted 
-                                             ? 'text-green-100 line-through decoration-green-500/50 decoration-2' 
-                                             : 'text-gray-300'
-                                         }`}>
-                                            {quest.description}
-                                         </span>
+                     {isQuestsExpanded && (
+                         <div className="space-y-3 relative z-10 animate-in slide-in-from-top-2 duration-300">
+                             {quests.map(quest => (
+                                 <div key={quest.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
+                                     quest.isCompleted 
+                                     ? 'bg-green-950/40 border-green-500/50 shadow-[inset_0_0_10px_rgba(34,197,94,0.1)]' 
+                                     : 'bg-gray-900/60 border-white/5 hover:border-white/20'
+                                 }`}>
+                                     <div className="flex flex-col gap-1.5 flex-1">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-2.5 h-2.5 rounded-sm rotate-45 ${
+                                                 quest.isCompleted 
+                                                 ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' 
+                                                 : 'bg-gray-700 border border-white/20'
+                                             }`} />
+                                             <span className={`text-xs font-bold tracking-wide ${
+                                                 quest.isCompleted 
+                                                 ? 'text-green-100 line-through decoration-green-500/50 decoration-2' 
+                                                 : 'text-gray-300'
+                                             }`}>
+                                                {quest.description}
+                                             </span>
+                                         </div>
+                                         {/* Progress Bar for 'any' target (Coins) */}
+                                         {quest.targetGame === 'any' && !quest.isCompleted && (
+                                             <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden mt-1 max-w-[140px] ml-5 border border-white/5">
+                                                 <div className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 shadow-[0_0_8px_#ca8a04]" style={{ width: `${(quest.progress / quest.target) * 100}%` }}></div>
+                                             </div>
+                                         )}
                                      </div>
-                                     {/* Progress Bar for 'any' target (Coins) */}
-                                     {quest.targetGame === 'any' && !quest.isCompleted && (
-                                         <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden mt-1 max-w-[140px] ml-5 border border-white/5">
-                                             <div className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 shadow-[0_0_8px_#ca8a04]" style={{ width: `${(quest.progress / quest.target) * 100}%` }}></div>
+                                     
+                                     {quest.isCompleted && !quest.isClaimed ? (
+                                         <button onClick={() => claimQuestReward(quest.id)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center gap-1 shrink-0">
+                                             <Coins size={12} fill="black" /> +{quest.reward}
+                                         </button>
+                                     ) : quest.isClaimed ? (
+                                         <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 rounded border border-green-500/20 shrink-0">
+                                             <Check size={12} className="text-green-400" />
+                                             <span className="text-[10px] font-black text-green-400 tracking-wider">FAIT</span>
+                                         </div>
+                                     ) : (
+                                         <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono font-bold bg-yellow-900/10 px-2 py-1 rounded border border-yellow-500/20 shrink-0">
+                                             <Coins size={10} /> {quest.reward}
                                          </div>
                                      )}
                                  </div>
-                                 
-                                 {quest.isCompleted && !quest.isClaimed ? (
-                                     <button onClick={() => claimQuestReward(quest.id)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center gap-1 shrink-0">
-                                         <Coins size={12} fill="black" /> +{quest.reward}
-                                     </button>
-                                 ) : quest.isClaimed ? (
-                                     <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 rounded border border-green-500/20 shrink-0">
-                                         <Check size={12} className="text-green-400" />
-                                         <span className="text-[10px] font-black text-green-400 tracking-wider">FAIT</span>
-                                     </div>
-                                 ) : (
-                                     <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono font-bold bg-yellow-900/10 px-2 py-1 rounded border border-yellow-500/20 shrink-0">
-                                         <Coins size={10} /> {quest.reward}
-                                     </div>
-                                 )}
-                             </div>
-                         ))}
-                     </div>
+                             ))}
+                         </div>
+                     )}
                  </div>
 
                  {/* High Scores Panel */}
