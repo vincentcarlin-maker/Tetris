@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Swords, Clipboard, X, Check } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
@@ -299,7 +300,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     const handleData = (data: any) => {
         if (data.type === 'GAME_MOVE_RELAY') {
             const { col, player, nextPlayer } = data;
-            const rowIndex = board.findIndex((row, r) => board[r][col] === 0 && (r === ROWS - 1 || board[r+1][col] !== 0));
+            
+            // FIX: Use explicit loop to find the lowest empty row (same as local logic)
+            // This prevents issues where findIndex might behave unexpectedly with complex conditions
+            let rowIndex = -1;
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r][col] === 0) {
+                    rowIndex = r;
+                    break;
+                }
+            }
             
             if (rowIndex !== -1) {
                 isAnimatingRef.current = true;
