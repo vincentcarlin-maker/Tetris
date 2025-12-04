@@ -34,7 +34,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-cyan-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', 
         glow: 'rgba(34,211,238,0.8)', 
-        badges: { solo: true, online: false, vs: false }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -47,7 +47,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-green-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', 
         glow: 'rgba(34,197,94,0.8)', 
-        badges: { solo: true, online: false, vs: false }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -60,7 +60,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-rose-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', 
         glow: 'rgba(244,63,94,0.8)', 
-        badges: { solo: true, online: false, vs: false }, 
+        badges: { solo: true, online: false, vs: false, new: true }, 
         reward: 'GAINS' 
     },
     { 
@@ -73,7 +73,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-fuchsia-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(217,70,239,0.3)]', 
         glow: 'rgba(217,70,239,0.8)', 
-        badges: { solo: true, online: false, vs: false }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -86,7 +86,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-yellow-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', 
         glow: 'rgba(250,204,21,0.8)', 
-        badges: { solo: true, online: false, vs: false }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -99,7 +99,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-purple-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', 
         glow: 'rgba(168,85,247,0.8)', 
-        badges: { solo: true, online: false, vs: false }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: '50' 
     },
     { 
@@ -112,7 +112,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-sky-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', 
         glow: 'rgba(56,189,248,0.8)', 
-        badges: { solo: true, online: false, vs: false }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: '50' 
     },
     { 
@@ -125,7 +125,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-pink-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]', 
         glow: 'rgba(236,72,153,0.8)', 
-        badges: { solo: true, online: true, vs: true }, 
+        badges: { solo: true, online: true, vs: true, new: false }, 
         reward: '30' 
     },
     { 
@@ -138,7 +138,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-violet-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(167,139,250,0.3)]', 
         glow: 'rgba(167,139,250,0.8)', 
-        badges: { solo: true, online: true, vs: false }, 
+        badges: { solo: true, online: true, vs: false, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -151,7 +151,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-blue-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', 
         glow: 'rgba(59,130,246,0.8)', 
-        badges: { solo: true, online: true, vs: false }, 
+        badges: { solo: true, online: true, vs: false, new: true }, 
         reward: 'GAINS' 
     },
 ];
@@ -525,6 +525,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         <button key={game.id} onClick={() => handleGameStart(game.id)} {...bindGlow(game.glow)} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border ${game.border} rounded-xl overflow-hidden transition-all duration-300 ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95 backdrop-blur-md`}>
                             <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>
                             <div className="w-full flex justify-end gap-1 relative z-10">
+                                {game.badges.new && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse" title="Nouveau Jeu">NEW</div>}
                                 {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
                                 {game.badges.vs && <div className="p-1 rounded bg-black/40 text-pink-400 border border-pink-500/30" title="Versus"><Users size={10} /></div>}
                             </div>
