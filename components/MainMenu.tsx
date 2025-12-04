@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, Car, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -39,6 +39,42 @@ const SnakeIcon = ({ size, className }: { size?: number | string, className?: st
     >
        <path d="M4 20h4a2 2 0 0 0 2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H9" />
        <circle cx="8" cy="4" r="2" />
+    </svg>
+);
+
+// Custom Connect 4 Icon
+const Connect4Icon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+       {/* Feet */}
+       <path d="M4 19v2" />
+       <path d="M20 19v2" />
+       
+       {/* Board */}
+       <rect x="2" y="3" width="20" height="16" rx="2" />
+       
+       {/* Slots 3x3 */}
+       <circle cx="7" cy="7" r="1.5" />
+       <circle cx="12" cy="7" r="1.5" />
+       <circle cx="17" cy="7" r="1.5" />
+       
+       <circle cx="7" cy="11" r="1.5" />
+       <circle cx="12" cy="11" r="1.5" fill="currentColor" />
+       <circle cx="17" cy="11" r="1.5" />
+       
+       <circle cx="7" cy="15" r="1.5" fill="currentColor"/>
+       <circle cx="12" cy="15" r="1.5" fill="currentColor"/>
+       <circle cx="17" cy="15" r="1.5" />
     </svg>
 );
 
@@ -109,19 +145,6 @@ const GAMES_CONFIG = [
         reward: 'GAINS' 
     },
     { 
-        id: 'rush', 
-        name: 'RUSH', 
-        icon: Car, 
-        color: 'text-purple-500', 
-        bg: 'bg-purple-900/20',
-        border: 'border-purple-500/30',
-        hoverBorder: 'hover:border-purple-500', 
-        shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', 
-        glow: 'rgba(168,85,247,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: false }, 
-        reward: '50' 
-    },
-    { 
         id: 'sudoku', 
         name: 'SUDOKU', 
         icon: Brain, 
@@ -137,7 +160,7 @@ const GAMES_CONFIG = [
     { 
         id: 'connect4', 
         name: 'CONNECT 4', 
-        icon: CircleDot, 
+        icon: Connect4Icon, 
         color: 'text-pink-500', 
         bg: 'bg-pink-900/20',
         border: 'border-pink-500/30',
@@ -394,7 +417,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const AvatarIcon = currentAvatar.icon;
 
     // Calcul des stats pour affichage
-    const rushLevelsCompleted = Object.keys(highScores.rush || {}).length;
     const sudokuEasyBest = highScores.sudoku?.easy;
     const sudokuMediumBest = highScores.sudoku?.medium;
     const sudokuHardBest = highScores.sudoku?.hard;
@@ -645,7 +667,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-pink">NEON BREAKER</h4><p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-yellow-400">NEON PAC</h4><p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p></div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-purple-400">NEON MEMORY</h4><p className="text-2xl font-mono">{memoryBestMoves > 0 ? memoryBestMoves + ' coups' : '-'}</p></div>
-                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-purple-400">NEON RUSH</h4>{rushLevelsCompleted > 0 ? <p className="text-sm text-gray-300">{rushLevelsCompleted} niveaux terminés</p> : <p className="text-sm text-gray-500">Aucun record</p>}</div>
                             <div className="py-2 border-t border-white/5"><h4 className="font-bold text-cyan-400">NEON SUDOKU</h4>
                                 {sudokuEasyBest !== undefined || sudokuMediumBest !== undefined || sudokuHardBest !== undefined ? (
                                     <div className="flex justify-around text-center text-xs mt-1">
