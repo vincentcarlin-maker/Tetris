@@ -23,6 +23,25 @@ interface MainMenuProps {
     };
 }
 
+// Custom Snake Icon
+const SnakeIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+       <path d="M4 20h4a2 2 0 0 0 2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H9" />
+       <circle cx="8" cy="4" r="2" />
+    </svg>
+);
+
 const GAMES_CONFIG = [
     { 
         id: 'tetris', 
@@ -40,7 +59,7 @@ const GAMES_CONFIG = [
     { 
         id: 'snake', 
         name: 'SNAKE', 
-        icon: Activity, 
+        icon: SnakeIcon, 
         color: 'text-green-500', 
         bg: 'bg-green-900/20',
         border: 'border-green-500/30',
