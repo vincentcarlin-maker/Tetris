@@ -51,14 +51,20 @@ const App: React.FC = () => {
         if (bgElement) {
             const wallpaper = currency.wallpapersCatalog.find(w => w.id === currency.currentWallpaperId);
             if (wallpaper) {
-                bgElement.style.backgroundImage = wallpaper.cssValue;
-                // Ajustements pour les backgrounds complexes (pas le mur de brique par défaut)
-                if (currency.currentWallpaperId !== 'bg_brick') {
+                bgElement.style.background = wallpaper.cssValue;
+                
+                // Gestion spécifique de la taille du background
+                if (wallpaper.bgSize) {
+                    bgElement.style.backgroundSize = wallpaper.bgSize;
+                    bgElement.style.backgroundPosition = '0 0'; // Start top left for patterns
+                } else if (currency.currentWallpaperId !== 'bg_brick') {
+                    // Pour les dégradés et images "cover"
                     bgElement.style.backgroundSize = 'cover';
                     bgElement.style.backgroundPosition = 'center';
                 } else {
                     // Reset to default style for brick
                     bgElement.style.backgroundSize = '100% 100%, 200px 60px';
+                    bgElement.style.backgroundPosition = '';
                 }
             }
         }

@@ -34,6 +34,7 @@ export interface Wallpaper {
     price: number;
     cssValue: string; // CSS background property
     description: string;
+    bgSize?: string; // Optional custom background size
 }
 
 export interface Title {
@@ -151,8 +152,14 @@ export const FRAMES_CATALOG: Frame[] = [
 export const WALLPAPERS_CATALOG: Wallpaper[] = [
     { id: 'bg_brick', name: 'Briques Sombres', price: 0, cssValue: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.95) 100%), url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'60\' viewBox=\'0 0 200 60\'%3E%3Cdefs%3E%3Cfilter id=\'roughEdges\' x=\'-20%25\' y=\'-20%25\' width=\'140%25\' height=\'140%25\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.05\' numOctaves=\'4\' result=\'noise\'/%3E%3CfeDisplacementMap in=\'SourceGraphic\' in2=\'noise\' scale=\'1.5\' xChannelSelector=\'R\' yChannelSelector=\'G\'/%3E%3C/filter%3E%3Cfilter id=\'grain\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3C/defs%3E%3Crect width=\'200\' height=\'60\' fill=\'%23050505\'/%3E%3Cg filter=\'url(%23roughEdges)\'%3E%3Crect x=\'2\' y=\'2\' width=\'96\' height=\'26\' fill=\'%2315151a\' /%3E%3Crect x=\'102\' y=\'2\' width=\'96\' height=\'26\' fill=\'%23131318\' /%3E%3Crect x=\'-2\' y=\'32\' width=\'50\' height=\'26\' fill=\'%23111116\' /%3E%3Crect x=\'52\' y=\'32\' width=\'96\' height=\'26\' fill=\'%23141419\' /%3E%3Crect x=\'152\' y=\'32\' width=\'50\' height=\'26\' fill=\'%23121217\' /%3E%3C/g%3E%3Crect width=\'200\' height=\'60\' fill=\'%23fff\' opacity=\'0.05\' filter=\'url(%23grain)\'/%3E%3C/svg%3E")', description: 'L\'atmosphère originale.' },
     { id: 'bg_grid', name: 'Grille Rétro', price: 1000, cssValue: 'linear-gradient(rgba(0, 0, 0, 0.9) 0%, rgba(20, 0, 30, 0.9) 100%), repeating-linear-gradient(0deg, transparent 0, transparent 49px, rgba(255, 0, 255, 0.1) 50px), repeating-linear-gradient(90deg, transparent 0, transparent 49px, rgba(0, 243, 255, 0.1) 50px)', description: 'Le cyber-espace classique.' },
+    { id: 'bg_carbon', name: 'Fibre Carbone', price: 1500, cssValue: 'radial-gradient(black 15%, transparent 16%) 0 0, radial-gradient(black 15%, transparent 16%) 8px 8px, radial-gradient(rgba(255,255,255,.1) 15%, transparent 20%) 0 1px, radial-gradient(rgba(255,255,255,.1) 15%, transparent 20%) 8px 9px, #282828', description: 'Résistant et léger.', bgSize: '16px 16px' },
     { id: 'bg_stars', name: 'Espace Profond', price: 2000, cssValue: 'radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)', description: 'Perdu dans les étoiles.' },
+    { id: 'bg_blueprint', name: 'Blueprint', price: 2500, cssValue: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px), #003366', description: 'Plan technique.', bgSize: '40px 40px' },
+    { id: 'bg_sunset', name: 'Sunset Rétro', price: 3500, cssValue: 'linear-gradient(to bottom, #2b1055, #7597de)', description: 'Ambiance années 80.' },
+    { id: 'bg_aurora', name: 'Aurore', price: 4000, cssValue: 'linear-gradient(to bottom, #000000, #0f2027, #203a43, #2c5364)', description: 'Lumières du nord.' },
+    { id: 'bg_circuit', name: 'Circuit', price: 4500, cssValue: 'radial-gradient(#003300 2px, transparent 2.5px), radial-gradient(#003300 2px, transparent 2.5px), #001100', bgSize: '20px 20px, 20px 20px', description: 'Tech verte.' },
     { id: 'bg_matrix', name: 'Le Code', price: 5000, cssValue: 'linear-gradient(0deg, rgba(0,0,0,0.9), rgba(0,20,0,0.9)), repeating-linear-gradient(0deg, transparent 0, transparent 2px, #0f0 3px)', description: 'Vous voyez la matrice.' },
+    { id: 'bg_tokyo', name: 'Tokyo Night', price: 6500, cssValue: 'radial-gradient(circle at 20% 80%, rgba(255,0,150,0.5) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(0,243,255,0.5) 0%, transparent 50%), #0a0a12', description: 'Lumières de la ville.' },
     { id: 'bg_hex', name: 'Hexagones', price: 8000, cssValue: 'radial-gradient(circle, #2a2a2a 0%, #000000 100%), url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M10 0L20 10L10 20L0 10Z\' fill=\'%23333\' fill-opacity=\'0.4\'/%3E%3C/svg%3E")', description: 'Structure alvéolaire.' },
 ];
 
