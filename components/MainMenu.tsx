@@ -410,8 +410,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         onClick={() => setIsQuestsExpanded(!isQuestsExpanded)} 
                         className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}
                      >
-                         <div className="flex items-center gap-2 overflow-hidden">
-                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap">
+                         <div className="flex items-center gap-2 overflow-hidden py-1">
+                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap pr-2">
                                 <CheckCircle size={16} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
                                 DÉFIS DU JOUR
                              </h3>

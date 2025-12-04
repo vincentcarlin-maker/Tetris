@@ -66,7 +66,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
                     <ArrowLeft size={20} />
                 </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]">BOUTIQUE</h1>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)] pr-2 py-1">BOUTIQUE</h1>
                 <div className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
                     <Coins size={16} className="text-yellow-400" />
                     <span className="font-mono font-bold text-yellow-100">{coins}</span>
