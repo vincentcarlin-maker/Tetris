@@ -327,8 +327,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 const newBoard = currentBoard.map(r => [...r]);
                 newBoard[rowIndex][col] = player;
                 
+                // CRITICAL FIX: Update ref immediately to prevent race conditions with rapid updates
+                boardRef.current = newBoard;
                 setBoard(newBoard);
-                // boardRef update is handled by the useEffect above
                 
                 setCurrentPlayer(player);
                 setAnimatingCell({ r: rowIndex, c: col });
