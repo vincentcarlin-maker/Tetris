@@ -180,6 +180,47 @@ const COMING_SOON = [
     { name: 'MASTERMIND', icon: BrainCircuit }
 ];
 
+const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {
+    const [style, setStyle] = useState<React.CSSProperties>({
+        position: 'fixed',
+        top: startY,
+        left: startX,
+        opacity: 1,
+        transform: 'scale(0.5)',
+        zIndex: 100,
+        pointerEvents: 'none',
+        transition: 'none'
+    });
+
+    useEffect(() => {
+        const animTimeout = setTimeout(() => {
+             setStyle({
+                position: 'fixed',
+                top: targetY,
+                left: targetX,
+                opacity: 0,
+                transform: 'scale(0.8) rotate(360deg)',
+                zIndex: 100,
+                pointerEvents: 'none',
+                transition: `top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease-in 0.5s, transform 0.8s linear`
+            });
+        }, delay * 1000 + 50);
+
+        const endTimeout = setTimeout(onComplete, 800 + delay * 1000 + 50);
+
+        return () => {
+            clearTimeout(animTimeout);
+            clearTimeout(endTimeout);
+        };
+    }, [targetX, targetY, delay, onComplete]);
+
+    return (
+        <div style={style} className="text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">
+            <Coins size={24} fill="#facc15" />
+        </div>
+    );
+});
+
 const ArcadeLogo = () => {
     return (
         <div className="flex flex-col items-center justify-center py-6 animate-in fade-in slide-in-from-top-8 duration-700 mb-2 relative">
@@ -229,6 +270,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Collapsible Quests State - Fermé par défaut
     const [isQuestsExpanded, setIsQuestsExpanded] = useState(false);
     
+    // Animation state for claiming reward
+    const [animatingQuestId, setAnimatingQuestId] = useState<string | null>(null);
+    
+    // Flying Coins State
+    const [flyingCoins, setFlyingCoins] = useState<{id: number, startX: number, startY: number, targetX: number, targetY: number, delay: number}[]>([]);
+    const coinBalanceRef = useRef<HTMLDivElement>(null);
+
     // Helpers pour gérer l'interaction tactile et souris
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
@@ -240,6 +288,52 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Helper to start game
     const handleGameStart = (gameId: string) => {
         onSelectGame(gameId);
+    };
+
+    const spawnCoins = (startX: number, startY: number, amount: number) => {
+        const targetRect = coinBalanceRef.current?.getBoundingClientRect();
+        if (!targetRect) return;
+
+        const targetX = targetRect.left + (targetRect.width / 2) - 12; 
+        const targetY = targetRect.top + (targetRect.height / 2) - 12;
+
+        const count = Math.min(Math.floor(amount / 10) + 5, 20); // Min 5, Max 20 coins
+        const newCoins = [];
+        
+        for (let i = 0; i < count; i++) {
+            newCoins.push({
+                id: Date.now() + Math.random(),
+                startX: startX + (Math.random() - 0.5) * 40, 
+                startY: startY + (Math.random() - 0.5) * 40,
+                targetX,
+                targetY,
+                delay: i * 0.05 // Staggered start
+            });
+        }
+        setFlyingCoins(prev => [...prev, ...newCoins]);
+    };
+
+    const handleDailyBonusClaim = () => {
+        spawnCoins(window.innerWidth / 2, window.innerHeight / 2, todaysReward);
+        claimDailyBonus();
+    };
+
+    const handleClaim = (q: DailyQuest, e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        // Spawn Coins Visuals
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        spawnCoins(rect.left + rect.width / 2, rect.top + rect.height / 2, q.reward);
+
+        // Audio & Visual Trigger
+        audio.playCoin();
+        setAnimatingQuestId(q.id);
+        
+        // Claim logic
+        claimQuestReward(q.id);
+        
+        // Reset animation state
+        setTimeout(() => setAnimatingQuestId(null), 1500);
     };
 
     useEffect(() => {
@@ -313,15 +407,28 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
             
+            {/* Flying Coins Layer */}
+            {flyingCoins.map(coin => (
+                <FlyingCoin 
+                    key={coin.id}
+                    startX={coin.startX}
+                    startY={coin.startY}
+                    targetX={coin.targetX}
+                    targetY={coin.targetY}
+                    delay={coin.delay}
+                    onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))}
+                />
+            ))}
+
             {showDailyModal && (
-                <DailyBonusModal streak={streak} reward={todaysReward} onClaim={claimDailyBonus} />
+                <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />
             )}
 
             <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
 
             {/* Top Bar */}
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
-                <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                <div ref={coinBalanceRef} className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
                     <Coins className="text-yellow-400" size={20} />
                     <span className="text-yellow-100 font-mono font-bold text-lg">{coins.toLocaleString()}</span>
                 </div>
@@ -458,11 +565,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {isQuestsExpanded && (
                          <div className="space-y-3 relative z-10 animate-in slide-in-from-top-2 duration-300">
                              {quests.map(quest => (
-                                 <div key={quest.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
+                                 <div key={quest.id} className={`relative flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
                                      quest.isCompleted 
                                      ? 'bg-green-950/40 border-green-500/50 shadow-[inset_0_0_10px_rgba(34,197,94,0.1)]' 
                                      : 'bg-gray-900/60 border-white/5 hover:border-white/20'
                                  }`}>
+                                     {/* Coin Burst Animation Effect */}
+                                     {animatingQuestId === quest.id && (
+                                         <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none z-50">
+                                             <div className="relative">
+                                                 <Coins size={40} className="text-yellow-400 absolute -top-4 -left-4 animate-ping opacity-75" />
+                                                 <div className="text-yellow-300 font-black text-xl absolute -top-8 -left-2 animate-bounce drop-shadow-[0_0_10px_gold]">+{quest.reward}</div>
+                                                 <div className="absolute w-2 h-2 bg-yellow-400 rounded-full top-0 left-0 animate-[ping_0.5s_ease-out_infinite]" style={{animationDelay: '0.1s'}}></div>
+                                                 <div className="absolute w-2 h-2 bg-yellow-200 rounded-full top-4 left-4 animate-[ping_0.6s_ease-out_infinite]" style={{animationDelay: '0.2s'}}></div>
+                                                 <div className="absolute w-1 h-1 bg-white rounded-full -top-2 left-6 animate-[ping_0.4s_ease-out_infinite]" style={{animationDelay: '0.05s'}}></div>
+                                             </div>
+                                         </div>
+                                     )}
+
                                      <div className="flex flex-col gap-1.5 flex-1">
                                          <div className="flex items-center gap-3">
                                              <div className={`w-2.5 h-2.5 rounded-sm rotate-45 ${
@@ -487,7 +607,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                      </div>
                                      
                                      {quest.isCompleted && !quest.isClaimed ? (
-                                         <button onClick={() => claimQuestReward(quest.id)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center gap-1 shrink-0">
+                                         <button onClick={(e) => handleClaim(quest, e)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center gap-1 shrink-0 relative overflow-hidden group/btn">
+                                             <div className="absolute inset-0 bg-white/50 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
                                              <Coins size={12} fill="black" /> +{quest.reward}
                                          </button>
                                      ) : quest.isClaimed ? (
