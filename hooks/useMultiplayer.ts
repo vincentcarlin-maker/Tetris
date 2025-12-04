@@ -509,9 +509,13 @@ export const useMultiplayer = () => {
                  // Update me (Host)
                  if(onDataCallbackRef.current) onDataCallbackRef.current({ ...moveData, type: 'GAME_MOVE_RELAY' });
                  
-                 // Update Guest
-                 const guestConn = guestConnectionsRef.current.find(c => c.peer === state.gameOpponent!.id);
-                 guestConn?.send({ ...moveData, type: 'GAME_MOVE_RELAY' });
+                 // Update Guest(s) - Broadcast to ensure it hits
+                 guestConnectionsRef.current.forEach(conn => {
+                     // We check connection open state to be safe
+                     if (conn.open) {
+                         conn.send({ ...moveData, type: 'GAME_MOVE_RELAY' });
+                     }
+                 });
              } else {
                  // Guest sending to host (who relays)
                  sendData(moveData);

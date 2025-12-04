@@ -82,6 +82,9 @@ const checkWinFull = (board: BoardState): WinState => {
 
 export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins, mp }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
+  // IMPORTANT: Ref to track board state inside callbacks without triggering re-renders or stale closures
+  const boardRef = useRef<BoardState>(createBoard());
+  
   const [currentPlayer, setCurrentPlayer] = useState<Player>(1);
   const [winState, setWinState] = useState<WinState>({ winner: null, line: [] });
   const [gameMode, setGameMode] = useState<GameMode>('PVE');
@@ -129,12 +132,20 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       };
   }, []);
 
+  // Update Board Ref whenever State changes
+  useEffect(() => {
+      boardRef.current = board;
+  }, [board]);
+
   // Reset Game
   const resetGame = useCallback((isOnlineReset = false) => {
     if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
     isAnimatingRef.current = false;
     
-    setBoard(createBoard());
+    const newBoard = createBoard();
+    setBoard(newBoard);
+    boardRef.current = newBoard; // Sync Ref immediately
+    
     setCurrentPlayer(1);
     setWinState({ winner: null, line: [] });
     setIsAiThinking(false);
@@ -300,11 +311,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         if (data.type === 'GAME_MOVE_RELAY') {
             const { col, player, nextPlayer } = data;
             
-            // FIX: Use explicit loop to find the lowest empty row (same as local logic)
-            // This prevents issues where findIndex might behave unexpectedly with complex conditions
+            // FIX: Use boardRef to get the current board state without stale closures
+            const currentBoard = boardRef.current;
+            
             let rowIndex = -1;
             for (let r = ROWS - 1; r >= 0; r--) {
-                if (board[r][col] === 0) {
+                if (currentBoard[r][col] === 0) {
                     rowIndex = r;
                     break;
                 }
@@ -312,9 +324,12 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             
             if (rowIndex !== -1) {
                 isAnimatingRef.current = true;
-                const newBoard = board.map(r => [...r]);
+                const newBoard = currentBoard.map(r => [...r]);
                 newBoard[rowIndex][col] = player;
+                
                 setBoard(newBoard);
+                // boardRef update is handled by the useEffect above
+                
                 setCurrentPlayer(player);
                 setAnimatingCell({ r: rowIndex, c: col });
                 playMove();
@@ -352,8 +367,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         }
     };
     mp.setOnDataReceived(handleData);
+    
+    // IMPORTANT: Remove the dependency on 'board' so this effect doesn't re-run and reset the listener
     return () => mp.setOnDataReceived(null);
-  }, [mp, board, playMove, playLand, playGameOver, playVictory, addCoins, resetGame]);
+  }, [mp, playMove, playLand, playGameOver, playVictory, addCoins, resetGame]);
 
 
   // AI Turn Handling
