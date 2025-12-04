@@ -186,17 +186,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
               }
           }
       } else if (mp.mode === 'in_game') {
-          setOnlineStep('game');
-          if (!winState.winner) {
-              const isBoardEmpty = board.every(row => row.every(cell => cell === 0));
-              if (!isBoardEmpty) {
-                   resetGame(); 
-              }
+          // FIX: Only transition and reset if we are NOT already in game view
+          // This prevents board resets when player list updates (heartbeats)
+          if (onlineStep !== 'game') {
+              setOnlineStep('game');
+              resetGame(); // Ensure clean slate when entering game
           }
       } else if (mp.mode === 'disconnected' && gameMode === 'ONLINE') {
           setOnlineStep('connecting');
       }
-  }, [mp.mode, gameMode, mp.players, mp.peerId]);
+  }, [mp.mode, gameMode, mp.players, mp.peerId, onlineStep]);
   
   // Handle Difficulty Change
   const cycleDifficulty = () => {
