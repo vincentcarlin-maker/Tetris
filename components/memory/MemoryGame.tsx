@@ -230,14 +230,20 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
             }
             if (data.type === 'REMATCH_START') {
                  if (mp.isHost) {
-                     const deck = generateDeck(difficulty);
-                     const deckData = deck.map(c => c.iconId);
-                     mp.sendData({ type: 'MEMORY_INIT', deckIds: deckData, difficulty });
-                     setCards(deck);
+                     // Clear board first
+                     setCards([]);
                      setFlippedIndices([]);
                      setScores({ p1: 0, p2: 0 });
-                     setCurrentPlayer(1);
                      setIsGameOver(false);
+                     
+                     // Wait 1s then restart
+                     setTimeout(() => {
+                         const deck = generateDeck(difficulty);
+                         const deckData = deck.map(c => c.iconId);
+                         mp.sendData({ type: 'MEMORY_INIT', deckIds: deckData, difficulty });
+                         setCards(deck);
+                         setCurrentPlayer(1);
+                     }, 1000);
                  } else {
                      setIsWaitingForDeck(true);
                      setCards([]);

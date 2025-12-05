@@ -245,14 +245,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         };
     }, [mp, showSocial, audio]);
 
-    // Connect to friends when opening social
+    // Connect to friends automatically when online (No longer requires opening social tab)
     useEffect(() => {
-        if (showSocial) {
+        if (mp.isConnected && friends.length > 0) {
             friends.forEach(f => {
                 mp.connectTo(f.id);
             });
         }
-    }, [showSocial, friends, mp]);
+    }, [mp.isConnected, friends, mp]);
 
     // Chat scroll
     useEffect(() => {

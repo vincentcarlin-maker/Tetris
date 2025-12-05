@@ -302,7 +302,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   useEffect(() => {
     const unsubscribe = mp.subscribe((data: any) => {
         if (data.type === 'GAME_MOVE_RELAY') {
-            const { col, player, nextPlayer } = data;
+            const { col, player } = data;
             const currentBoard = boardRef.current;
             
             let rowIndex = -1;
@@ -340,6 +340,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                            playGameOver();
                          }
                     } else {
+                        // FIX: Calculate next player locally to avoid network state issues
+                        const nextPlayer = player === 1 ? 2 : 1;
                         setCurrentPlayer(nextPlayer);
                     }
                     isAnimatingRef.current = false;
