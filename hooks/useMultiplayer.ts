@@ -266,11 +266,10 @@ export const useMultiplayer = () => {
     }, [handleDataReceived, broadcastPlayerList]);
 
     const connect = useCallback(() => {
-        if (peerRef.current) return;
+        if (peerRef.current && !peerRef.current.destroyed) return;
 
         setState(prev => ({ ...prev, isLoading: true, mode: 'connecting', error: null }));
         
-        // Persistent ID logic
         let id = localStorage.getItem('neon_social_id');
         if (!id) {
             id = 'neon_' + Math.random().toString(36).substr(2, 9);
@@ -280,7 +279,7 @@ export const useMultiplayer = () => {
         const peer = new Peer(id);
 
         peer.on('open', (id) => {
-            setState(prev => ({ ...prev, peerId: id, isConnected: true, isLoading: false, mode: 'lobby' }));
+            setState(prev => ({ ...prev, peerId: id, isConnected: true, isLoading: false, mode: 'lobby', error: null }));
             peerRef.current = peer;
             
             peer.on('connection', (conn) => {
@@ -288,9 +287,31 @@ export const useMultiplayer = () => {
             });
         });
 
+        // Auto-reconnect on disconnect
+        peer.on('disconnected', () => {
+            console.log('Peer disconnected from server. Attempting reconnect...');
+            setState(prev => ({ ...prev, isConnected: false }));
+            setTimeout(() => {
+                if (peer && !peer.destroyed) {
+                    peer.reconnect();
+                }
+            }, 1000);
+        });
+
+        peer.on('close', () => {
+            console.log('Peer connection closed.');
+            setState(prev => ({ ...prev, isConnected: false, mode: 'disconnected', peerId: null }));
+            peerRef.current = null;
+        });
+
         peer.on('error', (err) => {
-            console.error(err);
-            setState(prev => ({ ...prev, error: 'Connection error', isLoading: false }));
+            console.error('Peer error:', err);
+            // Silent fail for peer-unavailable (offline friends)
+            if (err.type === 'peer-unavailable') return;
+            // Ignore disconnected errors as they are handled by the disconnected event
+            if (err.type === 'disconnected') return;
+            
+            setState(prev => ({ ...prev, error: 'Connexion instable', isLoading: false }));
         });
     }, [handleConnectionOpen]);
 
@@ -298,6 +319,7 @@ export const useMultiplayer = () => {
         if (!peerRef.current || connectionsRef.current.has(peerId)) return;
         const conn = peerRef.current.connect(peerId);
         conn.on('open', () => handleConnectionOpen(conn));
+        // Error handling for this specific connection is managed by the global peer 'error' event
     }, [handleConnectionOpen]);
 
     const updateSelfInfo = useCallback((name: string, avatarId: string, extraInfo?: string) => {
