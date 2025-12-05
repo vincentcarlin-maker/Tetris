@@ -31,6 +31,13 @@ export const useMultiplayer = () => {
         mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
     });
     
+    // Create a Ref to hold the latest state to avoid stale closures in event listeners
+    const stateRef = useRef(state);
+
+    useEffect(() => {
+        stateRef.current = state;
+    }, [state]);
+
     const peerRef = useRef<Peer | null>(null);
     
     // Unified connection management
@@ -132,7 +139,8 @@ export const useMultiplayer = () => {
             .map(c => (c as any).playerInfo)
             .filter(Boolean);
 
-        const hostInGame = state.mode === 'in_game';
+        const currentState = stateRef.current;
+        const hostInGame = currentState.mode === 'in_game';
         const currentHostStatus = hostStatusOverride || (hostInGame ? 'in_game' : hostStatusRef.current);
         const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, status: currentHostStatus as any };
 
@@ -144,7 +152,7 @@ export const useMultiplayer = () => {
         });
         
         setState(prev => ({ ...prev, players: fullList }));
-    }, [state.mode]);
+    }, []);
     
     // Core data handling logic
     const handleDataReceived = useCallback((data: any, conn: DataConnection) => {
@@ -156,6 +164,7 @@ export const useMultiplayer = () => {
         // --- INTERNAL LOGIC ---
         const senderId = conn.peer;
         const senderInfo = (conn as any).playerInfo;
+        const currentState = stateRef.current;
 
         if (data.type === 'HELLO' || data.type === 'HELLO_FRIEND') {
              // Register player info
@@ -202,7 +211,7 @@ export const useMultiplayer = () => {
                     break;
                 }
                 case 'GAME_MOVE': {
-                    if (state.gameOpponent && data.targetId === peerRef.current?.id) {
+                    if (currentState.gameOpponent && data.targetId === peerRef.current?.id) {
                          const relayData = { ...data, type: 'GAME_MOVE_RELAY' };
                          notifySubscribers(relayData, conn); // Self update
                          conn.send(relayData); // Confirm to sender
@@ -211,7 +220,7 @@ export const useMultiplayer = () => {
                 }
                 case 'LEAVE_GAME':
                      if (senderInfo) senderInfo.status = 'idle';
-                     if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
+                     if (currentState.mode === 'in_game' && currentState.gameOpponent?.id === senderId) {
                          setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false, amIP1: false}));
                          hostStatusRef.current = 'idle';
                      }
@@ -219,7 +228,7 @@ export const useMultiplayer = () => {
                      break;
                  case 'REMATCH_REQUEST':
                      if (senderInfo) senderInfo.status = 'in_game';
-                     if (state.mode === 'in_game' && state.gameOpponent?.id === senderId) {
+                     if (currentState.mode === 'in_game' && currentState.gameOpponent?.id === senderId) {
                          notifySubscribers({ type: 'REMATCH_START' }, conn);
                          conn.send({ type: 'REMATCH_START', opponent: { id: peerRef.current?.id, ...myInfoRef.current, status: 'in_game' }, starts: false });
                      }
@@ -245,7 +254,7 @@ export const useMultiplayer = () => {
                     break;
             }
         }
-    }, [state.mode, state.gameOpponent, broadcastPlayerList, notifySubscribers]);
+    }, [broadcastPlayerList, notifySubscribers]);
 
     const handleConnectionOpen = useCallback((conn: DataConnection) => {
         connectionsRef.current.set(conn.peer, conn);
@@ -364,10 +373,11 @@ export const useMultiplayer = () => {
     }, [handleConnectionOpen]);
 
     const sendGameMove = useCallback((moveData: any) => {
-        if (state.mode !== 'in_game') return;
+        const currentState = stateRef.current;
+        if (currentState.mode !== 'in_game') return;
         const payload = { 
             type: 'GAME_MOVE', 
-            targetId: state.gameOpponent?.id, 
+            targetId: currentState.gameOpponent?.id, 
             ...((typeof moveData === 'object') ? moveData : { col: moveData })
         };
         
@@ -375,10 +385,10 @@ export const useMultiplayer = () => {
              const relayData = { ...payload, type: 'GAME_MOVE_RELAY', player: 1, nextPlayer: 2 };
              sendData(relayData);
              notifySubscribers(relayData, null as any);
-        } else if (state.gameOpponent?.id) {
-             sendTo(state.gameOpponent.id, { ...payload, player: 2 });
+        } else if (currentState.gameOpponent?.id) {
+             sendTo(currentState.gameOpponent.id, { ...payload, player: 2 });
         }
-    }, [state.mode, state.gameOpponent, sendData, sendTo, notifySubscribers]);
+    }, [sendData, sendTo, notifySubscribers]);
 
     const cancelHosting = useCallback(() => {
         hostStatusRef.current = 'idle';
@@ -387,14 +397,16 @@ export const useMultiplayer = () => {
     }, [sendData]);
 
     const leaveGame = useCallback(() => {
-        sendData({ type: 'LEAVE_GAME', opponentId: state.gameOpponent?.id });
+        const currentState = stateRef.current;
+        sendData({ type: 'LEAVE_GAME', opponentId: currentState.gameOpponent?.id });
         hostStatusRef.current = 'idle';
         setState(prev => ({ ...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false }));
-    }, [sendData, state.gameOpponent]);
+    }, [sendData]);
 
     const requestRematch = useCallback(() => {
-        sendData({ type: 'REMATCH_REQUEST', opponentId: state.gameOpponent?.id });
-    }, [sendData, state.gameOpponent]);
+        const currentState = stateRef.current;
+        sendData({ type: 'REMATCH_REQUEST', opponentId: currentState.gameOpponent?.id });
+    }, [sendData]);
 
     return {
         ...state,
