@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Gamepad2, AlertCircle } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Gamepad2, AlertCircle, Loader2 } from 'lucide-react';
 import { Peer, DataConnection } from 'peerjs';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
@@ -26,9 +26,10 @@ interface Friend {
     name: string;
     avatarId: string;
     frameId?: string;
-    status: 'online' | 'offline';
+    status: 'online' | 'offline' | 'hosting' | 'playing';
     lastSeen: number;
     stats?: PlayerStats;
+    gameId?: string; // If hosting, this is the peerId to join
 }
 
 interface PrivateMessage {
@@ -71,6 +72,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const [unreadCount, setUnreadCount] = useState(0);
     const [selectedPlayer, setSelectedPlayer] = useState<Friend | null>(null);
     const [isSocialReady, setIsSocialReady] = useState(false);
+    
+    // UI States
+    const [joiningGameId, setJoiningGameId] = useState<string | null>(null);
 
     // Draggable Button State
     const [btnTop, setBtnTop] = useState(window.innerHeight / 3);
@@ -228,10 +232,37 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         }
     }, [messages, activeChatId, showSocial, myPeerId]);
 
+    // --- SYNC GAME STATUS TO FRIENDS ---
+    // This effect ensures friends know when you are hosting/playing
+    useEffect(() => {
+        if (!isSocialReady) return;
+        
+        let status: 'online' | 'hosting' | 'playing' = 'online';
+        if (mp.isHost) status = 'hosting';
+        else if (mp.mode === 'in_game') status = 'playing';
+
+        const updatePayload = { 
+            type: 'STATUS_UPDATE', 
+            status: status, 
+            gameId: mp.peerId // Send game ID if hosting so they can join via profile
+        };
+
+        // Broadcast to all connected friends
+        (Object.values(connectionsRef.current) as DataConnection[]).forEach(conn => {
+            if (conn.open) {
+                conn.send(updatePayload);
+            }
+        });
+    }, [mp.isHost, mp.mode, mp.peerId, isSocialReady]);
+
+
     // --- PEER JS HANDLERS ---
     const handleConnection = useCallback((conn: DataConnection) => {
         conn.on('open', () => {
             connectionsRef.current[conn.peer] = conn;
+            // Send my status immediately on connection
+            const myStatus = mp.isHost ? 'hosting' : mp.mode === 'in_game' ? 'playing' : 'online';
+            conn.send({ type: 'STATUS_UPDATE', status: myStatus, gameId: mp.peerId });
         });
 
         conn.on('data', (data: any) => {
@@ -245,7 +276,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                         name: data.name, 
                         avatarId: data.avatarId, 
                         frameId: data.frameId,
-                        status: 'online' as const, 
+                        status: 'online', 
                         lastSeen: Date.now(),
                         stats: data.stats
                     } : f);
@@ -254,6 +285,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 if (data.type === 'HELLO_FRIEND') {
                     conn.send({ type: 'WELCOME_FRIEND', name: username, avatarId: currentAvatarId, frameId: currentFrameId });
                 }
+            }
+            else if (data.type === 'STATUS_UPDATE') {
+                setFriends(prev => prev.map(f => f.id === conn.peer ? { 
+                    ...f, 
+                    status: data.status, 
+                    lastSeen: Date.now(),
+                    gameId: data.gameId
+                } : f));
             }
             else if (data.type === 'FRIEND_REQUEST') {
                 const currentFriends = JSON.parse(localStorage.getItem('neon_friends') || '[]');
@@ -316,12 +355,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 });
             }
             else if (data.type === 'PING') {
-                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
+                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: prev.find(pf => pf.id === conn.peer)?.status || 'online', lastSeen: Date.now() } : f));
                  // Respond with Pong to confirm I'm here
                  conn.send({ type: 'PONG' });
             }
             else if (data.type === 'PONG') {
-                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
+                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: prev.find(pf => pf.id === conn.peer)?.status || 'online', lastSeen: Date.now() } : f));
             }
         });
         
@@ -335,7 +374,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
              setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' as const } : f));
         });
 
-    }, [username, currentAvatarId, currentFrameId, audio]);
+    }, [username, currentAvatarId, currentFrameId, audio, mp.isHost, mp.mode, mp.peerId]);
 
     useEffect(() => {
         handleConnectionRef.current = handleConnection;
@@ -368,7 +407,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         // Run immediately whenever readiness changes
         if (isSocialReady) connectToFriends();
         
-        const interval = setInterval(connectToFriends, 10000); // Retry every 10s
+        const interval = setInterval(connectToFriends, 5000); // Retry every 5s (Aggressive)
         return () => clearInterval(interval);
     }, [friends.length, handleConnection, username, currentAvatarId, currentFrameId, isSocialReady]);
 
@@ -385,7 +424,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             setFriends(prev => {
                 let changed = false;
                 const newFriends = prev.map(f => {
-                    if (f.status === 'online') {
+                    if (f.status !== 'offline') {
                         if (!f.lastSeen || (now - f.lastSeen > 20000)) {
                             // Close connection if timeout
                             const conn = connectionsRef.current[f.id];
@@ -519,10 +558,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         }
     };
 
-    const joinGameInvite = (invite: GameInvite) => {
-        mp.joinRoom(invite.gameId);
-        setGameInvites(prev => prev.filter(i => i.gameId !== invite.gameId));
-        setShowSocial(false); // Close overlay to see game
+    const joinGameInvite = (gameId: string) => {
+        if (!gameId) return;
+        setJoiningGameId(gameId); // Show loading state
+        mp.joinRoom(gameId);
+        
+        // Remove the invite after clicking
+        setGameInvites(prev => prev.filter(i => i.gameId !== gameId));
+        
+        // Close overlay after a short delay to let user see "Connecting"
+        setTimeout(() => {
+            setJoiningGameId(null);
+            setShowSocial(false);
+        }, 1000);
     };
 
     // Filter community players
@@ -593,8 +641,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             <h2 className="text-2xl font-black text-white italic mb-1">{selectedPlayer.name}</h2>
                             <div className="flex flex-col items-center mb-6">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <div className={`w-2 h-2 rounded-full ${selectedPlayer.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
-                                    <span className="text-xs text-gray-400 font-bold tracking-widest">{selectedPlayer.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</span>
+                                    <div className={`w-2 h-2 rounded-full ${selectedPlayer.status !== 'offline' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
+                                    <span className={`text-xs font-bold tracking-widest ${selectedPlayer.status === 'hosting' ? 'text-yellow-400' : selectedPlayer.status === 'playing' ? 'text-blue-400' : 'text-gray-400'}`}>
+                                        {selectedPlayer.status === 'hosting' ? 'HÉBERGE' : selectedPlayer.status === 'playing' ? 'EN JEU' : selectedPlayer.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}
+                                    </span>
                                 </div>
                                 {selectedPlayer.status === 'offline' && selectedPlayer.lastSeen > 0 && <span className="text-[10px] text-gray-600 font-mono">VU : {formatLastSeen(selectedPlayer.lastSeen)}</span>}
                             </div>
@@ -609,8 +659,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         <button onClick={() => openChat(selectedPlayer.id)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-full font-bold text-sm transition-colors"><MessageSquare size={16} /> MESSAGE</button>
                                         
                                         {/* INVITE BUTTON - Only if hosting */}
-                                        {mp.isHost && selectedPlayer.status === 'online' && (
+                                        {mp.isHost && selectedPlayer.status !== 'offline' && (
                                             <button onClick={() => { sendGameInvite(selectedPlayer.id); setSelectedPlayer(null); }} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-400 text-black rounded-full font-bold text-sm transition-colors shadow-lg"><Gamepad2 size={16} /> INVITER</button>
+                                        )}
+                                        
+                                        {/* JOIN BUTTON - If friend is hosting */}
+                                        {selectedPlayer.status === 'hosting' && selectedPlayer.gameId && (
+                                            <button 
+                                                onClick={() => { joinGameInvite(selectedPlayer.gameId!); setSelectedPlayer(null); }} 
+                                                className="flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-full font-bold text-sm transition-colors shadow-lg animate-pulse"
+                                            >
+                                                {joiningGameId === selectedPlayer.gameId ? <Loader2 size={16} className="animate-spin"/> : <Play size={16} />} 
+                                                REJOINDRE
+                                            </button>
                                         )}
 
                                         <button onClick={() => { removeFriend(selectedPlayer.id); setSelectedPlayer(null); }} className="p-2 border border-red-500/50 text-red-500 hover:bg-red-500/20 rounded-full transition-colors"><Trash2 size={16} /></button>
@@ -646,7 +707,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         </div>
                                         <div className="flex gap-2">
                                             <button onClick={() => setGameInvites(prev => prev.filter(i => i !== invite))} className="p-1 text-red-400 hover:text-white"><X size={14}/></button>
-                                            <button onClick={() => joinGameInvite(invite)} className="px-3 py-1 bg-green-500 text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                            <button 
+                                                onClick={() => joinGameInvite(invite.gameId)} 
+                                                disabled={joiningGameId === invite.gameId}
+                                                className="px-3 py-1 bg-green-500 text-black font-bold rounded text-xs hover:bg-white transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-wait"
+                                            >
+                                                {joiningGameId === invite.gameId ? <Loader2 size={12} className="animate-spin"/> : <Play size={12}/>}
+                                                {joiningGameId === invite.gameId ? 'CONNEXION...' : 'REJOINDRE'}
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -757,18 +825,29 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(friend.frameId)}`}>
                                                         <AvIcon size={20} className={avatar.color} />
-                                                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${friend.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
+                                                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${friend.status !== 'offline' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
                                                     </div>
                                                     <div>
                                                         <h4 className="font-bold text-white group-hover:text-blue-300 transition-colors">{friend.name}</h4>
-                                                        <p className="text-[10px] text-gray-500 font-mono">{friend.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</p>
+                                                        <p className={`text-[10px] font-mono font-bold ${friend.status === 'hosting' ? 'text-yellow-400 animate-pulse' : friend.status === 'playing' ? 'text-blue-400' : 'text-gray-500'}`}>
+                                                            {friend.status === 'hosting' ? 'HÉBERGE' : friend.status === 'playing' ? 'EN JEU' : friend.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-3">
-                                                    {mp.isHost && friend.status === 'online' && (
+                                                <div className="flex items-center gap-2">
+                                                    {friend.status === 'hosting' && friend.gameId ? (
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); joinGameInvite(friend.gameId!); }}
+                                                            disabled={joiningGameId === friend.gameId}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-xs font-black text-black transition-colors shadow-lg animate-pulse disabled:opacity-50"
+                                                        >
+                                                            {joiningGameId === friend.gameId ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                                                            {joiningGameId === friend.gameId ? '...' : 'REJOINDRE'}
+                                                        </button>
+                                                    ) : mp.isHost && friend.status !== 'offline' && (
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); sendGameInvite(friend.id); }} 
-                                                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-black text-white transition-colors shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-black text-white transition-colors shadow-[0_0_10px_rgba(34,197,94,0.5)]"
                                                             title="Inviter à jouer"
                                                         >
                                                             <Gamepad2 size={16} /> INVITER
