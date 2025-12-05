@@ -365,9 +365,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             });
         };
 
-        // Run on mount (or when ready) and every 5s
-        connectToFriends();
-        const interval = setInterval(connectToFriends, 5000);
+        // Run immediately whenever readiness changes or friends list updates
+        if (isSocialReady) connectToFriends();
+        
+        const interval = setInterval(connectToFriends, 10000); // Retry every 10s
         return () => clearInterval(interval);
     }, [friends.length, handleConnection, username, currentAvatarId, currentFrameId, isSocialReady]);
 
@@ -669,7 +670,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         <Globe className="mx-auto text-blue-400 mb-2" size={24} />
                                         <p className="text-blue-300 text-sm font-bold mb-1">SALLE D'ATTENTE</p>
                                         <p className="text-xs text-gray-400">
-                                            Ici, vous ne voyez que les joueurs connectés à votre partie actuelle.
+                                            Cette liste montre les joueurs connectés à <b>votre salon de jeu actuel</b>.
                                             <br/><br/>
                                             <span className="text-white">Pour jouer avec des amis :</span>
                                             <br/>
@@ -767,10 +768,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                     {mp.isHost && friend.status === 'online' && (
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); sendGameInvite(friend.id); }} 
-                                                            className="flex items-center gap-1 px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs font-bold text-white transition-colors shadow-lg animate-pulse"
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-black text-white transition-colors shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"
                                                             title="Inviter à jouer"
                                                         >
-                                                            <Gamepad2 size={14} /> INVITER
+                                                            <Gamepad2 size={16} /> INVITER
                                                         </button>
                                                     )}
                                                     {unread > 0 && <div className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">{unread}</div>}
