@@ -924,7 +924,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                       {gameMode === 'ONLINE' ? (
                           <>
                             <button onClick={() => mp.requestRematch()} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"><Play size={16}/> REVANCHE</button>
-                            <button onClick={() => { mp.leaveGame(); resetGame(); }} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> RETOUR AU LOBBY</button>
+                            <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> RETOUR AU LOBBY</button>
                           </>
                       ) : (
                           <>

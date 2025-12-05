@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Swords, Clipboard, X, Check } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, X, LogOut, Users } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
-import { useMultiplayer, PlayerInfo } from '../../hooks/useMultiplayer';
+import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
 
 interface Connect4GameProps {
@@ -98,6 +98,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // MATCHMAKING & GAME STATE
   const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
+  const [opponentLeft, setOpponentLeft] = useState(false);
   
   // Identity
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
@@ -147,6 +148,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setEarnedCoins(0);
     setActiveReaction(null);
     setAnimatingCell(null);
+    setOpponentLeft(false);
 
     if (gameMode !== 'ONLINE') {
         setChatHistory([]);
@@ -206,11 +208,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   };
 
   // Logic to determine if it is "my turn" online.
-  // mp.amIP1 is now correctly set to FALSE for the guest.
-  // Player 1 (Pink) always starts (currentPlayer === 1).
-  // So:
-  // If I am P1 (Host) and current is 1 -> My turn.
-  // If I am P2 (Guest/!amIP1) and current is 2 -> My turn.
   const isMyTurnOnline = mp.mode === 'in_game' && ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2));
   
   const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
@@ -235,6 +232,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
     if (gameMode === 'ONLINE') {
         mp.sendGameMove(colIndex);
+        // Note: We don't update state here, we wait for the echo/relay from the host
+        // to ensure both players see the same sequence.
     } else {
         const newBoard = board.map(row => [...row]);
         newBoard[rowIndex][colIndex] = currentPlayer;
@@ -298,6 +297,19 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       setChatInput('');
   };
 
+  const handleOpponentLeftAction = (action: 'lobby' | 'wait') => {
+      if (action === 'lobby') {
+          mp.leaveGame(); // Clean cleanup
+          setGameMode('ONLINE');
+          setOnlineStep('lobby');
+      } else {
+          // Wait = Become host in lobby
+          mp.leaveGame(); // Reset current game state
+          mp.createRoom(); // Create new room as host
+      }
+      setOpponentLeft(false);
+  };
+
   // Multiplayer Subscription
   useEffect(() => {
     const unsubscribe = mp.subscribe((data: any) => {
@@ -321,6 +333,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 boardRef.current = newBoard;
                 setBoard(newBoard);
                 
+                // Immediately set current player to who moved to block other inputs during anim
                 setCurrentPlayer(player);
                 setAnimatingCell({ r: rowIndex, c: col });
                 playMove();
@@ -331,7 +344,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     const result = checkWinFull(newBoard);
                     if (result.winner) {
                         setWinState(result);
-                         if ((mp.amIP1 && result.winner === 1) || (!mp.amIP1 && result.winner === 2)) {
+                         // Check if I won
+                         const amIP1 = mp.amIP1;
+                         const winnerIsP1 = result.winner === 1;
+                         const winnerIsP2 = result.winner === 2;
+                         
+                         const iWon = (amIP1 && winnerIsP1) || (!amIP1 && winnerIsP2);
+                         
+                         if (iWon) {
                            playVictory();
                            const onlineReward = 50;
                            addCoins(onlineReward);
@@ -340,7 +360,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                            playGameOver();
                          }
                     } else {
-                        // FIX: Calculate next player locally to avoid network state issues
+                        // FIX: Calculate next player locally
                         const nextPlayer = player === 1 ? 2 : 1;
                         setCurrentPlayer(nextPlayer);
                     }
@@ -357,6 +377,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         }
         if (data.type === 'REMATCH_START') {
             resetGame(true);
+        }
+        if (data.type === 'LEAVE_GAME') {
+            setOpponentLeft(true);
+            setWinState({ winner: null, line: [] }); // Clear win state if any
         }
     });
     
@@ -533,7 +557,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           ) : <div className="w-[80px]"></div>}
        </div>
 
-       {!winState.winner && onlineStep === 'game' && (
+       {!winState.winner && onlineStep === 'game' && !opponentLeft && (
             <div className={`mb-2 px-6 py-1.5 rounded-full border flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors ${
                 isHostingAndWaiting ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' :
                 currentPlayer === 1 
@@ -561,7 +585,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
                         {isHostingAndWaiting && <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-xl pointer-events-none"><div className="animate-pulse"><Loader2 size={64} className="text-yellow-400 animate-spin opacity-50" /></div></div>}
                         <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
-                                {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => !isHostingAndWaiting && handleColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || isAnimatingRef.current || isHostingAndWaiting ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
+                                {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => !isHostingAndWaiting && !opponentLeft && handleColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || isAnimatingRef.current || isHostingAndWaiting || opponentLeft ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
                         </div>
                         {Array.from({ length: COLS }).map((_, c) => (
                             <div key={c} className="flex flex-col gap-1 sm:gap-3">
@@ -583,7 +607,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             )}
        </div>
 
-       {gameMode === 'ONLINE' && onlineStep === 'game' && !winState.winner && !isHostingAndWaiting && (
+       {gameMode === 'ONLINE' && onlineStep === 'game' && !winState.winner && !isHostingAndWaiting && !opponentLeft && (
             <div className="w-full max-w-lg mt-4 flex flex-col gap-3 animate-in slide-in-from-bottom-4 z-20">
                 <div className="flex justify-between items-center gap-2 p-2 bg-gray-900/80 rounded-2xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] overflow-x-auto no-scrollbar">
                     {REACTIONS.map(reaction => {
@@ -619,9 +643,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
              </div>
        )}
        
-       {gameMode === 'ONLINE' && onlineStep === 'game' && !isHostingAndWaiting && !winState.winner && <button onClick={mp.leaveGame} className="mt-2 text-xs text-red-400 underline hover:text-red-300 z-10">Quitter la partie</button>}
+       {gameMode === 'ONLINE' && onlineStep === 'game' && !isHostingAndWaiting && !winState.winner && !opponentLeft && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="mt-2 text-xs text-red-400 underline hover:text-red-300 z-10">Quitter la partie</button>}
 
-        {winState.winner && (
+        {winState.winner && !opponentLeft && (
              <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
                  {(winState.winner !== 'DRAW' && earnedCoins > 0) && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
                 <div className="bg-black/80 px-6 py-2 rounded-full border border-white/20 mb-4">
@@ -629,8 +653,20 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 </div>
                 {(gameMode !== 'ONLINE' || (mp.isHost && mp.mode === 'in_game')) && <button onClick={() => gameMode === 'ONLINE' ? mp.requestRematch() : resetGame(false)} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><Play size={20} fill="black"/> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>}
                 {gameMode === 'ONLINE' && !mp.isHost && mp.mode === 'in_game' && <button onClick={() => mp.requestRematch()} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><Play size={20} fill="black"/> REVANCHE</button>}
-                {gameMode === 'ONLINE' && <button onClick={mp.leaveGame} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-full border border-white/10 hover:bg-gray-700">RETOUR AU LOBBY</button>}
+                {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-full border border-white/10 hover:bg-gray-700">RETOUR AU LOBBY</button>}
              </div>
+        )}
+
+        {opponentLeft && (
+            <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
+                <LogOut size={64} className="text-red-500 mb-4" />
+                <h2 className="text-3xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
+                <p className="text-gray-400 text-center mb-8">L'autre joueur a quitté la partie.</p>
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                    <button onClick={() => handleOpponentLeftAction('wait')} className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"><Users size={18} /> ATTENDRE UN JOUEUR</button>
+                    <button onClick={() => handleOpponentLeftAction('lobby')} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"><ArrowLeft size={18} /> RETOUR AU LOBBY</button>
+                </div>
+            </div>
         )}
     </div>
   );

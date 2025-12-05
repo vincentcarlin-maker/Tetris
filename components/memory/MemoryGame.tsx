@@ -600,7 +600,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                             {earnedCoins > 0 && <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
                             <div className="flex gap-4">
                                 <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : startSoloGame} className="px-8 py-3 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-500 transition-colors shadow-lg active:scale-95 flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
-                                {gameMode === 'ONLINE' && <button onClick={mp.leaveGame} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                                {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
                                 {gameMode === 'SOLO' && <button onClick={onBack} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">MENU</button>}
                             </div>
                         </>
