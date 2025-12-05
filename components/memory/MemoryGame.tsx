@@ -190,6 +190,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
             
             if (mp.isHost && !isWaitingForDeck && cards.length === 0) {
                  const deck = generateDeck(difficulty);
+                 // Delay to ensure guest is ready to receive
                  setTimeout(() => {
                      const deckData = deck.map(c => c.iconId); 
                      mp.sendData({ type: 'MEMORY_INIT', deckIds: deckData, difficulty });
@@ -199,7 +200,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                      setCurrentPlayer(1);
                      setIsGameOver(false);
                      setIsProcessing(false);
-                 }, 500);
+                 }, 1000);
             } else if (!mp.isHost) {
                 if (cards.length === 0) setIsWaitingForDeck(true);
             }

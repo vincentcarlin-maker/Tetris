@@ -239,7 +239,7 @@ export const useMultiplayer = () => {
                         mode: 'in_game',
                         gameOpponent: data.opponent,
                         isMyTurn: data.starts,
-                        amIP1: !data.starts
+                        amIP1: false // Guest is ALWAYS Player 2 (or not P1)
                     }));
                     notifySubscribers(data, conn);
                     break;

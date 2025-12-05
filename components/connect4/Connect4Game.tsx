@@ -205,7 +205,14 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     if (gameMode === 'PVE') resetGame();
   };
 
+  // Logic to determine if it is "my turn" online.
+  // mp.amIP1 is now correctly set to FALSE for the guest.
+  // Player 1 (Pink) always starts (currentPlayer === 1).
+  // So:
+  // If I am P1 (Host) and current is 1 -> My turn.
+  // If I am P2 (Guest/!amIP1) and current is 2 -> My turn.
   const isMyTurnOnline = mp.mode === 'in_game' && ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2));
+  
   const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
 
   const handleColumnClick = useCallback((colIndex: number, isAiMove = false) => {
