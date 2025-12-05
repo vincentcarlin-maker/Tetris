@@ -12,6 +12,7 @@ import { SnakeGame } from './components/snake/SnakeGame';
 import { InvadersGame } from './components/invaders/InvadersGame';
 import { Shop } from './components/Shop';
 import { SocialOverlay } from './components/SocialOverlay';
+import { LoginScreen } from './components/LoginScreen';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
 import { useMultiplayer } from './hooks/useMultiplayer';
@@ -22,6 +23,8 @@ type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    
     const audio = useGameAudio();
     const currency = useCurrency();
     const mp = useMultiplayer(); // Global Multiplayer Lobby Connection
@@ -38,11 +41,21 @@ const App: React.FC = () => {
         claimQuestReward 
     } = useDailySystem(currency.addCoins);
 
-    // Connect global lobby on mount
+    // Check for existing session
     useEffect(() => {
-        mp.connect();
-        return () => mp.disconnect();
+        const storedName = localStorage.getItem('neon-username');
+        if (storedName) {
+            setIsAuthenticated(true);
+        }
     }, []);
+
+    // Connect global lobby on mount (only if authenticated)
+    useEffect(() => {
+        if (isAuthenticated) {
+            mp.connect();
+        }
+        return () => mp.disconnect();
+    }, [isAuthenticated]);
 
     // Apply Background Wallpaper
     useEffect(() => {
@@ -117,6 +130,24 @@ const App: React.FC = () => {
         setCurrentView('menu');
     };
 
+    const handleLogin = (username: string) => {
+        currency.updateUsername(username);
+        setIsAuthenticated(true);
+        audio.playVictory(); // Little sound feedback
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        mp.disconnect();
+        // We don't necessarily clear coins, just the "session" state in UI
+        // But to fully "Logout" and allow a new name, we might want to clear local storage specific to identity?
+        // For now, we just flip the state, and LoginScreen will overwrite the username in storage on next submit.
+    };
+
+    if (!isAuthenticated) {
+        return <LoginScreen onLogin={handleLogin} />;
+    }
+
     return (
         <>
             <SocialOverlay audio={audio} currency={currency} mp={mp} />
@@ -167,6 +198,7 @@ const App: React.FC = () => {
                     audio={audio} 
                     currency={currency} 
                     mp={mp}
+                    onLogout={handleLogout}
                     dailyData={{
                         streak,
                         showDailyModal,

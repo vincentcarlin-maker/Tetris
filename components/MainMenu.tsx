@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -10,6 +10,7 @@ import { DailyBonusModal } from './DailyBonusModal';
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
+    onLogout: () => void;
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
     mp: ReturnType<typeof useMultiplayer>;
@@ -274,7 +275,7 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
@@ -484,6 +485,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  <div {...bindGlow('rgba(200, 230, 255, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-4 backdrop-blur-md relative overflow-hidden group shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-white/50 hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:ring-1 hover:ring-white/30">
                      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
                      
+                     {/* Logout Button */}
+                     <button 
+                        onClick={onLogout}
+                        className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30"
+                        title="Se déconnecter"
+                     >
+                        <LogOut size={16} />
+                     </button>
+
                      <div className="flex items-center w-full gap-4 z-10">
                         {/* Avatar with Frame */}
                         <div onClick={() => onSelectGame('shop')} className="relative cursor-pointer hover:scale-105 transition-transform">
@@ -505,7 +515,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                     </form>
                                 ) : (
                                     <button onClick={() => { setTempName(username); setIsEditingName(true); }} className="flex items-center gap-2 group/edit">
-                                        <h2 className="text-2xl font-black text-white italic tracking-wide truncate max-w-[180px]">{username}</h2>
+                                        <h2 className="text-2xl font-black text-white italic tracking-wide truncate max-w-[150px]">{username}</h2>
                                         <Edit2 size={14} className="text-gray-500 group-hover/edit:text-white transition-colors" />
                                     </button>
                                 )}
