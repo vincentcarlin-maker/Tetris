@@ -18,56 +18,6 @@ const BULLET_SPEED = 7;
 const ENEMY_BULLET_SPEED = 4;
 const BASE_ENEMY_SPEED = 1;
 
-// -- PIXEL ART SPRITES (1 = Pixel allumé, 0 = Vide) --
-const SPRITES = {
-    PLAYER: [
-        [0,0,0,0,1,0,0,0,0],
-        [0,0,0,1,1,1,0,0,0],
-        [0,0,1,1,0,1,1,0,0],
-        [0,1,1,1,1,1,1,1,0],
-        [1,1,0,1,1,1,0,1,1],
-        [1,1,1,1,1,1,1,1,1],
-        [1,0,1,0,0,0,1,0,1],
-    ],
-    ENEMY_BASIC: [
-        [0,0,1,0,0,0,0,0,1,0,0],
-        [0,0,0,1,0,0,0,1,0,0,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,1,1,0,1,1,1,0,1,1,0],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,1,1,1,1,1,1,1,0,1],
-        [1,0,1,0,0,0,0,0,1,0,1],
-        [0,0,0,1,1,0,1,1,0,0,0]
-    ],
-    ENEMY_SHOOTER: [
-        [0,0,0,1,1,1,1,1,0,0,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,1,1,0,1,1,1,0,1,1,0],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [0,1,0,1,0,1,0,1,0,1,0],
-        [0,1,0,0,0,0,0,0,0,1,0],
-        [0,0,1,0,0,0,0,0,1,0,0]
-    ],
-    ENEMY_HEAVY: [
-        [0,0,0,0,1,1,1,0,0,0,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,1,1,1,1,1,1,1,1,1,0],
-        [1,1,0,1,1,1,1,1,0,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [0,0,1,0,0,0,0,0,1,0,0],
-        [0,1,1,0,0,0,0,0,1,1,0]
-    ],
-    ENEMY_KAMIKAZE: [
-        [0,0,0,0,0,1,0,0,0,0,0],
-        [0,0,0,0,1,1,1,0,0,0,0],
-        [0,0,0,1,1,1,1,1,0,0,0],
-        [0,0,1,1,0,1,0,1,1,0,0],
-        [0,1,1,0,0,1,0,0,1,1,0],
-        [1,1,0,0,0,1,0,0,0,1,1],
-    ]
-};
-
 // -- TYPES --
 interface Entity {
     x: number;
@@ -121,7 +71,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     const highScore = highScores.invaders || 0;
 
     // Game Refs
-    const playerRef = useRef<Player>({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 60, width: 32, height: 32, active: true, color: '#00f3ff' });
+    const playerRef = useRef<Player>({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 60, width: 30, height: 30, active: true, color: '#00f3ff' });
     const bulletsRef = useRef<Bullet[]>([]);
     const enemiesRef = useRef<Enemy[]>([]);
     const particlesRef = useRef<Particle[]>([]);
@@ -147,7 +97,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
         setIsPlaying(false);
         setEarnedCoins(0);
         
-        playerRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 60, width: 32, height: 32, active: true, color: '#00f3ff' };
+        playerRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 60, width: 30, height: 30, active: true, color: '#00f3ff' };
         bulletsRef.current = [];
         enemiesRef.current = [];
         particlesRef.current = [];
@@ -168,34 +118,27 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
                 let color = '#ff00ff';
                 let health = 1;
                 let scoreVal = 10;
-                let width = 28;
-                let height = 24;
 
                 if (typeRand > 0.8 && waveNum > 1) {
                     type = 'shooter';
-                    color = '#facc15'; // yellow
+                    color = '#facc15';
                     scoreVal = 30;
-                    height = 24;
                 } else if (typeRand > 0.9 && waveNum > 2) {
                     type = 'heavy';
-                    color = '#ef4444'; // red
+                    color = '#ef4444';
                     health = 3;
                     scoreVal = 50;
-                    width = 32;
-                    height = 24;
                 } else if (waveNum > 3 && r === 0 && Math.random() > 0.7) {
                     type = 'kamikaze';
-                    color = '#00ff9d'; // green
+                    color = '#00ff9d';
                     scoreVal = 40;
-                    width = 24;
-                    height = 24;
                 }
 
                 enemiesRef.current.push({
                     x: 40 + c * 50,
-                    y: 40 + r * 45,
-                    width,
-                    height,
+                    y: 40 + r * 40,
+                    width: 25,
+                    height: 25,
                     active: true,
                     type,
                     color,
@@ -390,49 +333,58 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
     };
 
-    // Helper: Draw Sprite from Matrix
-    const drawSprite = (ctx: CanvasRenderingContext2D, entity: Entity, spriteMatrix: number[][], color: string) => {
-        const rows = spriteMatrix.length;
-        const cols = spriteMatrix[0].length;
-        const pixelW = entity.width / cols;
-        const pixelH = entity.height / rows;
-
-        ctx.fillStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 10;
-
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                if (spriteMatrix[r][c] === 1) {
-                    ctx.fillRect(
-                        Math.floor(entity.x - entity.width / 2 + c * pixelW),
-                        Math.floor(entity.y - entity.height / 2 + r * pixelH),
-                        Math.ceil(pixelW),
-                        Math.ceil(pixelH)
-                    );
-                }
-            }
-        }
-        ctx.shadowBlur = 0; // Reset
-    };
-
     const draw = (ctx: CanvasRenderingContext2D) => {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         // Player
-        drawSprite(ctx, playerRef.current, SPRITES.PLAYER, playerRef.current.color);
+        const p = playerRef.current;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y - p.height/2);
+        ctx.lineTo(p.x - p.width/2, p.y + p.height/2);
+        ctx.lineTo(p.x, p.y + p.height/4); // Inner notch
+        ctx.lineTo(p.x + p.width/2, p.y + p.height/2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
 
         // Enemies
         enemiesRef.current.forEach(e => {
-            let sprite = SPRITES.ENEMY_BASIC;
-            if (e.type === 'shooter') sprite = SPRITES.ENEMY_SHOOTER;
-            else if (e.type === 'heavy') sprite = SPRITES.ENEMY_HEAVY;
-            else if (e.type === 'kamikaze') sprite = SPRITES.ENEMY_KAMIKAZE;
+            ctx.fillStyle = e.color;
+            ctx.shadowColor = e.color;
+            ctx.shadowBlur = 10;
             
-            drawSprite(ctx, e, sprite, e.color);
+            ctx.save();
+            ctx.translate(e.x, e.y);
+            
+            // Draw different shapes based on type
+            if (e.type === 'basic') {
+                ctx.fillRect(-e.width/2, -e.height/2, e.width, e.height);
+            } else if (e.type === 'shooter') {
+                ctx.beginPath();
+                ctx.moveTo(0, e.height/2);
+                ctx.lineTo(-e.width/2, -e.height/2);
+                ctx.lineTo(e.width/2, -e.height/2);
+                ctx.fill();
+            } else if (e.type === 'heavy') {
+                ctx.fillRect(-e.width/2, -e.height/2, e.width, e.height);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-e.width/2, -e.height/2, e.width, e.height);
+            } else if (e.type === 'kamikaze') {
+                ctx.beginPath();
+                ctx.moveTo(0, e.height/2);
+                ctx.lineTo(-e.width/2, -e.height/2);
+                ctx.lineTo(0, -e.height/4);
+                ctx.lineTo(e.width/2, -e.height/2);
+                ctx.fill();
+            }
+            ctx.restore();
+            ctx.shadowBlur = 0;
         });
 
-        // Bullets (Keep simple for visibility/performance)
+        // Bullets
         bulletsRef.current.forEach(b => {
             ctx.fillStyle = b.color;
             ctx.shadowColor = b.color;
@@ -464,7 +416,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [isPlaying, gameOver, wave]);
+    }, [isPlaying, gameOver, wave]); // Re-bind loop if state changes significantly
 
     // Input Handling
     const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {

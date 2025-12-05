@@ -23,61 +23,6 @@ interface MainMenuProps {
     };
 }
 
-// Custom Snake Icon
-const SnakeIcon = ({ size, className }: { size?: number | string, className?: string }) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width={size} 
-        height={size} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        className={className}
-    >
-       <path d="M4 20h4a2 2 0 0 0 2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H9" />
-       <circle cx="8" cy="4" r="2" />
-    </svg>
-);
-
-// Custom Connect 4 Icon
-const Connect4Icon = ({ size, className }: { size?: number | string, className?: string }) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width={size} 
-        height={size} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="1.5" 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        className={className}
-    >
-       {/* Feet */}
-       <path d="M4 21v2" />
-       <path d="M20 21v2" />
-       
-       {/* Board */}
-       <rect x="2" y="3" width="20" height="18" rx="2" strokeWidth="2" />
-       
-       {/* Slots 3x3 */}
-       <circle cx="7" cy="7.5" r="2" />
-       <circle cx="12" cy="7.5" r="2" />
-       <circle cx="17" cy="7.5" r="2" />
-       
-       <circle cx="7" cy="12.5" r="2" />
-       <circle cx="12" cy="12.5" r="2" fill="currentColor" />
-       <circle cx="17" cy="12.5" r="2" />
-       
-       <circle cx="7" cy="17.5" r="2" fill="currentColor"/>
-       <circle cx="12" cy="17.5" r="2" fill="currentColor"/>
-       <circle cx="17" cy="17.5" r="2" />
-    </svg>
-);
-
 const GAMES_CONFIG = [
     { 
         id: 'tetris', 
@@ -89,20 +34,20 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-cyan-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', 
         glow: 'rgba(34,211,238,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: false }, 
+        badges: { solo: true, online: false, vs: false }, 
         reward: 'GAINS' 
     },
     { 
         id: 'snake', 
         name: 'SNAKE', 
-        icon: SnakeIcon, 
+        icon: Activity, 
         color: 'text-green-500', 
         bg: 'bg-green-900/20',
         border: 'border-green-500/30',
         hoverBorder: 'hover:border-green-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', 
         glow: 'rgba(34,197,94,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: false }, 
+        badges: { solo: true, online: false, vs: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -115,7 +60,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-rose-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', 
         glow: 'rgba(244,63,94,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: true }, 
+        badges: { solo: true, online: false, vs: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -128,7 +73,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-fuchsia-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(217,70,239,0.3)]', 
         glow: 'rgba(217,70,239,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: false }, 
+        badges: { solo: true, online: false, vs: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -141,7 +86,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-yellow-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', 
         glow: 'rgba(250,204,21,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: false }, 
+        badges: { solo: true, online: false, vs: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -154,7 +99,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-purple-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', 
         glow: 'rgba(168,85,247,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: false }, 
+        badges: { solo: true, online: false, vs: false }, 
         reward: '50' 
     },
     { 
@@ -167,20 +112,20 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-sky-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', 
         glow: 'rgba(56,189,248,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: false }, 
+        badges: { solo: true, online: false, vs: false }, 
         reward: '50' 
     },
     { 
         id: 'connect4', 
         name: 'CONNECT 4', 
-        icon: Connect4Icon, 
+        icon: CircleDot, 
         color: 'text-pink-500', 
         bg: 'bg-pink-900/20',
         border: 'border-pink-500/30',
         hoverBorder: 'hover:border-pink-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]', 
         glow: 'rgba(236,72,153,0.8)', 
-        badges: { solo: true, online: true, vs: true, new: false }, 
+        badges: { solo: true, online: true, vs: true }, 
         reward: '30' 
     },
     { 
@@ -193,7 +138,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-violet-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(167,139,250,0.3)]', 
         glow: 'rgba(167,139,250,0.8)', 
-        badges: { solo: true, online: true, vs: false, new: false }, 
+        badges: { solo: true, online: true, vs: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -206,7 +151,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-blue-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', 
         glow: 'rgba(59,130,246,0.8)', 
-        badges: { solo: true, online: true, vs: false, new: true }, 
+        badges: { solo: true, online: true, vs: false }, 
         reward: 'GAINS' 
     },
 ];
@@ -215,47 +160,6 @@ const COMING_SOON = [
     { name: 'AIR HOCKEY', icon: Wind },
     { name: 'MASTERMIND', icon: BrainCircuit }
 ];
-
-const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {
-    const [style, setStyle] = useState<React.CSSProperties>({
-        position: 'fixed',
-        top: startY,
-        left: startX,
-        opacity: 1,
-        transform: 'scale(0.5)',
-        zIndex: 100,
-        pointerEvents: 'none',
-        transition: 'none'
-    });
-
-    useEffect(() => {
-        const animTimeout = setTimeout(() => {
-             setStyle({
-                position: 'fixed',
-                top: targetY,
-                left: targetX,
-                opacity: 0,
-                transform: 'scale(0.8) rotate(360deg)',
-                zIndex: 100,
-                pointerEvents: 'none',
-                transition: `top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease-in 0.5s, transform 0.8s linear`
-            });
-        }, delay * 1000 + 50);
-
-        const endTimeout = setTimeout(onComplete, 800 + delay * 1000 + 50);
-
-        return () => {
-            clearTimeout(animTimeout);
-            clearTimeout(endTimeout);
-        };
-    }, [targetX, targetY, delay, onComplete]);
-
-    return (
-        <div style={style} className="text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">
-            <Coins size={24} fill="#facc15" />
-        </div>
-    );
-});
 
 const ArcadeLogo = () => {
     return (
@@ -306,13 +210,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Collapsible Quests State - Fermé par défaut
     const [isQuestsExpanded, setIsQuestsExpanded] = useState(false);
     
-    // Animation state for claiming reward
-    const [animatingQuestId, setAnimatingQuestId] = useState<string | null>(null);
-    
-    // Flying Coins State
-    const [flyingCoins, setFlyingCoins] = useState<{id: number, startX: number, startY: number, targetX: number, targetY: number, delay: number}[]>([]);
-    const coinBalanceRef = useRef<HTMLDivElement>(null);
-
     // Helpers pour gérer l'interaction tactile et souris
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
@@ -324,52 +221,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     // Helper to start game
     const handleGameStart = (gameId: string) => {
         onSelectGame(gameId);
-    };
-
-    const spawnCoins = (startX: number, startY: number, amount: number) => {
-        const targetRect = coinBalanceRef.current?.getBoundingClientRect();
-        if (!targetRect) return;
-
-        const targetX = targetRect.left + (targetRect.width / 2) - 12; 
-        const targetY = targetRect.top + (targetRect.height / 2) - 12;
-
-        const count = Math.min(Math.floor(amount / 10) + 5, 20); // Min 5, Max 20 coins
-        const newCoins = [];
-        
-        for (let i = 0; i < count; i++) {
-            newCoins.push({
-                id: Date.now() + Math.random(),
-                startX: startX + (Math.random() - 0.5) * 40, 
-                startY: startY + (Math.random() - 0.5) * 40,
-                targetX,
-                targetY,
-                delay: i * 0.05 // Staggered start
-            });
-        }
-        setFlyingCoins(prev => [...prev, ...newCoins]);
-    };
-
-    const handleDailyBonusClaim = () => {
-        spawnCoins(window.innerWidth / 2, window.innerHeight / 2, todaysReward);
-        claimDailyBonus();
-    };
-
-    const handleClaim = (q: DailyQuest, e: React.MouseEvent) => {
-        e.stopPropagation();
-        
-        // Spawn Coins Visuals
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        spawnCoins(rect.left + rect.width / 2, rect.top + rect.height / 2, q.reward);
-
-        // Audio & Visual Trigger
-        audio.playCoin();
-        setAnimatingQuestId(q.id);
-        
-        // Claim logic
-        claimQuestReward(q.id);
-        
-        // Reset animation state
-        setTimeout(() => setAnimatingQuestId(null), 1500);
     };
 
     useEffect(() => {
@@ -443,28 +294,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
             
-            {/* Flying Coins Layer */}
-            {flyingCoins.map(coin => (
-                <FlyingCoin 
-                    key={coin.id}
-                    startX={coin.startX}
-                    startY={coin.startY}
-                    targetX={coin.targetX}
-                    targetY={coin.targetY}
-                    delay={coin.delay}
-                    onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))}
-                />
-            ))}
-
             {showDailyModal && (
-                <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />
+                <DailyBonusModal streak={streak} reward={todaysReward} onClaim={claimDailyBonus} />
             )}
 
             <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
 
             {/* Top Bar */}
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
-                <div ref={coinBalanceRef} className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
                     <Coins className="text-yellow-400" size={20} />
                     <span className="text-yellow-100 font-mono font-bold text-lg">{coins.toLocaleString()}</span>
                 </div>
@@ -572,8 +410,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         onClick={() => setIsQuestsExpanded(!isQuestsExpanded)} 
                         className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}
                      >
-                         <div className="flex items-center gap-2 overflow-hidden py-1">
-                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap pr-2">
+                         <div className="flex items-center gap-2 overflow-hidden">
+                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap">
                                 <CheckCircle size={16} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
                                 DÉFIS DU JOUR
                              </h3>
@@ -601,24 +439,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {isQuestsExpanded && (
                          <div className="space-y-3 relative z-10 animate-in slide-in-from-top-2 duration-300">
                              {quests.map(quest => (
-                                 <div key={quest.id} className={`relative flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
+                                 <div key={quest.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
                                      quest.isCompleted 
                                      ? 'bg-green-950/40 border-green-500/50 shadow-[inset_0_0_10px_rgba(34,197,94,0.1)]' 
                                      : 'bg-gray-900/60 border-white/5 hover:border-white/20'
                                  }`}>
-                                     {/* Coin Burst Animation Effect */}
-                                     {animatingQuestId === quest.id && (
-                                         <div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none z-50">
-                                             <div className="relative">
-                                                 <Coins size={40} className="text-yellow-400 absolute -top-4 -left-4 animate-ping opacity-75" />
-                                                 <div className="text-yellow-300 font-black text-xl absolute -top-8 -left-2 animate-bounce drop-shadow-[0_0_10px_gold]">+{quest.reward}</div>
-                                                 <div className="absolute w-2 h-2 bg-yellow-400 rounded-full top-0 left-0 animate-[ping_0.5s_ease-out_infinite]" style={{animationDelay: '0.1s'}}></div>
-                                                 <div className="absolute w-2 h-2 bg-yellow-200 rounded-full top-4 left-4 animate-[ping_0.6s_ease-out_infinite]" style={{animationDelay: '0.2s'}}></div>
-                                                 <div className="absolute w-1 h-1 bg-white rounded-full -top-2 left-6 animate-[ping_0.4s_ease-out_infinite]" style={{animationDelay: '0.05s'}}></div>
-                                             </div>
-                                         </div>
-                                     )}
-
                                      <div className="flex flex-col gap-1.5 flex-1">
                                          <div className="flex items-center gap-3">
                                              <div className={`w-2.5 h-2.5 rounded-sm rotate-45 ${
@@ -643,8 +468,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                      </div>
                                      
                                      {quest.isCompleted && !quest.isClaimed ? (
-                                         <button onClick={(e) => handleClaim(quest, e)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center gap-1 shrink-0 relative overflow-hidden group/btn">
-                                             <div className="absolute inset-0 bg-white/50 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
+                                         <button onClick={() => claimQuestReward(quest.id)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center gap-1 shrink-0">
                                              <Coins size={12} fill="black" /> +{quest.reward}
                                          </button>
                                      ) : quest.isClaimed ? (
@@ -701,7 +525,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         <button key={game.id} onClick={() => handleGameStart(game.id)} {...bindGlow(game.glow)} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border ${game.border} rounded-xl overflow-hidden transition-all duration-300 ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95 backdrop-blur-md`}>
                             <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>
                             <div className="w-full flex justify-end gap-1 relative z-10">
-                                {game.badges.new && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse" title="Nouveau Jeu">NEW</div>}
                                 {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
                                 {game.badges.vs && <div className="p-1 rounded bg-black/40 text-pink-400 border border-pink-500/30" title="Versus"><Users size={10} /></div>}
                             </div>

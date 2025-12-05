@@ -66,7 +66,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
                     <ArrowLeft size={20} />
                 </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)] pr-2 py-1">BOUTIQUE</h1>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]">BOUTIQUE</h1>
                 <div className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
                     <Coins size={16} className="text-yellow-400" />
                     <span className="font-mono font-bold text-yellow-100">{coins}</span>
@@ -241,7 +241,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             return (
                                 <div key={wp.id} className={`p-3 rounded-xl border ${isSelected ? 'bg-green-900/20 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
                                     <div className="w-full h-20 rounded-lg mb-3 border border-white/20 relative overflow-hidden">
-                                        <div className="absolute inset-0" style={{ background: wp.cssValue, backgroundSize: wp.bgSize || 'cover', backgroundPosition: 'center' }}></div>
+                                        <div className="absolute inset-0" style={{ background: wp.cssValue, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
                                         {isSelected && <div className="absolute top-1 right-1 w-5 h-5 bg-green-500 rounded-full border border-black flex items-center justify-center text-black"><Check size={12} strokeWidth={4} /></div>}
                                     </div>
                                     
