@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, X, LogOut, Users } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, X, LogOut, Users, Home } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -232,8 +232,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
     if (gameMode === 'ONLINE') {
         mp.sendGameMove(colIndex);
-        // Note: We don't update state here, we wait for the echo/relay from the host
-        // to ensure both players see the same sequence.
+        // We wait for relay
     } else {
         const newBoard = board.map(row => [...row]);
         newBoard[rowIndex][colIndex] = currentPlayer;
@@ -455,9 +454,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
 
         return (
-             <div className="flex flex-col h-full animate-in fade-in p-2">
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
                 <div className="flex flex-col gap-3 mb-4">
-                     <h3 className="text-xl font-black text-center text-cyan-300 tracking-wider drop-shadow-md">LOBBY EN LIGNE</h3>
+                     <h3 className="text-xl font-black text-center text-pink-300 tracking-wider drop-shadow-md">LOBBY PUISSANCE 4</h3>
                      <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
                         <Play size={18} fill="black"/> CRÉER UNE PARTIE
                      </button>
@@ -512,6 +511,21 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return null;
   };
 
+  // CONDITIONAL RENDER FOR LOBBY (FULL SCREEN)
+  if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+      return (
+        <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] pr-2 pb-1">NEON CONNECT</h1>
+                <div className="w-10"></div>
+            </div>
+            {renderOnlineLobby()}
+        </div>
+      );
+  }
+
   return (
     <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
        <style>{`@keyframes dropIn { 0% { transform: translateY(var(--drop-start)); opacity: 1; } 100% { transform: translateY(0); opacity: 1; } }`}</style>
@@ -537,6 +551,10 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
          </div>
        </div>
 
+       {onlineStep === 'connecting' && gameMode === 'ONLINE' ? (
+           <div className="flex-1 flex items-center justify-center">{renderOnlineLobby()}</div>
+       ) : (
+       <>
        <div className="w-full max-w-lg flex justify-between items-center mb-4 z-10 px-2 flex-wrap gap-2">
           <div className="flex items-center gap-4">
             <button onClick={cycleMode} disabled={mp.mode === 'in_game' || isHostingAndWaiting} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[110px] disabled:opacity-50">
@@ -557,7 +575,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
           ) : <div className="w-[80px]"></div>}
        </div>
 
-       {!winState.winner && onlineStep === 'game' && !opponentLeft && (
+       {!winState.winner && (onlineStep === 'game' || gameMode !== 'ONLINE') && !opponentLeft && (
             <div className={`mb-2 px-6 py-1.5 rounded-full border flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors ${
                 isHostingAndWaiting ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' :
                 currentPlayer === 1 
@@ -570,41 +588,35 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        )}
 
        <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-700/80 shadow-2xl backdrop-blur-md w-full max-w-lg aspect-[7/6]`}>
-            {gameMode === 'ONLINE' && onlineStep !== 'game' ? (
-                renderOnlineLobby()
-            ) : (
-                <>
-                    {activeReaction && (() => {
-                        const reaction = REACTIONS.find(r => r.id === activeReaction.id);
-                        if (!reaction) return null;
-                        const positionClass = activeReaction.isMe ? 'bottom-[-20px] right-[-20px] sm:right-[-40px]' : 'top-[-20px] left-[-20px] sm:left-[-40px]';
-                        const anim = reaction.anim || 'animate-bounce';
-                        return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
-                    })()}
+            {activeReaction && (() => {
+                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
+                if (!reaction) return null;
+                const positionClass = activeReaction.isMe ? 'bottom-[-20px] right-[-20px] sm:right-[-40px]' : 'top-[-20px] left-[-20px] sm:left-[-40px]';
+                const anim = reaction.anim || 'animate-bounce';
+                return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
+            })()}
 
-                    <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
-                        {isHostingAndWaiting && <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-xl pointer-events-none"><div className="animate-pulse"><Loader2 size={64} className="text-yellow-400 animate-spin opacity-50" /></div></div>}
-                        <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
-                                {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => !isHostingAndWaiting && !opponentLeft && handleColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || isAnimatingRef.current || isHostingAndWaiting || opponentLeft ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
-                        </div>
-                        {Array.from({ length: COLS }).map((_, c) => (
-                            <div key={c} className="flex flex-col gap-1 sm:gap-3">
-                                {Array.from({ length: ROWS }).map((_, r) => {
-                                    const val = board[r][c];
-                                    const isWinningPiece = winState.line.some(([wr, wc]) => wr === r && wc === c);
-                                    const isAnimating = animatingCell?.r === r && animatingCell?.c === c;
-                                    const animationStyle: React.CSSProperties = isAnimating ? { animation: 'dropIn 0.5s cubic-bezier(0.5, 0, 0.75, 0)', '--drop-start': `-${(r * 110) + 120}%`, zIndex: 0, position: 'absolute', inset: 0, margin: 'auto' } as React.CSSProperties : {};
-                                    return (
-                                        <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-gray-800/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2 border-white/20 group-hover:border-white/30 transition-colors overflow-visible">
-                                            {val !== 0 && <div style={animationStyle} className={`absolute inset-0 m-auto w-full h-full rounded-full transition-all duration-500 shadow-lg ${val === 1 ? 'bg-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.6)]' : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.6)]'} ${isWinningPiece ? 'animate-pulse ring-4 ring-white z-10 brightness-125' : ''}`}><div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent"></div></div>}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ))}
+            <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
+                {isHostingAndWaiting && <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-xl pointer-events-none"><div className="animate-pulse"><Loader2 size={64} className="text-yellow-400 animate-spin opacity-50" /></div></div>}
+                <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
+                        {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => !isHostingAndWaiting && !opponentLeft && handleColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || isAnimatingRef.current || isHostingAndWaiting || opponentLeft ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
+                </div>
+                {Array.from({ length: COLS }).map((_, c) => (
+                    <div key={c} className="flex flex-col gap-1 sm:gap-3">
+                        {Array.from({ length: ROWS }).map((_, r) => {
+                            const val = board[r][c];
+                            const isWinningPiece = winState.line.some(([wr, wc]) => wr === r && wc === c);
+                            const isAnimating = animatingCell?.r === r && animatingCell?.c === c;
+                            const animationStyle: React.CSSProperties = isAnimating ? { animation: 'dropIn 0.5s cubic-bezier(0.5, 0, 0.75, 0)', '--drop-start': `-${(r * 110) + 120}%`, zIndex: 0, position: 'absolute', inset: 0, margin: 'auto' } as React.CSSProperties : {};
+                            return (
+                                <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-gray-800/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2 border-white/20 group-hover:border-white/30 transition-colors overflow-visible">
+                                    {val !== 0 && <div style={animationStyle} className={`absolute inset-0 m-auto w-full h-full rounded-full transition-all duration-500 shadow-lg ${val === 1 ? 'bg-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.6)]' : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.6)]'} ${isWinningPiece ? 'animate-pulse ring-4 ring-white z-10 brightness-125' : ''}`}><div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent"></div></div>}
+                                </div>
+                            );
+                        })}
                     </div>
-                </>
-            )}
+                ))}
+            </div>
        </div>
 
        {gameMode === 'ONLINE' && onlineStep === 'game' && !winState.winner && !isHostingAndWaiting && !opponentLeft && (
@@ -668,6 +680,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 </div>
             </div>
         )}
+       </>
+       )}
     </div>
   );
 };
