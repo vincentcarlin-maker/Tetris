@@ -15,6 +15,7 @@ export interface DailyQuest {
 const QUEST_TEMPLATES = [
     { desc: "Jouer une partie de Tetris", game: 'tetris', reward: 50, target: 1 },
     { desc: "Jouer au Casse-Briques", game: 'breaker', reward: 50, target: 1 },
+    { desc: "Faire une partie de Rush", game: 'rush', reward: 50, target: 1 },
     { desc: "Jouer à la Bataille Navale", game: 'battleship', reward: 50, target: 1 },
     { desc: "Jouer au Memory", game: 'memory', reward: 50, target: 1 },
     { desc: "Jouer à Pacman", game: 'pacman', reward: 50, target: 1 },

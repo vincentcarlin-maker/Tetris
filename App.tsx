@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
+import { RushGame } from './components/rush/RushGame';
 import { Connect4Game } from './components/connect4/Connect4Game';
 import { SudokuGame } from './components/sudoku/SudokuGame';
 import { BreakerGame } from './components/breaker/BreakerGame';
@@ -18,7 +19,7 @@ import { useMultiplayer } from './hooks/useMultiplayer';
 import { useDailySystem } from './hooks/useDailySystem';
 
 
-type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -43,16 +44,6 @@ const App: React.FC = () => {
         mp.connect();
         return () => mp.disconnect();
     }, []);
-
-    // AUTO-REDIRECT to Game when Multiplayer Starts
-    useEffect(() => {
-        if (mp.mode === 'in_game' && mp.activeGame) {
-            const validViews: ViewState[] = ['connect4', 'memory', 'battleship'];
-            if (validViews.includes(mp.activeGame as ViewState)) {
-                setCurrentView(mp.activeGame as ViewState);
-            }
-        }
-    }, [mp.mode, mp.activeGame]);
 
     // Apply Background Wallpaper
     useEffect(() => {
@@ -80,7 +71,7 @@ const App: React.FC = () => {
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders'];
+        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -112,6 +103,7 @@ const App: React.FC = () => {
         checkGameQuest(game);
 
         if (game === 'tetris') setCurrentView('tetris');
+        else if (game === 'rush') setCurrentView('rush');
         else if (game === 'connect4') setCurrentView('connect4');
         else if (game === 'sudoku') setCurrentView('sudoku');
         else if (game === 'breaker') setCurrentView('breaker');
@@ -125,10 +117,6 @@ const App: React.FC = () => {
 
     const handleBackToMenu = () => {
         setCurrentView('menu');
-        // Ensure we disconnect from game if backing out (optional, but good for cleanup)
-        if (mp.mode === 'in_game') {
-            mp.leaveGame();
-        }
     };
 
     return (
@@ -141,6 +129,10 @@ const App: React.FC = () => {
 
             {currentView === 'tetris' && (
                 <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+            )}
+
+            {currentView === 'rush' && (
+                <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSoundAndQuest}} />
             )}
 
             {currentView === 'connect4' && (

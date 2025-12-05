@@ -174,6 +174,8 @@ export const TITLES_CATALOG: Title[] = [
     { id: 't_god', name: 'DIEU DU JEU', price: 50000, color: 'text-amber-400', description: 'Au-dessus de la mêlée.' },
 ];
 
+export const SOLUTION_COST = 200;
+
 export const useCurrency = () => {
     const [coins, setCoins] = useState(0);
     const [inventory, setInventory] = useState<string[]>([]);
@@ -191,6 +193,9 @@ export const useCurrency = () => {
 
     const [currentTitleId, setCurrentTitleId] = useState("t_none");
     const [ownedTitles, setOwnedTitles] = useState<string[]>(["t_none"]);
+
+    // Game Unlocks
+    const [unlockedSolutions, setUnlockedSolutions] = useState<number[]>([]);
 
     useEffect(() => {
         // Load Economy
@@ -222,6 +227,10 @@ export const useCurrency = () => {
 
         if (storedTitle) setCurrentTitleId(storedTitle);
         if (storedOwnedTitles) setOwnedTitles(JSON.parse(storedOwnedTitles));
+
+        // Load Solutions
+        const storedSolutions = localStorage.getItem('neon-rush-solutions');
+        if (storedSolutions) setUnlockedSolutions(JSON.parse(storedSolutions));
     }, []);
 
     const addCoins = useCallback((amount: number) => {
@@ -351,6 +360,24 @@ export const useCurrency = () => {
         }
     }, [ownedTitles]);
 
+    const buySolution = useCallback((levelId: number) => {
+        setCoins(prev => {
+            if (prev >= SOLUTION_COST) {
+                const newBalance = prev - SOLUTION_COST;
+                localStorage.setItem('neon-coins', newBalance.toString());
+                
+                setUnlockedSolutions(prevSol => {
+                    if (prevSol.includes(levelId)) return prevSol;
+                    const newSol = [...prevSol, levelId];
+                    localStorage.setItem('neon-rush-solutions', JSON.stringify(newSol));
+                    return newSol;
+                });
+                return newBalance;
+            }
+            return prev;
+        });
+    }, []);
+
     // Système de Rangs basé sur le nombre de badges
     const playerRank = useMemo(() => {
         const count = inventory.length;
@@ -394,5 +421,8 @@ export const useCurrency = () => {
         buyTitle,
         ownedTitles,
         titlesCatalog: TITLES_CATALOG,
+        // Game Unlocks
+        unlockedSolutions,
+        buySolution
     };
 };

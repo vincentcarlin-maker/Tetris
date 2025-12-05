@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, ShoppingBag, Frame, Image, Type } from 'lucide-react';
-import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title } from '../hooks/useCurrency';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb, ShoppingBag, Frame, Image, Type } from 'lucide-react';
+import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, SOLUTION_COST } from '../hooks/useCurrency';
+import { TOTAL_LEVELS } from './rush/levels';
 
 interface ShopProps {
     onBack: () => void;
@@ -15,9 +16,10 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         currentFrameId, selectFrame, buyFrame, ownedFrames, framesCatalog,
         currentWallpaperId, selectWallpaper, buyWallpaper, ownedWallpapers, wallpapersCatalog,
         currentTitleId, selectTitle, buyTitle, ownedTitles, titlesCatalog,
+        unlockedSolutions, buySolution
     } = currency;
 
-    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'WALLPAPERS' | 'TITLES'>('BADGES');
+    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'WALLPAPERS' | 'TITLES' | 'SOLUTIONS'>('BADGES');
 
     const handleBuyBadge = (badge: Badge) => {
         if (coins >= badge.price && !inventory.includes(badge.id)) {
@@ -49,6 +51,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         }
     };
 
+    const handleBuySolution = (levelId: number) => {
+        if (coins >= SOLUTION_COST && !unlockedSolutions.includes(levelId)) {
+            buySolution(levelId);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full w-full bg-black/20 relative overflow-hidden font-sans text-white">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-900/10 via-black to-transparent pointer-events-none"></div>
@@ -73,6 +81,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                     <button onClick={() => setActiveTab('FRAMES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'FRAMES' ? 'bg-pink-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>CADRES</button>
                     <button onClick={() => setActiveTab('WALLPAPERS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'WALLPAPERS' ? 'bg-green-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>FONDS</button>
                     <button onClick={() => setActiveTab('TITLES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'TITLES' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>TITRES</button>
+                    <button onClick={() => setActiveTab('SOLUTIONS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'SOLUTIONS' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>SOLUTIONS</button>
                 </div>
             </div>
 
@@ -315,6 +324,48 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+
+                {/* SOLUTIONS TAB */}
+                {activeTab === 'SOLUTIONS' && (
+                    <div className="space-y-4">
+                        <div className="bg-purple-900/20 border border-purple-500/30 p-4 rounded-xl flex items-start gap-3">
+                            <Lightbulb className="text-purple-400 shrink-0 mt-1" size={24} />
+                            <div>
+                                <h3 className="font-bold text-purple-300 text-sm mb-1">SOLUTIONS NEON RUSH</h3>
+                                <p className="text-xs text-gray-400">Débloquez la solution automatique pour les niveaux difficiles. Une fois achetée, la solution est disponible à vie pour ce niveau.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {Array.from({ length: TOTAL_LEVELS }).map((_, i) => {
+                                const levelId = i + 1;
+                                const isUnlocked = unlockedSolutions.includes(levelId);
+                                const canAfford = coins >= SOLUTION_COST;
+
+                                return (
+                                    <div key={levelId} className={`p-3 rounded-xl border flex flex-col items-center justify-between ${isUnlocked ? 'bg-green-900/20 border-green-500/30' : 'bg-gray-800/40 border-white/5'}`}>
+                                        <span className="text-xs font-bold text-gray-300 mb-2">NIVEAU {levelId}</span>
+                                        {isUnlocked ? (
+                                            <div className="text-green-400 text-[10px] font-bold flex items-center gap-1"><Check size={12}/> DÉBLOQUÉ</div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handleBuySolution(levelId)}
+                                                disabled={!canAfford}
+                                                className={`w-full py-1.5 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                                                    canAfford 
+                                                    ? 'bg-purple-600 text-white hover:bg-purple-500' 
+                                                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                {canAfford ? <><Coins size={10}/> {SOLUTION_COST}</> : <Lock size={10}/>}
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
