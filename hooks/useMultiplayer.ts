@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Peer, DataConnection } from 'peerjs';
 
@@ -371,9 +372,16 @@ export const useMultiplayer = () => {
 
     const createRoom = useCallback(() => {
         hostStatusRef.current = 'hosting';
+        // CRITICAL FIX: Manually update ref so subsequent calls (like updateSelfInfo) see we are hosting immediately
+        // instead of waiting for next render cycle.
+        isHostRef.current = true;
+        
         setState(prev => ({ ...prev, isHost: true }));
         updateSelfInfo(myInfoRef.current.name, myInfoRef.current.avatarId, myInfoRef.current.extraInfo);
-    }, [updateSelfInfo]);
+        
+        // Force broadcast immediately to update UI instantly
+        broadcastPlayerList();
+    }, [updateSelfInfo, broadcastPlayerList]);
 
     const joinRoom = useCallback((targetPeerId: string) => {
         if (!peerRef.current) return;
