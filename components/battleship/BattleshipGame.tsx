@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Ship, Trash2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, LogOut, Loader2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -691,10 +692,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
          return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
-                 <div className="flex items-center justify-between mb-2">
-                     <h3 className="text-lg font-bold text-center text-blue-300 tracking-wider">LOBBY BATAILLE NAVALE</h3>
-                     <button onClick={mp.createRoom} className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg text-xs hover:bg-green-400 transition-colors flex items-center gap-2">
-                        <Play size={14}/> CRÉER UNE PARTIE
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-blue-300 tracking-wider drop-shadow-md">LOBBY BATAILLE NAVALE</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
                      </button>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
@@ -710,7 +711,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
                                             <span className="font-bold">{player.name}</span>
                                         </div>
-                                        <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
                                     </div>
                                 );
                             })}

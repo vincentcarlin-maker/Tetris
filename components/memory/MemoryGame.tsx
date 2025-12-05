@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -409,10 +410,10 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
 
          return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
-                 <div className="flex items-center justify-between mb-2">
-                     <h3 className="text-lg font-bold text-center text-purple-300 tracking-wider">LOBBY MEMORY</h3>
-                     <button onClick={mp.createRoom} className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg text-xs hover:bg-green-400 transition-colors flex items-center gap-2">
-                        <Play size={14}/> CRÉER UNE PARTIE
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-purple-300 tracking-wider drop-shadow-md">LOBBY MEMORY</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
                      </button>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
@@ -432,7 +433,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                                                 {isInfoValid(player.extraInfo) && <span className="text-[10px] text-purple-300 font-bold tracking-widest bg-purple-500/10 px-1.5 rounded border border-purple-500/20 w-fit">{player.extraInfo}</span>}
                                             </div>
                                         </div>
-                                        <button onClick={() => mp.joinRoom(player.id)} className="px-3 py-1.5 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
                                     </div>
                                 );
                             })}
