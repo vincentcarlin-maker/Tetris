@@ -365,7 +365,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             });
         };
 
-        // Run immediately whenever readiness changes or friends list updates
+        // Run immediately whenever readiness changes
         if (isSocialReady) connectToFriends();
         
         const interval = setInterval(connectToFriends, 10000); // Retry every 10s
