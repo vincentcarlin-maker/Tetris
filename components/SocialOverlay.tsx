@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Gamepad2 } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Gamepad2, AlertCircle } from 'lucide-react';
 import { Peer, DataConnection } from 'peerjs';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
@@ -70,6 +70,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const [chatInput, setChatInput] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
     const [selectedPlayer, setSelectedPlayer] = useState<Friend | null>(null);
+    const [isSocialReady, setIsSocialReady] = useState(false);
 
     // Draggable Button State
     const [btnTop, setBtnTop] = useState(window.innerHeight / 3);
@@ -169,6 +170,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         try {
             const peer = new Peer(storedId);
             peerRef.current = peer;
+
+            peer.on('open', () => {
+                setIsSocialReady(true);
+            });
 
             peer.on('connection', (conn) => {
                 if (handleConnectionRef.current) handleConnectionRef.current(conn);
@@ -339,7 +344,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     // Connect to friends periodically if not connected (Retry Logic)
     useEffect(() => {
         const connectToFriends = () => {
-            if (!peerRef.current) return;
+            if (!peerRef.current || !isSocialReady) return;
             friends.forEach(f => {
                 // If connection exists and open, skip
                 if (connectionsRef.current[f.id] && connectionsRef.current[f.id].open) return;
@@ -360,11 +365,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             });
         };
 
-        // Run on mount and every 10s
+        // Run on mount (or when ready) and every 5s
         connectToFriends();
-        const interval = setInterval(connectToFriends, 10000);
+        const interval = setInterval(connectToFriends, 5000);
         return () => clearInterval(interval);
-    }, [friends.length, handleConnection, username, currentAvatarId, currentFrameId]);
+    }, [friends.length, handleConnection, username, currentAvatarId, currentFrameId, isSocialReady]);
 
     // Heartbeat for friends status
     useEffect(() => {
@@ -507,10 +512,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         const conn = connectionsRef.current[friendId];
         if (conn && conn.open) {
             conn.send({ type: 'GAME_INVITE', senderName: username, gameId: mp.peerId });
-            // Visual feedback?
             alert("Invitation envoyée !");
         } else {
-            alert("Ami hors ligne.");
+            alert("Ami hors ligne. Attendez qu'il se connecte.");
         }
     };
 
@@ -605,7 +609,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         
                                         {/* INVITE BUTTON - Only if hosting */}
                                         {mp.isHost && selectedPlayer.status === 'online' && (
-                                            <button onClick={() => sendGameInvite(selectedPlayer.id)} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-400 text-black rounded-full font-bold text-sm transition-colors"><Gamepad2 size={16} /> INVITER</button>
+                                            <button onClick={() => { sendGameInvite(selectedPlayer.id); setSelectedPlayer(null); }} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-400 text-black rounded-full font-bold text-sm transition-colors shadow-lg"><Gamepad2 size={16} /> INVITER</button>
                                         )}
 
                                         <button onClick={() => { removeFriend(selectedPlayer.id); setSelectedPlayer(null); }} className="p-2 border border-red-500/50 text-red-500 hover:bg-red-500/20 rounded-full transition-colors"><Trash2 size={16} /></button>
@@ -661,9 +665,20 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {/* TAB: COMMUNITY */}
                             {socialTab === 'COMMUNITY' && (
                                 <div className="space-y-4">
-                                    <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-4">
-                                        <p className="text-purple-300 text-xs font-bold">JOUEURS DANS LA SALLE D'ATTENTE</p>
-                                        <p className="text-[10px] text-gray-500 mt-1">Ceci affiche uniquement les joueurs dans le même lobby de jeu que vous.</p>
+                                    <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-xl text-center">
+                                        <Globe className="mx-auto text-blue-400 mb-2" size={24} />
+                                        <p className="text-blue-300 text-sm font-bold mb-1">SALLE D'ATTENTE</p>
+                                        <p className="text-xs text-gray-400">
+                                            Ici, vous ne voyez que les joueurs connectés à votre partie actuelle.
+                                            <br/><br/>
+                                            <span className="text-white">Pour jouer avec des amis :</span>
+                                            <br/>
+                                            1. Ajoutez-les dans l'onglet <b>AMIS</b> via leur code.
+                                            <br/>
+                                            2. Créez une partie en ligne.
+                                            <br/>
+                                            3. Cliquez sur le bouton <b>INVITER</b> à côté de leur nom.
+                                        </p>
                                     </div>
                                     {communityPlayers.length === 0 ? (
                                         <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Globe size={48} className="mb-4 opacity-50" /><p className="text-sm">Personne d'autre dans ce lobby...</p></div>
@@ -750,7 +765,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     {mp.isHost && friend.status === 'online' && (
-                                                        <button onClick={(e) => { e.stopPropagation(); sendGameInvite(friend.id); }} className="p-1.5 bg-green-600/20 hover:bg-green-600 rounded-lg text-green-400 hover:text-white transition-colors border border-green-500/30" title="Inviter à jouer"><Gamepad2 size={16} /></button>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); sendGameInvite(friend.id); }} 
+                                                            className="flex items-center gap-1 px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs font-bold text-white transition-colors shadow-lg animate-pulse"
+                                                            title="Inviter à jouer"
+                                                        >
+                                                            <Gamepad2 size={14} /> INVITER
+                                                        </button>
                                                     )}
                                                     {unread > 0 && <div className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">{unread}</div>}
                                                     <button onClick={(e) => { e.stopPropagation(); openChat(friend.id); }} className="p-2 hover:bg-white/10 rounded-full text-gray-500 group-hover:text-white transition-colors"><MessageSquare size={18} /></button>
