@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Peer, DataConnection } from 'peerjs';
 
@@ -377,15 +378,30 @@ export const useMultiplayer = () => {
 
     const joinRoom = useCallback((targetPeerId: string) => {
         if (!peerRef.current) return;
+
+        // CRITICAL FIX: Ensure clean connection state
+        if (hostConnectionRef.current) {
+            hostConnectionRef.current.close();
+            hostConnectionRef.current = null;
+        }
+
         const conn = peerRef.current.connect(targetPeerId);
+        
         conn.on('open', () => {
             hostConnectionRef.current = conn;
             setState(prev => ({ ...prev, isHost: false }));
             conn.send({ type: 'HELLO', name: myInfoRef.current.name, avatarId: myInfoRef.current.avatarId });
             conn.send({ type: 'JOIN_ROOM', targetId: targetPeerId });
+            
             conn.on('data', (data) => handleDataReceived(data, conn));
             conn.on('close', () => setState(prev => ({ ...prev, mode: 'disconnected', error: 'Host disconnected' })));
         });
+
+        conn.on('error', (err) => {
+            console.error("Connection failed", err);
+            setState(prev => ({ ...prev, error: 'Failed to join room' }));
+        });
+
     }, [handleDataReceived]);
 
     const sendGameMove = useCallback((moveData: any) => {

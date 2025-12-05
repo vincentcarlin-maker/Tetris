@@ -233,7 +233,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     }, [messages, activeChatId, showSocial, myPeerId]);
 
     // --- SYNC GAME STATUS TO FRIENDS ---
-    // This effect ensures friends know when you are hosting/playing
     useEffect(() => {
         if (!isSocialReady) return;
         
@@ -247,7 +246,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             gameId: mp.peerId // Send game ID if hosting so they can join via profile
         };
 
-        // Broadcast to all connected friends
         (Object.values(connectionsRef.current) as DataConnection[]).forEach(conn => {
             if (conn.open) {
                 conn.send(updatePayload);
@@ -260,7 +258,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const handleConnection = useCallback((conn: DataConnection) => {
         conn.on('open', () => {
             connectionsRef.current[conn.peer] = conn;
-            // Send my status immediately on connection
             const myStatus = mp.isHost ? 'hosting' : mp.mode === 'in_game' ? 'playing' : 'online';
             conn.send({ type: 'STATUS_UPDATE', status: myStatus, gameId: mp.peerId });
         });
@@ -281,7 +278,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                         stats: data.stats
                     } : f);
                 });
-                // Send back welcome if it was a hello
                 if (data.type === 'HELLO_FRIEND') {
                     conn.send({ type: 'WELCOME_FRIEND', name: username, avatarId: currentAvatarId, frameId: currentFrameId });
                 }
@@ -348,7 +344,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             }
             else if (data.type === 'GAME_INVITE') {
                 setGameInvites(prev => {
-                    // Avoid duplicates
                     if (prev.find(i => i.gameId === data.gameId)) return prev;
                     audio.playCoin();
                     return [...prev, { id: conn.peer, name: data.senderName, gameId: data.gameId, timestamp: Date.now() }];
@@ -356,7 +351,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             }
             else if (data.type === 'PING') {
                  setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: prev.find(pf => pf.id === conn.peer)?.status || 'online', lastSeen: Date.now() } : f));
-                 // Respond with Pong to confirm I'm here
                  conn.send({ type: 'PONG' });
             }
             else if (data.type === 'PONG') {
@@ -385,48 +379,39 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         const connectToFriends = () => {
             if (!peerRef.current || !isSocialReady) return;
             friends.forEach(f => {
-                // If connection exists and open, skip
                 if (connectionsRef.current[f.id] && connectionsRef.current[f.id].open) return;
                 
                 try {
-                    // Attempt connection
                     const conn = peerRef.current!.connect(f.id);
                     if (conn) {
                         handleConnection(conn);
                         conn.on('open', () => {
-                            // Send Hello immediately
                             conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId, frameId: currentFrameId });
                         });
                     }
-                } catch (e) {
-                    // Ignore errors, will retry later
-                }
+                } catch (e) { }
             });
         };
 
-        // Run immediately whenever readiness changes
         if (isSocialReady) connectToFriends();
         
-        const interval = setInterval(connectToFriends, 5000); // Retry every 5s (Aggressive)
+        const interval = setInterval(connectToFriends, 5000); 
         return () => clearInterval(interval);
     }, [friends.length, handleConnection, username, currentAvatarId, currentFrameId, isSocialReady]);
 
-    // Heartbeat for friends status
+    // Heartbeat
     useEffect(() => {
         const interval = setInterval(() => {
             const now = Date.now();
-            // Send PING to all open connections
             (Object.values(connectionsRef.current) as DataConnection[]).forEach(conn => {
                 if (conn.open) conn.send({ type: 'PING' });
             });
             
-            // Mark as offline if no PONG/Message for 20s
             setFriends(prev => {
                 let changed = false;
                 const newFriends = prev.map(f => {
                     if (f.status !== 'offline') {
                         if (!f.lastSeen || (now - f.lastSeen > 20000)) {
-                            // Close connection if timeout
                             const conn = connectionsRef.current[f.id];
                             if (conn) { conn.close(); delete connectionsRef.current[f.id]; }
                             changed = true;
@@ -746,7 +731,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                             <br/>
                                             2. Créez une partie en ligne.
                                             <br/>
-                                            3. Cliquez sur le bouton <b>INVITER</b> à côté de leur nom.
+                                            3. Cliquez sur le bouton <b>INVITER</b> à côté de leur nom ou demandez-leur de rejoindre.
                                         </p>
                                     </div>
                                     {communityPlayers.length === 0 ? (
@@ -816,6 +801,45 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {/* TAB: FRIENDS */}
                             {socialTab === 'FRIENDS' && (
                                 <div className="space-y-2">
+                                    {/* ACTIVE GAMES SECTION - Added for visibility */}
+                                    {friends.some(f => f.status === 'hosting' && f.gameId) && (
+                                        <div className="mb-4">
+                                            <div className="flex items-center gap-2 mb-2 px-1">
+                                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                                <span className="text-xs font-bold text-green-400 tracking-widest">PARTIES EN COURS</span>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {friends.filter(f => f.status === 'hosting' && f.gameId).map(friend => {
+                                                    const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
+                                                    const AvIcon = avatar.icon;
+                                                    return (
+                                                        <div key={friend.id} className="bg-green-900/20 border border-green-500/50 p-3 rounded-xl flex items-center justify-between shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(friend.frameId)}`}>
+                                                                    <AvIcon size={18} className={avatar.color} />
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-white text-sm">{friend.name}</span>
+                                                                    <span className="text-[10px] text-green-400 font-mono tracking-wider">SALON OUVERT</span>
+                                                                </div>
+                                                            </div>
+                                                            <button 
+                                                                onClick={() => joinGameInvite(friend.gameId!)}
+                                                                disabled={joiningGameId === friend.gameId}
+                                                                className="px-4 py-2 bg-green-500 text-black font-black text-xs rounded-lg hover:bg-white transition-colors shadow-lg animate-pulse flex items-center gap-1 disabled:opacity-50"
+                                                            >
+                                                                {joiningGameId === friend.gameId ? <Loader2 size={12} className="animate-spin"/> : <Play size={12}/>}
+                                                                REJOINDRE
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="my-4 border-t border-white/10"></div>
+                                        </div>
+                                    )}
+
+                                    {/* Normal Friend List */}
                                     {friends.length === 0 ? <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Users size={48} className="mb-4 opacity-50" /><p>Aucun ami.</p><button onClick={() => setSocialTab('COMMUNITY')} className="mt-4 text-blue-400 underline text-sm">Voir la communauté</button></div> : friends.map(friend => {
                                         const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
                                         const AvIcon = avatar.icon;
@@ -835,16 +859,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    {friend.status === 'hosting' && friend.gameId ? (
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); joinGameInvite(friend.gameId!); }}
-                                                            disabled={joiningGameId === friend.gameId}
-                                                            className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-xs font-black text-black transition-colors shadow-lg animate-pulse disabled:opacity-50"
-                                                        >
-                                                            {joiningGameId === friend.gameId ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-                                                            {joiningGameId === friend.gameId ? '...' : 'REJOINDRE'}
-                                                        </button>
-                                                    ) : mp.isHost && friend.status !== 'offline' && (
+                                                    {mp.isHost && friend.status !== 'offline' && (
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); sendGameInvite(friend.id); }} 
                                                             className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-black text-white transition-colors shadow-[0_0_10px_rgba(34,197,94,0.5)]"
