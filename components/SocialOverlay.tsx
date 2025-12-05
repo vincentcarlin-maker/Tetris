@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Gamepad2 } from 'lucide-react';
 import { Peer, DataConnection } from 'peerjs';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
@@ -48,15 +48,12 @@ interface FriendRequest {
     stats?: PlayerStats;
 }
 
-// Updated Reactions with Animations
-const REACTIONS = [
-    { id: 'angry', icon: '😡', anim: 'animate-shake' },
-    { id: 'wave', icon: '👋', anim: 'animate-bounce' },
-    { id: 'happy', icon: '😄', anim: 'animate-pulse' },
-    { id: 'love', icon: '❤️', anim: 'animate-ping' },
-    { id: 'good', icon: '👍', anim: 'animate-bounce' },
-    { id: 'sad', icon: '😢', anim: 'animate-pulse' },
-];
+interface GameInvite {
+    id: string; // senderId
+    name: string;
+    gameId: string; // The MP Lobby ID
+    timestamp: number;
+}
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
@@ -66,6 +63,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const [myPeerId, setMyPeerId] = useState<string>('');
     const [friends, setFriends] = useState<Friend[]>([]);
     const [requests, setRequests] = useState<FriendRequest[]>([]);
+    const [gameInvites, setGameInvites] = useState<GameInvite[]>([]);
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [friendInput, setFriendInput] = useState('');
@@ -139,11 +137,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 if (Array.isArray(parsed)) {
                     setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: f.lastSeen || 0 }))); 
                 } else {
-                    console.warn('Invalid friends structure, resetting');
                     localStorage.removeItem('neon_friends');
                 }
             } catch (e) { 
-                console.warn('Failed to parse friends, resetting', e); 
                 localStorage.removeItem('neon_friends');
             }
         }
@@ -155,11 +151,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                     setMessages(parsed);
                 } else {
-                    console.warn('Invalid DMs structure, resetting');
                     localStorage.removeItem('neon_dms');
                 }
             } catch (e) {
-                console.warn('Failed to parse DMs, resetting', e);
                 localStorage.removeItem('neon_dms');
             }
         }
@@ -181,8 +175,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             });
             
             peer.on('error', (err) => {
-                console.error("Social Peer Error:", err);
-                // Don't crash app on peer error
+                console.warn("Social Peer Error:", err);
             });
         } catch (e) {
             console.error("Failed to initialize PeerJS:", e);
@@ -195,20 +188,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             }
         };
     }, []);
-
-    // Sync Global Lobby Presence
-    useEffect(() => {
-        if (mp.isHost) return; // Don't overwrite if hosting game
-
-        const socialPayload = {
-            id: myPeerId,
-            frameId: currentFrameId,
-            stats: { 
-                tetris: 0, breaker: 0, pacman: 0, memory: 0, rush: 0, sudoku: 0 // Placeholder
-            }
-        };
-        mp.updateSelfInfo(username, currentAvatarId, JSON.stringify(socialPayload));
-    }, [username, currentAvatarId, currentFrameId, myPeerId, mp, mp.isHost]);
 
     // Unread Count - SECURED LOOP
     useEffect(() => {
@@ -223,8 +202,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             });
         }
         count += requests.length;
+        count += gameInvites.length;
         setUnreadCount(count);
-    }, [messages, myPeerId, requests]);
+    }, [messages, myPeerId, requests, gameInvites]);
 
     // Auto-mark messages as read if chat is open
     useEffect(() => {
@@ -265,6 +245,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                         stats: data.stats
                     } : f);
                 });
+                // Send back welcome if it was a hello
+                if (data.type === 'HELLO_FRIEND') {
+                    conn.send({ type: 'WELCOME_FRIEND', name: username, avatarId: currentAvatarId, frameId: currentFrameId });
+                }
             }
             else if (data.type === 'FRIEND_REQUEST') {
                 const currentFriends = JSON.parse(localStorage.getItem('neon_friends') || '[]');
@@ -318,8 +302,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 
                 if (!isCurrentlyReading) audio.playCoin();
             }
+            else if (data.type === 'GAME_INVITE') {
+                setGameInvites(prev => {
+                    // Avoid duplicates
+                    if (prev.find(i => i.gameId === data.gameId)) return prev;
+                    audio.playCoin();
+                    return [...prev, { id: conn.peer, name: data.senderName, gameId: data.gameId, timestamp: Date.now() }];
+                });
+            }
             else if (data.type === 'PING') {
                  setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
+                 // Respond with Pong to confirm I'm here
                  conn.send({ type: 'PONG' });
             }
             else if (data.type === 'PONG') {
@@ -343,38 +336,52 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         handleConnectionRef.current = handleConnection;
     }, [handleConnection]);
 
-    // Connect to friends when opening social
+    // Connect to friends periodically if not connected (Retry Logic)
     useEffect(() => {
-        if (showSocial && peerRef.current) {
+        const connectToFriends = () => {
+            if (!peerRef.current) return;
             friends.forEach(f => {
+                // If connection exists and open, skip
                 if (connectionsRef.current[f.id] && connectionsRef.current[f.id].open) return;
+                
                 try {
+                    // Attempt connection
                     const conn = peerRef.current!.connect(f.id);
                     if (conn) {
                         handleConnection(conn);
                         conn.on('open', () => {
+                            // Send Hello immediately
                             conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId, frameId: currentFrameId });
                         });
                     }
                 } catch (e) {
-                    console.warn("Failed to connect to friend", f.id, e);
+                    // Ignore errors, will retry later
                 }
             });
-        }
-    }, [showSocial, friends.length, handleConnection, username, currentAvatarId, currentFrameId]);
+        };
 
-    // Heartbeat
+        // Run on mount and every 10s
+        connectToFriends();
+        const interval = setInterval(connectToFriends, 10000);
+        return () => clearInterval(interval);
+    }, [friends.length, handleConnection, username, currentAvatarId, currentFrameId]);
+
+    // Heartbeat for friends status
     useEffect(() => {
         const interval = setInterval(() => {
             const now = Date.now();
+            // Send PING to all open connections
             (Object.values(connectionsRef.current) as DataConnection[]).forEach(conn => {
                 if (conn.open) conn.send({ type: 'PING' });
             });
+            
+            // Mark as offline if no PONG/Message for 20s
             setFriends(prev => {
                 let changed = false;
                 const newFriends = prev.map(f => {
                     if (f.status === 'online') {
-                        if (!f.lastSeen || (now - f.lastSeen > 15000)) {
+                        if (!f.lastSeen || (now - f.lastSeen > 20000)) {
+                            // Close connection if timeout
                             const conn = connectionsRef.current[f.id];
                             if (conn) { conn.close(); delete connectionsRef.current[f.id]; }
                             changed = true;
@@ -491,6 +498,28 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (activeChatId === id) setActiveChatId(null);
     };
 
+    // GAME INVITES
+    const sendGameInvite = (friendId: string) => {
+        if (!mp.isHost || !mp.peerId) {
+            alert("Vous devez être l'hôte d'une partie pour inviter !");
+            return;
+        }
+        const conn = connectionsRef.current[friendId];
+        if (conn && conn.open) {
+            conn.send({ type: 'GAME_INVITE', senderName: username, gameId: mp.peerId });
+            // Visual feedback?
+            alert("Invitation envoyée !");
+        } else {
+            alert("Ami hors ligne.");
+        }
+    };
+
+    const joinGameInvite = (invite: GameInvite) => {
+        mp.joinRoom(invite.gameId);
+        setGameInvites(prev => prev.filter(i => i.gameId !== invite.gameId));
+        setShowSocial(false); // Close overlay to see game
+    };
+
     // Filter community players
     const communityPlayers = mp.players.filter(p => {
         if (p.id === myPeerId) return false; 
@@ -565,7 +594,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                 {selectedPlayer.status === 'offline' && selectedPlayer.lastSeen > 0 && <span className="text-[10px] text-gray-600 font-mono">VU : {formatLastSeen(selectedPlayer.lastSeen)}</span>}
                             </div>
 
-                            <div className="flex gap-2 justify-center mb-6">
+                            <div className="flex gap-2 justify-center mb-6 flex-wrap">
                                 {selectedPlayer.id === myPeerId ? (
                                     <div className="px-4 py-2 bg-gray-800 rounded-full font-bold text-sm text-gray-400 border border-white/10">C'est votre profil</div>
                                 ) : !friends.some(f => f.id === selectedPlayer.id) ? (
@@ -573,6 +602,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                 ) : (
                                     <>
                                         <button onClick={() => openChat(selectedPlayer.id)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-full font-bold text-sm transition-colors"><MessageSquare size={16} /> MESSAGE</button>
+                                        
+                                        {/* INVITE BUTTON - Only if hosting */}
+                                        {mp.isHost && selectedPlayer.status === 'online' && (
+                                            <button onClick={() => sendGameInvite(selectedPlayer.id)} className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-400 text-black rounded-full font-bold text-sm transition-colors"><Gamepad2 size={16} /> INVITER</button>
+                                        )}
+
                                         <button onClick={() => { removeFriend(selectedPlayer.id); setSelectedPlayer(null); }} className="p-2 border border-red-500/50 text-red-500 hover:bg-red-500/20 rounded-full transition-colors"><Trash2 size={16} /></button>
                                     </>
                                 )}
@@ -596,6 +631,23 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             </button>
                         </div>
 
+                        {/* INVITES SECTION */}
+                        {gameInvites.length > 0 && (
+                            <div className="p-2 bg-green-900/30 border-b border-green-500/30">
+                                {gameInvites.map(invite => (
+                                    <div key={invite.gameId + invite.timestamp} className="flex items-center justify-between p-2 bg-green-900/50 rounded-lg mb-1 animate-pulse">
+                                        <div className="text-xs text-green-300">
+                                            <span className="font-bold text-white">{invite.name}</span> vous invite à jouer !
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setGameInvites(prev => prev.filter(i => i !== invite))} className="p-1 text-red-400 hover:text-white"><X size={14}/></button>
+                                            <button onClick={() => joinGameInvite(invite)} className="px-3 py-1 bg-green-500 text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Tabs */}
                         <div className="flex p-2 gap-2 bg-black/20 overflow-x-auto">
                             <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'FRIENDS' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>AMIS ({friends.length})</button>
@@ -610,10 +662,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {socialTab === 'COMMUNITY' && (
                                 <div className="space-y-4">
                                     <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-4">
-                                        <p className="text-purple-300 text-xs font-bold">JOUEURS CONNECTÉS</p>
+                                        <p className="text-purple-300 text-xs font-bold">JOUEURS DANS LA SALLE D'ATTENTE</p>
+                                        <p className="text-[10px] text-gray-500 mt-1">Ceci affiche uniquement les joueurs dans le même lobby de jeu que vous.</p>
                                     </div>
                                     {communityPlayers.length === 0 ? (
-                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Globe size={48} className="mb-4 opacity-50" /><p className="text-sm">Personne d'autre n'est connecté...</p></div>
+                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Globe size={48} className="mb-4 opacity-50" /><p className="text-sm">Personne d'autre dans ce lobby...</p></div>
                                     ) : (
                                         communityPlayers.map(player => {
                                             const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
@@ -696,6 +749,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
+                                                    {mp.isHost && friend.status === 'online' && (
+                                                        <button onClick={(e) => { e.stopPropagation(); sendGameInvite(friend.id); }} className="p-1.5 bg-green-600/20 hover:bg-green-600 rounded-lg text-green-400 hover:text-white transition-colors border border-green-500/30" title="Inviter à jouer"><Gamepad2 size={16} /></button>
+                                                    )}
                                                     {unread > 0 && <div className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">{unread}</div>}
                                                     <button onClick={(e) => { e.stopPropagation(); openChat(friend.id); }} className="p-2 hover:bg-white/10 rounded-full text-gray-500 group-hover:text-white transition-colors"><MessageSquare size={18} /></button>
                                                 </div>
