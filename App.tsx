@@ -44,6 +44,16 @@ const App: React.FC = () => {
         return () => mp.disconnect();
     }, []);
 
+    // AUTO-REDIRECT to Game when Multiplayer Starts
+    useEffect(() => {
+        if (mp.mode === 'in_game' && mp.activeGame) {
+            const validViews: ViewState[] = ['connect4', 'memory', 'battleship'];
+            if (validViews.includes(mp.activeGame as ViewState)) {
+                setCurrentView(mp.activeGame as ViewState);
+            }
+        }
+    }, [mp.mode, mp.activeGame]);
+
     // Apply Background Wallpaper
     useEffect(() => {
         const bgElement = document.getElementById('app-background');
@@ -115,6 +125,10 @@ const App: React.FC = () => {
 
     const handleBackToMenu = () => {
         setCurrentView('menu');
+        // Ensure we disconnect from game if backing out (optional, but good for cleanup)
+        if (mp.mode === 'in_game') {
+            mp.leaveGame();
+        }
     };
 
     return (

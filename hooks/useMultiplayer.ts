@@ -21,12 +21,14 @@ export interface MultiplayerState {
     gameOpponent: PlayerInfo | null;
     isMyTurn: boolean;
     amIP1: boolean; // Am I Player 1 (Game Creator/Host)?
+    activeGame: string | null; // 'connect4', 'battleship', 'memory'
 }
 
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
         peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
-        mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
+        mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false,
+        activeGame: null
     });
     
     const peerRef = useRef<Peer | null>(null);
@@ -38,6 +40,7 @@ export const useMultiplayer = () => {
     
     // Track host status explicitly since it's not stored in a connection object
     const hostStatusRef = useRef<'idle' | 'hosting'>('idle');
+    const activeGameRef = useRef<string | null>(null);
 
     useEffect(() => {
         isHostRef.current = state.isHost;
@@ -101,9 +104,10 @@ export const useMultiplayer = () => {
         hostConnectionRef.current = null;
         guestConnectionsRef.current = [];
         hostStatusRef.current = 'idle';
+        activeGameRef.current = null;
         setState({
             peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
-            mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
+            mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false, activeGame: null
         });
     }, []);
 
@@ -200,7 +204,8 @@ export const useMultiplayer = () => {
                              const hostInfoForGuest = { id: peerRef.current.id, ...myInfoRef.current, status: 'in_game' };
                              joinerInfo.status = 'in_game';
                              
-                             joinerConn.send({ type: 'GAME_START', opponent: hostInfoForGuest, starts: false });
+                             // CRITICAL: Send gameType to guest so they can redirect
+                             joinerConn.send({ type: 'GAME_START', opponent: hostInfoForGuest, starts: false, gameType: activeGameRef.current });
                              broadcastPlayerList('in_game');
                          }
                          break;
@@ -310,7 +315,8 @@ export const useMultiplayer = () => {
                         mode: 'in_game',
                         gameOpponent: data.opponent,
                         isMyTurn: data.starts,
-                        amIP1: !data.starts
+                        amIP1: !data.starts,
+                        activeGame: data.gameType // Set active game from host
                     }));
                     if(onDataCallbackRef.current) onDataCallbackRef.current(data);
                     break;
@@ -370,16 +376,17 @@ export const useMultiplayer = () => {
         }
     }, [broadcastPlayerList]);
 
-    const createRoom = useCallback(() => {
+    const createRoom = useCallback((gameType?: string) => {
         hostStatusRef.current = 'hosting';
-        setState(prev => ({ ...prev, isHost: true }));
+        activeGameRef.current = gameType || null;
+        setState(prev => ({ ...prev, isHost: true, activeGame: gameType || null }));
         updateSelfInfo(myInfoRef.current.name, myInfoRef.current.avatarId, myInfoRef.current.extraInfo);
     }, [updateSelfInfo]);
 
     const joinRoom = useCallback((targetPeerId: string) => {
         if (!peerRef.current) return;
 
-        // CRITICAL FIX: Ensure clean connection state
+        // Force clean reconnection logic
         if (hostConnectionRef.current) {
             hostConnectionRef.current.close();
             hostConnectionRef.current = null;
@@ -427,14 +434,16 @@ export const useMultiplayer = () => {
 
     const cancelHosting = useCallback(() => {
         hostStatusRef.current = 'idle';
-        setState(prev => ({ ...prev, isHost: false, mode: 'lobby' }));
+        activeGameRef.current = null;
+        setState(prev => ({ ...prev, isHost: false, mode: 'lobby', activeGame: null }));
         sendData({ type: 'CANCEL_HOSTING' });
     }, [sendData]);
 
     const leaveGame = useCallback(() => {
         sendData({ type: 'LEAVE_GAME', opponentId: state.gameOpponent?.id });
         hostStatusRef.current = 'idle';
-        setState(prev => ({ ...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false }));
+        activeGameRef.current = null;
+        setState(prev => ({ ...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false, activeGame: null }));
     }, [sendData, state.gameOpponent]);
 
     const requestRematch = useCallback(() => {
