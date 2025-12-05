@@ -211,10 +211,13 @@ export const useMultiplayer = () => {
                     break;
                 }
                 case 'GAME_MOVE': {
-                    if (currentState.gameOpponent && data.targetId === peerRef.current?.id) {
+                    // Host RELAY Logic
+                    // We check if we have an opponent or if we are in game mode.
+                    // Relaxed check: if we are hosting and receive a move, we relay it.
+                    if (data.targetId === peerRef.current?.id) {
                          const relayData = { ...data, type: 'GAME_MOVE_RELAY' };
-                         notifySubscribers(relayData, conn); // Self update
-                         conn.send(relayData); // Confirm to sender
+                         notifySubscribers(relayData, conn); // Self update (triggers Host UI update)
+                         conn.send(relayData); // Confirm to sender (Guest UI update)
                     }
                     break;
                 }
@@ -405,8 +408,19 @@ export const useMultiplayer = () => {
 
     const requestRematch = useCallback(() => {
         const currentState = stateRef.current;
-        sendData({ type: 'REMATCH_REQUEST', opponentId: currentState.gameOpponent?.id });
-    }, [sendData]);
+        
+        // CORRECTION : Si je suis l'hôte, je force le redémarrage immédiatement
+        if (isHostRef.current) {
+             // 1. Reset local (Pour moi)
+             notifySubscribers({ type: 'REMATCH_START' }, null as any);
+             
+             // 2. Reset distant (Pour l'adversaire)
+             sendData({ type: 'REMATCH_START' });
+        } else {
+             // Si je suis invité, je demande poliment
+             sendData({ type: 'REMATCH_REQUEST', opponentId: currentState.gameOpponent?.id });
+        }
+    }, [sendData, notifySubscribers]);
 
     return {
         ...state,

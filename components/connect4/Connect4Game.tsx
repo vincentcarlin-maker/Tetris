@@ -153,33 +153,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         }
   }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
-  // Multiplayer Subscription
-  useEffect(() => {
-    const unsubscribe = mp.subscribe((data: any) => {
-        if (data.type === 'GAME_MOVE_RELAY') {
-            // Apply the move locally
-            const col = data.col;
-            // Force apply move for opponent (or self if relayed back)
-            // We use a specific flag or logic. Since sendGameMove calls handleColumnClick locally if host,
-            // we mainly need this for the Guest or to sync Host if needed.
-            // Simplified: Guest receives, Host receives.
-            // If I am the sender, I already played locally (optimistic UI).
-            // But to be safe and sync:
-            if (data.targetId === mp.peerId) { // Msg for me
-                 // Opponent played
-                 handleColumnClick(col, true);
-            }
-        }
-        if (data.type === 'REMATCH_START') resetGame();
-        if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
-        if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
-        if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setWinState({ winner: null, line: [] }); } // Force game over state visually logic handled in render
-    });
-    
-    return () => unsubscribe();
-  }, [mp]);
-
-
+  
+  // Game Logic Helper (Defined early to be used in refs)
   const resetGame = useCallback(() => {
     if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
     isAnimatingRef.current = false;
@@ -196,20 +171,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setOpponentLeft(false);
   }, []);
 
-  const cycleMode = () => {
-    if (gameMode === 'PVE') setGameMode('PVP');
-    else if (gameMode === 'PVP') setGameMode('ONLINE');
-    else setGameMode('PVE');
-    resetGame();
-  };
-  
-  const cycleDifficulty = () => {
-    const diffs: Difficulty[] = ['EASY', 'MEDIUM', 'HARD'];
-    const nextIdx = (diffs.indexOf(difficulty) + 1) % diffs.length;
-    setDifficulty(diffs[nextIdx]);
-    if (gameMode === 'PVE') resetGame();
-  };
-
+  // Main Game Action
   const handleColumnClick = useCallback((colIndex: number, isRemoteMove = false) => {
     if (winState.winner || isAnimatingRef.current || opponentLeft) return;
     
@@ -282,6 +244,53 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     }, 500); 
 
   }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft]);
+
+  // STABLE SUBSCRIPTION REF
+  // We use a ref to store the latest version of the data handler.
+  // This allows the subscription effect to be stable (run once) while accessing the freshest state/logic.
+  const handleDataRef = useRef<(data: any) => void>(null);
+  
+  // Update the ref on every render with the latest logic
+  useEffect(() => {
+      handleDataRef.current = (data: any) => {
+        if (data.type === 'GAME_MOVE_RELAY') {
+            const col = data.col;
+            // Only apply move if it matches the Host peer ID (which means it's the relay message)
+            if (data.targetId === mp.peerId) {
+                 handleColumnClick(col, true);
+            }
+        }
+        if (data.type === 'REMATCH_START') resetGame();
+        if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
+        if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
+        if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setWinState({ winner: null, line: [] }); }
+      };
+  }); // No deps -> updates on every render
+
+  // Multiplayer Subscription - RUNS ONCE (or only when mp.subscribe changes which is stable)
+  useEffect(() => {
+    const unsubscribe = mp.subscribe((data: any) => {
+        if (handleDataRef.current) {
+            handleDataRef.current(data);
+        }
+    });
+    return () => unsubscribe();
+  }, [mp.subscribe]); // Depend on the STABLE subscribe function, NOT the whole mp object
+
+
+  const cycleMode = () => {
+    if (gameMode === 'PVE') setGameMode('PVP');
+    else if (gameMode === 'PVP') setGameMode('ONLINE');
+    else setGameMode('PVE');
+    resetGame();
+  };
+  
+  const cycleDifficulty = () => {
+    const diffs: Difficulty[] = ['EASY', 'MEDIUM', 'HARD'];
+    const nextIdx = (diffs.indexOf(difficulty) + 1) % diffs.length;
+    setDifficulty(diffs[nextIdx]);
+    if (gameMode === 'PVE') resetGame();
+  };
 
   // AI Turn Handling
   useEffect(() => {
