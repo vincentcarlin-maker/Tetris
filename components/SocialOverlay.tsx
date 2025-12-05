@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity } from 'lucide-react';
-import { Peer, DataConnection } from 'peerjs';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -48,22 +47,11 @@ interface FriendRequest {
     stats?: PlayerStats;
 }
 
-// Updated Reactions with Animations
-const REACTIONS = [
-    { id: 'angry', icon: '😡', anim: 'animate-shake' },
-    { id: 'wave', icon: '👋', anim: 'animate-bounce' },
-    { id: 'happy', icon: '😄', anim: 'animate-pulse' },
-    { id: 'love', icon: '❤️', anim: 'animate-ping' },
-    { id: 'good', icon: '👍', anim: 'animate-bounce' },
-    { id: 'sad', icon: '😢', anim: 'animate-pulse' },
-];
-
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     
     const [showSocial, setShowSocial] = useState(false);
     const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('FRIENDS');
-    const [myPeerId, setMyPeerId] = useState<string>('');
     const [friends, setFriends] = useState<Friend[]>([]);
     const [requests, setRequests] = useState<FriendRequest[]>([]);
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
@@ -80,17 +68,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const initialTopRef = useRef(0);
 
     const activeChatIdRef = useRef<string | null>(null);
-    const showSocialRef = useRef<boolean>(false);
-    const peerRef = useRef<Peer | null>(null);
-    const connectionsRef = useRef<Record<string, DataConnection>>({});
     const chatEndRef = useRef<HTMLDivElement>(null);
-    const handleConnectionRef = useRef<((conn: DataConnection) => void) | null>(null);
 
     // Update Refs
     useEffect(() => {
         activeChatIdRef.current = activeChatId;
-        showSocialRef.current = showSocial;
-    }, [activeChatId, showSocial]);
+    }, [activeChatId]);
 
     // --- DRAG LOGIC ---
     const handleDragStart = (clientY: number) => {
@@ -131,131 +114,69 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     // --- INITIALIZATION ---
     useEffect(() => {
-        // Load Data - SECURED
+        // Load Data
         const storedFriends = localStorage.getItem('neon_friends');
         if (storedFriends) {
             try {
                 const parsed = JSON.parse(storedFriends);
                 if (Array.isArray(parsed)) {
                     setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: f.lastSeen || 0 }))); 
-                } else {
-                    console.warn('Invalid friends structure, resetting');
-                    localStorage.removeItem('neon_friends');
                 }
-            } catch (e) { 
-                console.warn('Failed to parse friends, resetting', e); 
-                localStorage.removeItem('neon_friends');
-            }
+            } catch (e) { localStorage.removeItem('neon_friends'); }
         }
         
         const storedMessages = localStorage.getItem('neon_dms');
         if (storedMessages) {
             try {
                 const parsed = JSON.parse(storedMessages);
-                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                    setMessages(parsed);
-                } else {
-                    console.warn('Invalid DMs structure, resetting');
-                    localStorage.removeItem('neon_dms');
-                }
-            } catch (e) {
-                console.warn('Failed to parse DMs, resetting', e);
-                localStorage.removeItem('neon_dms');
-            }
+                if (parsed && typeof parsed === 'object') setMessages(parsed);
+            } catch (e) { localStorage.removeItem('neon_dms'); }
         }
-
-        // Initialize Peer
-        let storedId = localStorage.getItem('neon_social_id');
-        if (!storedId) {
-            storedId = 'neon_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('neon_social_id', storedId);
-        }
-        setMyPeerId(storedId);
-
-        try {
-            const peer = new Peer(storedId);
-            peerRef.current = peer;
-
-            peer.on('connection', (conn) => {
-                if (handleConnectionRef.current) handleConnectionRef.current(conn);
-            });
-            
-            peer.on('error', (err) => {
-                console.error("Social Peer Error:", err);
-                // Don't crash app on peer error
-            });
-        } catch (e) {
-            console.error("Failed to initialize PeerJS:", e);
-        }
-
-        return () => {
-            if (peerRef.current) {
-                peerRef.current.destroy();
-                peerRef.current = null;
-            }
-        };
     }, []);
 
-    // Sync Global Lobby Presence
-    useEffect(() => {
-        if (mp.isHost) return; // Don't overwrite if hosting game
-
-        const socialPayload = {
-            id: myPeerId,
-            frameId: currentFrameId,
-            stats: { 
-                tetris: 0, breaker: 0, pacman: 0, memory: 0, rush: 0, sudoku: 0 // Placeholder
-            }
-        };
-        mp.updateSelfInfo(username, currentAvatarId, JSON.stringify(socialPayload));
-    }, [username, currentAvatarId, currentFrameId, myPeerId, mp, mp.isHost]);
-
-    // Unread Count - SECURED LOOP
+    // Unread Count
     useEffect(() => {
         let count = 0;
         if (messages && typeof messages === 'object') {
             (Object.values(messages) as PrivateMessage[][]).forEach(msgs => {
                 if (Array.isArray(msgs)) {
                     msgs.forEach(m => {
-                        if (m && !m.read && m.senderId !== myPeerId) count++;
+                        if (m && !m.read && m.senderId !== mp.peerId) count++;
                     });
                 }
             });
         }
         count += requests.length;
         setUnreadCount(count);
-    }, [messages, myPeerId, requests]);
+    }, [messages, mp.peerId, requests]);
 
-    // Auto-mark messages as read if chat is open
+    // Auto-mark messages
     useEffect(() => {
         if (showSocial && activeChatId && messages[activeChatId]) {
-            const hasUnread = messages[activeChatId].some(m => !m.read && m.senderId !== myPeerId);
+            const hasUnread = messages[activeChatId].some(m => !m.read && m.senderId !== mp.peerId);
             if (hasUnread) {
                 setMessages(prev => {
                     const chat = prev[activeChatId];
                     if (!chat) return prev;
-                    const updatedChat = chat.map(m => m.senderId !== myPeerId && !m.read ? { ...m, read: true } : m);
+                    const updatedChat = chat.map(m => m.senderId !== mp.peerId && !m.read ? { ...m, read: true } : m);
                     const updated = { ...prev, [activeChatId]: updatedChat };
                     localStorage.setItem('neon_dms', JSON.stringify(updated));
                     return updated;
                 });
             }
         }
-    }, [messages, activeChatId, showSocial, myPeerId]);
+    }, [messages, activeChatId, showSocial, mp.peerId]);
 
-    // --- PEER JS HANDLERS ---
-    const handleConnection = useCallback((conn: DataConnection) => {
-        conn.on('open', () => {
-            connectionsRef.current[conn.peer] = conn;
-        });
+    // --- SHARED MP SUBSCRIPTION ---
+    useEffect(() => {
+        // Subscribe to messages via the shared MP instance
+        const unsubscribe = mp.subscribe((data: any, conn: any) => {
+            const senderId = conn.peer;
 
-        conn.on('data', (data: any) => {
-            if (data.type === 'HELLO_FRIEND' || data.type === 'WELCOME_FRIEND') {
+            if (data.type === 'HELLO' || data.type === 'HELLO_FRIEND') {
                 setFriends(prev => {
-                    const exists = prev.find(f => f.id === conn.peer);
-                    if (!exists) return prev; 
-                    
-                    return prev.map(f => f.id === conn.peer ? { 
+                    if (!prev.find(f => f.id === senderId)) return prev;
+                    return prev.map(f => f.id === senderId ? { 
                         ...f, 
                         name: data.name, 
                         avatarId: data.avatarId, 
@@ -290,8 +211,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 };
                 
                 setFriends(prev => {
-                    const exists = prev.find(f => f.id === newFriend.id);
-                    if (exists) return prev;
+                    if (prev.find(f => f.id === newFriend.id)) return prev;
                     const updated = [...prev, newFriend];
                     localStorage.setItem('neon_friends', JSON.stringify(updated));
                     return updated;
@@ -300,95 +220,39 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 audio.playCoin();
             }
             else if (data.type === 'DM') {
-                const isCurrentlyReading = showSocialRef.current && activeChatIdRef.current === conn.peer;
+                const isCurrentlyReading = showSocial && activeChatIdRef.current === senderId;
                 const msg: PrivateMessage = {
                     id: Date.now().toString() + Math.random(),
-                    senderId: conn.peer,
+                    senderId: senderId,
                     text: data.text,
                     timestamp: Date.now(),
                     read: isCurrentlyReading
                 };
                 
                 setMessages(prev => {
-                    const chat = prev[conn.peer] || [];
-                    const updated = { ...prev, [conn.peer]: [...chat, msg] };
+                    const chat = prev[senderId] || [];
+                    const updated = { ...prev, [senderId]: [...chat, msg] };
                     localStorage.setItem('neon_dms', JSON.stringify(updated));
                     return updated;
                 });
                 
                 if (!isCurrentlyReading) audio.playCoin();
             }
-            else if (data.type === 'PING') {
-                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
-                 conn.send({ type: 'PONG' });
-            }
-            else if (data.type === 'PONG') {
-                 setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'online', lastSeen: Date.now() } : f));
-            }
-        });
-        
-        conn.on('close', () => {
-            delete connectionsRef.current[conn.peer];
-            setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' as const } : f));
         });
 
-        conn.on('error', () => {
-            delete connectionsRef.current[conn.peer];
-             setFriends(prev => prev.map(f => f.id === conn.peer ? { ...f, status: 'offline' as const } : f));
-        });
-
-    }, [username, currentAvatarId, currentFrameId, audio]);
-
-    useEffect(() => {
-        handleConnectionRef.current = handleConnection;
-    }, [handleConnection]);
+        return () => {
+            unsubscribe();
+        };
+    }, [mp, showSocial, audio]);
 
     // Connect to friends when opening social
     useEffect(() => {
-        if (showSocial && peerRef.current) {
+        if (showSocial) {
             friends.forEach(f => {
-                if (connectionsRef.current[f.id] && connectionsRef.current[f.id].open) return;
-                try {
-                    const conn = peerRef.current!.connect(f.id);
-                    if (conn) {
-                        handleConnection(conn);
-                        conn.on('open', () => {
-                            conn.send({ type: 'HELLO_FRIEND', name: username, avatarId: currentAvatarId, frameId: currentFrameId });
-                        });
-                    }
-                } catch (e) {
-                    console.warn("Failed to connect to friend", f.id, e);
-                }
+                mp.connectTo(f.id);
             });
         }
-    }, [showSocial, friends.length, handleConnection, username, currentAvatarId, currentFrameId]);
-
-    // Heartbeat
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const now = Date.now();
-            (Object.values(connectionsRef.current) as DataConnection[]).forEach(conn => {
-                if (conn.open) conn.send({ type: 'PING' });
-            });
-            setFriends(prev => {
-                let changed = false;
-                const newFriends = prev.map(f => {
-                    if (f.status === 'online') {
-                        if (!f.lastSeen || (now - f.lastSeen > 15000)) {
-                            const conn = connectionsRef.current[f.id];
-                            if (conn) { conn.close(); delete connectionsRef.current[f.id]; }
-                            changed = true;
-                            return { ...f, status: 'offline' as const };
-                        }
-                    }
-                    return f;
-                });
-                if (changed) localStorage.setItem('neon_friends', JSON.stringify(newFriends));
-                return newFriends;
-            });
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
+    }, [showSocial, friends, mp]);
 
     // Chat scroll
     useEffect(() => {
@@ -397,26 +261,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     // --- ACTIONS ---
     const sendFriendRequest = (targetId: string) => {
-        if (targetId === myPeerId) return;
-        if (connectionsRef.current[targetId]?.open) {
-            connectionsRef.current[targetId].send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
+        if (targetId === mp.peerId) return;
+        mp.connectTo(targetId);
+        // Send request after short delay to ensure connection
+        setTimeout(() => {
+            mp.sendTo(targetId, { type: 'FRIEND_REQUEST', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
             alert('Demande envoyée !');
-            return;
-        }
-        if (peerRef.current) {
-            try {
-                const conn = peerRef.current.connect(targetId);
-                handleConnection(conn);
-                conn.on('open', () => {
-                    setTimeout(() => {
-                        conn.send({ type: 'FRIEND_REQUEST', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
-                    }, 500);
-                });
-                alert('Demande envoyée !');
-            } catch (e) {
-                alert('Erreur lors de l\'envoi de la demande.');
-            }
-        }
+        }, 500);
     };
 
     const acceptRequest = (req: FriendRequest) => {
@@ -428,24 +279,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         });
         setRequests(prev => prev.filter(r => r.id !== req.id));
 
-        if (connectionsRef.current[req.id]?.open) {
-             connectionsRef.current[req.id].send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
-        } else if (peerRef.current) {
-            try {
-                const conn = peerRef.current.connect(req.id);
-                conn.on('open', () => {
-                    conn.send({ type: 'FRIEND_ACCEPT', senderId: myPeerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
-                    handleConnection(conn);
-                });
-            } catch(e) { console.warn('Could not connect to accept request', e); }
-        }
+        mp.connectTo(req.id);
+        setTimeout(() => {
+            mp.sendTo(req.id, { type: 'FRIEND_ACCEPT', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
+        }, 500);
     };
 
     const sendPrivateMessage = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!chatInput.trim() || !activeChatId) return;
+        if (!chatInput.trim() || !activeChatId || !mp.peerId) return;
 
-        const msg: PrivateMessage = { id: Date.now().toString(), senderId: myPeerId, text: chatInput.trim(), timestamp: Date.now(), read: true };
+        const msg: PrivateMessage = { id: Date.now().toString(), senderId: mp.peerId, text: chatInput.trim(), timestamp: Date.now(), read: true };
         setMessages(prev => {
             const chat = prev[activeChatId] || [];
             const updated = { ...prev, [activeChatId]: [...chat, msg] };
@@ -453,8 +297,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             return updated;
         });
 
-        const conn = connectionsRef.current[activeChatId];
-        if (conn && conn.open) conn.send({ type: 'DM', text: chatInput.trim() });
+        mp.sendTo(activeChatId, { type: 'DM', text: chatInput.trim() });
         setChatInput('');
     };
 
@@ -465,7 +308,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setMessages(prev => {
             const chat = prev[friendId];
             if (!chat) return prev;
-            const updatedChat = chat.map(m => m.senderId !== myPeerId ? { ...m, read: true } : m);
+            const updatedChat = chat.map(m => m.senderId !== mp.peerId ? { ...m, read: true } : m);
             const updated = { ...prev, [friendId]: updatedChat };
             localStorage.setItem('neon_dms', JSON.stringify(updated));
             return updated;
@@ -491,22 +334,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (activeChatId === id) setActiveChatId(null);
     };
 
-    // Filter community players
+    // Filter community players (exclude self and friends)
     const communityPlayers = mp.players.filter(p => {
-        if (p.id === myPeerId) return false; 
-        if (p.extraInfo) {
-            try {
-                const data = JSON.parse(p.extraInfo);
-                if (friends.find(f => f.id === data.id)) return false; 
-            } catch (e) { }
-        }
+        if (p.id === mp.peerId) return false; 
+        if (friends.find(f => f.id === p.id)) return false; 
         return true;
     });
-
-    const parseExtraInfo = (player: any) => {
-        if (!player.extraInfo) return null;
-        try { return JSON.parse(player.extraInfo); } catch (e) { return null; }
-    };
 
     const getFrameClass = (frameId?: string) => {
         return framesCatalog.find(f => f.id === frameId)?.cssClass || 'border-white/10';
@@ -566,7 +399,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             </div>
 
                             <div className="flex gap-2 justify-center mb-6">
-                                {selectedPlayer.id === myPeerId ? (
+                                {selectedPlayer.id === mp.peerId ? (
                                     <div className="px-4 py-2 bg-gray-800 rounded-full font-bold text-sm text-gray-400 border border-white/10">C'est votre profil</div>
                                 ) : !friends.some(f => f.id === selectedPlayer.id) ? (
                                     <button onClick={() => { sendFriendRequest(selectedPlayer.id); setSelectedPlayer(null); }} className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-sm transition-colors shadow-lg"><UserPlus size={16} /> AJOUTER</button>
@@ -618,20 +451,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         communityPlayers.map(player => {
                                             const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                             const AvIcon = avatar.icon;
-                                            const extra = parseExtraInfo(player);
-                                            const targetId = extra?.id || player.id; 
-                                            const isMe = targetId === myPeerId;
-                                            const tempFriend: Friend = { id: targetId, name: player.name, avatarId: player.avatarId, frameId: extra?.frameId, status: 'online', lastSeen: Date.now(), stats: extra?.stats };
+                                            const isMe = player.id === mp.peerId;
+                                            const tempFriend: Friend = { id: player.id, name: player.name, avatarId: player.avatarId, frameId: undefined, status: 'online', lastSeen: Date.now() };
 
                                             return (
                                                 <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group`}>
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(extra?.frameId)}`}>
+                                                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass()}`}>
                                                             <AvIcon size={18} className={avatar.color} />
                                                         </div>
                                                         <div><h4 className="font-bold text-white text-sm group-hover:text-blue-300 transition-colors">{player.name} {isMe && '(Moi)'}</h4></div>
                                                     </div>
-                                                    {!isMe && <button onClick={(e) => { e.stopPropagation(); sendFriendRequest(targetId); }} className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"><UserPlus size={16} /></button>}
+                                                    {!isMe && <button onClick={(e) => { e.stopPropagation(); sendFriendRequest(player.id); }} className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"><UserPlus size={16} /></button>}
                                                 </div>
                                             );
                                         })
@@ -665,8 +496,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     <div className="bg-gray-800/50 p-4 rounded-xl border border-white/10 text-center">
                                         <p className="text-gray-400 text-xs font-bold mb-2 uppercase tracking-widest">Mon Code Ami</p>
                                         <div className="flex items-center gap-2 bg-black/50 p-3 rounded-lg border border-blue-500/30">
-                                            <code className="flex-1 font-mono text-blue-300 text-lg font-bold tracking-wider">{myPeerId}</code>
-                                            <button onClick={() => navigator.clipboard.writeText(myPeerId)} className="p-2 bg-blue-600 rounded hover:bg-blue-500 transition-colors"><Copy size={16} /></button>
+                                            <code className="flex-1 font-mono text-blue-300 text-lg font-bold tracking-wider">{mp.peerId}</code>
+                                            <button onClick={() => navigator.clipboard.writeText(mp.peerId || '')} className="p-2 bg-blue-600 rounded hover:bg-blue-500 transition-colors"><Copy size={16} /></button>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -682,7 +513,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     {friends.length === 0 ? <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Users size={48} className="mb-4 opacity-50" /><p>Aucun ami.</p><button onClick={() => setSocialTab('COMMUNITY')} className="mt-4 text-blue-400 underline text-sm">Voir la communauté</button></div> : friends.map(friend => {
                                         const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
                                         const AvIcon = avatar.icon;
-                                        const unread = (messages[friend.id] || []).filter(m => !m.read && m.senderId !== myPeerId).length;
+                                        const unread = (messages[friend.id] || []).filter(m => !m.read && m.senderId !== mp.peerId).length;
                                         return (
                                             <div key={friend.id} onClick={() => setSelectedPlayer(friend)} className="group flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer">
                                                 <div className="flex items-center gap-3">
@@ -711,8 +542,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     <div className="flex-1 overflow-y-auto mb-4 space-y-2 pr-1 custom-scrollbar">
                                         {(messages[activeChatId] || []).length === 0 && <p className="text-center text-gray-600 text-xs py-4">Début de la conversation</p>}
                                         {(messages[activeChatId] || []).map(msg => (
-                                            <div key={msg.id} className={`flex ${msg.senderId === myPeerId ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.senderId === myPeerId ? 'bg-purple-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-200 rounded-bl-none'}`}>{msg.text}</div>
+                                            <div key={msg.id} className={`flex ${msg.senderId === mp.peerId ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.senderId === mp.peerId ? 'bg-purple-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-200 rounded-bl-none'}`}>{msg.text}</div>
                                             </div>
                                         ))}
                                         <div ref={chatEndRef} />

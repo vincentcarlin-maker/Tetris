@@ -208,7 +208,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
 
     // --- ONLINE DATA HANDLING ---
     useEffect(() => {
-        const handleData = (data: any) => {
+        const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'MEMORY_INIT') {
                 const deckIds: string[] = data.deckIds;
                 const newDifficulty: Difficulty = data.difficulty;
@@ -253,8 +253,9 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                 setOpponentLeft(true);
                 setIsGameOver(true); 
             }
-        };
-        mp.setOnDataReceived(handleData);
+        });
+        
+        return () => unsubscribe();
     }, [mp, cards, isProcessing, difficulty]);
 
     const sendChat = (e?: React.FormEvent) => {

@@ -82,7 +82,6 @@ const checkWinFull = (board: BoardState): WinState => {
 
 export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins, mp }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
-  // IMPORTANT: Ref to track board state inside callbacks without triggering re-renders or stale closures
   const boardRef = useRef<BoardState>(createBoard());
   
   const [currentPlayer, setCurrentPlayer] = useState<Player>(1);
@@ -114,7 +113,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // Audio
   const { playMove, playLand, playGameOver, playVictory } = audio;
   
-  // Auto-scroll chat
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
@@ -124,7 +122,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     mp.updateSelfInfo(username, currentAvatarId);
   }, [username, currentAvatarId, mp]);
 
-  // Cleanup on unmount
   useEffect(() => {
       return () => {
           if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
@@ -132,19 +129,17 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       };
   }, []);
 
-  // Update Board Ref whenever State changes
   useEffect(() => {
       boardRef.current = board;
   }, [board]);
 
-  // Reset Game
   const resetGame = useCallback((isOnlineReset = false) => {
     if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
     isAnimatingRef.current = false;
     
     const newBoard = createBoard();
     setBoard(newBoard);
-    boardRef.current = newBoard; // Sync Ref immediately
+    boardRef.current = newBoard; 
     
     setCurrentPlayer(1);
     setWinState({ winner: null, line: [] });
@@ -158,7 +153,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     }
   }, [gameMode]);
 
-  // Handle Mode Change
   const cycleMode = () => {
     if (gameMode === 'PVE') setGameMode('PVP');
     else if (gameMode === 'PVP') {
@@ -171,7 +165,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     resetGame();
   };
 
-  // Connect to lobby when switching to online mode
   useEffect(() => {
     if (gameMode === 'ONLINE') {
       setOnlineStep('connecting');
@@ -182,7 +175,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => mp.disconnect();
   }, [gameMode]);
 
-  // Effect to handle multiplayer state changes from the hook
   useEffect(() => {
       const self = mp.players.find(p => p.id === mp.peerId);
       const isHosting = self?.status === 'hosting';
@@ -197,18 +189,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
               }
           }
       } else if (mp.mode === 'in_game') {
-          // FIX: Only transition and reset if we are NOT already in game view
-          // This prevents board resets when player list updates (heartbeats)
           if (onlineStep !== 'game') {
               setOnlineStep('game');
-              resetGame(); // Ensure clean slate when entering game
+              resetGame(); 
           }
       } else if (mp.mode === 'disconnected' && gameMode === 'ONLINE') {
           setOnlineStep('connecting');
       }
   }, [mp.mode, gameMode, mp.players, mp.peerId, onlineStep]);
   
-  // Handle Difficulty Change
   const cycleDifficulty = () => {
     const diffs: Difficulty[] = ['EASY', 'MEDIUM', 'HARD'];
     const nextIdx = (diffs.indexOf(difficulty) + 1) % diffs.length;
@@ -219,7 +208,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const isMyTurnOnline = mp.mode === 'in_game' && ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2));
   const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
 
-  // Drop Piece Logic
   const handleColumnClick = useCallback((colIndex: number, isAiMove = false) => {
     if (winState.winner || isAnimatingRef.current) return;
     if (gameMode === 'PVE' && isAiThinking && !isAiMove) return;
@@ -278,7 +266,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, isMyTurnOnline]);
 
-  // Send Reaction
   const sendReaction = useCallback((reactionId: string) => {
       if (gameMode === 'ONLINE' && mp.mode === 'in_game') {
           setActiveReaction({ id: reactionId, isMe: true });
@@ -287,7 +274,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       }
   }, [gameMode, mp]);
 
-  // Send Chat
   const sendChat = (e?: React.FormEvent) => {
       if (e) e.preventDefault();
       if (!chatInput.trim() || mp.mode !== 'in_game') return;
@@ -305,13 +291,11 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       setChatInput('');
   };
 
-  // Multiplayer Data Handling
+  // Multiplayer Subscription
   useEffect(() => {
-    const handleData = (data: any) => {
+    const unsubscribe = mp.subscribe((data: any) => {
         if (data.type === 'GAME_MOVE_RELAY') {
             const { col, player, nextPlayer } = data;
-            
-            // FIX: Use boardRef to get the current board state without stale closures
             const currentBoard = boardRef.current;
             
             let rowIndex = -1;
@@ -327,7 +311,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                 const newBoard = currentBoard.map(r => [...r]);
                 newBoard[rowIndex][col] = player;
                 
-                // CRITICAL FIX: Update ref immediately to prevent race conditions with rapid updates
                 boardRef.current = newBoard;
                 setBoard(newBoard);
                 
@@ -366,11 +349,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         if (data.type === 'REMATCH_START') {
             resetGame(true);
         }
-    };
-    mp.setOnDataReceived(handleData);
+    });
     
-    // IMPORTANT: Remove the dependency on 'board' so this effect doesn't re-run and reset the listener
-    return () => mp.setOnDataReceived(null);
+    return () => unsubscribe();
   }, [mp, playMove, playLand, playGameOver, playVictory, addCoins, resetGame]);
 
 
@@ -381,13 +362,11 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     }
   }, [gameMode, currentPlayer, winState.winner, isAiThinking]);
 
-  // AI SAFETY: Force stop thinking if too long (2s)
   useEffect(() => {
       let safetyTimer: any;
       if (isAiThinking) {
           safetyTimer = setTimeout(() => {
               if (isAiThinking) {
-                  // Fallback random move to unfreeze
                   const validCols = [];
                   for(let c=0; c<COLS; c++) {
                       if (board[0][c] === 0) validCols.push(c);
@@ -419,7 +398,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => clearTimeout(timer);
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
-  // ... render functions ...
   const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;

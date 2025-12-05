@@ -228,17 +228,19 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         }
   }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
+  // Multiplayer Subscription
   useEffect(() => {
-        const handleData = (data: any) => {
-            if (data.type === 'BATTLESHIP_READY') setOpponentReady(true);
-            if (data.type === 'BATTLESHIP_SHOT') handleOnlineShotReceived(data.r, data.c);
-            if (data.type === 'BATTLESHIP_RESULT') handleOnlineResultReceived(data.r, data.c, data.status, data.shipDetails);
-            if (data.type === 'REMATCH_START') resetGame();
-            if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
-            if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
-            if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setPhase('GAMEOVER'); }
-        };
-        mp.setOnDataReceived(handleData);
+    const unsubscribe = mp.subscribe((data: any) => {
+        if (data.type === 'BATTLESHIP_READY') setOpponentReady(true);
+        if (data.type === 'BATTLESHIP_SHOT') handleOnlineShotReceived(data.r, data.c);
+        if (data.type === 'BATTLESHIP_RESULT') handleOnlineResultReceived(data.r, data.c, data.status, data.shipDetails);
+        if (data.type === 'REMATCH_START') resetGame();
+        if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
+        if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
+        if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setPhase('GAMEOVER'); }
+    });
+    
+    return () => unsubscribe();
   }, [mp, playerGrid, playerShips, cpuGrid, cpuShips, phase]);
 
   const handleOnlineShotReceived = (r: number, c: number) => {
