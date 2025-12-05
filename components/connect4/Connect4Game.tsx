@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, Trophy, Play, CircleDot, Coins, Globe, Loader2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, X, LogOut, Users, Home } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2 } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -11,7 +11,15 @@ interface Connect4GameProps {
   onBack: () => void;
   audio: ReturnType<typeof useGameAudio>;
   addCoins: (amount: number) => void;
-  mp: ReturnType<typeof useMultiplayer>; // Use shared instance
+  mp: ReturnType<typeof useMultiplayer>;
+}
+
+interface ChatMessage {
+    id: number;
+    text: string;
+    senderName: string;
+    isMe: boolean;
+    timestamp: number;
 }
 
 const ROWS = 6;
@@ -26,15 +34,6 @@ const REACTIONS = [
     { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
 ];
-
-interface ChatMessage {
-    id: number;
-    text: string;
-    senderName: string;
-    isMe: boolean;
-    timestamp: number;
-}
-
 
 // Helpers
 const createBoard = (): BoardState => Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
@@ -79,7 +78,6 @@ const checkWinFull = (board: BoardState): WinState => {
   return { winner: null, line: [] };
 };
 
-
 export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins, mp }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
   const boardRef = useRef<BoardState>(createBoard());
@@ -91,38 +89,25 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [earnedCoins, setEarnedCoins] = useState(0);
 
+  // Online State
+  const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
+  const [opponentLeft, setOpponentLeft] = useState(false);
+
+  // Identity
+  const { username, currentAvatarId, avatarsCatalog } = useCurrency();
+
   // Animation State
   const [animatingCell, setAnimatingCell] = useState<{r: number, c: number} | null>(null);
   const isAnimatingRef = useRef(false);
   const animationTimerRef = useRef<any>(null);
 
-  // MATCHMAKING & GAME STATE
-  const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
-  const [opponentLeft, setOpponentLeft] = useState(false);
-  
-  // Identity
-  const { username, currentAvatarId, avatarsCatalog } = useCurrency();
-  
-  // Interaction State
-  const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
-  
-  // Chat State
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
   // Audio
-  const { playMove, playLand, playGameOver, playVictory } = audio;
+  const { playMove, playLand, playGameOver, playVictory, resumeAudio } = audio;
   
-  useEffect(() => {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
-
-  // Sync Self Info to Multiplayer State
-  useEffect(() => {
-    mp.updateSelfInfo(username, currentAvatarId);
-  }, [username, currentAvatarId, mp]);
-
   useEffect(() => {
       return () => {
           if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
@@ -134,7 +119,68 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       boardRef.current = board;
   }, [board]);
 
-  const resetGame = useCallback((isOnlineReset = false) => {
+  useEffect(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
+
+  // Sync Self Info for Online
+  useEffect(() => {
+      mp.updateSelfInfo(username, currentAvatarId);
+  }, [username, currentAvatarId, mp]);
+
+  // Handle Online Connection
+  useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            mp.disconnect();
+            setOpponentLeft(false);
+        }
+        return () => mp.disconnect();
+  }, [gameMode]);
+
+  // Handle Multiplayer Mode Transition
+  useEffect(() => {
+        const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+            if (board.some(r => r.some(c => c !== 0))) resetGame(); // Reset board if returning to lobby
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+        }
+  }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+
+  // Multiplayer Subscription
+  useEffect(() => {
+    const unsubscribe = mp.subscribe((data: any) => {
+        if (data.type === 'GAME_MOVE_RELAY') {
+            // Apply the move locally
+            const col = data.col;
+            // Force apply move for opponent (or self if relayed back)
+            // We use a specific flag or logic. Since sendGameMove calls handleColumnClick locally if host,
+            // we mainly need this for the Guest or to sync Host if needed.
+            // Simplified: Guest receives, Host receives.
+            // If I am the sender, I already played locally (optimistic UI).
+            // But to be safe and sync:
+            if (data.targetId === mp.peerId) { // Msg for me
+                 // Opponent played
+                 handleColumnClick(col, true);
+            }
+        }
+        if (data.type === 'REMATCH_START') resetGame();
+        if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
+        if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
+        if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setWinState({ winner: null, line: [] }); } // Force game over state visually logic handled in render
+    });
+    
+    return () => unsubscribe();
+  }, [mp]);
+
+
+  const resetGame = useCallback(() => {
     if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
     isAnimatingRef.current = false;
     
@@ -146,59 +192,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setWinState({ winner: null, line: [] });
     setIsAiThinking(false);
     setEarnedCoins(0);
-    setActiveReaction(null);
     setAnimatingCell(null);
     setOpponentLeft(false);
-
-    if (gameMode !== 'ONLINE') {
-        setChatHistory([]);
-    }
-  }, [gameMode]);
+  }, []);
 
   const cycleMode = () => {
     if (gameMode === 'PVE') setGameMode('PVP');
-    else if (gameMode === 'PVP') {
-        setGameMode('ONLINE');
-    }
-    else {
-        setGameMode('PVE');
-        mp.disconnect();
-    }
+    else if (gameMode === 'PVP') setGameMode('ONLINE');
+    else setGameMode('PVE');
     resetGame();
   };
-
-  useEffect(() => {
-    if (gameMode === 'ONLINE') {
-      setOnlineStep('connecting');
-      mp.connect();
-    } else {
-      mp.disconnect();
-    }
-    return () => mp.disconnect();
-  }, [gameMode]);
-
-  useEffect(() => {
-      const self = mp.players.find(p => p.id === mp.peerId);
-      const isHosting = self?.status === 'hosting';
-
-      if (mp.mode === 'lobby') {
-          if (isHosting) {
-              setOnlineStep('game');
-          } else {
-              setOnlineStep('lobby');
-              if (onlineStep === 'game' && !isHosting) {
-                  resetGame();
-              }
-          }
-      } else if (mp.mode === 'in_game') {
-          if (onlineStep !== 'game') {
-              setOnlineStep('game');
-              resetGame(); 
-          }
-      } else if (mp.mode === 'disconnected' && gameMode === 'ONLINE') {
-          setOnlineStep('connecting');
-      }
-  }, [mp.mode, gameMode, mp.players, mp.peerId, onlineStep]);
   
   const cycleDifficulty = () => {
     const diffs: Difficulty[] = ['EASY', 'MEDIUM', 'HARD'];
@@ -207,22 +210,21 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     if (gameMode === 'PVE') resetGame();
   };
 
-  // Logic to determine if it is "my turn" online.
-  const isMyTurnOnline = mp.mode === 'in_game' && ((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2));
-  
-  const isHostingAndWaiting = gameMode === 'ONLINE' && !mp.gameOpponent && onlineStep === 'game';
-
-  const handleColumnClick = useCallback((colIndex: number, isAiMove = false) => {
-    if (winState.winner || isAnimatingRef.current) return;
-    if (gameMode === 'PVE' && isAiThinking && !isAiMove) return;
+  const handleColumnClick = useCallback((colIndex: number, isRemoteMove = false) => {
+    if (winState.winner || isAnimatingRef.current || opponentLeft) return;
     
-    if (gameMode === 'ONLINE') {
-        if (mp.mode !== 'in_game' || !mp.gameOpponent || !isMyTurnOnline) return;
+    // Online Turn Check
+    if (gameMode === 'ONLINE' && !isRemoteMove) {
+        if (!mp.gameOpponent) return; // Wait for opponent
+        const isMyTurn = (mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2);
+        if (!isMyTurn) return; // Not my turn
     }
+
+    if (gameMode === 'PVE' && isAiThinking && !isRemoteMove) return;
     
     let rowIndex = -1;
     for (let r = ROWS - 1; r >= 0; r--) {
-      if (board[r][colIndex] === 0) {
+      if (boardRef.current[r][colIndex] === 0) {
         rowIndex = r;
         break;
       }
@@ -230,162 +232,56 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
     if (rowIndex === -1) return;
 
-    if (gameMode === 'ONLINE') {
-        mp.sendGameMove(colIndex);
-        // We wait for relay
-    } else {
-        const newBoard = board.map(row => [...row]);
-        newBoard[rowIndex][colIndex] = currentPlayer;
-        
-        isAnimatingRef.current = true;
-        setBoard(newBoard);
-        setAnimatingCell({ r: rowIndex, c: colIndex });
-        playMove(); 
-
-        animationTimerRef.current = setTimeout(() => {
-            playLand();
-            setAnimatingCell(null);
-            
-            const result = checkWinFull(newBoard);
-            if (result.winner) {
-              setWinState(result);
-              if (result.winner === 1) { 
-                  playVictory();
-                  let reward = 10;
-                  if (gameMode === 'PVE') {
-                      if (difficulty === 'EASY') reward = 5;
-                      else if (difficulty === 'MEDIUM') reward = 15;
-                      else if (difficulty === 'HARD') reward = 30;
-                  }
-                  addCoins(reward);
-                  setEarnedCoins(reward);
-              } else {
-                  playGameOver();
-              }
-            } else {
-              setCurrentPlayer(prev => prev === 1 ? 2 : 1);
-            }
-            isAnimatingRef.current = false;
-        }, 500); 
+    // Send Move Online if local player played
+    if (gameMode === 'ONLINE' && !isRemoteMove) {
+        mp.sendGameMove({ col: colIndex });
     }
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, isMyTurnOnline]);
-
-  const sendReaction = useCallback((reactionId: string) => {
-      if (gameMode === 'ONLINE' && mp.mode === 'in_game') {
-          setActiveReaction({ id: reactionId, isMe: true });
-          mp.sendData({ type: 'REACTION', id: reactionId });
-          setTimeout(() => setActiveReaction(null), 3000);
-      }
-  }, [gameMode, mp]);
-
-  const sendChat = (e?: React.FormEvent) => {
-      if (e) e.preventDefault();
-      if (!chatInput.trim() || mp.mode !== 'in_game') return;
-      
-      const msg: ChatMessage = {
-          id: Date.now(),
-          text: chatInput.trim(),
-          senderName: username,
-          isMe: true,
-          timestamp: Date.now()
-      };
-      
-      setChatHistory(prev => [...prev, msg]);
-      mp.sendData({ type: 'CHAT', text: msg.text, senderName: username });
-      setChatInput('');
-  };
-
-  const handleOpponentLeftAction = (action: 'lobby' | 'wait') => {
-      if (action === 'lobby') {
-          mp.leaveGame(); // Clean cleanup
-          setGameMode('ONLINE');
-          setOnlineStep('lobby');
-      } else {
-          // Wait = Become host in lobby
-          mp.leaveGame(); // Reset current game state
-          mp.createRoom(); // Create new room as host
-      }
-      setOpponentLeft(false);
-  };
-
-  // Multiplayer Subscription
-  useEffect(() => {
-    const unsubscribe = mp.subscribe((data: any) => {
-        if (data.type === 'GAME_MOVE_RELAY') {
-            const { col, player } = data;
-            const currentBoard = boardRef.current;
-            
-            let rowIndex = -1;
-            for (let r = ROWS - 1; r >= 0; r--) {
-                if (currentBoard[r][col] === 0) {
-                    rowIndex = r;
-                    break;
-                }
-            }
-            
-            if (rowIndex !== -1) {
-                isAnimatingRef.current = true;
-                const newBoard = currentBoard.map(r => [...r]);
-                newBoard[rowIndex][col] = player;
-                
-                boardRef.current = newBoard;
-                setBoard(newBoard);
-                
-                // Immediately set current player to who moved to block other inputs during anim
-                setCurrentPlayer(player);
-                setAnimatingCell({ r: rowIndex, c: col });
-                playMove();
-
-                animationTimerRef.current = setTimeout(() => {
-                    playLand();
-                    setAnimatingCell(null);
-                    const result = checkWinFull(newBoard);
-                    if (result.winner) {
-                        setWinState(result);
-                         // Check if I won
-                         const amIP1 = mp.amIP1;
-                         const winnerIsP1 = result.winner === 1;
-                         const winnerIsP2 = result.winner === 2;
-                         
-                         const iWon = (amIP1 && winnerIsP1) || (!amIP1 && winnerIsP2);
-                         
-                         if (iWon) {
-                           playVictory();
-                           const onlineReward = 50;
-                           addCoins(onlineReward);
-                           setEarnedCoins(onlineReward);
-                         } else {
-                           playGameOver();
-                         }
-                    } else {
-                        // FIX: Calculate next player locally
-                        const nextPlayer = player === 1 ? 2 : 1;
-                        setCurrentPlayer(nextPlayer);
-                    }
-                    isAnimatingRef.current = false;
-                }, 500);
-            }
-        }
-        if (data.type === 'REACTION') {
-            setActiveReaction({ id: data.id, isMe: false });
-            setTimeout(() => setActiveReaction(null), 3000);
-        }
-        if (data.type === 'CHAT') {
-            setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
-        }
-        if (data.type === 'REMATCH_START') {
-            resetGame(true);
-        }
-        if (data.type === 'LEAVE_GAME') {
-            setOpponentLeft(true);
-            setWinState({ winner: null, line: [] }); // Clear win state if any
-        }
-    });
+    const newBoard = boardRef.current.map(row => [...row]);
+    newBoard[rowIndex][colIndex] = currentPlayer;
     
-    return () => unsubscribe();
-  }, [mp, playMove, playLand, playGameOver, playVictory, addCoins, resetGame]);
+    isAnimatingRef.current = true;
+    setBoard(newBoard);
+    setAnimatingCell({ r: rowIndex, c: colIndex });
+    playMove(); 
 
+    animationTimerRef.current = setTimeout(() => {
+        playLand();
+        setAnimatingCell(null);
+        
+        const result = checkWinFull(newBoard);
+        if (result.winner) {
+          setWinState(result);
+          
+          const isMeP1 = mp.amIP1;
+          const didIWin = gameMode === 'ONLINE' ? ((isMeP1 && result.winner === 1) || (!isMeP1 && result.winner === 2)) : (result.winner === 1);
+
+          if (didIWin) { 
+              playVictory();
+              let reward = 10;
+              if (gameMode === 'PVE') {
+                  if (difficulty === 'EASY') reward = 5;
+                  else if (difficulty === 'MEDIUM') reward = 15;
+                  else if (difficulty === 'HARD') reward = 30;
+              }
+              if (gameMode === 'PVP') reward = 5; 
+              if (gameMode === 'ONLINE') reward = 50;
+              
+              addCoins(reward);
+              setEarnedCoins(reward);
+          } else {
+              if (gameMode === 'PVP') playVictory(); 
+              else playGameOver(); 
+          }
+        } else {
+          // Switch Player
+          // Logic: 1 -> 2, 2 -> 1
+          setCurrentPlayer(prev => prev === 1 ? 2 : 1);
+        }
+        isAnimatingRef.current = false;
+    }, 500); 
+
+  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft]);
 
   // AI Turn Handling
   useEffect(() => {
@@ -393,26 +289,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       setIsAiThinking(true);
     }
   }, [gameMode, currentPlayer, winState.winner, isAiThinking]);
-
-  useEffect(() => {
-      let safetyTimer: any;
-      if (isAiThinking) {
-          safetyTimer = setTimeout(() => {
-              if (isAiThinking) {
-                  const validCols = [];
-                  for(let c=0; c<COLS; c++) {
-                      if (board[0][c] === 0) validCols.push(c);
-                  }
-                  if (validCols.length > 0) {
-                      const randomCol = validCols[Math.floor(Math.random() * validCols.length)];
-                      handleColumnClick(randomCol, true);
-                  }
-                  setIsAiThinking(false);
-              }
-          }, 2000);
-      }
-      return () => { if (safetyTimer) clearTimeout(safetyTimer); }
-  }, [isAiThinking, board, handleColumnClick]);
 
   useEffect(() => {
     if (!isAiThinking) return;
@@ -430,6 +306,24 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => clearTimeout(timer);
   }, [isAiThinking, board, difficulty, handleColumnClick]);
 
+  // --- ACTIONS SOCIALES ---
+  const sendChat = (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
+      if (!chatInput.trim() || mp.mode !== 'in_game') return;
+      const msg: ChatMessage = { id: Date.now(), text: chatInput.trim(), senderName: username, isMe: true, timestamp: Date.now() };
+      setChatHistory(prev => [...prev, msg]);
+      mp.sendData({ type: 'CHAT', text: msg.text, senderName: username });
+      setChatInput('');
+  };
+
+  const sendReaction = (reactionId: string) => {
+      if (gameMode === 'ONLINE' && mp.mode === 'in_game') {
+          setActiveReaction({ id: reactionId, isMe: true });
+          mp.sendData({ type: 'REACTION', id: reactionId });
+          setTimeout(() => setActiveReaction(null), 3000);
+      }
+  };
+
   const renderReactionVisual = (reactionId: string, color: string) => {
       const reaction = REACTIONS.find(r => r.id === reactionId);
       if (!reaction) return null;
@@ -438,30 +332,29 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };
 
-  const renderOnlineLobby = () => {
-    if (onlineStep === 'connecting') {
-        return (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-cyan-400">
-                <Loader2 size={48} className="animate-spin" />
-                <p className="font-bold tracking-widest">CONNEXION AU LOBBY...</p>
-                {mp.error && <p className="text-red-500 text-sm mt-4">{mp.error}</p>}
-            </div>
-        );
-    }
+  const handleOpponentLeftAction = (action: 'lobby' | 'wait') => {
+        if (action === 'lobby') {
+            mp.leaveGame(); 
+            setGameMode('ONLINE');
+            setOnlineStep('lobby');
+        } else {
+            mp.leaveGame(); 
+            mp.createRoom(); 
+        }
+        setOpponentLeft(false);
+  };
 
-    if (onlineStep === 'lobby') {
+  const renderLobby = () => {
         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
         const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
-
-        return (
+         return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
-                <div className="flex flex-col gap-3 mb-4">
+                 <div className="flex flex-col gap-3 mb-4">
                      <h3 className="text-xl font-black text-center text-pink-300 tracking-wider drop-shadow-md">LOBBY PUISSANCE 4</h3>
                      <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
                         <Play size={18} fill="black"/> CRÉER UNE PARTIE
                      </button>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                     {hostingPlayers.length > 0 && (
                         <>
@@ -475,17 +368,13 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
                                             <span className="font-bold">{player.name}</span>
                                         </div>
-                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">
-                                            REJOINDRE
-                                        </button>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
                                     </div>
                                 );
                             })}
                         </>
                     )}
-                    
                     {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
-                    
                     {otherPlayers.length > 0 && (
                         <>
                              <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
@@ -506,32 +395,43 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                     )}
                 </div>
              </div>
-        );
-    }
-    return null;
+         );
   };
 
-  // CONDITIONAL RENDER FOR LOBBY (FULL SCREEN)
+  // --- LOBBY VIEW ---
   if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
       return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
-                <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] pr-2 pb-1">NEON CONNECT</h1>
-                <div className="w-10"></div>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300 pr-2 pb-1">PUISSANCE 4</h1>
+                <div className="flex bg-gray-900 rounded-full border border-white/10 p-1">
+                    <button onClick={() => setGameMode('PVE')} className="px-3 py-1 rounded-full text-[10px] font-bold text-gray-400 hover:text-white">SOLO</button>
+                    <button className="px-3 py-1 rounded-full text-[10px] font-bold bg-green-500 text-black shadow-lg">LIGNE</button>
+                </div>
             </div>
-            {renderOnlineLobby()}
+            {renderLobby()}
         </div>
       );
   }
 
+  // --- GAME VIEW ---
   return (
     <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
        <style>{`@keyframes dropIn { 0% { transform: translateY(var(--drop-start)); opacity: 1; } 100% { transform: translateY(0); opacity: 1; } }`}</style>
 
        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-black to-transparent pointer-events-none"></div>
+
+       {/* REACTION DISPLAY */}
+       {activeReaction && (() => {
+            const reaction = REACTIONS.find(r => r.id === activeReaction.id);
+            if (!reaction) return null;
+            const positionClass = activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
+            const anim = reaction.anim || 'animate-bounce';
+            return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
+       })()}
 
        <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0 relative min-h-[48px]">
          <div className="z-20 relative">
@@ -543,63 +443,78 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] pr-2 pb-1">NEON CONNECT</h1>
          </div>
          <div className="z-20 relative min-w-[40px] flex justify-end">
-            {(gameMode !== 'ONLINE' || onlineStep === 'game') && !isHostingAndWaiting && (
-                <button onClick={() => resetGame(false)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
-                    <RefreshCw size={20} />
-                </button>
-            )}
+            <button onClick={() => resetGame()} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+                <RefreshCw size={20} />
+            </button>
          </div>
        </div>
 
-       {onlineStep === 'connecting' && gameMode === 'ONLINE' ? (
-           <div className="flex-1 flex items-center justify-center">{renderOnlineLobby()}</div>
-       ) : (
-       <>
-       <div className="w-full max-w-lg flex justify-between items-center mb-4 z-10 px-2 flex-wrap gap-2">
-          <div className="flex items-center gap-4">
-            <button onClick={cycleMode} disabled={mp.mode === 'in_game' || isHostingAndWaiting} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[110px] disabled:opacity-50">
-                {gameMode === 'PVE' && <Cpu size={14} className="text-neon-blue"/>}
-                {gameMode === 'PVP' && <User size={14} className="text-neon-pink"/>}
-                {gameMode === 'ONLINE' && <Globe size={14} className="text-green-400"/>}
-                {gameMode === 'PVE' && 'VS ORDI'}
-                {gameMode === 'PVP' && 'VS JOUEUR'}
-                {gameMode === 'ONLINE' && 'EN LIGNE'}
-            </button>
-          </div>
-          {gameMode === 'PVE' ? (
-              <button onClick={cycleDifficulty} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[80px] justify-center">
-                {difficulty === 'EASY' && <span className="text-green-400">FACILE</span>}
-                {difficulty === 'MEDIUM' && <span className="text-yellow-400">MOYEN</span>}
-                {difficulty === 'HARD' && <span className="text-red-500">DIFFICILE</span>}
-              </button>
-          ) : <div className="w-[80px]"></div>}
-       </div>
+       {/* MODE SELECTION (Only in PVE/PVP or Setup) */}
+       {!mp.gameOpponent && gameMode !== 'ONLINE' && (
+           <div className="w-full max-w-lg flex justify-between items-center mb-4 z-10 px-2 flex-wrap gap-2">
+              <div className="flex items-center gap-4">
+                <button onClick={cycleMode} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[110px]">
+                    {gameMode === 'PVE' && <Cpu size={14} className="text-neon-blue"/>}
+                    {gameMode === 'PVP' && <User size={14} className="text-neon-pink"/>}
+                    {gameMode === 'PVE' && 'VS ORDI'}
+                    {gameMode === 'PVP' && 'VS JOUEUR'}
+                </button>
+                {/* Switch to Online Button */}
+                <button onClick={() => setGameMode('ONLINE')} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-900/50 border border-green-500/30 text-green-400 text-xs font-bold hover:bg-green-900 transition-colors">
+                    <Users size={14} /> EN LIGNE
+                </button>
+              </div>
+              {gameMode === 'PVE' ? (
+                  <button onClick={cycleDifficulty} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[80px] justify-center">
+                    {difficulty === 'EASY' && <span className="text-green-400">FACILE</span>}
+                    {difficulty === 'MEDIUM' && <span className="text-yellow-400">MOYEN</span>}
+                    {difficulty === 'HARD' && <span className="text-red-500">DIFFICILE</span>}
+                  </button>
+              ) : <div className="w-[80px]"></div>}
+           </div>
+       )}
 
-       {!winState.winner && (onlineStep === 'game' || gameMode !== 'ONLINE') && !opponentLeft && (
+       {/* ONLINE STATUS INDICATOR */}
+       {gameMode === 'ONLINE' && !winState.winner && (
+            <div className={`mb-2 px-6 py-1.5 rounded-full border flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors bg-gray-900 border-white/20`}>
+                {!mp.gameOpponent ? (
+                    <span className="flex items-center gap-2 text-gray-400"><Loader2 size={12} className="animate-spin"/> EN ATTENTE...</span>
+                ) : (
+                    <>
+                        <div className={`w-2 h-2 rounded-full ${currentPlayer === 1 ? 'bg-neon-pink shadow-[0_0_5px_#ff00ff]' : 'bg-neon-blue shadow-[0_0_5px_#00f3ff]'}`}></div>
+                        <span className={currentPlayer === 1 ? 'text-neon-pink' : 'text-neon-blue'}>
+                            {((mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2)) ? "C'EST TON TOUR" : "L'ADVERSAIRE JOUE..."}
+                        </span>
+                    </>
+                )}
+            </div>
+       )}
+
+       {/* PVE STATUS */}
+       {gameMode !== 'ONLINE' && !winState.winner && (
             <div className={`mb-2 px-6 py-1.5 rounded-full border flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors ${
-                isHostingAndWaiting ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400' :
                 currentPlayer === 1 
                     ? 'bg-neon-pink/10 border-neon-pink text-neon-pink' 
                     : 'bg-neon-blue/10 border-neon-blue text-neon-blue'
             }`}>
-                <CircleDot size={12} className={isAiThinking || isHostingAndWaiting ? 'animate-spin' : ''} /> 
-                {isHostingAndWaiting ? "EN ATTENTE D'UN ADVERSAIRE..." : gameMode === 'ONLINE' ? (isMyTurnOnline ? "C'EST TON TOUR !" : "L'ADVERSAIRE RÉFLÉCHIT...") : (isAiThinking ? 'IA RÉFLÉCHIT...' : `TOUR JOUEUR ${currentPlayer}`)}
+                <CircleDot size={12} className={isAiThinking ? 'animate-spin' : ''} /> 
+                {isAiThinking ? 'IA RÉFLÉCHIT...' : `TOUR JOUEUR ${currentPlayer}`}
             </div>
        )}
 
        <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-700/80 shadow-2xl backdrop-blur-md w-full max-w-lg aspect-[7/6]`}>
-            {activeReaction && (() => {
-                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
-                if (!reaction) return null;
-                const positionClass = activeReaction.isMe ? 'bottom-[-20px] right-[-20px] sm:right-[-40px]' : 'top-[-20px] left-[-20px] sm:left-[-40px]';
-                const anim = reaction.anim || 'animate-bounce';
-                return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
-            })()}
+            {/* WAITING OVERLAY */}
+            {gameMode === 'ONLINE' && !mp.gameOpponent && (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
+                    <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-4">EN ATTENTE D'UN JOUEUR...</p>
+                    <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold hover:bg-red-600 transition-colors">ANNULER</button>
+                </div>
+            )}
 
             <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
-                {isHostingAndWaiting && <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-xl pointer-events-none"><div className="animate-pulse"><Loader2 size={64} className="text-yellow-400 animate-spin opacity-50" /></div></div>}
                 <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
-                        {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => !isHostingAndWaiting && !opponentLeft && handleColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || isAnimatingRef.current || isHostingAndWaiting || opponentLeft ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
+                        {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => handleColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || isAnimatingRef.current || (gameMode === 'ONLINE' && !mp.gameOpponent) ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
                 </div>
                 {Array.from({ length: COLS }).map((_, c) => (
                     <div key={c} className="flex flex-col gap-1 sm:gap-3">
@@ -619,69 +534,62 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             </div>
        </div>
 
-       {gameMode === 'ONLINE' && onlineStep === 'game' && !winState.winner && !isHostingAndWaiting && !opponentLeft && (
-            <div className="w-full max-w-lg mt-4 flex flex-col gap-3 animate-in slide-in-from-bottom-4 z-20">
-                <div className="flex justify-between items-center gap-2 p-2 bg-gray-900/80 rounded-2xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] overflow-x-auto no-scrollbar">
+       {/* CHAT & REACTIONS (ONLINE ONLY) */}
+       {gameMode === 'ONLINE' && !winState.winner && !opponentLeft && mp.gameOpponent && (
+            <div className="w-full max-w-lg mt-2 flex flex-col gap-2 z-20 px-2 shrink-0">
+                <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
                     {REACTIONS.map(reaction => {
                         const Icon = reaction.icon;
-                        return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-2 rounded-xl transition-all active:scale-95 border shrink-0 ${reaction.bg} ${reaction.border} hover:scale-110 group`}><Icon size={20} className={`${reaction.color} drop-shadow-[0_0_5px_currentColor] group-hover:drop-shadow-[0_0_10px_currentColor] transition-all`} /></button>;
+                        return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
                     })}
                 </div>
-                <div className="flex flex-col gap-1 max-h-24 overflow-y-auto px-2 py-1 bg-black/40 rounded-xl border border-white/5 custom-scrollbar">
-                    {chatHistory.length === 0 && <div className="text-gray-600 text-xs italic text-center py-2">Aucun message</div>}
+                <div className="flex flex-col gap-1 max-h-16 overflow-y-auto px-2 py-1 bg-black/40 rounded-xl border border-white/5 custom-scrollbar">
                     {chatHistory.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`flex flex-col max-w-[85%]`}>
-                                {!msg.isMe && <span className="text-[8px] text-gray-500 ml-1 mb-0.5">{msg.senderName}</span>}
-                                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold break-words ${msg.isMe ? 'bg-neon-pink/20 text-pink-100 border border-neon-pink/30' : 'bg-neon-blue/20 text-cyan-100 border border-neon-blue/30'}`}>{msg.text}</div>
-                            </div>
+                            <div className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${msg.isMe ? 'bg-purple-500/20 text-purple-100' : 'bg-gray-700/50 text-gray-300'}`}>{!msg.isMe && <span className="mr-1 opacity-50">{msg.senderName}:</span>}{msg.text}</div>
                         </div>
                     ))}
                     <div ref={chatEndRef} />
                 </div>
                 <form onSubmit={sendChat} className="flex gap-2">
-                    <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3 focus-within:border-neon-blue focus-within:ring-1 focus-within:ring-neon-blue transition-all">
-                        <MessageSquare size={16} className="text-gray-500 mr-2" />
-                        <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-sm w-full h-10 placeholder-gray-600" />
-                    </div>
-                    <button type="submit" disabled={!chatInput.trim()} className="w-10 h-10 flex items-center justify-center bg-neon-blue text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><Send size={18} /></button>
+                    <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
+                    <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-neon-blue text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
                 </form>
             </div>
        )}
-       
-       {isHostingAndWaiting && (
-             <div className="mt-6 z-20 animate-in slide-in-from-bottom-4">
-                 <button onClick={mp.cancelHosting} className="px-8 py-3 bg-red-600/90 text-white font-bold rounded-full border border-red-400 hover:bg-red-500 transition-colors shadow-lg active:scale-95 flex items-center gap-2"><X size={20} /> ANNULER LA PARTIE</button>
-             </div>
-       )}
-       
-       {gameMode === 'ONLINE' && onlineStep === 'game' && !isHostingAndWaiting && !winState.winner && !opponentLeft && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="mt-2 text-xs text-red-400 underline hover:text-red-300 z-10">Quitter la partie</button>}
 
-        {winState.winner && !opponentLeft && (
-             <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-4 duration-500 flex flex-col items-center">
-                 {(winState.winner !== 'DRAW' && earnedCoins > 0) && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
-                <div className="bg-black/80 px-6 py-2 rounded-full border border-white/20 mb-4">
-                    <span className="text-xl font-black italic">{winState.winner === 'DRAW' ? "MATCH NUL" : gameMode === 'ONLINE' ? (((mp.amIP1 && winState.winner === 1) || (!mp.amIP1 && winState.winner === 2)) ? "TU AS GAGNÉ !" : "TU AS PERDU...") : `VICTOIRE JOUEUR ${winState.winner} !`}</span>
-                </div>
-                {(gameMode !== 'ONLINE' || (mp.isHost && mp.mode === 'in_game')) && <button onClick={() => gameMode === 'ONLINE' ? mp.requestRematch() : resetGame(false)} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><Play size={20} fill="black"/> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>}
-                {gameMode === 'ONLINE' && !mp.isHost && mp.mode === 'in_game' && <button onClick={() => mp.requestRematch()} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><Play size={20} fill="black"/> REVANCHE</button>}
-                {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-full border border-white/10 hover:bg-gray-700">RETOUR AU LOBBY</button>}
+        {/* WIN / GAMEOVER / OPPONENT LEFT OVERLAY */}
+        {(winState.winner || opponentLeft) && (
+             <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
+                 {opponentLeft ? (
+                     <>
+                        <LogOut size={64} className="text-red-500 mb-4" />
+                        <h2 className="text-3xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
+                        <div className="flex flex-col gap-3 w-full max-w-xs mt-6">
+                            <button onClick={() => handleOpponentLeftAction('wait')} className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"><Users size={18} /> ATTENDRE UN JOUEUR</button>
+                            <button onClick={() => handleOpponentLeftAction('lobby')} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"><ArrowLeft size={18} /> RETOUR AU LOBBY</button>
+                        </div>
+                     </>
+                 ) : (
+                     <>
+                        {(winState.winner !== 'DRAW' && earnedCoins > 0) && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
+                        <div className="bg-black/80 px-6 py-2 rounded-full border border-white/20 mb-4">
+                            <span className="text-xl font-black italic">
+                                {winState.winner === 'DRAW' ? "MATCH NUL" : 
+                                 gameMode === 'ONLINE' ? 
+                                    ((mp.amIP1 && winState.winner === 1) || (!mp.amIP1 && winState.winner === 2) ? "TU AS GAGNÉ !" : "L'ADVERSAIRE A GAGNÉ") 
+                                    : `VICTOIRE JOUEUR ${winState.winner} !`}
+                            </span>
+                        </div>
+                        <div className="flex gap-4">
+                            <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><Play size={20} fill="black"/> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                            {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                        </div>
+                        {gameMode !== 'ONLINE' && <button onClick={onBack} className="mt-4 text-xs text-gray-400 underline hover:text-white">Retour au Menu</button>}
+                     </>
+                 )}
              </div>
         )}
-
-        {opponentLeft && (
-            <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
-                <LogOut size={64} className="text-red-500 mb-4" />
-                <h2 className="text-3xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
-                <p className="text-gray-400 text-center mb-8">L'autre joueur a quitté la partie.</p>
-                <div className="flex flex-col gap-3 w-full max-w-xs">
-                    <button onClick={() => handleOpponentLeftAction('wait')} className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"><Users size={18} /> ATTENDRE UN JOUEUR</button>
-                    <button onClick={() => handleOpponentLeftAction('lobby')} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"><ArrowLeft size={18} /> RETOUR AU LOBBY</button>
-                </div>
-            </div>
-        )}
-       </>
-       )}
     </div>
   );
 };
