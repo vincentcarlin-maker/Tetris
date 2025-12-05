@@ -6,8 +6,7 @@ export interface HighScores {
   breaker: number;
   pacman: number;
   snake: number;
-  invaders: number; // Add this
-  rush: { [level: number]: number }; // level: minMoves
+  invaders: number;
   sudoku: { [difficulty: string]: number }; // difficulty: minMistakes
   memory: number; // minMoves (Lower is better)
 }
@@ -17,8 +16,7 @@ const initialHighScores: HighScores = {
   breaker: 0,
   pacman: 0,
   snake: 0,
-  invaders: 0, // Add this
-  rush: {},
+  invaders: 0,
   sudoku: {},
   memory: 0,
 };
@@ -33,13 +31,14 @@ export const useHighScores = () => {
       const stored = localStorage.getItem(HIGHSCORES_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (!parsed.rush) parsed.rush = {};
         if (!parsed.sudoku) parsed.sudoku = {};
         if (!parsed.breaker) parsed.breaker = 0;
         if (!parsed.pacman) parsed.pacman = 0;
         if (!parsed.snake) parsed.snake = 0;
-        if (!parsed.invaders) parsed.invaders = 0; // Add this
+        if (!parsed.invaders) parsed.invaders = 0;
         if (!parsed.memory) parsed.memory = 0;
+        // Clean up old rush data if present
+        delete parsed.rush;
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -64,13 +63,6 @@ export const useHighScores = () => {
       if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders') {
         if (value > (prev[game] || 0)) {
           newScores[game] = value;
-          shouldUpdate = true;
-        }
-      } else if (game === 'rush' && subkey !== undefined) {
-        // Lower is better for rush
-        if (value < (prev.rush?.[subkey] || Infinity)) {
-          if (!newScores.rush) newScores.rush = {};
-          newScores.rush[subkey] = value;
           shouldUpdate = true;
         }
       } else if (game === 'sudoku' && subkey !== undefined) {

@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
-import { RushGame } from './components/rush/RushGame';
 import { Connect4Game } from './components/connect4/Connect4Game';
 import { SudokuGame } from './components/sudoku/SudokuGame';
 import { BreakerGame } from './components/breaker/BreakerGame';
@@ -19,7 +18,7 @@ import { useMultiplayer } from './hooks/useMultiplayer';
 import { useDailySystem } from './hooks/useDailySystem';
 
 
-type ViewState = 'menu' | 'tetris' | 'rush' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -51,21 +50,27 @@ const App: React.FC = () => {
         if (bgElement) {
             const wallpaper = currency.wallpapersCatalog.find(w => w.id === currency.currentWallpaperId);
             if (wallpaper) {
-                bgElement.style.backgroundImage = wallpaper.cssValue;
-                // Ajustements pour les backgrounds complexes (pas le mur de brique par défaut)
-                if (currency.currentWallpaperId !== 'bg_brick') {
+                bgElement.style.background = wallpaper.cssValue;
+                
+                // Gestion spécifique de la taille du background
+                if (wallpaper.bgSize) {
+                    bgElement.style.backgroundSize = wallpaper.bgSize;
+                    bgElement.style.backgroundPosition = '0 0'; // Start top left for patterns
+                } else if (currency.currentWallpaperId !== 'bg_brick') {
+                    // Pour les dégradés et images "cover"
                     bgElement.style.backgroundSize = 'cover';
                     bgElement.style.backgroundPosition = 'center';
                 } else {
                     // Reset to default style for brick
                     bgElement.style.backgroundSize = '100% 100%, 200px 60px';
+                    bgElement.style.backgroundPosition = '';
                 }
             }
         }
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'rush', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders'];
+        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -97,7 +102,6 @@ const App: React.FC = () => {
         checkGameQuest(game);
 
         if (game === 'tetris') setCurrentView('tetris');
-        else if (game === 'rush') setCurrentView('rush');
         else if (game === 'connect4') setCurrentView('connect4');
         else if (game === 'sudoku') setCurrentView('sudoku');
         else if (game === 'breaker') setCurrentView('breaker');
@@ -123,10 +127,6 @@ const App: React.FC = () => {
 
             {currentView === 'tetris' && (
                 <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
-            )}
-
-            {currentView === 'rush' && (
-                <RushGame onBack={handleBackToMenu} audio={audio} currency={{...currency, addCoins: addCoinsWithSoundAndQuest}} />
             )}
 
             {currentView === 'connect4' && (

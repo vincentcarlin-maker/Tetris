@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, Lightbulb, ShoppingBag, Frame, Image, Type } from 'lucide-react';
-import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, SOLUTION_COST } from '../hooks/useCurrency';
-import { TOTAL_LEVELS } from './rush/levels';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, ShoppingBag, Frame, Image, Type } from 'lucide-react';
+import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title } from '../hooks/useCurrency';
 
 interface ShopProps {
     onBack: () => void;
@@ -16,10 +15,9 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         currentFrameId, selectFrame, buyFrame, ownedFrames, framesCatalog,
         currentWallpaperId, selectWallpaper, buyWallpaper, ownedWallpapers, wallpapersCatalog,
         currentTitleId, selectTitle, buyTitle, ownedTitles, titlesCatalog,
-        unlockedSolutions, buySolution
     } = currency;
 
-    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'WALLPAPERS' | 'TITLES' | 'SOLUTIONS'>('BADGES');
+    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'WALLPAPERS' | 'TITLES'>('BADGES');
 
     const handleBuyBadge = (badge: Badge) => {
         if (coins >= badge.price && !inventory.includes(badge.id)) {
@@ -51,12 +49,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         }
     };
 
-    const handleBuySolution = (levelId: number) => {
-        if (coins >= SOLUTION_COST && !unlockedSolutions.includes(levelId)) {
-            buySolution(levelId);
-        }
-    };
-
     return (
         <div className="flex flex-col h-full w-full bg-black/20 relative overflow-hidden font-sans text-white">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-900/10 via-black to-transparent pointer-events-none"></div>
@@ -66,7 +58,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
                     <ArrowLeft size={20} />
                 </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]">BOUTIQUE</h1>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)] pr-2 py-1">BOUTIQUE</h1>
                 <div className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
                     <Coins size={16} className="text-yellow-400" />
                     <span className="font-mono font-bold text-yellow-100">{coins}</span>
@@ -81,7 +73,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                     <button onClick={() => setActiveTab('FRAMES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'FRAMES' ? 'bg-pink-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>CADRES</button>
                     <button onClick={() => setActiveTab('WALLPAPERS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'WALLPAPERS' ? 'bg-green-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>FONDS</button>
                     <button onClick={() => setActiveTab('TITLES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'TITLES' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>TITRES</button>
-                    <button onClick={() => setActiveTab('SOLUTIONS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'SOLUTIONS' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>SOLUTIONS</button>
                 </div>
             </div>
 
@@ -241,7 +232,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             return (
                                 <div key={wp.id} className={`p-3 rounded-xl border ${isSelected ? 'bg-green-900/20 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
                                     <div className="w-full h-20 rounded-lg mb-3 border border-white/20 relative overflow-hidden">
-                                        <div className="absolute inset-0" style={{ background: wp.cssValue, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                                        <div className="absolute inset-0" style={{ background: wp.cssValue, backgroundSize: wp.bgSize || 'cover', backgroundPosition: 'center' }}></div>
                                         {isSelected && <div className="absolute top-1 right-1 w-5 h-5 bg-green-500 rounded-full border border-black flex items-center justify-center text-black"><Check size={12} strokeWidth={4} /></div>}
                                     </div>
                                     
@@ -324,48 +315,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </div>
                             );
                         })}
-                    </div>
-                )}
-
-                {/* SOLUTIONS TAB */}
-                {activeTab === 'SOLUTIONS' && (
-                    <div className="space-y-4">
-                        <div className="bg-purple-900/20 border border-purple-500/30 p-4 rounded-xl flex items-start gap-3">
-                            <Lightbulb className="text-purple-400 shrink-0 mt-1" size={24} />
-                            <div>
-                                <h3 className="font-bold text-purple-300 text-sm mb-1">SOLUTIONS NEON RUSH</h3>
-                                <p className="text-xs text-gray-400">Débloquez la solution automatique pour les niveaux difficiles. Une fois achetée, la solution est disponible à vie pour ce niveau.</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {Array.from({ length: TOTAL_LEVELS }).map((_, i) => {
-                                const levelId = i + 1;
-                                const isUnlocked = unlockedSolutions.includes(levelId);
-                                const canAfford = coins >= SOLUTION_COST;
-
-                                return (
-                                    <div key={levelId} className={`p-3 rounded-xl border flex flex-col items-center justify-between ${isUnlocked ? 'bg-green-900/20 border-green-500/30' : 'bg-gray-800/40 border-white/5'}`}>
-                                        <span className="text-xs font-bold text-gray-300 mb-2">NIVEAU {levelId}</span>
-                                        {isUnlocked ? (
-                                            <div className="text-green-400 text-[10px] font-bold flex items-center gap-1"><Check size={12}/> DÉBLOQUÉ</div>
-                                        ) : (
-                                            <button 
-                                                onClick={() => handleBuySolution(levelId)}
-                                                disabled={!canAfford}
-                                                className={`w-full py-1.5 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
-                                                    canAfford 
-                                                    ? 'bg-purple-600 text-white hover:bg-purple-500' 
-                                                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                                                }`}
-                                            >
-                                                {canAfford ? <><Coins size={10}/> {SOLUTION_COST}</> : <Lock size={10}/>}
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
                     </div>
                 )}
 
