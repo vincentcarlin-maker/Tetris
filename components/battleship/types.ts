@@ -17,7 +17,7 @@ export type CellStatus = 0 | 1 | 2 | 3;
 export type Grid = CellStatus[][];
 
 export interface GameState {
-  phase: 'SETUP' | 'PLAYING' | 'GAMEOVER';
+  phase: 'MENU' | 'SETUP' | 'PLAYING' | 'GAMEOVER';
   playerGrid: Grid;
   cpuGrid: Grid; // Visuellement cachée (sauf hits/miss)
   playerShips: Ship[];

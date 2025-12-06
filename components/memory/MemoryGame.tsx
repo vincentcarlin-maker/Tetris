@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut, Globe } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -53,6 +53,8 @@ const REACTIONS = [
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
 ];
 
+type MenuState = 'MENU' | 'DIFFICULTY' | 'GAME';
+
 export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins, mp }) => {
     const { playMove, playLand, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
@@ -74,6 +76,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
 
     // Online State
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
+    const [menuState, setMenuState] = useState<MenuState>('MENU');
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
     const [isWaitingForDeck, setIsWaitingForDeck] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
@@ -139,6 +142,31 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
         playLand(); 
     };
 
+    const startOnlineGame = () => {
+        setCards([]);
+        setFlippedIndices([]);
+        setScores({ p1: 0, p2: 0 });
+        setMoves(0);
+        setIsGameOver(false);
+        setEarnedCoins(0);
+        setIsWaitingForDeck(false);
+        setChatHistory([]);
+        setOpponentLeft(false);
+        setMenuState('GAME');
+    }
+
+    const initGame = (mode: 'SOLO' | 'ONLINE', diff?: Difficulty) => {
+        setGameMode(mode);
+        if (diff) setDifficulty(diff);
+        
+        if (mode === 'SOLO') {
+            startSoloGame();
+            setMenuState('GAME');
+        } else {
+            startOnlineGame();
+        }
+    };
+
     // --- MULTIPLAYER SETUP ---
 
     useEffect(() => {
@@ -152,22 +180,6 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
         }
         return () => mp.disconnect();
     }, [gameMode]);
-
-    useEffect(() => {
-        if (gameMode === 'SOLO') {
-            startSoloGame();
-        } else {
-            setCards([]);
-            setFlippedIndices([]);
-            setScores({ p1: 0, p2: 0 });
-            setMoves(0);
-            setIsGameOver(false);
-            setEarnedCoins(0);
-            setIsWaitingForDeck(false);
-            setChatHistory([]);
-            setOpponentLeft(false);
-        }
-    }, [gameMode, difficulty]);
 
     useEffect(() => {
         const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
@@ -380,6 +392,20 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
         setOpponentLeft(false);
     };
 
+    const handleLocalBack = () => {
+        if (menuState === 'DIFFICULTY') setMenuState('MENU');
+        else if (menuState === 'GAME') {
+            if (gameMode === 'ONLINE') {
+                mp.leaveGame();
+                setMenuState('MENU');
+            } else {
+                setMenuState('MENU');
+            }
+        } else {
+            onBack();
+        }
+    };
+
     const renderCard = (card: MemoryCard) => {
         const iconData = ICONS.find(i => i.id === card.iconId);
         const Icon = iconData ? iconData.icon : RefreshCw;
@@ -471,6 +497,65 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
          );
     };
 
+    // --- MENU VIEW ---
+    if (menuState === 'MENU') {
+      return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#a855f7]">MEMORY</h1>
+            <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
+                <button onClick={() => setMenuState('DIFFICULTY')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <User size={24} className="text-neon-blue"/> SOLO
+                </button>
+                <button onClick={() => initGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <Globe size={24} className="text-green-500"/> EN LIGNE
+                </button>
+            </div>
+            <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
+        </div>
+      );
+    }
+
+    // --- DIFFICULTY VIEW ---
+    if (menuState === 'DIFFICULTY') {
+      return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <h2 className="text-3xl font-black text-white mb-8">DIFFICULTÉ</h2>
+            <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => (
+                    <button 
+                        key={d} 
+                        onClick={() => initGame('SOLO', d)}
+                        className={`px-6 py-3 border font-bold rounded hover:text-black transition-all ${
+                            d === 'EASY' ? 'border-green-500 text-green-400 hover:bg-green-500' :
+                            d === 'MEDIUM' ? 'border-yellow-500 text-yellow-400 hover:bg-yellow-500' :
+                            'border-red-500 text-red-500 hover:bg-red-500 hover:text-white'
+                        }`}
+                    >
+                        {DIFFICULTY_CONFIG[d].name}
+                    </button>
+                ))}
+            </div>
+            <button onClick={() => setMenuState('MENU')} className="mt-8 text-gray-500 text-sm hover:text-white">RETOUR</button>
+        </div>
+      );
+    }
+
+    // --- LOBBY VIEW ---
+    if (gameMode === 'ONLINE' && onlineStep === 'lobby' && menuState === 'GAME') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)] pr-2 pb-1">MEMORY</h1>
+                    <div className="w-10"/>
+                </div>
+                {renderLobby()}
+            </div>
+        )
+    }
+
+    // --- GAME VIEW ---
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
             <style>{`.perspective-1000 { perspective: 1000px; } .preserve-3d { transform-style: preserve-3d; } .backface-hidden { backface-visibility: hidden; } .rotate-y-180 { transform: rotateY(180deg); }`}</style>
@@ -479,31 +564,13 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)] pr-2 pb-1">NEON MEMORY</h1>
                 {gameMode === 'SOLO' ? <button onClick={startSoloGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button> : <div className="w-10"/>}
             </div>
 
-            {(!mp.gameOpponent || isGameOver) && (
-                <div className="flex flex-col items-center gap-2 mb-2 z-10 shrink-0 w-full max-w-lg">
-                    <div className="flex bg-gray-900 rounded-full border border-white/10 p-1">
-                        <button onClick={() => setGameMode('SOLO')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'SOLO' ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'text-gray-400 hover:text-white'}`}>SOLO</button>
-                        <button onClick={() => setGameMode('ONLINE')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'ONLINE' ? 'bg-green-500 text-black shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'text-gray-400 hover:text-white'}`}>EN LIGNE</button>
-                    </div>
-                    {(gameMode === 'SOLO' || (gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game')) && (
-                         <div className="flex bg-gray-900 rounded-full border border-white/10 overflow-hidden">
-                            {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => (
-                                <button key={d} onClick={() => setDifficulty(d)} className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${difficulty === d ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}>{DIFFICULTY_CONFIG[d].name}</button>
-                            ))}
-                         </div>
-                    )}
-                </div>
-            )}
-
             {gameMode === 'ONLINE' && onlineStep === 'connecting' ? (
                  <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-purple-400 animate-spin mb-4" /><p className="text-purple-300 font-bold">CONNEXION...</p></div>
-            ) : gameMode === 'ONLINE' && onlineStep === 'lobby' ? (
-                 <div className="flex-1 w-full flex items-start justify-center pt-4">{renderLobby()}</div>
             ) : (
                  <>
                     {activeReaction && (() => {
@@ -601,7 +668,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                             <div className="flex gap-4">
                                 <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : startSoloGame} className="px-8 py-3 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-500 transition-colors shadow-lg active:scale-95 flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
                                 {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
-                                {gameMode === 'SOLO' && <button onClick={onBack} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">MENU</button>}
+                                {gameMode === 'SOLO' && <button onClick={handleLocalBack} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">MENU</button>}
                             </div>
                         </>
                     )}

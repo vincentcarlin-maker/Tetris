@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Ship, Trash2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, LogOut, Loader2 } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Ship, Trash2, AlertCircle, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, LogOut, Loader2, Cpu, Globe, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -139,7 +140,7 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
 
 export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, addCoins, mp }) => {
   // --- Game State ---
-  const [phase, setPhase] = useState<'SETUP' | 'PLAYING' | 'GAMEOVER'>('SETUP');
+  const [phase, setPhase] = useState<'MENU' | 'SETUP' | 'PLAYING' | 'GAMEOVER'>('MENU');
   const [turn, setTurn] = useState<'PLAYER' | 'CPU'>('PLAYER');
   const [winner, setWinner] = useState<'PLAYER' | 'CPU' | null>(null);
   
@@ -199,6 +200,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   }, [addCoins, playGameOver, playVictory]);
   
   const resetGame = useCallback(() => {
+    // Keep mode but reset to Setup
     setPhase('SETUP');
     setTurn('PLAYER');
     setWinner(null);
@@ -224,10 +226,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     setIsReady(false);
     setOpponentReady(false);
     setOpponentLeft(false);
-  }, []);
-
-  useEffect(() => {
-    resetGame();
   }, []);
 
   useEffect(() => {
@@ -764,16 +762,58 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
   };
 
-  if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+  // --- LOCAL BACK HANDLER ---
+  const handleLocalBack = () => {
+      if (phase === 'SETUP' && !gameMode) {
+          onBack(); // Already at start?
+      } else if (phase === 'SETUP' || (gameMode === 'ONLINE' && onlineStep === 'lobby')) {
+          setPhase('MENU');
+          if(gameMode === 'ONLINE') mp.disconnect();
+      } else if (phase === 'PLAYING') {
+          if (gameMode === 'ONLINE') mp.leaveGame();
+          setPhase('MENU');
+      } else if (phase === 'GAMEOVER') {
+          setPhase('MENU');
+      } else {
+          onBack();
+      }
+  };
+
+  const initGame = (mode: 'SOLO' | 'ONLINE') => {
+      setGameMode(mode);
+      setPhase('SETUP');
+      resetGame();
+      // Setup phase is needed for ships
+  };
+
+  if (gameMode === 'ONLINE' && onlineStep === 'lobby' && phase === 'SETUP') {
       return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 pr-2 pb-1">BATAILLE NAVALE</h1>
                 <div className="w-10"></div>
             </div>
             {renderLobby()}
+        </div>
+      );
+  }
+
+  // --- MENU VIEW ---
+  if (phase === 'MENU') {
+      return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee]">BATAILLE NAVALE</h1>
+            <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
+                <button onClick={() => initGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <Cpu size={24} className="text-neon-blue"/> 1 JOUEUR
+                </button>
+                <button onClick={() => initGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <Globe size={24} className="text-green-500"/> EN LIGNE
+                </button>
+            </div>
+            <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
         </div>
       );
   }
@@ -803,17 +843,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       })()}
 
       <div className="w-full max-w-2xl flex items-center justify-between z-10 mb-2 shrink-0 h-[50px]">
-        <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+        <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
         <h1 className="text-xl sm:text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)] pr-2 pb-1">BATAILLE NAVALE</h1>
         <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
       </div>
-
-      {phase === 'SETUP' && !mp.gameOpponent && (
-          <div className="flex bg-gray-900 rounded-full border border-white/10 p-1 mb-2 z-10 shrink-0">
-                <button onClick={() => setGameMode('SOLO')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'SOLO' ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'text-gray-400 hover:text-white'}`}>SOLO</button>
-                <button onClick={() => setGameMode('ONLINE')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${gameMode === 'ONLINE' ? 'bg-green-500 text-black shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'text-gray-400 hover:text-white'}`}>EN LIGNE</button>
-          </div>
-      )}
 
       {phase === 'SETUP' && (
         <div className="flex flex-col items-center justify-center z-10 w-full h-full max-h-[80vh] overflow-hidden">
@@ -942,7 +975,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                       ) : (
                           <>
                             <button onClick={resetGame} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors">REJOUER</button>
-                            <button onClick={() => { onBack(); }} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors">RETOUR AU MENU</button>
+                            <button onClick={handleLocalBack} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors">RETOUR AU MENU</button>
                           </>
                       )}
                   </div>

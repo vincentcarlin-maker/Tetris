@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Users, User } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Users, User, Globe, Play, LogOut, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency, Mallet } from '../../hooks/useCurrency';
+import { useMultiplayer } from '../../hooks/useMultiplayer';
 
 interface AirHockeyGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    mp: ReturnType<typeof useMultiplayer>;
 }
 
 // --- TYPES ---
@@ -19,7 +21,7 @@ interface Entity {
 }
 type GameState = 'menu' | 'difficulty_select' | 'playing' | 'scored' | 'gameOver';
 type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
-type GameMode = 'SINGLE' | 'LOCAL_VS';
+type GameMode = 'SINGLE' | 'LOCAL_VS' | 'ONLINE';
 
 // --- CONSTANTS ---
 const TABLE_WIDTH = 400;
@@ -37,8 +39,8 @@ const DIFFICULTY_SETTINGS = {
     HARD: { speed: 7, accuracy: 0.98, prediction: 1.0 },
 };
 
-export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, addCoins }) => {
-    const { currentMalletId, malletsCatalog } = useCurrency();
+export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, addCoins, mp }) => {
+    const { currentMalletId, malletsCatalog, username, currentAvatarId } = useCurrency();
     
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [gameState, setGameState] = useState<GameState>('menu');
@@ -47,6 +49,10 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
     const [winner, setWinner] = useState<string | null>(null);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    
+    // Online specific state
+    const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
+    const [opponentLeft, setOpponentLeft] = useState(false);
 
     const { playPaddleHit, playWallHit, playGoalScore, playVictory, playGameOver, resumeAudio } = audio;
 
@@ -65,13 +71,80 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     const lastP1PosRef = useRef<{ x: number, y: number }>({ x: TABLE_WIDTH / 2, y: TABLE_HEIGHT - 100 });
     const lastP2PosRef = useRef<{ x: number, y: number }>({ x: TABLE_WIDTH / 2, y: 100 });
     
+    // Network Data Refs
+    const latestNetworkStateRef = useRef<any>(null);
+    const latestNetworkInputRef = useRef<{x: number, y: number} | null>(null);
+
+    // Sync Self Info
+    useEffect(() => {
+        mp.updateSelfInfo(username, currentAvatarId);
+    }, [username, currentAvatarId, mp]);
+
+    // Handle Online Connection
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            mp.disconnect();
+            setOpponentLeft(false);
+        }
+        return () => mp.disconnect();
+    }, [gameMode]);
+
+    // Handle Online Mode Transition
+    useEffect(() => {
+        const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+            setGameState('menu'); // Reset to menu if dropped to lobby
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            if (gameState !== 'playing') {
+                startGame('MEDIUM', 'ONLINE'); // Difficulty ignored for online
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+
+    // Network Message Handling
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (data.type === 'AIRHOCKEY_STATE') {
+                latestNetworkStateRef.current = data;
+            }
+            else if (data.type === 'AIRHOCKEY_INPUT') {
+                latestNetworkInputRef.current = data;
+            }
+            else if (data.type === 'AIRHOCKEY_SCORE') {
+                setScore(data.score);
+                if (data.score.player >= MAX_SCORE || data.score.opponent >= MAX_SCORE) {
+                    handleGameOverCheck(data.score);
+                } else {
+                    playGoalScore();
+                }
+            }
+            else if (data.type === 'LEAVE_GAME') {
+                setOpponentLeft(true);
+                setGameState('gameOver');
+                setWinner('ADVERSAIRE PARTI');
+            }
+            else if (data.type === 'REMATCH_START') {
+                startGame('MEDIUM', 'ONLINE');
+            }
+        });
+        return () => unsubscribe();
+    }, [mp]);
+
     const selectMode = (mode: GameMode) => {
         setGameMode(mode);
         if (mode === 'SINGLE') {
             setGameState('difficulty_select');
-        } else {
-            startGame('MEDIUM', 'LOCAL_VS'); // Difficulty doesn't matter for VS
-        }
+        } else if (mode === 'LOCAL_VS') {
+            startGame('MEDIUM', 'LOCAL_VS');
+        } 
+        // For ONLINE, the useEffect triggers connection logic
     };
 
     const startGame = (diff: Difficulty, mode: GameMode = 'SINGLE') => {
@@ -104,47 +177,85 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         setGameState('playing');
     };
 
+    const handleGameOverCheck = (currentScore: {player: number, opponent: number}) => {
+        if (currentScore.player >= MAX_SCORE || currentScore.opponent >= MAX_SCORE) {
+            const p1Wins = currentScore.player >= MAX_SCORE;
+            
+            if (gameMode === 'SINGLE') {
+                setWinner(p1Wins ? 'Player' : 'CPU');
+            } else if (gameMode === 'ONLINE') {
+                // In Online, score.player is ALWAYS "Me" (Bottom) for both players in their own view?
+                // No, usually Host logic dictates.
+                // Let's rely on Host sending score: P1 (Host), P2 (Client).
+                // Client receives: score.player = HostScore, score.opponent = ClientScore?
+                // Wait, easier if score object is { host: X, client: Y }.
+                // But current state is { player: 0, opponent: 0 }.
+                // HOST: Player = Host, Opponent = Client.
+                // CLIENT: We will flip received score in render/update.
+                // Host sends { player: hostScore, opponent: clientScore }
+                // Client receives it. If Client is Player 2, 'player' is Host (Opponent), 'opponent' is Me (Player).
+                // So Client needs to swap them locally?
+                // Actually, let's keep it simple: Host sends 'score' object as is.
+                // Host: P1=Me, P2=Opp. Client: P1=Opp, P2=Me.
+                
+                // Let's unify: Player always means "Bottom / Me". Opponent always means "Top / Them".
+                // Host logic:
+                // p1Wins = Host wins.
+                // If I am Host: winner = 'MOI'.
+                // If I am Client: Host sends "Player (Host) Wins". So winner = 'ADVERSAIRE'.
+            } else {
+                setWinner(p1Wins ? 'J1' : 'J2');
+            }
+            
+            setGameState('gameOver');
+            
+            // Audio & Coins
+            const amIWinner = (gameMode === 'SINGLE' && p1Wins) || 
+                              (gameMode === 'ONLINE' && ((mp.isHost && p1Wins) || (!mp.isHost && !p1Wins))) ||
+                              (gameMode === 'LOCAL_VS' && p1Wins); // Local VS always victory sound?
+
+            if (amIWinner) {
+                playVictory();
+                if (gameMode === 'SINGLE' || gameMode === 'ONLINE') {
+                    const reward = 50 + (difficulty === 'MEDIUM' ? 25 : difficulty === 'HARD' ? 50 : 0);
+                    addCoins(reward);
+                    setEarnedCoins(reward);
+                }
+            } else {
+                playGameOver();
+            }
+        }
+    }
+
     const handleGoal = (isBottomGoal: boolean) => {
-        // isBottomGoal means the ball went into the bottom goal -> Top Player (Opponent) scores
+        // Only Host or Single Player handles game logic
+        if (gameMode === 'ONLINE' && !mp.isHost) return;
+
         setGameState('scored');
         
         setScore(prevScore => {
             const newScore = { ...prevScore };
             if (isBottomGoal) {
                 newScore.opponent += 1;
-                // Sound: Negative for P1 in Single, Neutral/Positive in VS
-                if (gameMode === 'SINGLE') playGameOver(); else playGoalScore(); 
             } else {
                 newScore.player += 1;
+            }
+            
+            // Broadcast Score if Online Host
+            if (gameMode === 'ONLINE' && mp.isHost) {
+                mp.sendData({ type: 'AIRHOCKEY_SCORE', score: newScore });
+            }
+
+            // Sound logic
+            if (isBottomGoal) {
+                 if (gameMode === 'SINGLE') playGameOver(); else playGoalScore(); 
+            } else {
                 playGoalScore();
             }
 
-            if (newScore.player >= MAX_SCORE || newScore.opponent >= MAX_SCORE) {
-                const p1Wins = newScore.player >= MAX_SCORE;
-                
-                if (gameMode === 'SINGLE') {
-                    setWinner(p1Wins ? 'Player' : 'CPU');
-                } else {
-                    setWinner(p1Wins ? 'J1' : 'J2');
-                }
-                
-                setGameState('gameOver');
-                
-                if (p1Wins) {
-                    playVictory();
-                    // Coins only in single player to prevent farming
-                    if (gameMode === 'SINGLE') {
-                        const reward = 50 + (difficulty === 'MEDIUM' ? 25 : difficulty === 'HARD' ? 50 : 0);
-                        addCoins(reward);
-                        setEarnedCoins(reward);
-                    }
-                } else {
-                    if (gameMode === 'SINGLE') playGameOver(); else playVictory();
-                }
-            } else {
-                // Determine who serves next: The one who got scored ON serves.
-                // If Bottom Goal (Top Scored), Bottom Serves (true)
-                // If Top Goal (Bottom Scored), Top Serves (false)
+            handleGameOverCheck(newScore);
+
+            if (newScore.player < MAX_SCORE && newScore.opponent < MAX_SCORE) {
                 setTimeout(() => resetRound(isBottomGoal), 1500);
             }
 
@@ -167,28 +278,20 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         else if (puck.vy < 0) { 
             const timeToReach = (puck.y - targetY) / Math.abs(puck.vy);
             let predictedX = puck.x + (puck.vx * timeToReach);
-
-            // Simple bounce prediction
             if (predictedX < 0) predictedX = -predictedX;
             if (predictedX > TABLE_WIDTH) predictedX = 2 * TABLE_WIDTH - predictedX;
-            
-            // Clamp
             if (predictedX < 0) predictedX = 0;
             if (predictedX > TABLE_WIDTH) predictedX = TABLE_WIDTH;
-
             targetX = (predictedX * prediction) + (puck.x * (1 - prediction));
         } else {
-            // Retreat to center
             if (puck.y > TABLE_HEIGHT / 2) {
                 targetX = (TABLE_WIDTH / 2 + puck.x) / 2;
             }
         }
 
-        // Add human error
         const errorMag = (1 - accuracy) * 80;
         const timeFactor = Date.now() / 400; 
         const currentError = Math.sin(timeFactor) * errorMag;
-        
         targetX += currentError;
 
         const dx = targetX - cpu.x;
@@ -207,7 +310,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         cpu.x += cpu.vx;
         cpu.y += cpu.vy;
 
-        // Constraints for AI
         const maxY = (TABLE_HEIGHT / 2) - cpu.radius; 
         cpu.y = Math.max(cpu.radius, Math.min(maxY, cpu.y));
         cpu.x = Math.max(cpu.radius, Math.min(TABLE_WIDTH - cpu.radius, cpu.x));
@@ -218,8 +320,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
         
         if (isOpponent) {
-            // CPU = Yellow, Player 2 = Red
-            const color = gameMode === 'LOCAL_VS' ? '#ff0055' : '#ffe600';
+            // CPU = Yellow, Player 2 / Opponent = Red
+            const color = (gameMode === 'LOCAL_VS' || gameMode === 'ONLINE') ? '#ff0055' : '#ffe600';
             ctx.fillStyle = color;
             ctx.shadowColor = color;
             ctx.shadowBlur = 15;
@@ -227,18 +329,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 3;
             ctx.stroke();
-            
-            // P2 Indicator
-            if (gameMode === 'LOCAL_VS') {
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.beginPath();
-                ctx.arc(x, y, radius * 0.5, 0, 2*Math.PI);
-                ctx.fill();
-            }
             return;
         }
 
-        // --- PLAYER 1 DRAWING (Customizable) ---
         if (!malletStyle || malletStyle.type === 'basic') {
             ctx.fillStyle = malletStyle?.colors[0] || '#00f3ff';
             ctx.shadowColor = malletStyle?.colors[0] || '#00f3ff';
@@ -329,29 +422,163 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         const player = playerMalletRef.current;
         const opponent = opponentMalletRef.current;
 
-        // --- UPDATE PADDLES FROM INPUTS (Smoothing) ---
-        // Player 1 (Bottom)
-        player.vx = player.x - lastP1PosRef.current.x;
-        player.vy = player.y - lastP1PosRef.current.y;
-        lastP1PosRef.current = { x: player.x, y: player.y };
+        // --- ONLINE LOGIC BRANCHING ---
+        if (gameMode === 'ONLINE') {
+            if (mp.isHost) {
+                // HOST LOGIC
+                // 1. Update Player 1 (Host) from local input
+                player.vx = player.x - lastP1PosRef.current.x;
+                player.vy = player.y - lastP1PosRef.current.y;
+                lastP1PosRef.current = { x: player.x, y: player.y };
+                player.x += (p1TargetRef.current.x - player.x) * 0.4;
+                player.y += (p1TargetRef.current.y - player.y) * 0.4;
 
-        player.x += (p1TargetRef.current.x - player.x) * 0.4;
-        player.y += (p1TargetRef.current.y - player.y) * 0.4;
+                // 2. Update Player 2 (Client) from network input (Transformed)
+                if (latestNetworkInputRef.current) {
+                    const clientInput = latestNetworkInputRef.current;
+                    // Transform Client's Bottom-view coordinates to Host's Top-view
+                    const targetX = TABLE_WIDTH - clientInput.x;
+                    const targetY = TABLE_HEIGHT - clientInput.y;
+                    
+                    p2TargetRef.current = { x: targetX, y: targetY };
+                }
+                
+                opponent.vx = opponent.x - lastP2PosRef.current.x;
+                opponent.vy = opponent.y - lastP2PosRef.current.y;
+                lastP2PosRef.current = { x: opponent.x, y: opponent.y };
+                opponent.x += (p2TargetRef.current.x - opponent.x) * 0.4;
+                opponent.y += (p2TargetRef.current.y - opponent.y) * 0.4;
 
-        // Player 2 / CPU (Top)
-        if (gameMode === 'SINGLE') {
-            updateAI();
-        } else {
-            // Local VS: Update P2 from touch input
-            opponent.vx = opponent.x - lastP2PosRef.current.x;
-            opponent.vy = opponent.y - lastP2PosRef.current.y;
-            lastP2PosRef.current = { x: opponent.x, y: opponent.y };
+                // 3. Physics (Host Authoritative)
+                runPhysics(puck, player, opponent);
 
-            opponent.x += (p2TargetRef.current.x - opponent.x) * 0.4;
-            opponent.y += (p2TargetRef.current.y - opponent.y) * 0.4;
+                // 4. Send State
+                mp.sendData({
+                    type: 'AIRHOCKEY_STATE',
+                    puck: { x: puck.x, y: puck.y, vx: puck.vx, vy: puck.vy },
+                    p1: { x: player.x, y: player.y }, // Host position
+                    p2: { x: opponent.x, y: opponent.y } // Client position
+                });
+
+            } else {
+                // CLIENT LOGIC
+                // 1. Send Local Input (from client POV bottom) to Host
+                // Note: We send raw input relative to our view. Host handles rotation.
+                // Using p1TargetRef because client controls "their" paddle which is visually bottom (player)
+                mp.sendData({
+                    type: 'AIRHOCKEY_INPUT',
+                    x: p1TargetRef.current.x,
+                    y: p1TargetRef.current.y
+                });
+
+                // 2. Render from Network State (Transformed for visual rotation)
+                if (latestNetworkStateRef.current) {
+                    const state = latestNetworkStateRef.current;
+                    
+                    // Puck: Invert X/Y
+                    puck.x = TABLE_WIDTH - state.puck.x;
+                    puck.y = TABLE_HEIGHT - state.puck.y;
+                    
+                    // Opponent (Host P1): Invert to Top
+                    opponent.x = TABLE_WIDTH - state.p1.x;
+                    opponent.y = TABLE_HEIGHT - state.p1.y;
+                    
+                    // Self (Host P2): Invert to Bottom
+                    // Ideally we predict local movement, but for simplicity, snap to server for now
+                    // Or interpolation
+                    const myTrueX = TABLE_WIDTH - state.p2.x;
+                    const myTrueY = TABLE_HEIGHT - state.p2.y;
+                    
+                    player.x = myTrueX;
+                    player.y = myTrueY;
+                }
+            }
+        } 
+        else {
+            // --- OFFLINE / LOCAL LOGIC ---
+            
+            // Player 1 (Bottom)
+            player.vx = player.x - lastP1PosRef.current.x;
+            player.vy = player.y - lastP1PosRef.current.y;
+            lastP1PosRef.current = { x: player.x, y: player.y };
+            player.x += (p1TargetRef.current.x - player.x) * 0.4;
+            player.y += (p1TargetRef.current.y - player.y) * 0.4;
+
+            // Player 2 / CPU (Top)
+            if (gameMode === 'SINGLE') {
+                updateAI();
+            } else {
+                // Local VS: Update P2 from touch input
+                opponent.vx = opponent.x - lastP2PosRef.current.x;
+                opponent.vy = opponent.y - lastP2PosRef.current.y;
+                lastP2PosRef.current = { x: opponent.x, y: opponent.y };
+                opponent.x += (p2TargetRef.current.x - opponent.x) * 0.4;
+                opponent.y += (p2TargetRef.current.y - opponent.y) * 0.4;
+            }
+
+            runPhysics(puck, player, opponent);
         }
 
-        // --- PHYSICS ---
+        // --- RENDER ---
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
+
+                // Board
+                ctx.fillStyle = '#0a0a12';
+                ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
+
+                // Center Lines
+                ctx.strokeStyle = '#00f3ff';
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(0, TABLE_HEIGHT / 2);
+                ctx.lineTo(TABLE_WIDTH, TABLE_HEIGHT / 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(TABLE_WIDTH / 2, TABLE_HEIGHT / 2, 50, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                // Goals
+                const goalMinX = (TABLE_WIDTH - GOAL_WIDTH) / 2;
+                const goalMaxX = (TABLE_WIDTH + GOAL_WIDTH) / 2;
+                ctx.strokeStyle = '#ff00ff';
+                ctx.shadowColor = '#ff00ff';
+                ctx.beginPath();
+                ctx.moveTo(goalMinX, 0); ctx.lineTo(goalMaxX, 0); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(goalMinX, TABLE_HEIGHT); ctx.lineTo(goalMaxX, TABLE_HEIGHT); ctx.stroke();
+
+                ctx.shadowBlur = 0; 
+
+                // Draw Puck
+                ctx.beginPath();
+                ctx.arc(puck.x, puck.y, puck.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = puck.color;
+                ctx.shadowColor = puck.color;
+                ctx.shadowBlur = 20;
+                ctx.fill();
+
+                // Draw Player Mallet (My Mallet - Always Bottom)
+                const playerMalletStyle = malletsCatalog.find(m => m.id === currentMalletId);
+                drawMallet(ctx, player.x, player.y, player.radius, playerMalletStyle, false);
+
+                // Draw Opponent Mallet (Always Top)
+                drawMallet(ctx, opponent.x, opponent.y, opponent.radius, undefined, true);
+            }
+        }
+
+        animationFrameRef.current = requestAnimationFrame(gameLoop);
+    }, [gameState, difficulty, currentMalletId, malletsCatalog, gameMode, mp.isHost]);
+
+    // Physics Engine (Extracted to reuse/skip)
+    const runPhysics = (puck: Entity, player: Entity, opponent: Entity) => {
         puck.x += puck.vx;
         puck.y += puck.vy;
         puck.vx *= PUCK_FRICTION;
@@ -396,18 +623,14 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
             const min_dist = puck.radius + mallet.radius;
             
-            // Collision Handling
             if (distance < min_dist) {
-                // Resolve Overlap
                 const nx = dx / distance;
                 const ny = dy / distance;
                 const overlap = min_dist - distance;
                 
-                // Move puck out instantly (Physics Fix)
                 puck.x += nx * overlap;
                 puck.y += ny * overlap;
 
-                // Bounce Logic
                 const vRelX = puck.vx - mallet.vx;
                 const vRelY = puck.vy - mallet.vy;
                 const velAlongNormal = vRelX * nx + vRelY * ny;
@@ -420,7 +643,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     puck.vy += impulse * ny;
                 }
                 
-                // Cap Max Speed
                 const speed = Math.hypot(puck.vx, puck.vy);
                 if (speed > PUCK_MAX_SPEED) {
                     const ratio = PUCK_MAX_SPEED / speed;
@@ -429,63 +651,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 }
             }
         });
-
-        // --- RENDER ---
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        
-        ctx.clearRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
-
-        // Board
-        ctx.fillStyle = '#0a0a12';
-        ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
-
-        // Center Lines
-        ctx.strokeStyle = '#00f3ff';
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#00f3ff';
-        ctx.shadowBlur = 10;
-        
-        ctx.beginPath();
-        ctx.moveTo(0, TABLE_HEIGHT / 2);
-        ctx.lineTo(TABLE_WIDTH, TABLE_HEIGHT / 2);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(TABLE_WIDTH / 2, TABLE_HEIGHT / 2, 50, 0, 2 * Math.PI);
-        ctx.stroke();
-
-        // Goals
-        ctx.strokeStyle = '#ff00ff';
-        ctx.shadowColor = '#ff00ff';
-        ctx.beginPath();
-        ctx.moveTo(goalMinX, 0); ctx.lineTo(goalMaxX, 0); ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(goalMinX, TABLE_HEIGHT); ctx.lineTo(goalMaxX, TABLE_HEIGHT); ctx.stroke();
-
-        ctx.shadowBlur = 0; 
-
-        // Draw Puck
-        ctx.beginPath();
-        ctx.arc(puck.x, puck.y, puck.radius, 0, 2 * Math.PI);
-        ctx.fillStyle = puck.color;
-        ctx.shadowColor = puck.color;
-        ctx.shadowBlur = 20;
-        ctx.fill();
-
-        // Draw Player Mallet (Custom Style)
-        const playerMalletStyle = malletsCatalog.find(m => m.id === currentMalletId);
-        drawMallet(ctx, player.x, player.y, player.radius, playerMalletStyle, false);
-
-        // Draw Opponent Mallet (Default or P2 Style)
-        drawMallet(ctx, opponent.x, opponent.y, opponent.radius, undefined, true);
-        
-        ctx.shadowBlur = 0;
-
-        animationFrameRef.current = requestAnimationFrame(gameLoop);
-    }, [gameState, difficulty, currentMalletId, malletsCatalog, gameMode]);
+    };
 
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(gameLoop);
@@ -503,15 +669,19 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         const x = (clientX - rect.left) * scaleX;
         const y = (clientY - rect.top) * scaleY;
 
-        // Player 1 (Bottom Half)
-        if (y > TABLE_HEIGHT / 2) {
-            p1TargetRef.current = {
+        // Player 1 Control (Standard Bottom) - Always active for "Me"
+        // In Online mode, client only cares about their own input (visually bottom)
+        if (gameMode !== 'LOCAL_VS' || y > TABLE_HEIGHT / 2) {
+             // In Online Client mode, we treat the whole board as input area but clamp to bottom half
+             // This allows dragging from anywhere but paddle stays in half
+             p1TargetRef.current = {
                 x: Math.max(MALLET_RADIUS, Math.min(TABLE_WIDTH - MALLET_RADIUS, x)),
                 y: Math.max(TABLE_HEIGHT / 2 + MALLET_RADIUS, Math.min(TABLE_HEIGHT - MALLET_RADIUS, y)),
             };
         }
-        // Player 2 (Top Half - VS Mode Only)
-        else if (gameMode === 'LOCAL_VS') {
+        
+        // Player 2 Control (Top Half - VS Mode Only)
+        if (gameMode === 'LOCAL_VS' && y <= TABLE_HEIGHT / 2) {
             p2TargetRef.current = {
                 x: Math.max(MALLET_RADIUS, Math.min(TABLE_WIDTH - MALLET_RADIUS, x)),
                 y: Math.max(MALLET_RADIUS, Math.min(TABLE_HEIGHT / 2 - MALLET_RADIUS, y)),
@@ -520,15 +690,12 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     };
 
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        // Allow mouse debugging for P2 if on top half in VS mode
         updateTargets(e.clientX, e.clientY);
     }, [gameMode]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         if (!canvasRef.current) return;
-        e.preventDefault(); // Prevent scrolling
-        
-        // Handle Multi-touch
+        e.preventDefault();
         for (let i = 0; i < e.touches.length; i++) {
             const touch = e.touches[i];
             updateTargets(touch.clientX, touch.clientY);
@@ -540,16 +707,80 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         handleTouchMove(e);
     };
 
+    const handleLocalBack = () => {
+        if (gameState === 'menu') {
+            onBack();
+        } else if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+            mp.disconnect();
+            setGameState('menu');
+        } else if (gameState === 'playing' && gameMode === 'ONLINE') {
+            mp.leaveGame();
+            setGameState('menu');
+        } else {
+            setGameState('menu');
+        }
+    };
+
+    const renderLobby = () => {
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-blue-300 tracking-wider drop-shadow-md">LOBBY AIR HOCKEY</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = useCurrency().avatarsCatalog.find(a => a.id === player.avatarId) || useCurrency().avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                </div>
+             </div>
+         );
+    };
+
+    // --- LOBBY VIEW ---
+    if (gameMode === 'ONLINE' && onlineStep === 'lobby' && gameState !== 'playing') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 pr-2 pb-1">AIR HOCKEY</h1>
+                    <div className="w-10"></div>
+                </div>
+                {renderLobby()}
+            </div>
+        );
+    }
+
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
             <div className="w-full max-w-md flex items-center justify-between z-20 mb-4 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <div className="flex items-center gap-4 font-black text-2xl">
-                    <span className="text-neon-blue">{score.player}</span>
+                    <span className={gameMode === 'ONLINE' && !mp.isHost ? "text-pink-500" : "text-neon-blue"}>{gameMode === 'ONLINE' && !mp.isHost ? score.opponent : score.player}</span>
                     <span className="text-white text-lg">VS</span>
-                    <span className={gameMode === 'SINGLE' ? "text-neon-yellow" : "text-pink-500"}>{score.opponent}</span>
+                    <span className={gameMode === 'ONLINE' && !mp.isHost ? "text-neon-blue" : "text-pink-500"}>{gameMode === 'ONLINE' && !mp.isHost ? score.player : score.opponent}</span>
                 </div>
-                <button onClick={() => { setGameState('menu'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <button onClick={() => { if(gameMode==='ONLINE') mp.requestRematch(); else setGameState('menu'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
 
             <div 
@@ -572,7 +803,18 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                             <button onClick={() => selectMode('LOCAL_VS')} className="px-6 py-4 bg-gray-800 border-2 border-pink-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2">
                                 <Users size={20} className="text-pink-500"/> 2 JOUEURS (VS)
                             </button>
+                            <button onClick={() => selectMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2">
+                                <Globe size={20} className="text-green-500"/> EN LIGNE
+                            </button>
                         </div>
+                    </div>
+                )}
+
+                {/* WAIT SCREEN FOR ONLINE */}
+                {gameMode === 'ONLINE' && onlineStep === 'game' && !mp.gameOpponent && (
+                    <div className="absolute inset-0 z-40 bg-black/80 flex flex-col items-center justify-center">
+                        <div className="text-blue-400 font-bold animate-pulse mb-4">EN ATTENTE D'UN JOUEUR...</div>
+                        <button onClick={mp.cancelHosting} className="px-4 py-2 bg-red-600 rounded text-white font-bold">ANNULER</button>
                     </div>
                 )}
 
@@ -590,28 +832,48 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 )}
                 
                 {/* GAME OVER */}
-                {gameState === 'gameOver' && (
+                {(gameState === 'gameOver' || opponentLeft) && (
                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in zoom-in">
-                        {gameMode === 'SINGLE' ? (
-                            winner === 'Player' ? (
-                                <>
-                                    <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_20px_#facc15]" />
-                                    <h2 className="text-4xl font-black text-white mb-2">VICTOIRE !</h2>
-                                    {earnedCoins > 0 && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
-                                </>
-                            ) : (
-                                <h2 className="text-4xl font-black text-red-500 mb-6">DÉFAITE</h2>
-                            )
-                        ) : (
+                        {opponentLeft ? (
                             <>
-                                <Trophy size={64} className={winner === 'J1' ? "text-neon-blue" : "text-pink-500"} />
-                                <h2 className="text-4xl font-black text-white mb-2 mt-4">{winner === 'J1' ? 'JOUEUR 1' : 'JOUEUR 2'} GAGNE !</h2>
+                                <LogOut size={48} className="text-red-500 mb-2"/>
+                                <h2 className="text-3xl font-black text-white mb-4">ADVERSAIRE PARTI</h2>
                             </>
+                        ) : (
+                            gameMode === 'SINGLE' ? (
+                                winner === 'Player' ? (
+                                    <>
+                                        <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_20px_#facc15]" />
+                                        <h2 className="text-4xl font-black text-white mb-2">VICTOIRE !</h2>
+                                        {earnedCoins > 0 && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
+                                    </>
+                                ) : (
+                                    <h2 className="text-4xl font-black text-red-500 mb-6">DÉFAITE</h2>
+                                )
+                            ) : (
+                                <>
+                                    <Trophy size={64} className={winner === 'J1' || winner === 'Player' ? "text-neon-blue" : "text-pink-500"} />
+                                    <h2 className="text-4xl font-black text-white mb-2 mt-4">
+                                        {gameMode === 'ONLINE' ? 
+                                            ((mp.isHost && winner === 'Player') || (!mp.isHost && winner === 'CPU') ? "VICTOIRE !" : "DÉFAITE...") 
+                                            : `${winner === 'J1' ? 'JOUEUR 1' : 'JOUEUR 2'} GAGNE !`}
+                                    </h2>
+                                </>
+                            )
                         )}
                         
                         <div className="flex flex-col gap-3 mt-4">
-                            <button onClick={() => startGame(difficulty, gameMode)} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg">REJOUER</button>
-                            <button onClick={onBack} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">QUITTER</button>
+                            {gameMode === 'ONLINE' ? (
+                                <>
+                                    {!opponentLeft && <button onClick={() => mp.requestRematch()} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg">REVANCHE</button>}
+                                    <button onClick={() => { mp.leaveGame(); setGameState('menu'); }} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">QUITTER</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => startGame(difficulty, gameMode)} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg">REJOUER</button>
+                                    <button onClick={onBack} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">QUITTER</button>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

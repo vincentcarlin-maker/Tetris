@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -155,7 +155,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-sky-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', 
         glow: 'rgba(56,189,248,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: true }, 
+        badges: { solo: true, online: true, vs: true, new: true }, 
         reward: 'GAINS' 
     },
     { 
@@ -213,7 +213,8 @@ const GAMES_CONFIG = [
 ];
 
 const COMING_SOON = [
-    { name: 'MASTERMIND', icon: BrainCircuit }
+    { name: 'MASTERMIND', icon: BrainCircuit },
+    { name: 'UNO', icon: Copy }
 ];
 
 const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {

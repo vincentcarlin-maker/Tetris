@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2, Globe } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -77,9 +78,13 @@ const checkWinFull = (board: BoardState): WinState => {
   return { winner: null, line: [] };
 };
 
+type GameStage = 'MENU' | 'DIFFICULTY' | 'GAME';
+
 export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins, mp }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
   const boardRef = useRef<BoardState>(createBoard());
+  
+  const [gameStage, setGameStage] = useState<GameStage>('MENU');
   
   const [currentPlayer, setCurrentPlayer] = useState<Player>(1);
   const [winState, setWinState] = useState<WinState>({ winner: null, line: [] });
@@ -270,21 +275,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     return () => unsubscribe();
   }, [mp.subscribe]);
 
-
-  const cycleMode = () => {
-    if (gameMode === 'PVE') setGameMode('PVP');
-    else if (gameMode === 'PVP') setGameMode('ONLINE');
-    else setGameMode('PVE');
-    resetGame();
-  };
-  
-  const cycleDifficulty = () => {
-    const diffs: Difficulty[] = ['EASY', 'MEDIUM', 'HARD'];
-    const nextIdx = (diffs.indexOf(difficulty) + 1) % diffs.length;
-    setDifficulty(diffs[nextIdx]);
-    if (gameMode === 'PVE') resetGame();
-  };
-
   // AI Turn Handling
   useEffect(() => {
     if (gameMode === 'PVE' && currentPlayer === 2 && !winState.winner && !isAiThinking && !isAnimatingRef.current) {
@@ -346,6 +336,28 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         setOpponentLeft(false);
   };
 
+  const handleLocalBack = () => {
+      if (gameStage === 'DIFFICULTY') setGameStage('MENU');
+      else if (gameStage === 'GAME') {
+          if (gameMode === 'ONLINE') {
+              mp.leaveGame();
+              setGameStage('MENU');
+          } else {
+              setGameStage('MENU');
+          }
+      } else {
+          onBack();
+      }
+  };
+
+  const startGame = (mode: GameMode, diff?: Difficulty) => {
+      setGameMode(mode);
+      if (diff) setDifficulty(diff);
+      resetGame();
+      setGameStage('GAME');
+      resumeAudio();
+  };
+
   const renderLobby = () => {
         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
         const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
@@ -401,19 +413,52 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   };
 
   // --- LOBBY VIEW ---
-  if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+  if (gameMode === 'ONLINE' && onlineStep === 'lobby' && gameStage === 'GAME') {
       return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-300 pr-2 pb-1">PUISSANCE 4</h1>
-                <div className="flex bg-gray-900 rounded-full border border-white/10 p-1">
-                    <button onClick={() => setGameMode('PVE')} className="px-3 py-1 rounded-full text-[10px] font-bold text-gray-400 hover:text-white">SOLO</button>
-                    <button className="px-3 py-1 rounded-full text-[10px] font-bold bg-green-500 text-black shadow-lg">LIGNE</button>
-                </div>
+                <div className="w-10"></div>
             </div>
             {renderLobby()}
+        </div>
+      );
+  }
+
+  // --- MENU VIEW ---
+  if (gameStage === 'MENU') {
+      return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#d946ef]">PUISSANCE 4</h1>
+            <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
+                <button onClick={() => setGameStage('DIFFICULTY')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <Cpu size={24} className="text-neon-blue"/> 1 JOUEUR
+                </button>
+                <button onClick={() => startGame('PVP')} className="px-6 py-4 bg-gray-800 border-2 border-neon-pink text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <Users size={24} className="text-neon-pink"/> 2 JOUEURS (LOCAL)
+                </button>
+                <button onClick={() => startGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <Globe size={24} className="text-green-500"/> EN LIGNE
+                </button>
+            </div>
+            <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
+        </div>
+      );
+  }
+
+  // --- DIFFICULTY VIEW ---
+  if (gameStage === 'DIFFICULTY') {
+      return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <h2 className="text-3xl font-black text-white mb-8">DIFFICULTÉ</h2>
+            <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                <button onClick={() => startGame('PVE', 'EASY')} className="px-6 py-3 border border-green-500 text-green-400 font-bold rounded hover:bg-green-500 hover:text-black transition-all">FACILE</button>
+                <button onClick={() => startGame('PVE', 'MEDIUM')} className="px-6 py-3 border border-yellow-500 text-yellow-400 font-bold rounded hover:bg-yellow-500 hover:text-black transition-all">MOYEN</button>
+                <button onClick={() => startGame('PVE', 'HARD')} className="px-6 py-3 border border-red-500 text-red-500 font-bold rounded hover:bg-red-500 hover:text-white transition-all">DIFFICILE</button>
+            </div>
+            <button onClick={() => setGameStage('MENU')} className="mt-8 text-gray-500 text-sm hover:text-white">RETOUR</button>
         </div>
       );
   }
@@ -437,7 +482,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
        <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0 relative min-h-[48px]">
          <div className="z-20 relative">
-             <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+             <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
                 <ArrowLeft size={20} />
              </button>
          </div>
@@ -450,31 +495,6 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             </button>
          </div>
        </div>
-
-       {/* MODE SELECTION (Only in PVE/PVP or Setup) */}
-       {!mp.gameOpponent && gameMode !== 'ONLINE' && (
-           <div className="w-full max-w-lg flex justify-between items-center mb-4 z-10 px-2 flex-wrap gap-2">
-              <div className="flex items-center gap-4">
-                <button onClick={cycleMode} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[110px]">
-                    {gameMode === 'PVE' && <Cpu size={14} className="text-neon-blue"/>}
-                    {gameMode === 'PVP' && <User size={14} className="text-neon-pink"/>}
-                    {gameMode === 'PVE' && 'VS ORDI'}
-                    {gameMode === 'PVP' && 'VS JOUEUR'}
-                </button>
-                {/* Switch to Online Button */}
-                <button onClick={() => setGameMode('ONLINE')} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-900/50 border border-green-500/30 text-green-400 text-xs font-bold hover:bg-green-900 transition-colors">
-                    <Users size={14} /> EN LIGNE
-                </button>
-              </div>
-              {gameMode === 'PVE' ? (
-                  <button onClick={cycleDifficulty} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900 border border-white/10 text-xs font-bold hover:bg-gray-800 transition-colors min-w-[80px] justify-center">
-                    {difficulty === 'EASY' && <span className="text-green-400">FACILE</span>}
-                    {difficulty === 'MEDIUM' && <span className="text-yellow-400">MOYEN</span>}
-                    {difficulty === 'HARD' && <span className="text-red-500">DIFFICILE</span>}
-                  </button>
-              ) : <div className="w-[80px]"></div>}
-           </div>
-       )}
 
        {/* ONLINE STATUS INDICATOR */}
        {gameMode === 'ONLINE' && !winState.winner && (
@@ -587,7 +607,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                             <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><Play size={20} fill="black"/> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
                             {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
                         </div>
-                        {gameMode !== 'ONLINE' && <button onClick={onBack} className="mt-4 text-xs text-gray-400 underline hover:text-white">Retour au Menu</button>}
+                        {gameMode !== 'ONLINE' && <button onClick={handleLocalBack} className="mt-4 text-xs text-gray-400 underline hover:text-white">Retour au Menu</button>}
                      </>
                  )}
              </div>

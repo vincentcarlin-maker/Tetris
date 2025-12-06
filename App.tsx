@@ -195,7 +195,7 @@ const App: React.FC = () => {
             )}
             
             {currentView === 'airhockey' && (
-                <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
             {currentView === 'menu' && (
