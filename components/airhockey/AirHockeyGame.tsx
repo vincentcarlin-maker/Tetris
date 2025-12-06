@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Play } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
+import { useCurrency, Mallet } from '../../hooks/useCurrency';
 
 interface AirHockeyGameProps {
     onBack: () => void;
@@ -36,6 +37,8 @@ const DIFFICULTY_SETTINGS = {
 };
 
 export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, addCoins }) => {
+    const { currentMalletId, malletsCatalog } = useCurrency();
+    
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [gameState, setGameState] = useState<GameState>('start');
     const [score, setScore] = useState({ player: 0, cpu: 0 });
@@ -79,7 +82,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     const handleGoal = (isPlayerGoal: boolean) => {
         setGameState('scored');
         
-        // Update score using callback to ensure we have the latest value
         setScore(prevScore => {
             const newScore = { ...prevScore };
             if (isPlayerGoal) {
@@ -87,10 +89,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 playGoalScore();
             } else {
                 newScore.cpu += 1;
-                playGameOver(); // Sad sound for player
+                playGameOver();
             }
 
-            // Check for Game Over immediately with the new score
             if (newScore.player >= MAX_SCORE || newScore.cpu >= MAX_SCORE) {
                 setWinner(newScore.player >= MAX_SCORE ? 'Player' : 'CPU');
                 setGameState('gameOver');
@@ -101,9 +102,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     addCoins(reward);
                     setEarnedCoins(reward);
                 }
-                // Do NOT schedule resetRound here
             } else {
-                // If game is not over, continue to next round
                 setTimeout(() => resetRound(!isPlayerGoal), 2000);
             }
 
@@ -117,50 +116,35 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         const { speed, accuracy, prediction } = DIFFICULTY_SETTINGS[difficulty];
 
         let targetX = TABLE_WIDTH / 2;
-        let targetY = 100; // Defensive base line
+        let targetY = 100; 
 
-        // 1. ATTACK BEHAVIOR
-        // If puck is in CPU half and moving slowly or moving away, attack it
         if (puck.y < TABLE_HEIGHT / 2 && (Math.abs(puck.vy) < 2 || puck.vy > 0)) {
              targetX = puck.x;
              targetY = puck.y;
         } 
-        // 2. DEFENSE BEHAVIOR (Intercept)
-        else if (puck.vy < 0) { // Puck coming towards CPU
-            // Calculate where the puck will be when it reaches defense line (y=100)
+        else if (puck.vy < 0) { 
             const timeToReach = (puck.y - targetY) / Math.abs(puck.vy);
-            
-            // Basic linear prediction
             let predictedX = puck.x + (puck.vx * timeToReach);
 
-            // Handle simplistic wall bounces (1 bounce approximation)
             if (predictedX < 0) predictedX = -predictedX;
             if (predictedX > TABLE_WIDTH) predictedX = 2 * TABLE_WIDTH - predictedX;
             
-            // Ensure predictedX is within bounds after bounce calc
             if (predictedX < 0) predictedX = 0;
             if (predictedX > TABLE_WIDTH) predictedX = TABLE_WIDTH;
 
-            // Blend prediction based on difficulty
-            // Hard uses full prediction, Easy uses current position (reactive)
             targetX = (predictedX * prediction) + (puck.x * (1 - prediction));
         } else {
-            // Puck moving away (towards player), center guard
-            // Slightly track X to be ready
             if (puck.y > TABLE_HEIGHT / 2) {
                 targetX = (TABLE_WIDTH / 2 + puck.x) / 2;
             }
         }
 
-        // 3. HUMANIZATION (Error)
-        // Add a smooth sine wave error instead of random jitter
         const errorMag = (1 - accuracy) * 80;
         const timeFactor = Date.now() / 400; 
         const currentError = Math.sin(timeFactor) * errorMag;
         
         targetX += currentError;
 
-        // 4. MOVEMENT
         const dx = targetX - cpu.x;
         const dy = targetY - cpu.y;
         const dist = Math.hypot(dx, dy);
@@ -177,11 +161,116 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         cpu.x += cpu.vx;
         cpu.y += cpu.vy;
 
-        // Clamp to CPU half (top half)
-        // Allow slight cross over mid line for attack, but mostly stay up
         const maxY = (TABLE_HEIGHT / 2) - cpu.radius; 
         cpu.y = Math.max(cpu.radius, Math.min(maxY, cpu.y));
         cpu.x = Math.max(cpu.radius, Math.min(TABLE_WIDTH - cpu.radius, cpu.x));
+    };
+
+    const drawMallet = (ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, malletStyle?: Mallet, isCpu: boolean = false) => {
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        
+        if (isCpu) {
+            ctx.fillStyle = '#ffe600';
+            ctx.shadowColor = '#ffe600';
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            return;
+        }
+
+        if (!malletStyle || malletStyle.type === 'basic') {
+            ctx.fillStyle = malletStyle?.colors[0] || '#00f3ff';
+            ctx.shadowColor = malletStyle?.colors[0] || '#00f3ff';
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        } else if (malletStyle.type === 'gradient') {
+            const grad = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
+            grad.addColorStop(0, malletStyle.colors[0]);
+            grad.addColorStop(1, malletStyle.colors[1] || malletStyle.colors[0]);
+            ctx.fillStyle = grad;
+            ctx.shadowColor = malletStyle.colors[0];
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        } else if (malletStyle.type === 'ring' || malletStyle.type === 'target') {
+            ctx.fillStyle = malletStyle.colors[1] || '#000';
+            ctx.fill();
+            
+            // Draw rings
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = malletStyle.colors[0];
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 0.6, 0, 2 * Math.PI);
+            ctx.strokeStyle = malletStyle.colors[0];
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 0.2, 0, 2 * Math.PI);
+            ctx.fillStyle = malletStyle.colors[0];
+            ctx.fill();
+            
+            ctx.shadowColor = malletStyle.colors[0];
+            ctx.shadowBlur = 15;
+        } else if (malletStyle.type === 'flower') {
+            ctx.fillStyle = malletStyle.colors[1]; // center color
+            ctx.shadowColor = malletStyle.colors[0];
+            ctx.shadowBlur = 10;
+            
+            // Draw petals
+            const petalCount = 6;
+            for(let i=0; i<petalCount; i++) {
+                const angle = (i / petalCount) * Math.PI * 2;
+                const px = x + Math.cos(angle) * (radius * 0.6);
+                const py = y + Math.sin(angle) * (radius * 0.6);
+                ctx.beginPath();
+                ctx.arc(px, py, radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = malletStyle.colors[0];
+                ctx.fill();
+            }
+            
+            // Center
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 0.5, 0, 2 * Math.PI);
+            ctx.fillStyle = malletStyle.colors[1];
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        } else if (malletStyle.type === 'complex') {
+            const grad = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
+            const colors = malletStyle.colors;
+            colors.forEach((c, i) => grad.addColorStop(i / (colors.length - 1), c));
+            
+            ctx.fillStyle = grad;
+            ctx.shadowColor = '#fff';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 0.8, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
     };
 
     const gameLoop = useCallback(() => {
@@ -194,36 +283,26 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         const player = playerMalletRef.current;
         const cpu = cpuMalletRef.current;
 
-        // --- PHYSICS & MOVEMENT ---
-
-        // Player mallet velocity tracking
         player.vx = player.x - lastPlayerPosRef.current.x;
         player.vy = player.y - lastPlayerPosRef.current.y;
         lastPlayerPosRef.current = { x: player.x, y: player.y };
 
-        // Player mallet movement (smooth)
         player.x += (mousePosRef.current.x - player.x) * 0.4;
         player.y += (mousePosRef.current.y - player.y) * 0.4;
 
-        // AI movement
         updateAI();
 
-        // Puck movement
         puck.x += puck.vx;
         puck.y += puck.vy;
         puck.vx *= PUCK_FRICTION;
         puck.vy *= PUCK_FRICTION;
 
-        // --- COLLISIONS ---
-
-        // Puck with walls
         if (puck.x < puck.radius || puck.x > TABLE_WIDTH - puck.radius) {
             puck.vx *= -1;
             puck.x = puck.x < puck.radius ? puck.radius : TABLE_WIDTH - puck.radius;
             playWallHit();
         }
 
-        // Puck with goals
         const goalYTop = 0;
         const goalYBottom = TABLE_HEIGHT;
         const goalMinX = (TABLE_WIDTH - GOAL_WIDTH) / 2;
@@ -245,44 +324,33 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             }
         }
 
-        // Mallet-Puck Collisions (Advanced Logic)
         [player, cpu].forEach(mallet => {
             const dx = puck.x - mallet.x;
             const dy = puck.y - mallet.y;
             let distance = Math.hypot(dx, dy);
-            
-            // Avoid division by zero
             if (distance === 0) distance = 0.01;
 
             const min_dist = puck.radius + mallet.radius;
             
             if (distance < min_dist) {
                 playPaddleHit();
-                
-                // 1. Resolve Overlap (Instant separation)
                 const nx = dx / distance;
                 const ny = dy / distance;
-                
                 const overlap = min_dist - distance;
                 puck.x += nx * overlap;
                 puck.y += ny * overlap;
 
-                // 2. Resolve Velocity (Elastic collision approximation)
                 const vRelX = puck.vx - mallet.vx;
                 const vRelY = puck.vy - mallet.vy;
-                
                 const velAlongNormal = vRelX * nx + vRelY * ny;
 
-                // Only bounce if objects are moving towards each other
                 if (velAlongNormal < 0) {
-                    const restitution = 1.0; // Bounciness
+                    const restitution = 1.0; 
                     const impulse = -(1 + restitution) * velAlongNormal;
-                    
                     puck.vx += impulse * nx;
                     puck.vy += impulse * ny;
                 }
                 
-                // Cap puck speed
                 const speed = Math.hypot(puck.vx, puck.vy);
                 if (speed > PUCK_MAX_SPEED) {
                     const ratio = PUCK_MAX_SPEED / speed;
@@ -292,7 +360,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             }
         });
 
-        // --- DRAWING ---
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -300,7 +367,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         
         ctx.clearRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
 
-        // Draw Table
         ctx.fillStyle = '#0a0a12';
         ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
 
@@ -309,18 +375,15 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         ctx.shadowColor = '#00f3ff';
         ctx.shadowBlur = 10;
         
-        // Center line
         ctx.beginPath();
         ctx.moveTo(0, TABLE_HEIGHT / 2);
         ctx.lineTo(TABLE_WIDTH, TABLE_HEIGHT / 2);
         ctx.stroke();
 
-        // Center circle
         ctx.beginPath();
         ctx.arc(TABLE_WIDTH / 2, TABLE_HEIGHT / 2, 50, 0, 2 * Math.PI);
         ctx.stroke();
 
-        // Goals
         ctx.strokeStyle = '#ff00ff';
         ctx.shadowColor = '#ff00ff';
         ctx.beginPath();
@@ -328,7 +391,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         ctx.beginPath();
         ctx.moveTo(goalMinX, TABLE_HEIGHT); ctx.lineTo(goalMaxX, TABLE_HEIGHT); ctx.stroke();
 
-        ctx.shadowBlur = 0; // Reset blur for performance
+        ctx.shadowBlur = 0; 
 
         // Draw Puck
         ctx.beginPath();
@@ -338,23 +401,17 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         ctx.shadowBlur = 20;
         ctx.fill();
 
-        // Draw Mallets
-        [player, cpu].forEach(mallet => {
-            ctx.beginPath();
-            ctx.arc(mallet.x, mallet.y, mallet.radius, 0, 2 * Math.PI);
-            ctx.fillStyle = mallet.color;
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.shadowColor = mallet.color;
-            ctx.shadowBlur = 20;
-            ctx.fill();
-            ctx.stroke();
-        });
+        // Draw Player Mallet (Custom Style)
+        const playerMalletStyle = malletsCatalog.find(m => m.id === currentMalletId);
+        drawMallet(ctx, player.x, player.y, player.radius, playerMalletStyle, false);
+
+        // Draw CPU Mallet (Default)
+        drawMallet(ctx, cpu.x, cpu.y, cpu.radius, undefined, true);
         
         ctx.shadowBlur = 0;
 
         animationFrameRef.current = requestAnimationFrame(gameLoop);
-    }, [gameState, difficulty, playPaddleHit, playWallHit, playGoalScore, playVictory, playGameOver]);
+    }, [gameState, difficulty, currentMalletId, malletsCatalog]);
 
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(gameLoop);
