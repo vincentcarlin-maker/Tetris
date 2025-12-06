@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Peer, DataConnection } from 'peerjs';
 
@@ -210,17 +209,6 @@ export const useMultiplayer = () => {
                     }
                     break;
                 }
-                case 'GAME_MOVE': {
-                    // Host RELAY Logic
-                    // We check if we have an opponent or if we are in game mode.
-                    // Relaxed check: if we are hosting and receive a move, we relay it.
-                    if (data.targetId === peerRef.current?.id) {
-                         const relayData = { ...data, type: 'GAME_MOVE_RELAY' };
-                         notifySubscribers(relayData, conn); // Self update (triggers Host UI update)
-                         conn.send(relayData); // Confirm to sender (Guest UI update)
-                    }
-                    break;
-                }
                 case 'LEAVE_GAME':
                      if (senderInfo) senderInfo.status = 'idle';
                      if (currentState.mode === 'in_game' && currentState.gameOpponent?.id === senderId) {
@@ -377,21 +365,17 @@ export const useMultiplayer = () => {
 
     const sendGameMove = useCallback((moveData: any) => {
         const currentState = stateRef.current;
-        if (currentState.mode !== 'in_game') return;
-        const payload = { 
-            type: 'GAME_MOVE', 
-            targetId: currentState.gameOpponent?.id, 
+        if (currentState.mode !== 'in_game' || !currentState.gameOpponent) return;
+    
+        const payload = {
+            type: 'GAME_MOVE',
             ...((typeof moveData === 'object') ? moveData : { col: moveData })
         };
         
-        if (isHostRef.current) {
-             const relayData = { ...payload, type: 'GAME_MOVE_RELAY', player: 1, nextPlayer: 2 };
-             sendData(relayData);
-             notifySubscribers(relayData, null as any);
-        } else if (currentState.gameOpponent?.id) {
-             sendTo(currentState.gameOpponent.id, { ...payload, player: 2 });
-        }
-    }, [sendData, sendTo, notifySubscribers]);
+        // Both host and guest just send the move to their opponent.
+        sendTo(currentState.gameOpponent.id, payload);
+    
+    }, [sendTo]);
 
     const cancelHosting = useCallback(() => {
         hostStatusRef.current = 'idle';

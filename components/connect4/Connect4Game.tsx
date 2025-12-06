@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2 } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
@@ -243,22 +242,16 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         isAnimatingRef.current = false;
     }, 500); 
 
-  }, [board, currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft]);
+  }, [currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft]);
 
   // STABLE SUBSCRIPTION REF
-  // We use a ref to store the latest version of the data handler.
-  // This allows the subscription effect to be stable (run once) while accessing the freshest state/logic.
   const handleDataRef = useRef<(data: any) => void>(null);
   
-  // Update the ref on every render with the latest logic
   useEffect(() => {
       handleDataRef.current = (data: any) => {
-        if (data.type === 'GAME_MOVE_RELAY') {
+        if (data.type === 'GAME_MOVE') {
             const col = data.col;
-            // Only apply move if it matches the Host peer ID (which means it's the relay message)
-            if (data.targetId === mp.peerId) {
-                 handleColumnClick(col, true);
-            }
+            handleColumnClick(col, true);
         }
         if (data.type === 'REMATCH_START') resetGame();
         if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
@@ -267,7 +260,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       };
   }); // No deps -> updates on every render
 
-  // Multiplayer Subscription - RUNS ONCE (or only when mp.subscribe changes which is stable)
+  // Multiplayer Subscription - RUNS ONCE
   useEffect(() => {
     const unsubscribe = mp.subscribe((data: any) => {
         if (handleDataRef.current) {
@@ -275,7 +268,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         }
     });
     return () => unsubscribe();
-  }, [mp.subscribe]); // Depend on the STABLE subscribe function, NOT the whole mp object
+  }, [mp.subscribe]);
 
 
   const cycleMode = () => {
