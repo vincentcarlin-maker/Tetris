@@ -565,6 +565,23 @@ export const useGameAudio = () => {
 
     }, [isMuted, resume]);
 
+    const playGoalScore = useCallback(() => {
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.5);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+        osc.start();
+        osc.stop(now + 0.5);
+    }, [isMuted, resume]);
+
     return { 
         playMove, 
         playRotate, 
@@ -588,6 +605,7 @@ export const useGameAudio = () => {
         playCoin,
         playShipSink,
         playExplosion,
+        playGoalScore,
         isMuted, 
         toggleMute,
         resumeAudio: resume

@@ -116,7 +116,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-rose-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', 
         glow: 'rgba(244,63,94,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: true }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -143,6 +143,19 @@ const GAMES_CONFIG = [
         shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', 
         glow: 'rgba(250,204,21,0.8)', 
         badges: { solo: true, online: false, vs: false, new: false }, 
+        reward: 'GAINS' 
+    },
+    { 
+        id: 'airhockey', 
+        name: 'AIR HOCKEY', 
+        icon: Wind, 
+        color: 'text-sky-400', 
+        bg: 'bg-sky-900/20',
+        border: 'border-sky-500/30',
+        hoverBorder: 'hover:border-sky-400', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', 
+        glow: 'rgba(56,189,248,0.8)', 
+        badges: { solo: true, online: false, vs: false, new: true }, 
         reward: 'GAINS' 
     },
     { 
@@ -194,13 +207,12 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-blue-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', 
         glow: 'rgba(59,130,246,0.8)', 
-        badges: { solo: true, online: true, vs: false, new: true }, 
+        badges: { solo: true, online: true, vs: false, new: false }, 
         reward: 'GAINS' 
     },
 ];
 
 const COMING_SOON = [
-    { name: 'AIR HOCKEY', icon: Wind },
     { name: 'MASTERMIND', icon: BrainCircuit }
 ];
 
@@ -268,8 +280,8 @@ const ArcadeLogo = () => {
                 </div>
             </div>
             <div className="flex flex-col items-center relative z-20 mt-2">
-                 <div className="font-script text-7xl text-white transform -rotate-6 z-10" style={{ textShadow: '0 0 10px #00f3ff, 0 0 20px #00f3ff, 0 0 30px #00f3ff' }}>Neon</div>
-                <div className="font-script text-6xl text-neon-pink transform -rotate-3 -mt-4 ml-8" style={{ textShadow: '0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff' }}>Arcade</div>
+                 <div className="font-script text-7xl text-white transform -rotate-6 z-10 animate-pulse" style={{ textShadow: '0 0 10px #00f3ff, 0 0 20px #00f3ff, 0 0 30px #00f3ff' }}>Neon</div>
+                <div className="font-script text-6xl text-neon-pink transform -rotate-3 -mt-4 ml-8 animate-pulse" style={{ textShadow: '0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff', animationDelay: '150ms' }}>Arcade</div>
             </div>
         </div>
     );

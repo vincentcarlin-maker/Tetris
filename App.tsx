@@ -10,6 +10,7 @@ import { MemoryGame } from './components/memory/MemoryGame';
 import { BattleshipGame } from './components/battleship/BattleshipGame';
 import { SnakeGame } from './components/snake/SnakeGame';
 import { InvadersGame } from './components/invaders/InvadersGame';
+import { AirHockeyGame } from './components/airhockey/AirHockeyGame';
 import { Shop } from './components/Shop';
 import { SocialOverlay } from './components/SocialOverlay';
 import { LoginScreen } from './components/LoginScreen';
@@ -19,7 +20,7 @@ import { useMultiplayer } from './hooks/useMultiplayer';
 import { useDailySystem } from './hooks/useDailySystem';
 
 
-type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -83,7 +84,7 @@ const App: React.FC = () => {
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders'];
+        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -123,6 +124,7 @@ const App: React.FC = () => {
         else if (game === 'battleship') setCurrentView('battleship');
         else if (game === 'snake') setCurrentView('snake');
         else if (game === 'invaders') setCurrentView('invaders');
+        else if (game === 'airhockey') setCurrentView('airhockey');
         else if (game === 'shop') setCurrentView('shop');
     };
 
@@ -190,6 +192,10 @@ const App: React.FC = () => {
 
             {currentView === 'invaders' && (
                 <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+            )}
+            
+            {currentView === 'airhockey' && (
+                <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
             {currentView === 'menu' && (
