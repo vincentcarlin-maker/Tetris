@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc } from 'lucide-react';
 
@@ -209,6 +210,65 @@ export const useCurrency = () => {
             localStorage.setItem('neon-admin-mode', JSON.stringify(newState));
             return newState;
         });
+    }, []);
+
+    // --- CLOUD SYNC IMPORT ---
+    const importData = useCallback((data: any) => {
+        if (!data) return;
+        
+        if (data.coins !== undefined) {
+            setCoins(data.coins);
+            localStorage.setItem('neon-coins', data.coins.toString());
+        }
+        if (data.inventory) {
+            setInventory(data.inventory);
+            localStorage.setItem('neon-inventory', JSON.stringify(data.inventory));
+        }
+        if (data.avatarId) {
+            setCurrentAvatarId(data.avatarId);
+            localStorage.setItem('neon-avatar', data.avatarId);
+        }
+        if (data.ownedAvatars) {
+            setOwnedAvatars(data.ownedAvatars);
+            localStorage.setItem('neon-owned-avatars', JSON.stringify(data.ownedAvatars));
+        }
+        if (data.frameId) {
+            setCurrentFrameId(data.frameId);
+            localStorage.setItem('neon-frame', data.frameId);
+        }
+        if (data.ownedFrames) {
+            setOwnedFrames(data.ownedFrames);
+            localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames));
+        }
+        if (data.wallpaperId) {
+            setCurrentWallpaperId(data.wallpaperId);
+            localStorage.setItem('neon-wallpaper', data.wallpaperId);
+        }
+        if (data.ownedWallpapers) {
+            setOwnedWallpapers(data.ownedWallpapers);
+            localStorage.setItem('neon-owned-wallpapers', JSON.stringify(data.ownedWallpapers));
+        }
+        if (data.titleId) {
+            setCurrentTitleId(data.titleId);
+            localStorage.setItem('neon-title', data.titleId);
+        }
+        if (data.ownedTitles) {
+            setOwnedTitles(data.ownedTitles);
+            localStorage.setItem('neon-owned-titles', JSON.stringify(data.ownedTitles));
+        }
+        if (data.malletId) {
+            setCurrentMalletId(data.malletId);
+            localStorage.setItem('neon-mallet', data.malletId);
+        }
+        if (data.ownedMallets) {
+            setOwnedMallets(data.ownedMallets);
+            localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets));
+        }
+        
+        // Also restore generic items like daily quests state if in blob
+        if (data.quests) localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
+        if (data.streak) localStorage.setItem('neon_streak', data.streak.toString());
+        if (data.lastLogin) localStorage.setItem('neon_last_login', data.lastLogin);
     }, []);
 
     const refreshData = useCallback(() => {
@@ -445,6 +505,7 @@ export const useCurrency = () => {
         toggleAdminMode,
 
         refreshData,
+        importData,
         addCoins, 
         buyBadge, 
         catalog: BADGES_CATALOG, 

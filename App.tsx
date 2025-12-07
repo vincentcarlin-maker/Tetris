@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
 import { Connect4Game } from './components/connect4/Connect4Game';
@@ -32,7 +32,7 @@ const App: React.FC = () => {
     const audio = useGameAudio();
     const currency = useCurrency();
     const mp = useMultiplayer(); // Global Multiplayer Lobby Connection
-    const { highScores, updateHighScore } = useHighScores(); // Global High Scores
+    const { highScores, updateHighScore, importScores } = useHighScores(); // Global High Scores
 
     // DAILY SYSTEM INTEGRATION - Lifted to App level to persist state
     const { 
@@ -46,15 +46,64 @@ const App: React.FC = () => {
         claimQuestReward 
     } = useDailySystem(currency.addCoins);
 
-    // SUPABASE PRESENCE (Global)
-    // We pass highScores here so they are broadcasted to other players
-    const { onlineUsers, isConnectedToSupabase, isSupabaseConfigured } = useSupabase(
+    // SUPABASE PRESENCE & CLOUD SAVE
+    const { 
+        onlineUsers, 
+        globalLeaderboard,
+        isConnectedToSupabase, 
+        isSupabaseConfigured,
+        loginAndFetchProfile,
+        syncProfileToCloud
+    } = useSupabase(
         mp.peerId, 
         currency.username, 
         currency.currentAvatarId, 
         currency.currentFrameId,
         highScores
     );
+
+    // --- CLOUD SYNC LOGIC ---
+    // Debounced save to cloud whenever critical state changes
+    const saveTimeoutRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (!isAuthenticated || !currency.username || currency.username === 'Vincent') return;
+
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+        saveTimeoutRef.current = setTimeout(() => {
+            // Construct full payload
+            const payload = {
+                coins: currency.coins,
+                inventory: currency.inventory,
+                avatarId: currency.currentAvatarId,
+                ownedAvatars: currency.ownedAvatars,
+                frameId: currency.currentFrameId,
+                ownedFrames: currency.ownedFrames,
+                wallpaperId: currency.currentWallpaperId,
+                ownedWallpapers: currency.ownedWallpapers,
+                titleId: currency.currentTitleId,
+                ownedTitles: currency.ownedTitles,
+                malletId: currency.currentMalletId,
+                ownedMallets: currency.ownedMallets,
+                
+                highScores: highScores,
+                
+                // Generic Items (stored in localStorage usually, mapped here)
+                quests: quests,
+                streak: streak,
+                lastLogin: localStorage.getItem('neon_last_login')
+            };
+            
+            syncProfileToCloud(currency.username, payload);
+            console.log("☁️ Auto-Saved to Cloud");
+        }, 2000); // Save after 2s of inactivity
+
+    }, [
+        isAuthenticated, currency.username, currency.coins, currency.currentAvatarId, 
+        highScores, syncProfileToCloud, quests, streak
+    ]);
+
 
     // Check for existing session
     useEffect(() => {
@@ -152,12 +201,23 @@ const App: React.FC = () => {
         setCurrentView('menu');
     };
 
-    const handleLogin = (username: string) => {
+    const handleLogin = (username: string, cloudData?: any) => {
         currency.updateUsername(username);
-        currency.refreshData(); // Force reload data for this user
+        
+        if (cloudData) {
+            // Restore Cloud Data
+            console.log("📥 Importing Cloud Data...", cloudData);
+            currency.importData(cloudData);
+            if (cloudData.highScores) {
+                importScores(cloudData.highScores);
+            }
+        } else {
+            currency.refreshData(); // Fallback Local
+        }
+
         setIsAuthenticated(true);
         setShowLoginModal(false);
-        audio.playVictory(); // Little sound feedback
+        audio.playVictory();
     };
 
     const handleLogout = () => {
@@ -169,7 +229,11 @@ const App: React.FC = () => {
         <>
             {/* Show Login Modal on demand */}
             {showLoginModal && (
-                <LoginScreen onLogin={handleLogin} onCancel={() => setShowLoginModal(false)} />
+                <LoginScreen 
+                    onLogin={handleLogin} 
+                    onCancel={() => setShowLoginModal(false)}
+                    onAttemptLogin={loginAndFetchProfile}
+                />
             )}
 
             {/* Social Overlay only active when authenticated */}
@@ -245,7 +309,8 @@ const App: React.FC = () => {
                         quests,
                         claimQuestReward
                     }}
-                    onlineUsers={onlineUsers} // Pass online users for leaderboard
+                    // Combine Online + Historical for a richer experience
+                    onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers} 
                 />
             )}
         </>

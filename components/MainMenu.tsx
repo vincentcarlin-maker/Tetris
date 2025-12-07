@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -24,7 +25,7 @@ interface MainMenuProps {
         quests: DailyQuest[];
         claimQuestReward: (id: string) => void;
     };
-    onlineUsers: OnlineUser[]; // Added for global leaderboard
+    onlineUsers: OnlineUser[]; // Now represents Global History if available
 }
 
 // Custom Snake Icon
@@ -785,7 +786,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             {/* SCORE TABS */}
                             <div className="flex bg-black/30 p-1 rounded-lg mb-3">
                                 <button onClick={() => setScoreTab('LOCAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'LOCAL' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white'}`}>MON RECORDS</button>
-                                <button onClick={() => setScoreTab('GLOBAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}>MONDE (LIVE)</button>
+                                <button onClick={() => setScoreTab('GLOBAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}>MONDE (HISTOIRE)</button>
                             </div>
 
                             {scoreTab === 'LOCAL' ? (
@@ -808,7 +809,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    <p className="text-[10px] text-gray-500 text-center italic mb-2">Meilleurs scores des joueurs connectés</p>
+                                    <p className="text-[10px] text-gray-500 text-center italic mb-2 flex items-center justify-center gap-1"><Cloud size={10}/> Classement historique Cloud</p>
                                     {[
                                         { id: 'tetris', name: 'TETRIS', color: 'text-neon-blue' },
                                         { id: 'invaders', name: 'INVADERS', color: 'text-rose-500' },
@@ -871,7 +872,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     ))}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.7 • GLOBAL SCORES</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.8 • CLOUD SAVE</div>
              </div>
         </div>
     );

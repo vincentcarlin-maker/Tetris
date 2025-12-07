@@ -9,6 +9,7 @@ export interface HighScores {
   invaders: number;
   sudoku: { [difficulty: string]: number }; // difficulty: minMistakes
   memory: number; // minMoves (Lower is better)
+  rush?: { [level: string]: number }; // Add missing type
 }
 
 const initialHighScores: HighScores = {
@@ -19,6 +20,7 @@ const initialHighScores: HighScores = {
   invaders: 0,
   sudoku: {},
   memory: 0,
+  rush: {}
 };
 
 const HIGHSCORES_KEY = 'neon-highscores';
@@ -31,14 +33,14 @@ export const useHighScores = () => {
       const stored = localStorage.getItem(HIGHSCORES_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        // Ensure defaults structure exists if loading old data
         if (!parsed.sudoku) parsed.sudoku = {};
         if (!parsed.breaker) parsed.breaker = 0;
         if (!parsed.pacman) parsed.pacman = 0;
         if (!parsed.snake) parsed.snake = 0;
         if (!parsed.invaders) parsed.invaders = 0;
         if (!parsed.memory) parsed.memory = 0;
-        // Clean up old rush data if present
-        delete parsed.rush;
+        if (!parsed.rush) parsed.rush = {};
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -61,7 +63,8 @@ export const useHighScores = () => {
       let shouldUpdate = false;
 
       if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders') {
-        if (value > (prev[game] || 0)) {
+        // Higher is better
+        if (value > (prev[game] as number || 0)) {
           newScores[game] = value;
           shouldUpdate = true;
         }
@@ -80,6 +83,14 @@ export const useHighScores = () => {
             newScores.memory = value;
             shouldUpdate = true;
         }
+      } else if (game === 'rush' && subkey !== undefined) {
+          // Assuming rush stores moves per level, lower is better
+          const key = String(subkey);
+          if (value < (prev.rush?.[key] || Infinity)) {
+              if (!newScores.rush) newScores.rush = {};
+              newScores.rush[key] = value;
+              shouldUpdate = true;
+          }
       }
 
       if (shouldUpdate) {
@@ -91,5 +102,13 @@ export const useHighScores = () => {
     });
   }, []);
 
-  return { highScores, updateHighScore };
+  // Sync from Cloud
+  const importScores = useCallback((scores: HighScores) => {
+      if (scores) {
+          setHighScores(scores);
+          localStorage.setItem(HIGHSCORES_KEY, JSON.stringify(scores));
+      }
+  }, []);
+
+  return { highScores, updateHighScore, importScores };
 };
