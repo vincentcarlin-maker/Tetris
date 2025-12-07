@@ -45,8 +45,9 @@ const lerp = (start: number, end: number, t: number) => {
 };
 
 export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, addCoins, mp }) => {
-    const { currentMalletId, malletsCatalog, username, currentAvatarId } = useCurrency();
-    const { subscribe, sendData, isHost, peerId, players, mode: mpMode } = mp; // Destructure for stability
+    // FIX: Destructure avatarsCatalog here to avoid calling hook in loop
+    const { currentMalletId, malletsCatalog, username, currentAvatarId, avatarsCatalog } = useCurrency();
+    const { subscribe, sendData, isHost, peerId, players, mode: mpMode } = mp; 
     
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [gameState, setGameState] = useState<GameState>('menu');
@@ -131,25 +132,30 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     // Handle Online Mode Transition
     useEffect(() => {
-        const isHosting = players.find(p => p.id === peerId)?.status === 'hosting';
+        // Fix: Use isHost directly instead of players array to avoid race conditions
         if (mpMode === 'lobby') {
-            if (isHosting) {
-                setOnlineStep('game');
-                // When hosting, we go straight to "playing" state (but waiting for opponent)
-                // This prevents the menu overlay from appearing
-                resetRound(true);
+            if (isHost) {
+                if (onlineStep !== 'game') {
+                    setOnlineStep('game');
+                    // When hosting, we go straight to "playing" state (but waiting for opponent)
+                    resetRound(true);
+                }
             } else {
-                setOnlineStep('lobby');
-                setGameState('menu'); 
+                if (onlineStep !== 'lobby') {
+                    setOnlineStep('lobby');
+                }
+                // Ensure we are in menu state to show the lobby list properly
+                // But avoid infinite loop by checking current state
+                if (gameState === 'playing') setGameState('menu'); 
             }
         } else if (mpMode === 'in_game') {
-            setOnlineStep('game');
+            if (onlineStep !== 'game') setOnlineStep('game');
             setOpponentLeft(false);
             if (gameState !== 'playing') {
                 startGame('MEDIUM', 'ONLINE'); // Difficulty ignored for online
             }
         }
-    }, [mpMode, isHost, players, peerId, gameState, resetRound, startGame]);
+    }, [mpMode, isHost, onlineStep, gameState, resetRound, startGame]);
 
     // Network Message Handling
     useEffect(() => {
@@ -178,7 +184,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             }
         });
         return () => unsubscribe();
-    }, [subscribe, startGame]); // Added startGame dependency
+    }, [subscribe, startGame]); 
 
     const selectMode = (mode: GameMode) => {
         setGameMode(mode);
@@ -737,7 +743,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                         <>
                             <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
                             {hostingPlayers.map(player => {
-                                const avatar = useCurrency().avatarsCatalog.find(a => a.id === player.avatarId) || useCurrency().avatarsCatalog[0];
+                                // CRITICAL FIX: Use avatarsCatalog directly, do not call useCurrency hook in loop
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                 const AvatarIcon = avatar.icon;
                                 return (
                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
@@ -758,6 +765,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     };
 
     // --- LOBBY VIEW ---
+    // Ensure we show lobby if we are connected and not playing, even if gameState was reset to menu
     if (gameMode === 'ONLINE' && onlineStep === 'lobby' && gameState !== 'playing') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">

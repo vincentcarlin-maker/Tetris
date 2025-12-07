@@ -1,16 +1,21 @@
 
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const useGameAudio = () => {
     const audioCtx = useRef<AudioContext | null>(null);
     const [isMuted, setIsMuted] = useState(false);
+    const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
 
     useEffect(() => {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
         if (AudioContextClass) {
             audioCtx.current = new AudioContextClass();
         }
+        
+        // Load saved preferences
+        const savedVib = localStorage.getItem('neon-vibration');
+        if (savedVib !== null) setIsVibrationEnabled(savedVib === 'true');
+
         return () => {
             audioCtx.current?.close();
         };
@@ -25,6 +30,71 @@ export const useGameAudio = () => {
     const toggleMute = useCallback(() => {
         setIsMuted(prev => !prev);
     }, []);
+
+    const toggleVibration = useCallback(() => {
+        setIsVibrationEnabled(prev => {
+            const newState = !prev;
+            localStorage.setItem('neon-vibration', String(newState));
+            if (newState && navigator.vibrate) navigator.vibrate(50); // Feedback immediate
+            return newState;
+        });
+    }, []);
+
+    // --- AUDIO HAPTIC SIMULATION FOR IOS ---
+    const triggerAudioHaptic = useCallback((duration: number) => {
+        // Ne joue pas si muet, car cela passe par les haut-parleurs
+        if (isMuted || !audioCtx.current) return;
+        resume();
+
+        try {
+            const now = audioCtx.current.currentTime;
+            const osc = audioCtx.current.createOscillator();
+            const gain = audioCtx.current.createGain();
+
+            // Onde sinusoïdale basse fréquence (50Hz) pour imiter un moteur haptique
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(50, now); 
+
+            // Conversion ms en secondes et limitation pour éviter les sons trop longs
+            const durSec = Math.max(0.05, Math.min(duration / 1000, 0.2));
+
+            // Enveloppe percussive courte
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.current.destination);
+
+            osc.start(now);
+            osc.stop(now + durSec);
+        } catch (e) {
+            // Ignore errors
+        }
+    }, [isMuted, resume]);
+
+    // Haptic Helper with Fallback
+    const vibrate = useCallback((pattern: number | number[]) => {
+        if (!isVibrationEnabled) return;
+
+        // Détection iOS simplifiée (UserAgent + Platform)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        // Si l'appareil supporte vibrate nativement (Android) et n'est pas iOS
+        if (navigator.vibrate && !isIOS) {
+            try {
+                navigator.vibrate(pattern);
+            } catch (e) {
+                // Ignore errors on devices that don't support it well
+            }
+        } else {
+            // Fallback pour iOS : Utiliser le son pour simuler l'impact
+            const duration = Array.isArray(pattern) ? pattern[0] : pattern;
+            // On ne déclenche que pour les vibrations courtes (impacts), pas les longues (game over)
+            if (typeof duration === 'number' && duration < 200) {
+                triggerAudioHaptic(duration);
+            }
+        }
+    }, [isVibrationEnabled, triggerAudioHaptic]);
 
     const playTone = useCallback((freq: number, type: OscillatorType, duration: number, gainVal: number) => {
         if (isMuted || !audioCtx.current) return;
@@ -50,14 +120,24 @@ export const useGameAudio = () => {
         }
     }, [isMuted, resume]);
 
-    const playMove = useCallback(() => playTone(300, 'square', 0.05, 0.03), [playTone]);
+    const playMove = useCallback(() => {
+        playTone(300, 'square', 0.05, 0.03);
+        vibrate(10); // Micro tick
+    }, [playTone, vibrate]);
     
-    const playRotate = useCallback(() => playTone(450, 'triangle', 0.05, 0.03), [playTone]);
+    const playRotate = useCallback(() => {
+        playTone(450, 'triangle', 0.05, 0.03);
+        vibrate(15); // Small tick
+    }, [playTone, vibrate]);
     
-    const playLand = useCallback(() => playTone(100, 'sawtooth', 0.1, 0.05), [playTone]);
+    const playLand = useCallback(() => {
+        playTone(100, 'sawtooth', 0.1, 0.05);
+        vibrate(25); // Soft thud
+    }, [playTone, vibrate]);
     
     // Son général d'effacement de ligne (Arpège montant)
     const playClear = useCallback(() => {
+        vibrate([30, 50, 30]); // Pattern for clear
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -77,10 +157,11 @@ export const useGameAudio = () => {
             osc.start(startTime);
             osc.stop(startTime + 0.3);
         });
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     // Son spécifique pour chaque type de bloc détruit
     const playBlockDestroy = useCallback((blockType: string) => {
+        vibrate(20); // Hit feeling
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -144,9 +225,10 @@ export const useGameAudio = () => {
         osc.start(now);
         osc.stop(now + duration);
 
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playVictory = useCallback(() => {
+        vibrate([50, 50, 50, 50, 100]); // Celebration pattern
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -172,9 +254,10 @@ export const useGameAudio = () => {
             osc.start(now + times[i]);
             osc.stop(now + times[i] + durations[i]);
         });
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playGameOver = useCallback(() => {
+        vibrate(400); // Long fail rumble
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -194,9 +277,10 @@ export const useGameAudio = () => {
         
         osc.start();
         osc.stop(now + 1.5);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playCarMove = useCallback(() => {
+        vibrate(10); // Engine tick
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -222,9 +306,10 @@ export const useGameAudio = () => {
 
         osc.start(now);
         osc.stop(now + 0.15);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playCarExit = useCallback(() => {
+        vibrate([50, 100]); // Vroom vroom
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -250,13 +335,26 @@ export const useGameAudio = () => {
 
         osc.start(now);
         osc.stop(now + 0.8);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     // Breaker sounds
-    const playPaddleHit = useCallback(() => playTone(120, 'square', 0.05, 0.1), [playTone]);
-    const playBlockHit = useCallback(() => playTone(440, 'triangle', 0.05, 0.05), [playTone]);
-    const playWallHit = useCallback(() => playTone(200, 'sine', 0.05, 0.04), [playTone]);
+    const playPaddleHit = useCallback(() => {
+        playTone(120, 'square', 0.05, 0.1);
+        vibrate(20);
+    }, [playTone, vibrate]);
+    
+    const playBlockHit = useCallback(() => {
+        playTone(440, 'triangle', 0.05, 0.05);
+        vibrate(15);
+    }, [playTone, vibrate]);
+    
+    const playWallHit = useCallback(() => {
+        playTone(200, 'sine', 0.05, 0.04);
+        vibrate(10);
+    }, [playTone, vibrate]);
+    
     const playLoseLife = useCallback(() => {
+        vibrate(200);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -271,7 +369,7 @@ export const useGameAudio = () => {
         gain.connect(audioCtx.current.destination);
         osc.start();
         osc.stop(now + 0.5);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playPowerUpSpawn = useCallback(() => {
         if (isMuted || !audioCtx.current) return;
@@ -294,6 +392,7 @@ export const useGameAudio = () => {
     }, [isMuted, resume]);
 
     const playPowerUpCollect = useCallback((type: string) => {
+        vibrate([20, 20]);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -350,9 +449,10 @@ export const useGameAudio = () => {
         osc.start();
         osc.stop(now + 0.4);
 
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
     
     const playLaserShoot = useCallback(() => {
+        vibrate(5);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -370,10 +470,11 @@ export const useGameAudio = () => {
         gain.connect(audioCtx.current.destination);
         osc.start();
         osc.stop(now + 0.15);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     // PACMAN SOUNDS
     const playPacmanWaka = useCallback(() => {
+        // No vibrate for waka to avoid spam
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -396,6 +497,7 @@ export const useGameAudio = () => {
     }, [isMuted, resume]);
 
     const playPacmanEatGhost = useCallback(() => {
+        vibrate([50, 50]);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -413,9 +515,10 @@ export const useGameAudio = () => {
         gain.connect(audioCtx.current.destination);
         osc.start(now);
         osc.stop(now + 0.3);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
     
     const playPacmanPower = useCallback(() => {
+        vibrate(30);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -433,9 +536,10 @@ export const useGameAudio = () => {
         gain.connect(audioCtx.current.destination);
         osc.start(now);
         osc.stop(now + 0.4);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playCoin = useCallback(() => {
+        vibrate([10, 10]);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -472,10 +576,11 @@ export const useGameAudio = () => {
         gain2.connect(audioCtx.current.destination);
         osc2.start(now);
         osc2.stop(now + 0.4);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     // BATTLESHIP: Sinking Ship Sound
     const playShipSink = useCallback(() => {
+        vibrate([100, 50, 200]);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -519,9 +624,10 @@ export const useGameAudio = () => {
         osc2.start(now);
         osc2.stop(now + 1.0);
 
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playExplosion = useCallback(() => {
+        vibrate([80, 40, 80]);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -563,9 +669,10 @@ export const useGameAudio = () => {
         osc2.start(now);
         osc2.stop(now + 0.3);
 
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     const playGoalScore = useCallback(() => {
+        vibrate([30, 30]);
         if (isMuted || !audioCtx.current) return;
         resume();
         const now = audioCtx.current.currentTime;
@@ -580,7 +687,7 @@ export const useGameAudio = () => {
         gain.connect(audioCtx.current.destination);
         osc.start();
         osc.stop(now + 0.5);
-    }, [isMuted, resume]);
+    }, [isMuted, resume, vibrate]);
 
     return { 
         playMove, 
@@ -608,6 +715,8 @@ export const useGameAudio = () => {
         playGoalScore,
         isMuted, 
         toggleMute,
-        resumeAudio: resume
+        resumeAudio: resume,
+        isVibrationEnabled,
+        toggleVibration
     };
 };
