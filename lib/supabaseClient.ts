@@ -67,7 +67,7 @@ export const getStoredConfig = () => ({
     key: localStorage.getItem('neon_supabase_key') || ''
 });
 
-// --- CLOUD SAVE & LEADERBOARD HELPERS ---
+// --- CLOUD SAVE, LEADERBOARD & MESSAGING HELPERS ---
 
 export const DB = {
     // Récupérer le profil complet d'un joueur (pour Login)
@@ -112,7 +112,6 @@ export const DB = {
         if (!supabase) return [];
         try {
             // On récupère tous les profils (limité à 100 pour la performance)
-            // Dans une vraie app, on ferait une vue SQL matérialisée ou des colonnes séparées pour trier
             const { data, error } = await supabase
                 .from('profiles')
                 .select('username, data, updated_at')
@@ -133,6 +132,75 @@ export const DB = {
             }));
         } catch (e) {
             return [];
+        }
+    },
+
+    // --- MESSAGING SYSTEM ---
+
+    // Récupérer l'historique de conversation entre deux utilisateurs
+    getMessages: async (user1: string, user2: string) => {
+        if (!supabase) return [];
+        try {
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .or(`and(sender_id.eq.${user1},receiver_id.eq.${user2}),and(sender_id.eq.${user2},receiver_id.eq.${user1})`)
+                .order('created_at', { ascending: true })
+                .limit(50); // Charger les 50 derniers messages
+
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn("Erreur chargement messages (Table existe-t-elle ?):", e);
+            return [];
+        }
+    },
+
+    // Envoyer un message
+    sendMessage: async (senderId: string, receiverId: string, text: string) => {
+        if (!supabase) return null;
+        try {
+            const { data, error } = await supabase
+                .from('messages')
+                .insert([{ sender_id: senderId, receiver_id: receiverId, text: text, read: false }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (e) {
+            console.error("Erreur envoi message:", e);
+            return null;
+        }
+    },
+
+    // Marquer les messages comme lus
+    markMessagesAsRead: async (senderId: string, receiverId: string) => {
+        if (!supabase) return;
+        try {
+            await supabase
+                .from('messages')
+                .update({ read: true })
+                .match({ sender_id: senderId, receiver_id: receiverId, read: false });
+        } catch (e) {
+            console.error("Erreur update read:", e);
+        }
+    },
+
+    // Récupérer le nombre de messages non lus pour l'utilisateur actuel
+    getUnreadCount: async (userId: string) => {
+        if (!supabase) return 0;
+        try {
+            const { count, error } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('receiver_id', userId)
+                .eq('read', false);
+            
+            if (error) return 0;
+            return count || 0;
+        } catch (e) {
+            return 0;
         }
     }
 };

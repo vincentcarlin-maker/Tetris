@@ -172,25 +172,40 @@ export const MALLETS_CATALOG: Mallet[] = [
 ];
 
 export const useCurrency = () => {
-    const [coins, setCoins] = useState(0);
-    const [inventory, setInventory] = useState<string[]>([]);
+    // --- STATE INITIALIZATION WITH LOCALSTORAGE LAZY LOADING ---
+    // This ensures state is correct from the very first render, preventing "flashes" of default values.
+    
+    const [coins, setCoins] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
+    const [inventory, setInventory] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
+    });
     
     // User Identity
-    const [username, setUsername] = useState("Joueur Néon");
-    const [currentAvatarId, setCurrentAvatarId] = useState("av_bot");
-    const [ownedAvatars, setOwnedAvatars] = useState<string[]>(["av_bot", "av_human"]);
+    const [username, setUsername] = useState(() => localStorage.getItem('neon-username') || "Joueur Néon");
+    const [currentAvatarId, setCurrentAvatarId] = useState(() => localStorage.getItem('neon-avatar') || "av_bot");
+    const [ownedAvatars, setOwnedAvatars] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-avatars') || '["av_bot", "av_human"]'); } catch { return ["av_bot", "av_human"]; }
+    });
     
-    const [currentFrameId, setCurrentFrameId] = useState("fr_none");
-    const [ownedFrames, setOwnedFrames] = useState<string[]>(["fr_none"]);
+    const [currentFrameId, setCurrentFrameId] = useState(() => localStorage.getItem('neon-frame') || "fr_none");
+    const [ownedFrames, setOwnedFrames] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-frames') || '["fr_none"]'); } catch { return ["fr_none"]; }
+    });
 
-    const [currentWallpaperId, setCurrentWallpaperId] = useState("bg_brick");
-    const [ownedWallpapers, setOwnedWallpapers] = useState<string[]>(["bg_brick"]);
+    const [currentWallpaperId, setCurrentWallpaperId] = useState(() => localStorage.getItem('neon-wallpaper') || "bg_brick");
+    const [ownedWallpapers, setOwnedWallpapers] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-wallpapers') || '["bg_brick"]'); } catch { return ["bg_brick"]; }
+    });
 
-    const [currentTitleId, setCurrentTitleId] = useState("t_none");
-    const [ownedTitles, setOwnedTitles] = useState<string[]>(["t_none"]);
+    const [currentTitleId, setCurrentTitleId] = useState(() => localStorage.getItem('neon-title') || "t_none");
+    const [ownedTitles, setOwnedTitles] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-titles') || '["t_none"]'); } catch { return ["t_none"]; }
+    });
 
-    const [currentMalletId, setCurrentMalletId] = useState("m_classic");
-    const [ownedMallets, setOwnedMallets] = useState<string[]>(["m_classic"]);
+    const [currentMalletId, setCurrentMalletId] = useState(() => localStorage.getItem('neon-mallet') || "m_classic");
+    const [ownedMallets, setOwnedMallets] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-mallets') || '["m_classic"]'); } catch { return ["m_classic"]; }
+    });
 
     // --- ADMIN CHECK ---
     const [adminModeActive, setAdminModeActive] = useState(() => {
