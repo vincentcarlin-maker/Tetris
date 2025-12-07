@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -55,6 +55,8 @@ const MOCK_COMMUNITY_PLAYERS: Friend[] = [
     { id: 'bot_4', name: 'RetroMaster', avatarId: 'av_game', status: 'offline', lastSeen: Date.now() - 300000, stats: { tetris: 0, breaker: 0, pacman: 20000, memory: 0, rush: 0, sudoku: 0 } },
     { id: 'bot_5', name: 'GlitchHunter', avatarId: 'av_ghost', frameId: 'fr_cyber', status: 'online', lastSeen: Date.now(), stats: { tetris: 15000, breaker: 15000, pacman: 15000, memory: 20, rush: 15, sudoku: 0 } },
     { id: 'bot_6', name: 'ArcadeFan', avatarId: 'av_bot', status: 'online', lastSeen: Date.now(), stats: { tetris: 2000, breaker: 1000, pacman: 2000, memory: 5, rush: 2, sudoku: 0 } },
+    { id: 'bot_7', name: 'VaporWave', avatarId: 'av_sun', frameId: 'fr_sunset', status: 'online', lastSeen: Date.now(), stats: { tetris: 8000, breaker: 2000, pacman: 1000, memory: 0, rush: 0, sudoku: 0 } },
+    { id: 'bot_8', name: 'Dr.Pixels', avatarId: 'av_human', status: 'online', lastSeen: Date.now(), stats: { tetris: 30000, breaker: 0, pacman: 0, memory: 50, rush: 0, sudoku: 0 } },
 ];
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
@@ -406,10 +408,20 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     // --- COMMUNITY LOGIC ---
     // Merge real players and mock players (filtering out friends and self)
+    // Sort real players to the top
     const displayedCommunity = [
         ...mp.players.filter(p => p.id !== mp.peerId),
         ...MOCK_COMMUNITY_PLAYERS
-    ].filter(p => !friends.some(f => f.id === p.id) && p.id !== mp.peerId);
+    ]
+    .filter(p => !friends.some(f => f.id === p.id) && p.id !== mp.peerId)
+    .sort((a, b) => {
+        // Prioritize Real players (not bots)
+        const aIsBot = a.id.startsWith('bot_');
+        const bIsBot = b.id.startsWith('bot_');
+        if (aIsBot && !bIsBot) return 1;
+        if (!aIsBot && bIsBot) return -1;
+        return 0;
+    });
 
     const getFrameClass = (frameId?: string) => {
         return framesCatalog.find(f => f.id === frameId)?.cssClass || 'border-white/10';
@@ -466,6 +478,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     <span className="text-xs text-gray-400 font-bold tracking-widest">{selectedPlayer.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</span>
                                 </div>
                                 {selectedPlayer.status === 'offline' && selectedPlayer.lastSeen > 0 && <span className="text-[10px] text-gray-600 font-mono">VU : {formatLastSeen(selectedPlayer.lastSeen)}</span>}
+                                {selectedPlayer.id.startsWith('bot_') && <span className="text-[10px] text-blue-400 font-mono bg-blue-900/30 px-2 rounded mt-1">SIMULATION IA</span>}
                             </div>
 
                             <div className="flex gap-2 justify-center mb-6">
@@ -513,7 +526,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {socialTab === 'COMMUNITY' && (
                                 <div className="space-y-4">
                                     <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-2 animate-pulse">
-                                        <p className="text-purple-300 text-xs font-bold flex items-center justify-center gap-2"><Globe size={14}/> JOUEURS EN LIGNE ({displayedCommunity.length + 128})</p>
+                                        <p className="text-purple-300 text-xs font-bold flex items-center justify-center gap-2">
+                                            <Wifi size={14} className="animate-ping"/> SCAN EN COURS... ({displayedCommunity.length + 128} EN LIGNE)
+                                        </p>
                                     </div>
                                     
                                     {displayedCommunity.map(player => {
@@ -528,9 +543,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                             status: 'online', 
                                             lastSeen: Date.now() 
                                         };
+                                        const isBot = player.id.startsWith('bot_');
                                         
                                         return (
-                                            <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/60 hover:bg-gray-800 rounded-xl border border-white/10 hover:border-purple-500/50 transition-all cursor-pointer group`}>
+                                            <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/60 hover:bg-gray-800 rounded-xl border border-white/10 hover:border-purple-500/50 transition-all cursor-pointer group ${!isBot ? 'border-green-500/30 bg-green-900/10' : ''}`}>
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(tempFriend.frameId)}`}>
                                                         <AvIcon size={18} className={avatar.color} />
@@ -539,7 +555,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                     <div className="flex flex-col">
                                                         <h4 className="font-bold text-white text-sm group-hover:text-purple-300 transition-colors flex items-center gap-1">
                                                             {player.name}
-                                                            {player.id.startsWith('bot_') && <Bot size={10} className="text-gray-500" />}
+                                                            {isBot ? <Bot size={12} className="text-gray-500" /> : <span className="bg-green-500 text-black text-[8px] font-bold px-1 rounded">RÉEL</span>}
                                                         </h4>
                                                         <span className="text-[10px] text-gray-500">{(player as any).status === 'in_game' ? 'En Jeu' : 'Dans le Lobby'}</span>
                                                     </div>
@@ -556,7 +572,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     })}
                                     
                                     <div className="pt-4 mt-4 border-t border-white/10">
-                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Ajout Manuel</p>
+                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Ajout par ID Unique</p>
                                         <div className="flex gap-2">
                                             <input 
                                                 type="text" 
