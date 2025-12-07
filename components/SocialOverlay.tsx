@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -41,6 +41,7 @@ interface PrivateMessage {
     text: string;
     timestamp: number;
     read: boolean;
+    pending?: boolean; // New for store & forward
 }
 
 interface FriendRequest {
@@ -78,10 +79,8 @@ const ACTIVITY_TEMPLATES = [
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     
-    // We now receive onlineUsers from props, no need to call useSupabase here
-
     const [showSocial, setShowSocial] = useState(false);
-    const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY'); // Default to Community to see "people"
+    const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
     const [friends, setFriends] = useState<Friend[]>([]);
     const [requests, setRequests] = useState<FriendRequest[]>([]);
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
@@ -176,6 +175,40 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setConfigUrl(conf.url);
         setConfigKey(conf.key);
     }, []);
+
+    // --- STORE & FORWARD LOGIC ---
+    useEffect(() => {
+        if (!mp.isConnected || !isConnectedToSupabase) return;
+
+        // Check for pending messages for currently online users
+        onlineUsers.forEach(user => {
+            const userMessages = messages[user.id];
+            if (userMessages && userMessages.some(m => m.pending)) {
+                // Found pending messages for this online user
+                const pendingMsgs = userMessages.filter(m => m.pending);
+                
+                // Send them one by one
+                pendingMsgs.forEach(msg => {
+                    mp.connectTo(user.id);
+                    // Use a small timeout to ensure connection is established if not already
+                    setTimeout(() => {
+                        mp.sendTo(user.id, { type: 'DM', text: msg.text });
+                    }, 500);
+                });
+
+                // Mark as sent locally
+                setMessages(prev => {
+                    const chat = prev[user.id];
+                    if (!chat) return prev;
+                    const updatedChat = chat.map(m => m.pending ? { ...m, pending: undefined } : m);
+                    const updated = { ...prev, [user.id]: updatedChat };
+                    localStorage.setItem('neon_dms', JSON.stringify(updated));
+                    return updated;
+                });
+            }
+        });
+    }, [onlineUsers, messages, mp, isConnectedToSupabase]);
+
 
     // --- FAKE SERVER ACTIVITY GENERATOR ---
     useEffect(() => {
@@ -402,7 +435,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (e) e.preventDefault();
         if (!chatInput.trim() || !activeChatId || !mp.peerId) return;
 
-        const msg: PrivateMessage = { id: Date.now().toString(), senderId: mp.peerId, text: chatInput.trim(), timestamp: Date.now(), read: true };
+        // Is user online?
+        const isOnline = onlineUsers.some(u => u.id === activeChatId) || activeChatId.startsWith('bot_');
+        
+        const msg: PrivateMessage = { 
+            id: Date.now().toString(), 
+            senderId: mp.peerId, 
+            text: chatInput.trim(), 
+            timestamp: Date.now(), 
+            read: true,
+            pending: !isOnline // Store & Forward flag
+        };
+
         setMessages(prev => {
             const chat = prev[activeChatId] || [];
             const updated = { ...prev, [activeChatId]: [...chat, msg] };
@@ -424,8 +468,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 });
                 audio.playCoin();
             }, 2000);
-        } else {
+        } else if (isOnline) {
+            // Send Immediately
             mp.sendTo(activeChatId, { type: 'DM', text: chatInput.trim() });
+        } else {
+            // Queued locally, will be sent by useEffect when user comes online
         }
         
         setChatInput('');
@@ -547,15 +594,40 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                 {!selectedPlayer.id.startsWith('bot_') && <span className="text-[10px] text-green-400 font-mono bg-green-900/30 px-2 rounded mt-1">JOUEUR RÉEL</span>}
                             </div>
 
+                            {/* STATISTICS GRID */}
+                            {selectedPlayer.stats && (
+                                <div className="bg-black/40 rounded-xl p-3 mb-6 border border-white/5">
+                                    <h3 className="text-xs font-bold text-gray-500 mb-2 flex items-center justify-center gap-2"><BarChart2 size={12}/> STATISTIQUES</h3>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div className="flex justify-between bg-gray-800/50 p-1.5 rounded">
+                                            <span className="text-gray-400">Tetris</span>
+                                            <span className="text-neon-blue font-mono font-bold">{selectedPlayer.stats.tetris?.toLocaleString() || 0}</span>
+                                        </div>
+                                        <div className="flex justify-between bg-gray-800/50 p-1.5 rounded">
+                                            <span className="text-gray-400">Pacman</span>
+                                            <span className="text-yellow-400 font-mono font-bold">{selectedPlayer.stats.pacman?.toLocaleString() || 0}</span>
+                                        </div>
+                                        <div className="flex justify-between bg-gray-800/50 p-1.5 rounded">
+                                            <span className="text-gray-400">Breaker</span>
+                                            <span className="text-pink-400 font-mono font-bold">{selectedPlayer.stats.breaker?.toLocaleString() || 0}</span>
+                                        </div>
+                                        <div className="flex justify-between bg-gray-800/50 p-1.5 rounded">
+                                            <span className="text-gray-400">Snake</span>
+                                            <span className="text-green-400 font-mono font-bold">{(selectedPlayer.stats as any).snake?.toLocaleString() || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex gap-2 justify-center mb-6">
                                 {selectedPlayer.id === mp.peerId ? (
                                     <div className="px-4 py-2 bg-gray-800 rounded-full font-bold text-sm text-gray-400 border border-white/10">C'est votre profil</div>
-                                ) : !friends.some(f => f.id === selectedPlayer.id) ? (
-                                    <button onClick={() => { sendFriendRequest(selectedPlayer.id); setSelectedPlayer(null); }} className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-sm transition-colors shadow-lg"><UserPlus size={16} /> AJOUTER</button>
+                                ) : !friends.some(f => f.id === selectedPlayer?.id) ? (
+                                    <button onClick={() => { sendFriendRequest(selectedPlayer!.id); setSelectedPlayer(null); }} className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-sm transition-colors shadow-lg"><UserPlus size={16} /> AJOUTER</button>
                                 ) : (
                                     <>
-                                        <button onClick={() => openChat(selectedPlayer.id)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-full font-bold text-sm transition-colors"><MessageSquare size={16} /> MESSAGE</button>
-                                        <button onClick={() => { removeFriend(selectedPlayer.id); setSelectedPlayer(null); }} className="p-2 border border-red-500/50 text-red-500 hover:bg-red-500/20 rounded-full transition-colors"><Trash2 size={16} /></button>
+                                        <button onClick={() => openChat(selectedPlayer!.id)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-full font-bold text-sm transition-colors"><MessageSquare size={16} /> MESSAGE</button>
+                                        <button onClick={() => { removeFriend(selectedPlayer!.id); setSelectedPlayer(null); }} className="p-2 border border-red-500/50 text-red-500 hover:bg-red-500/20 rounded-full transition-colors"><Trash2 size={16} /></button>
                                     </>
                                 )}
                             </div>
@@ -667,7 +739,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                             avatarId: player.avatarId, 
                                             frameId: (player as any).frameId, 
                                             status: 'online', 
-                                            lastSeen: Date.now() 
+                                            lastSeen: Date.now(),
+                                            stats: (player as any).stats
                                         };
                                         const isBot = player.id.startsWith('bot_');
                                         
@@ -765,8 +838,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     <div className="flex-1 overflow-y-auto mb-4 space-y-2 pr-1 custom-scrollbar">
                                         {messages[activeChatId]?.map((msg, i) => (
                                             <div key={i} className={`flex ${msg.senderId === mp.peerId ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.senderId === mp.peerId ? 'bg-purple-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-200 rounded-bl-none'}`}>
-                                                    {msg.text}
+                                                <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.senderId === mp.peerId ? 'bg-purple-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-200 rounded-bl-none'} flex gap-2 items-end`}>
+                                                    <span>{msg.text}</span>
+                                                    {msg.pending && <Clock size={10} className="text-white/70 animate-pulse mb-0.5" title="En attente de connexion"/>}
                                                 </div>
                                             </div>
                                         ))}
