@@ -182,11 +182,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setFriends(prevFriends => {
             const updated = prevFriends.map(f => {
                 const onlineUser = onlineUsers.find(u => u.id === f.id);
-                const isRealUserOnline = !!onlineUser;
+                // Note: onlineUser might have status 'offline' now due to persistence in useSupabase
+                const isRealUserOnline = onlineUser && onlineUser.status === 'online';
                 const isBot = f.id.startsWith('bot_');
 
                 const newStatus = (isRealUserOnline || isBot) ? 'online' : 'offline';
-                const newStats = isRealUserOnline ? onlineUser.stats : f.stats; // Get updated stats from real user
+                const newStats = onlineUser ? onlineUser.stats : f.stats; // Get updated stats from real user
 
                 // Only update if status or stats changed to avoid loops
                 if (f.status !== newStatus || JSON.stringify(f.stats) !== JSON.stringify(newStats)) {
@@ -209,6 +210,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
         // Check for pending messages for currently online users
         onlineUsers.forEach(user => {
+            if (user.status !== 'online') return;
+            
             const userMessages = messages[user.id];
             if (userMessages && userMessages.some(m => m.pending)) {
                 // Found pending messages for this online user
@@ -251,9 +254,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     // Priorité aux amis
                     randomUser = onlineFriends[Math.floor(Math.random() * onlineFriends.length)];
                 } else {
-                    // Sinon mélange bots et joueurs globaux
-                    const potentialUsers = [...MOCK_COMMUNITY_PLAYERS, ...onlineUsers.map(u => ({...u} as Friend))];
-                    randomUser = potentialUsers[Math.floor(Math.random() * potentialUsers.length)];
+                    // Sinon mélange bots et joueurs globaux (filtrés en ligne seulement)
+                    const potentialUsers = [...MOCK_COMMUNITY_PLAYERS, ...onlineUsers.filter(u => u.status === 'online').map(u => ({...u} as Friend))];
+                    if (potentialUsers.length > 0) {
+                        randomUser = potentialUsers[Math.floor(Math.random() * potentialUsers.length)];
+                    }
                 }
                 
                 if (randomUser) {
@@ -391,11 +396,15 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             friends.forEach(f => {
                 // Don't connect to bots via PeerJS
                 if (!f.id.startsWith('bot_')) {
-                    mp.connectTo(f.id);
+                    // Only connect if they are actually online (via Supabase)
+                    const onlineStatus = onlineUsers.find(u => u.id === f.id)?.status;
+                    if (onlineStatus === 'online') {
+                        mp.connectTo(f.id);
+                    }
                 }
             });
         }
-    }, [mp.isConnected, friends, mp]);
+    }, [mp.isConnected, friends, mp, onlineUsers]);
 
     // Chat scroll
     useEffect(() => {
@@ -473,7 +482,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (!chatInput.trim() || !activeChatId || !mp.peerId) return;
 
         // Is user online?
-        const isOnline = onlineUsers.some(u => u.id === activeChatId) || activeChatId.startsWith('bot_');
+        const onlineUser = onlineUsers.find(u => u.id === activeChatId);
+        const isOnline = (onlineUser && onlineUser.status === 'online') || activeChatId.startsWith('bot_');
         
         const msg: PrivateMessage = { 
             id: Date.now().toString(), 
@@ -549,17 +559,24 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     };
 
     // --- COMMUNITY LOGIC ---
+    // Merge online users (persisted via useSupabase) and bots
     const displayedCommunity = [
-        ...onlineUsers.filter(u => u.id !== mp.peerId), // Supabase Global
+        ...onlineUsers.filter(u => u.id !== mp.peerId), // Supabase Global (includes offline history now)
         ...MOCK_COMMUNITY_PLAYERS // Bots
     ]
-    .filter(p => !friends.some(f => f.id === p.id))
-    .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id))
+    .filter(p => !friends.some(f => f.id === p.id)) // Filter out friends
+    .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id)) // Dedupe
     .sort((a, b) => {
+        // Sort: Bots last, then online first, then offline
         const aIsBot = a.id.startsWith('bot_');
         const bIsBot = b.id.startsWith('bot_');
         if (aIsBot && !bIsBot) return 1;
         if (!aIsBot && bIsBot) return -1;
+        
+        // Both real or both bots
+        if (a.status === 'online' && b.status !== 'online') return -1;
+        if (a.status !== 'online' && b.status === 'online') return 1;
+        
         return 0;
     });
 
@@ -574,7 +591,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     };
 
     const hasOnlineFriends = friends.some(
-        f => !f.id.startsWith('bot_') && onlineUsers.some(ou => ou.id === f.id)
+        f => !f.id.startsWith('bot_') && onlineUsers.some(ou => ou.id === f.id && ou.status === 'online')
     );
 
     const hubStatusColor = hasOnlineFriends
@@ -780,24 +797,25 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                             name: player.name, 
                                             avatarId: player.avatarId, 
                                             frameId: (player as any).frameId, 
-                                            status: 'online', 
-                                            lastSeen: Date.now(),
+                                            status: player.status, 
+                                            lastSeen: player.lastSeen,
                                             stats: (player as any).stats
                                         };
                                         const isBot = player.id.startsWith('bot_');
+                                        const isOnline = player.status === 'online';
                                         
                                         return (
                                             <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/60 hover:bg-gray-800 rounded-xl border ${isBot ? 'border-white/10 hover:border-purple-500/50' : 'border-green-500/30 hover:border-green-500/50 shadow-[inset_0_0_10px_rgba(34,197,94,0.1)]'} cursor-pointer transition-all group`}>
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative`}>
                                                         <AvIcon size={20} className={avatar.color} />
-                                                        {isBot ? null : <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-black shadow-[0_0_5px_lime]"></div>}
+                                                        {isBot ? null : <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border border-black ${isOnline ? 'bg-green-500 shadow-[0_0_5px_lime]' : 'bg-gray-500'}`}></div>}
                                                     </div>
                                                     <div className="flex flex-col">
                                                         <span className="font-bold text-sm text-gray-200 group-hover:text-white">{player.name}</span>
                                                         <span className="text-[10px] text-gray-500 flex items-center gap-1">
-                                                            {isBot ? <Bot size={10}/> : <Globe size={10} className="text-green-400"/>} 
-                                                            {isBot ? 'Simulation' : 'En Ligne'}
+                                                            {isBot ? <Bot size={10}/> : <Globe size={10} className={isOnline ? "text-green-400" : "text-gray-500"}/>} 
+                                                            {isBot ? 'Simulation' : (isOnline ? 'En Ligne' : 'Hors Ligne')}
                                                         </span>
                                                     </div>
                                                 </div>

@@ -7,14 +7,25 @@ export interface OnlineUser {
     name: string;
     avatarId: string;
     frameId?: string;
-    status: 'online';
+    status: 'online' | 'offline';
     lastSeen: number;
     online_at: string;
     stats?: any; // High Scores object
 }
 
+const HISTORY_KEY = 'neon_global_history';
+
 export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: string, myFrame: string, myStats: any) => {
-    const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+    // Initialize from local storage to show offline players immediately
+    const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>(() => {
+        try {
+            const stored = localStorage.getItem(HISTORY_KEY);
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+    
     const [isConnectedToSupabase, setIsConnectedToSupabase] = useState(false);
     const channelRef = useRef<any>(null);
 
@@ -34,16 +45,16 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
         channel
             .on('presence', { event: 'sync' }, () => {
                 const newState = channel.presenceState();
-                const users: OnlineUser[] = [];
+                const currentOnlineMap = new Map<string, OnlineUser>();
                 
+                // 1. Extract currently online users
                 for (const key in newState) {
-                    // On ignore soi-même dans la liste des "autres"
                     if (key === myPeerId) continue;
 
                     const presence = newState[key][0] as any;
                     if (presence) {
-                        users.push({
-                            id: key, // Peer ID is the key
+                        currentOnlineMap.set(key, {
+                            id: key,
                             name: presence.name || 'Inconnu',
                             avatarId: presence.avatarId || 'av_bot',
                             frameId: presence.frameId,
@@ -54,10 +65,31 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                         });
                     }
                 }
-                setOnlineUsers(users);
+
+                // 2. Merge with history
+                setOnlineUsers(prev => {
+                    const mergedMap = new Map<string, OnlineUser>();
+
+                    // Add previous users, marking them as offline by default
+                    prev.forEach(u => {
+                        mergedMap.set(u.id, { ...u, status: 'offline' });
+                    });
+
+                    // Overwrite/Add current online users
+                    currentOnlineMap.forEach((u, key) => {
+                        mergedMap.set(key, u);
+                    });
+
+                    const newList = Array.from(mergedMap.values());
+                    
+                    // Persist to local storage
+                    localStorage.setItem(HISTORY_KEY, JSON.stringify(newList));
+                    
+                    return newList;
+                });
             })
             .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                console.log('User joined:', key, newPresences);
+                console.log('User joined:', key);
             })
             .on('presence', { event: 'leave' }, ({ key }) => {
                 console.log('User left:', key);
