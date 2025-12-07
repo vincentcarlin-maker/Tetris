@@ -77,6 +77,17 @@ const ACTIVITY_TEMPLATES = [
     "{name} domine le classement",
 ];
 
+const formatFullDate = (timestamp: number) => {
+    if (!timestamp) return '-';
+    return new Date(timestamp).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     
@@ -187,11 +198,26 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 const isBot = f.id.startsWith('bot_');
 
                 const newStatus = (isRealUserOnline || isBot) ? 'online' : 'offline';
-                const newStats = onlineUser ? onlineUser.stats : f.stats; // Get updated stats from real user
+                
+                // Get stats from onlineUser (history or live) if available
+                const newStats = onlineUser?.stats || f.stats;
+                
+                // Get lastSeen from onlineUser (history or live) if available
+                // If it's a bot, update to now if online
+                let newLastSeen = f.lastSeen;
+                if (isBot && newStatus === 'online') {
+                    newLastSeen = Date.now();
+                } else if (onlineUser) {
+                    newLastSeen = onlineUser.lastSeen;
+                }
 
-                // Only update if status or stats changed to avoid loops
-                if (f.status !== newStatus || JSON.stringify(f.stats) !== JSON.stringify(newStats)) {
-                    return { ...f, status: newStatus, lastSeen: Date.now(), stats: newStats };
+                // Update if status, stats, or lastSeen changed
+                if (
+                    f.status !== newStatus || 
+                    JSON.stringify(f.stats) !== JSON.stringify(newStats) || 
+                    f.lastSeen !== newLastSeen
+                ) {
+                    return { ...f, status: newStatus, lastSeen: newLastSeen, stats: newStats };
                 }
                 return f;
             });
@@ -653,9 +679,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     <div className={`w-2 h-2 rounded-full ${selectedPlayer.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
                                     <span className="text-xs text-gray-400 font-bold tracking-widest">{selectedPlayer.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</span>
                                 </div>
-                                {selectedPlayer.status === 'offline' && selectedPlayer.lastSeen > 0 && <span className="text-[10px] text-gray-600 font-mono">VU : {formatLastSeen(selectedPlayer.lastSeen)}</span>}
-                                {selectedPlayer.id.startsWith('bot_') && <span className="text-[10px] text-blue-400 font-mono bg-blue-900/30 px-2 rounded mt-1">SIMULATION IA</span>}
-                                {!selectedPlayer.id.startsWith('bot_') && <span className="text-[10px] text-green-400 font-mono bg-green-900/30 px-2 rounded mt-1">JOUEUR RÉEL</span>}
+                                
+                                {/* Explicit Last Connection Display */}
+                                <div className="mt-2 bg-gray-800/50 rounded-lg px-4 py-2 border border-white/5 flex flex-col items-center w-full max-w-[200px]">
+                                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">DERNIÈRE CONNEXION</span>
+                                    <span className="text-xs font-mono text-gray-300 font-bold">
+                                        {selectedPlayer.status === 'online' ? 'MAINTENANT' : formatFullDate(selectedPlayer.lastSeen)}
+                                    </span>
+                                </div>
+
+                                {selectedPlayer.id.startsWith('bot_') && <span className="text-[10px] text-blue-400 font-mono bg-blue-900/30 px-2 rounded mt-2">SIMULATION IA</span>}
+                                {!selectedPlayer.id.startsWith('bot_') && <span className="text-[10px] text-green-400 font-mono bg-green-900/30 px-2 rounded mt-2">JOUEUR RÉEL</span>}
                             </div>
 
                             {/* STATISTICS GRID */}
