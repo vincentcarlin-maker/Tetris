@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -11,6 +11,8 @@ import { DailyBonusModal } from './DailyBonusModal';
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
     onLogout: () => void;
+    isAuthenticated?: boolean;
+    onLoginRequest?: () => void;
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
     mp: ReturnType<typeof useMultiplayer>;
@@ -288,7 +290,7 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
@@ -395,9 +397,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
     // Sync Presence in Global Lobby
     useEffect(() => {
-        // We ensure presence is updated, connection handled by App.tsx
-        mp.updateSelfInfo(username, currentAvatarId);
-    }, [username, currentAvatarId, mp]);
+        if (isAuthenticated) {
+            mp.updateSelfInfo(username, currentAvatarId);
+        }
+    }, [username, currentAvatarId, mp, isAuthenticated]);
 
     const handleInstallClick = () => {
         if (!installPrompt) return;
@@ -456,7 +459,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 />
             ))}
 
-            {showDailyModal && (
+            {showDailyModal && isAuthenticated && (
                 <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />
             )}
 
@@ -464,15 +467,26 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
             {/* Top Bar */}
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
-                <div ref={coinBalanceRef} className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-                    <Coins className="text-yellow-400" size={20} />
-                    <span className="text-yellow-100 font-mono font-bold text-lg">{coins.toLocaleString()}</span>
-                </div>
+                
+                {/* Coin Balance or Login Button */}
+                {isAuthenticated ? (
+                    <div ref={coinBalanceRef} className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                        <Coins className="text-yellow-400" size={20} />
+                        <span className="text-yellow-100 font-mono font-bold text-lg">{coins.toLocaleString()}</span>
+                    </div>
+                ) : (
+                    <button onClick={onLoginRequest} className="flex items-center gap-2 bg-neon-blue/20 backdrop-blur-md px-4 py-2 rounded-full border border-neon-blue/50 hover:bg-neon-blue/40 transition-colors animate-pulse">
+                        <User className="text-neon-blue" size={20} />
+                        <span className="text-neon-blue font-bold text-sm">SE CONNECTER</span>
+                    </button>
+                )}
 
                 <div className="flex gap-3">
-                    <button onClick={() => onSelectGame('shop')} className="p-2 bg-gray-900/80 rounded-full text-yellow-400 hover:text-white border border-yellow-500/30 backdrop-blur-sm active:scale-95 transition-transform shadow-[0_0_10px_rgba(234,179,8,0.2)]" title="Boutique">
-                        <ShoppingBag size={20} />
-                    </button>
+                    {isAuthenticated && (
+                        <button onClick={() => onSelectGame('shop')} className="p-2 bg-gray-900/80 rounded-full text-yellow-400 hover:text-white border border-yellow-500/30 backdrop-blur-sm active:scale-95 transition-transform shadow-[0_0_10px_rgba(234,179,8,0.2)]" title="Boutique">
+                            <ShoppingBag size={20} />
+                        </button>
+                    )}
 
                     {installPrompt && (
                         <button onClick={handleInstallClick} className="p-2 bg-neon-pink/20 rounded-full text-neon-pink hover:bg-neon-pink hover:text-white border border-neon-pink/50 backdrop-blur-sm active:scale-95 transition-all animate-pulse shadow-[0_0_10px_rgba(255,0,255,0.4)]" title="Installer l'application">
@@ -503,87 +517,117 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  <div {...bindGlow('rgba(200, 230, 255, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-4 backdrop-blur-md relative overflow-hidden group shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all duration-300 hover:border-white/50 hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:ring-1 hover:ring-white/30">
                      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
                      
-                     {/* Logout Button */}
-                     <button 
-                        onClick={onLogout}
-                        className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30"
-                        title="Se déconnecter"
-                     >
-                        <LogOut size={16} />
-                     </button>
+                     {/* Logout Button (Only if authenticated) */}
+                     {isAuthenticated && (
+                         <button 
+                            onClick={onLogout}
+                            className="absolute top-2 right-2 p-2 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30"
+                            title="Se déconnecter"
+                         >
+                            <LogOut size={16} />
+                         </button>
+                     )}
 
                      <div className="flex items-center w-full gap-4 z-10">
                         {/* Avatar with Frame */}
-                        <div onClick={() => onSelectGame('shop')} className="relative cursor-pointer hover:scale-105 transition-transform">
-                            <div className={`w-20 h-20 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative z-10 border-2 ${currentFrame.cssClass}`}>
-                                <div className="w-full h-full bg-black/40 rounded-[8px] flex items-center justify-center backdrop-blur-sm">
-                                    <AvatarIcon size={40} className={currentAvatar.color} />
+                        <div onClick={() => isAuthenticated ? onSelectGame('shop') : onLoginRequest && onLoginRequest()} className="relative cursor-pointer hover:scale-105 transition-transform">
+                            {isAuthenticated ? (
+                                <div className={`w-20 h-20 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative z-10 border-2 ${currentFrame.cssClass}`}>
+                                    <div className="w-full h-full bg-black/40 rounded-[8px] flex items-center justify-center backdrop-blur-sm">
+                                        <AvatarIcon size={40} className={currentAvatar.color} />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20 z-20">EDIT</div>
+                            ) : (
+                                <div className="w-20 h-20 rounded-xl bg-gray-800 border-2 border-white/20 flex items-center justify-center relative z-10">
+                                    <Lock size={32} className="text-gray-500" />
+                                </div>
+                            )}
+                            
+                            {isAuthenticated && <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[10px] text-white px-2 py-0.5 rounded-full border border-white/20 z-20">EDIT</div>}
                         </div>
 
                         {/* Player Info */}
                         <div className="flex-1 flex flex-col justify-center">
-                            <div className="flex items-center gap-2 mb-1">
-                                {isEditingName ? (
-                                    <form onSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
-                                        <input ref={inputRef} type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={() => handleNameSubmit()} maxLength={12} className="bg-black/50 border border-neon-blue rounded px-2 py-1 text-white font-bold text-lg w-full outline-none focus:ring-2 ring-neon-blue/50"/>
-                                        <button type="submit" className="text-green-400"><Check size={20} /></button>
-                                    </form>
-                                ) : (
-                                    <button onClick={() => { setTempName(username); setIsEditingName(true); }} className="flex items-center gap-2 group/edit">
-                                        <h2 className="text-2xl font-black text-white italic tracking-wide truncate max-w-[150px]">{username}</h2>
-                                        <Edit2 size={14} className="text-gray-500 group-hover/edit:text-white transition-colors" />
-                                    </button>
-                                )}
-                            </div>
-                            
-                            {/* DISPLAY EQUIPPED TITLE IF EXISTS */}
-                            {currentTitle && currentTitle.id !== 't_none' && (
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${currentTitle.color} mb-1 bg-gray-900/50 px-2 py-0.5 rounded w-fit border border-white/10`}>
-                                    {currentTitle.name}
-                                </span>
-                            )}
+                            {isAuthenticated ? (
+                                <>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        {isEditingName ? (
+                                            <form onSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
+                                                <input ref={inputRef} type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={() => handleNameSubmit()} maxLength={12} className="bg-black/50 border border-neon-blue rounded px-2 py-1 text-white font-bold text-lg w-full outline-none focus:ring-2 ring-neon-blue/50"/>
+                                                <button type="submit" className="text-green-400"><Check size={20} /></button>
+                                            </form>
+                                        ) : (
+                                            <button onClick={() => { setTempName(username); setIsEditingName(true); }} className="flex items-center gap-2 group/edit">
+                                                <h2 className="text-2xl font-black text-white italic tracking-wide truncate max-w-[150px]">{username}</h2>
+                                                <Edit2 size={14} className="text-gray-500 group-hover/edit:text-white transition-colors" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    {/* DISPLAY EQUIPPED TITLE IF EXISTS */}
+                                    {currentTitle && currentTitle.id !== 't_none' && (
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${currentTitle.color} mb-1 bg-gray-900/50 px-2 py-0.5 rounded w-fit border border-white/10`}>
+                                            {currentTitle.name}
+                                        </span>
+                                    )}
 
-                            <span className={`text-xs font-bold tracking-widest uppercase ${playerRank.color}`}>{playerRank.title}</span>
-                            
-                            {/* Streak Badge */}
-                            <div className="flex items-center gap-1 mt-1 text-xs text-yellow-500 font-bold bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-500/20 w-fit">
-                                <Calendar size={12} /> SÉRIE : {streak} JOURS
-                            </div>
+                                    <span className={`text-xs font-bold tracking-widest uppercase ${playerRank.color}`}>{playerRank.title}</span>
+                                    
+                                    {/* Streak Badge */}
+                                    <div className="flex items-center gap-1 mt-1 text-xs text-yellow-500 font-bold bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-500/20 w-fit">
+                                        <Calendar size={12} /> SÉRIE : {streak} JOURS
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col gap-2 items-start">
+                                    <h2 className="text-xl font-bold text-gray-400 italic">Mode Visiteur</h2>
+                                    <button onClick={onLoginRequest} className="text-xs bg-neon-blue text-black px-3 py-1 rounded font-bold hover:bg-white transition-colors">
+                                        CRÉER UN PROFIL
+                                    </button>
+                                </div>
+                            )}
                         </div>
                      </div>
 
                      <div className="w-full h-px bg-white/10" />
 
                      {/* BADGES */}
-                     {ownedBadges.length > 0 ? (
-                         <div className="flex gap-3 overflow-x-auto w-full justify-start py-2 no-scrollbar z-10 mask-linear">
-                             {ownedBadges.slice().reverse().map(badge => {
-                                 const Icon = badge.icon;
-                                 return (
-                                     <div key={badge.id} className="relative shrink-0 animate-in fade-in zoom-in duration-300">
-                                         <div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center shadow-lg" title={badge.name}>
-                                             <Icon size={20} className={badge.color} />
+                     {isAuthenticated ? (
+                         ownedBadges.length > 0 ? (
+                             <div className="flex gap-3 overflow-x-auto w-full justify-start py-2 no-scrollbar z-10 mask-linear">
+                                 {ownedBadges.slice().reverse().map(badge => {
+                                     const Icon = badge.icon;
+                                     return (
+                                         <div key={badge.id} className="relative shrink-0 animate-in fade-in zoom-in duration-300">
+                                             <div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center shadow-lg" title={badge.name}>
+                                                 <Icon size={20} className={badge.color} />
+                                             </div>
                                          </div>
-                                     </div>
-                                 );
-                             })}
-                         </div>
+                                     );
+                                 })}
+                             </div>
+                         ) : (
+                             <div className="text-xs text-gray-600 italic py-2 w-full text-center">Joue pour gagner des badges !</div>
+                         )
                      ) : (
-                         <div className="text-xs text-gray-600 italic py-2 w-full text-center">Joue pour gagner des badges !</div>
+                         <div className="text-xs text-gray-600 italic py-2 w-full text-center flex items-center justify-center gap-2">
+                             <Lock size={12}/> Connecte-toi pour gagner des badges
+                         </div>
                      )}
                  </div>
 
                  {/* --- DAILY QUESTS PANEL (NEW DESIGN) --- */}
-                 <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className="w-full bg-black/80 border border-green-500/30 rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300">
+                 <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
                      {/* Decorative background glow */}
-                     <div className="absolute -right-6 -top-6 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full pointer-events-none"></div>
-                     <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full pointer-events-none"></div>
+                     {isAuthenticated && (
+                         <>
+                            <div className="absolute -right-6 -top-6 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full pointer-events-none"></div>
+                            <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full pointer-events-none"></div>
+                         </>
+                     )}
 
                      <div 
-                        onClick={() => setIsQuestsExpanded(!isQuestsExpanded)} 
+                        onClick={() => isAuthenticated && setIsQuestsExpanded(!isQuestsExpanded)} 
                         className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}
                      >
                          <div className="flex items-center gap-2 overflow-hidden py-1">
@@ -593,7 +637,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                              </h3>
                              
                              {/* Show quick status when collapsed */}
-                             {!isQuestsExpanded && (
+                             {isAuthenticated && !isQuestsExpanded && (
                                  <div className="flex gap-1 ml-1 animate-in fade-in duration-300 shrink-0">
                                      {quests.map((q, i) => (
                                          <div key={q.id} title={q.description} className={`w-3 h-3 flex items-center justify-center rounded-full border transition-colors ${q.isCompleted ? 'bg-green-500 border-green-400 shadow-[0_0_5px_#22c55e]' : 'bg-gray-800/50 border-white/10'}`}>
@@ -604,15 +648,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                              )}
                          </div>
 
-                         <div className="flex items-center gap-2 shrink-0">
-                             <span className="text-[9px] text-green-400 font-mono font-bold tracking-widest bg-green-900/30 border border-green-500/30 px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(34,197,94,0.1)]">
-                                {new Date().toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'})}
-                             </span>
-                             <ChevronDown size={16} className={`text-green-400 transition-transform duration-300 ${isQuestsExpanded ? 'rotate-180' : ''}`} />
-                         </div>
+                         {isAuthenticated ? (
+                             <div className="flex items-center gap-2 shrink-0">
+                                 <span className="text-[9px] text-green-400 font-mono font-bold tracking-widest bg-green-900/30 border border-green-500/30 px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+                                    {new Date().toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'})}
+                                 </span>
+                                 <ChevronDown size={16} className={`text-green-400 transition-transform duration-300 ${isQuestsExpanded ? 'rotate-180' : ''}`} />
+                             </div>
+                         ) : (
+                             <Lock size={16} className="text-gray-500" />
+                         )}
                      </div>
                      
-                     {isQuestsExpanded && (
+                     {isAuthenticated && isQuestsExpanded && (
                          <div className="space-y-3 relative z-10 animate-in slide-in-from-top-2 duration-300">
                              {quests.map(quest => (
                                  <div key={quest.id} className={`relative flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
@@ -718,7 +766,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
                                 {game.badges.vs && <div className="p-1 rounded bg-black/40 text-pink-400 border border-pink-500/30" title="Versus"><Users size={10} /></div>}
                             </div>
-                            <div className={`p-2 rounded-lg bg-gray-900/50 ${game.color} group-hover:scale-110 transition-transform relative z-10 shadow-lg border border-white/5`}><game.icon size={32} /></div>
+                            <div className={`p-2 rounded-lg bg-gray-900/50 ${game.color} group-hover:scale-110 transition-transform relative z-10 shadow-lg border border-white/5`}>
+                                <game.icon size={32} />
+                                {!isAuthenticated && <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-white/30"><Lock size={10} className="text-white"/></div>}
+                            </div>
                             <div className="text-center relative z-10 w-full">
                                 <h3 className={`font-black italic text-sm tracking-wider text-white group-hover:${game.color} transition-colors uppercase`}>{game.name}</h3>
                                 {game.reward && <div className="flex items-center justify-center gap-1 mt-0.5 opacity-60 text-[8px] font-mono text-gray-300"><Coins size={8} className="text-yellow-500" /><span>{game.reward}</span></div>}
@@ -735,7 +786,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     ))}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.5 • RETENTION UPDATE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.6 • GUEST MODE UPDATE</div>
              </div>
         </div>
     );

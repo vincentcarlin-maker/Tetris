@@ -25,6 +25,7 @@ type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
     
     const audio = useGameAudio();
     const currency = useCurrency();
@@ -112,6 +113,12 @@ const App: React.FC = () => {
     };
 
     const handleSelectGame = (game: string) => {
+        // Bloquer l'accès au jeu si non connecté
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
+
         // Trigger "Play X" quest immediately when starting
         checkGameQuest(game);
 
@@ -135,66 +142,68 @@ const App: React.FC = () => {
     const handleLogin = (username: string) => {
         currency.updateUsername(username);
         setIsAuthenticated(true);
+        setShowLoginModal(false);
         audio.playVictory(); // Little sound feedback
     };
 
     const handleLogout = () => {
         setIsAuthenticated(false);
         mp.disconnect();
-        // We don't necessarily clear coins, just the "session" state in UI
-        // But to fully "Logout" and allow a new name, we might want to clear local storage specific to identity?
-        // For now, we just flip the state, and LoginScreen will overwrite the username in storage on next submit.
     };
-
-    if (!isAuthenticated) {
-        return <LoginScreen onLogin={handleLogin} />;
-    }
 
     return (
         <>
-            <SocialOverlay audio={audio} currency={currency} mp={mp} />
+            {/* Show Login Modal on demand */}
+            {showLoginModal && (
+                <LoginScreen onLogin={handleLogin} onCancel={() => setShowLoginModal(false)} />
+            )}
+
+            {/* Social Overlay only active when authenticated */}
+            {isAuthenticated && (
+                <SocialOverlay audio={audio} currency={currency} mp={mp} />
+            )}
             
-            {currentView === 'shop' && (
+            {currentView === 'shop' && isAuthenticated && (
                 <Shop onBack={handleBackToMenu} currency={currency} />
             )}
 
-            {currentView === 'tetris' && (
+            {currentView === 'tetris' && isAuthenticated && (
                 <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
-            {currentView === 'connect4' && (
+            {currentView === 'connect4' && isAuthenticated && (
                 <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
-            {currentView === 'sudoku' && (
+            {currentView === 'sudoku' && isAuthenticated && (
                 <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
-            {currentView === 'breaker' && (
+            {currentView === 'breaker' && isAuthenticated && (
                 <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
             
-            {currentView === 'pacman' && (
+            {currentView === 'pacman' && isAuthenticated && (
                 <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
             
-            {currentView === 'memory' && (
+            {currentView === 'memory' && isAuthenticated && (
                 <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
-            {currentView === 'battleship' && (
+            {currentView === 'battleship' && isAuthenticated && (
                 <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
-            {currentView === 'snake' && (
+            {currentView === 'snake' && isAuthenticated && (
                 <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
-            {currentView === 'invaders' && (
+            {currentView === 'invaders' && isAuthenticated && (
                 <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
             
-            {currentView === 'airhockey' && (
+            {currentView === 'airhockey' && isAuthenticated && (
                 <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
@@ -205,6 +214,8 @@ const App: React.FC = () => {
                     currency={currency} 
                     mp={mp}
                     onLogout={handleLogout}
+                    isAuthenticated={isAuthenticated}
+                    onLoginRequest={() => setShowLoginModal(true)}
                     dailyData={{
                         streak,
                         showDailyModal,

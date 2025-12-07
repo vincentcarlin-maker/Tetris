@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
-import { User, ArrowRight, Sparkles } from 'lucide-react';
+import { User, ArrowRight, Sparkles, X } from 'lucide-react';
 
 interface LoginScreenProps {
     onLogin: (username: string) => void;
+    onCancel?: () => void; // Permet de fermer la fenêtre sans se connecter
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel }) => {
     const [username, setUsername] = useState('');
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -20,12 +21,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         }
     };
 
+    const handleClose = () => {
+        setIsAnimating(true);
+        setTimeout(() => {
+            if (onCancel) onCancel();
+        }, 500);
+    };
+
     return (
-        <div className={`fixed inset-0 z-[200] flex flex-col items-center justify-center p-6 bg-[#020202] transition-opacity duration-700 ${isAnimating ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`fixed inset-0 z-[200] flex flex-col items-center justify-center p-6 bg-[#020202]/90 backdrop-blur-md transition-opacity duration-700 ${isAnimating ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100'}`}>
             
             {/* Background Effects */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-[#020202] to-black pointer-events-none"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-neon-pink/10 blur-[100px] rounded-full pointer-events-none animate-pulse"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-black pointer-events-none"></div>
+            
+            {/* Close Button (Only if onCancel is provided) */}
+            {onCancel && (
+                <button 
+                    onClick={handleClose}
+                    className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50 group"
+                >
+                    <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+                </button>
+            )}
 
             {/* Logo Area */}
             <div className="relative mb-12 flex flex-col items-center animate-in fade-in zoom-in duration-1000">
@@ -35,9 +52,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </div>
 
             {/* Login Card */}
-            <div className="w-full max-w-sm bg-gray-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-10 duration-700 delay-200">
-                <h2 className="text-2xl font-black text-white italic text-center mb-2">CRÉER UN COMPTE</h2>
-                <p className="text-gray-400 text-center text-sm mb-8">Entre ton pseudo pour rejoindre l'arcade.</p>
+            <div className="w-full max-w-sm bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-10 duration-700 delay-200">
+                <h2 className="text-2xl font-black text-white italic text-center mb-2">CONNEXION REQUISE</h2>
+                <p className="text-gray-400 text-center text-sm mb-8">Crée un pseudo pour jouer et sauvegarder ta progression.</p>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div className="relative group">
@@ -62,7 +79,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     >
                         <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                         <span className="relative flex items-center justify-center gap-2">
-                            COMMENCER <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                            JOUER <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                         </span>
                     </button>
                 </form>
@@ -70,7 +87,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
             <div className="mt-8 text-gray-500 text-xs font-mono flex items-center gap-2 animate-in fade-in duration-1000 delay-500">
                 <Sparkles size={12} className="text-yellow-500" />
-                <span>AUCUNE INSCRIPTION REQUISE</span>
+                <span>SAUVEGARDE AUTOMATIQUE</span>
                 <Sparkles size={12} className="text-yellow-500" />
             </div>
         </div>
