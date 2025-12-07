@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc } from 'lucide-react';
 
@@ -193,12 +192,23 @@ export const useCurrency = () => {
     const [ownedMallets, setOwnedMallets] = useState<string[]>(["m_classic"]);
 
     // --- ADMIN CHECK ---
-    const [adminModeActive, setAdminModeActive] = useState(true); // Active par défaut à la connexion
+    const [adminModeActive, setAdminModeActive] = useState(() => {
+        const storedUsername = localStorage.getItem('neon-username');
+        if (storedUsername === 'Vincent') {
+            const savedMode = localStorage.getItem('neon-admin-mode');
+            return savedMode !== null ? JSON.parse(savedMode) : true;
+        }
+        return false;
+    });
     const isSuperUser = username === 'Vincent';
     const isAdmin = isSuperUser && adminModeActive;
 
     const toggleAdminMode = useCallback(() => {
-        setAdminModeActive(prev => !prev);
+        setAdminModeActive(prev => {
+            const newState = !prev;
+            localStorage.setItem('neon-admin-mode', JSON.stringify(newState));
+            return newState;
+        });
     }, []);
 
     const refreshData = useCallback(() => {
@@ -236,6 +246,14 @@ export const useCurrency = () => {
 
         if (storedMallet) setCurrentMalletId(storedMallet);
         if (storedOwnedMallets) setOwnedMallets(JSON.parse(storedOwnedMallets));
+
+        // Sync admin mode on refresh, especially for login
+        if (storedName === 'Vincent') {
+            const savedMode = localStorage.getItem('neon-admin-mode');
+            setAdminModeActive(savedMode !== null ? JSON.parse(savedMode) : true);
+        } else {
+            setAdminModeActive(false);
+        }
     }, []);
 
     useEffect(() => {
