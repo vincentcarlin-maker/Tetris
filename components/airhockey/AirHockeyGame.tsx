@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -87,8 +86,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     // Sync Self Info
     useEffect(() => {
-        mp.updateSelfInfo(username, currentAvatarId);
-    }, [username, currentAvatarId, mp]);
+        mp.updateSelfInfo(username, currentAvatarId, currentMalletId);
+    }, [username, currentAvatarId, currentMalletId, mp]);
 
     // Handle Online Connection
     useEffect(() => {
@@ -351,100 +350,78 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     };
 
     const drawMallet = (ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, malletStyle?: Mallet, isOpponent: boolean = false) => {
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        
-        if (isOpponent) {
-            // CPU = Yellow, Player 2 / Opponent = Red
-            const color = (gameMode === 'LOCAL_VS' || gameMode === 'ONLINE') ? '#ff0055' : '#ffe600';
-            ctx.fillStyle = color;
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 15;
-            ctx.fill();
+        // If a style is provided, use it (works for player AND opponent with custom mallet)
+        if (malletStyle) {
+            if (malletStyle.type === 'basic') {
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = malletStyle.colors[0];
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 15;
+                ctx.fill();
+            } else if (malletStyle.type === 'gradient' || malletStyle.type === 'complex') {
+                const grad = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
+                malletStyle.colors.forEach((c, i) => grad.addColorStop(i / (malletStyle.colors.length - 1 || 1), c));
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                ctx.fillStyle = grad;
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 15;
+                ctx.fill();
+            } else if (malletStyle.type === 'ring' || malletStyle.type === 'target') {
+                ctx.fillStyle = malletStyle.colors[1] || '#000';
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = malletStyle.colors[0];
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(x, y, radius * 0.6, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(x, y, radius * 0.2, 0, 2 * Math.PI);
+                ctx.fillStyle = malletStyle.colors[0];
+                ctx.fill();
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 15;
+            } else if (malletStyle.type === 'flower') {
+                ctx.fillStyle = malletStyle.colors[1];
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 10;
+                const petalCount = 6;
+                for(let i=0; i<petalCount; i++) {
+                    const angle = (i / petalCount) * Math.PI * 2;
+                    const px = x + Math.cos(angle) * (radius * 0.6);
+                    const py = y + Math.sin(angle) * (radius * 0.6);
+                    ctx.beginPath();
+                    ctx.arc(px, py, radius * 0.4, 0, Math.PI * 2);
+                    ctx.fillStyle = malletStyle.colors[0];
+                    ctx.fill();
+                }
+                ctx.beginPath();
+                ctx.arc(x, y, radius * 0.5, 0, 2 * Math.PI);
+                ctx.fillStyle = malletStyle.colors[1];
+                ctx.fill();
+            }
+            // Universal border for styled mallets
             ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             ctx.stroke();
             return;
         }
 
-        if (!malletStyle || malletStyle.type === 'basic') {
-            ctx.fillStyle = malletStyle?.colors[0] || '#00f3ff';
-            ctx.shadowColor = malletStyle?.colors[0] || '#00f3ff';
-            ctx.shadowBlur = 15;
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        } else if (malletStyle.type === 'gradient') {
-            const grad = ctx.createRadialGradient(x - radius/3, y - radius/3, 0, x, y, radius);
-            grad.addColorStop(0, malletStyle.colors[0]);
-            grad.addColorStop(1, malletStyle.colors[1] || malletStyle.colors[0]);
-            ctx.fillStyle = grad;
-            ctx.shadowColor = malletStyle.colors[0];
-            ctx.shadowBlur = 15;
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        } else if (malletStyle.type === 'ring' || malletStyle.type === 'target') {
-            ctx.fillStyle = malletStyle.colors[1] || '#000';
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, 2 * Math.PI);
-            ctx.strokeStyle = malletStyle.colors[0];
-            ctx.lineWidth = 4;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(x, y, radius * 0.6, 0, 2 * Math.PI);
-            ctx.strokeStyle = malletStyle.colors[0];
-            ctx.lineWidth = 4;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(x, y, radius * 0.2, 0, 2 * Math.PI);
-            ctx.fillStyle = malletStyle.colors[0];
-            ctx.fill();
-            ctx.shadowColor = malletStyle.colors[0];
-            ctx.shadowBlur = 15;
-        } else if (malletStyle.type === 'flower') {
-            ctx.fillStyle = malletStyle.colors[1];
-            ctx.shadowColor = malletStyle.colors[0];
-            ctx.shadowBlur = 10;
-            const petalCount = 6;
-            for(let i=0; i<petalCount; i++) {
-                const angle = (i / petalCount) * Math.PI * 2;
-                const px = x + Math.cos(angle) * (radius * 0.6);
-                const py = y + Math.sin(angle) * (radius * 0.6);
-                ctx.beginPath();
-                ctx.arc(px, py, radius * 0.4, 0, Math.PI * 2);
-                ctx.fillStyle = malletStyle.colors[0];
-                ctx.fill();
-            }
-            ctx.beginPath();
-            ctx.arc(x, y, radius * 0.5, 0, 2 * Math.PI);
-            ctx.fillStyle = malletStyle.colors[1];
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        } else if (malletStyle.type === 'complex') {
-            const grad = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
-            const colors = malletStyle.colors;
-            colors.forEach((c, i) => grad.addColorStop(i / (colors.length - 1), c));
-            ctx.fillStyle = grad;
-            ctx.shadowColor = '#fff';
-            ctx.shadowBlur = 10;
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x, y, radius * 0.8, 0, 2 * Math.PI);
-            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, 2 * Math.PI);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        }
+        // Default styles if no malletStyle is provided
+        const defaultColor = isOpponent ? ((gameMode === 'LOCAL_VS' || gameMode === 'ONLINE') ? '#ff0055' : '#ffe600') : '#00f3ff';
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = defaultColor;
+        ctx.shadowColor = defaultColor;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
     };
 
     const gameLoop = useCallback(() => {
@@ -613,7 +590,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 drawMallet(ctx, player.x, player.y, player.radius, playerMalletStyle, false);
 
                 // Draw Opponent Mallet (Always Top)
-                drawMallet(ctx, opponent.x, opponent.y, opponent.radius, undefined, true);
+                const opponentMalletId = mp.gameOpponent?.malletId;
+                const opponentMalletStyle = malletsCatalog.find(m => m.id === opponentMalletId);
+                drawMallet(ctx, opponent.x, opponent.y, opponent.radius, opponentMalletStyle, true);
             }
         }
 
@@ -883,56 +862,64 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 
                 {/* GAME OVER */}
                 {(gameState === 'gameOver' || opponentLeft) && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in zoom-in">
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in zoom-in p-4">
                         {opponentLeft ? (
                             <>
-                                <LogOut size={48} className="text-red-500 mb-2"/>
-                                <h2 className="text-3xl font-black text-white mb-4">ADVERSAIRE PARTI</h2>
+                                <LogOut size={48} className="text-red-500 mb-2" />
+                                <h2 className="text-3xl font-black text-white mb-4 text-center">ADVERSAIRE PARTI</h2>
+                                <div className="flex flex-col gap-3 mt-4 w-full max-w-xs">
+                                    <button onClick={() => { mp.leaveGame(); mp.createRoom(); setGameState('menu'); }} className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2">
+                                        <Play size={20} fill="white"/> ATTENDRE UN JOUEUR
+                                    </button>
+                                    <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); setGameState('menu'); }} className="w-full py-3 bg-gray-800 text-gray-300 font-bold rounded-lg hover:bg-gray-700">
+                                        RETOUR AU LOBBY
+                                    </button>
+                                </div>
                             </>
                         ) : (
-                            gameMode === 'SINGLE' ? (
-                                winner === 'Player' ? (
-                                    <>
-                                        <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_20px_#facc15]" />
-                                        <h2 className="text-4xl font-black text-white mb-2">VICTOIRE !</h2>
-                                        {earnedCoins > 0 && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
-                                    </>
-                                ) : (
-                                    <h2 className="text-4xl font-black text-red-500 mb-6">DÉFAITE</h2>
-                                )
-                            ) : (
-                                <>
-                                    <Trophy size={64} className={(gameMode === 'ONLINE' && ((isHost && winner === 'P1') || (!isHost && winner === 'P2'))) || (winner === 'J1' || winner === 'Player') ? "text-neon-blue" : "text-pink-500"} />
-                                    <h2 className="text-4xl font-black text-white mb-2 mt-4">
-                                        {gameMode === 'ONLINE' ? 
-                                            ((isHost && winner === 'P1') || (!isHost && winner === 'P2') ? "VICTOIRE !" : "DÉFAITE...") 
-                                            : `${winner === 'J1' ? 'JOUEUR 1' : 'JOUEUR 2'} GAGNE !`}
-                                    </h2>
-                                </>
-                            )
-                        )}
-                        
-                        {/* COINS DISPLAY FOR ONLINE/MULTIPLAYER WIN */}
-                        {(gameMode === 'ONLINE' || gameMode === 'LOCAL_VS') && earnedCoins > 0 && (
-                             <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
-                                <Coins className="text-yellow-400" size={20} />
-                                <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
-                            </div>
-                        )}
+                            <>
+                                <Trophy size={64} className={
+                                    (gameMode === 'SINGLE' && winner === 'Player') ? 'text-yellow-400' : 
+                                    (gameMode === 'ONLINE' && ((isHost && winner === 'P1') || (!isHost && winner === 'P2'))) ? 'text-neon-blue' : 
+                                    (gameMode === 'LOCAL_VS' && winner === 'J1') ? 'text-neon-blue' :
+                                    'text-pink-500'
+                                } />
+                                <h2 className="text-4xl font-black text-white mb-2 mt-4 text-center">
+                                    {gameMode === 'SINGLE' ? (winner === 'Player' ? "VICTOIRE !" : "DÉFAITE") :
+                                     gameMode === 'ONLINE' ? ((isHost && winner === 'P1') || (!isHost && winner === 'P2') ? "VICTOIRE !" : "DÉFAITE...") :
+                                     `${winner === 'J1' ? 'JOUEUR 1' : 'JOUEUR 2'} GAGNE !`}
+                                </h2>
 
-                        <div className="flex flex-col gap-3 mt-4">
-                            {gameMode === 'ONLINE' ? (
-                                <>
-                                    {!opponentLeft && <button onClick={() => mp.requestRematch()} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2 justify-center"><Play size={20} fill="black"/> REVANCHE</button>}
-                                    <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>
-                                </>
-                            ) : (
-                                <>
-                                    <button onClick={() => startGame(difficulty, gameMode)} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg">REJOUER</button>
-                                    <button onClick={onBack} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">QUITTER</button>
-                                </>
-                            )}
-                        </div>
+                                {earnedCoins > 0 && (
+                                    <div className="my-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                                        <Coins className="text-yellow-400" size={20} />
+                                        <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
+                                    </div>
+                                )}
+                                
+                                <div className="flex flex-col gap-3 mt-4 w-full max-w-xs">
+                                    {gameMode === 'ONLINE' ? (
+                                        <>
+                                            <button onClick={() => mp.requestRematch()} className="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2 justify-center">
+                                                <Play size={20} fill="black"/> REVANCHE
+                                            </button>
+                                            <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); setGameState('menu'); }} className="w-full py-3 bg-gray-800 text-gray-300 font-bold rounded-lg hover:bg-gray-700">
+                                                QUITTER
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => startGame(difficulty, gameMode)} className="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors shadow-lg">
+                                                REJOUER
+                                            </button>
+                                            <button onClick={handleLocalBack} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded-lg hover:bg-white/10 transition-colors">
+                                                MENU
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

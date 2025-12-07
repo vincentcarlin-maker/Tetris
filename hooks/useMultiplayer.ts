@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -9,6 +8,7 @@ export interface PlayerInfo {
     avatarId: string;
     extraInfo?: string;
     status: 'idle' | 'hosting' | 'in_game';
+    malletId?: string;
 }
 
 export interface MultiplayerState {
@@ -41,7 +41,8 @@ export const useMultiplayer = () => {
     const subscribersRef = useRef<Set<DataCallback>>(new Set());
     
     // User Info
-    const myInfoRef = useRef<{name: string, avatarId: string, extraInfo?: string}>({name: 'Joueur', avatarId: 'av_bot'});
+    const myInfoRef = useRef<{name: string, avatarId: string, extraInfo?: string, malletId?: string}>({name: 'Joueur', avatarId: 'av_bot', malletId: 'm_classic'});
+
     const myIdRef = useRef<string | null>(null);
 
     // --- UTILS ---
@@ -87,7 +88,8 @@ export const useMultiplayer = () => {
                             name: presence.name || 'Inconnu',
                             avatarId: presence.avatarId || 'av_bot',
                             status: presence.status || 'idle',
-                            extraInfo: presence.extraInfo
+                            extraInfo: presence.extraInfo,
+                            malletId: presence.malletId
                         });
                     }
                 });
@@ -105,6 +107,7 @@ export const useMultiplayer = () => {
                         name: myInfoRef.current.name,
                         avatarId: myInfoRef.current.avatarId,
                         extraInfo: myInfoRef.current.extraInfo,
+                        malletId: myInfoRef.current.malletId,
                         status: 'idle'
                     });
                     setState(prev => ({ 
@@ -128,14 +131,15 @@ export const useMultiplayer = () => {
         setState(prev => ({ ...prev, isConnected: false, mode: 'disconnected' }));
     }, []);
 
-    const updateSelfInfo = useCallback((name: string, avatarId: string, extraInfo?: string) => {
-        myInfoRef.current = { name, avatarId, extraInfo };
+    const updateSelfInfo = useCallback((name: string, avatarId: string, malletId?: string, extraInfo?: string) => {
+        myInfoRef.current = { name, avatarId, extraInfo, malletId: malletId || 'm_classic' };
         if (lobbyChannelRef.current) {
             const currentStatus = stateRef.current.isHost ? 'hosting' : (stateRef.current.mode === 'in_game' ? 'in_game' : 'idle');
             lobbyChannelRef.current.track({
                 name,
                 avatarId,
                 extraInfo,
+                malletId: malletId || 'm_classic',
                 status: currentStatus
             });
         }
@@ -159,7 +163,7 @@ export const useMultiplayer = () => {
                 setState(prev => ({
                     ...prev,
                     mode: 'in_game',
-                    gameOpponent: joinerInfo || { id: senderId, name: 'Opposant', avatarId: 'av_bot', status: 'in_game' },
+                    gameOpponent: joinerInfo || { id: senderId, name: 'Opposant', avatarId: 'av_bot', status: 'in_game', malletId: 'm_classic' },
                     isMyTurn: true,
                     amIP1: true
                 }));
