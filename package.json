@@ -9,7 +9,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "lucide-react": "^0.395.0",
-    "peerjs": "^1.5.2"
+    "peerjs": "^1.5.2",
+    "@supabase/supabase-js": "^2.39.7"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

@@ -4,7 +4,7 @@ import { User, ArrowRight, Sparkles, X } from 'lucide-react';
 
 interface LoginScreenProps {
     onLogin: (username: string) => void;
-    onCancel?: () => void; // Permet de fermer la fenêtre sans se connecter
+    onCancel?: () => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel }) => {
@@ -17,15 +17,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel }) =
             setIsAnimating(true);
             setTimeout(() => {
                 onLogin(username.trim());
-            }, 800); // Wait for exit animation
+            }, 800);
         }
     };
 
     const handleClose = () => {
-        setIsAnimating(true);
-        setTimeout(() => {
-            if (onCancel) onCancel();
-        }, 500);
+        if (onCancel) {
+            setIsAnimating(true);
+            setTimeout(() => {
+                onCancel();
+            }, 500);
+        }
     };
 
     return (
@@ -34,11 +36,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel }) =
             {/* Background Effects */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-black pointer-events-none"></div>
             
-            {/* Close Button (Only if onCancel is provided) */}
+            {/* Close Button (Pour le mode visiteur) */}
             {onCancel && (
                 <button 
                     onClick={handleClose}
                     className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50 group"
+                    title="Mode Visiteur (Accès Menu)"
                 >
                     <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
                 </button>
