@@ -58,15 +58,6 @@ const App: React.FC = () => {
         return () => mp.disconnect();
     }, [isAuthenticated]);
 
-    // BROADCAST ACTIVITY: Whenever view, name, or avatar changes, update peers
-    useEffect(() => {
-        if (isAuthenticated && mp.isConnected) {
-            // Map view to a simpler status string if needed, or pass raw ID
-            const activityId = currentView;
-            mp.updateSelfInfo(currency.username, currency.currentAvatarId, activityId);
-        }
-    }, [currentView, currency.username, currency.currentAvatarId, isAuthenticated, mp.isConnected]);
-
     // Apply Background Wallpaper
     useEffect(() => {
         const bgElement = document.getElementById('app-background');
