@@ -22,6 +22,7 @@ interface PlayerStats {
     memory: number;
     rush: number;
     sudoku: number;
+    [key: string]: any; // To allow for snake, invaders, etc.
 }
 
 interface Friend {
@@ -175,24 +176,24 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setConfigKey(conf.key);
     }, []);
 
-    // --- SYNC FRIENDS ONLINE STATUS ---
+    // --- SYNC FRIENDS ONLINE STATUS & STATS ---
     useEffect(() => {
         setFriends(prevFriends => {
             const updated = prevFriends.map(f => {
-                // Check if user is in the Supabase online list
-                const isRealUserOnline = onlineUsers.some(u => u.id === f.id);
-                // Bots are always simulated as online for engagement
+                const onlineUser = onlineUsers.find(u => u.id === f.id);
+                const isRealUserOnline = !!onlineUser;
                 const isBot = f.id.startsWith('bot_');
-                
+
                 const newStatus = (isRealUserOnline || isBot) ? 'online' : 'offline';
-                
-                // Only update if status changed to avoid loops
-                if (f.status !== newStatus) {
-                    return { ...f, status: newStatus as 'online' | 'offline', lastSeen: Date.now() };
+                const newStats = isRealUserOnline ? onlineUser.stats : f.stats; // Get updated stats from real user
+
+                // Only update if status or stats changed to avoid loops
+                if (f.status !== newStatus || JSON.stringify(f.stats) !== JSON.stringify(newStats)) {
+                    return { ...f, status: newStatus, lastSeen: Date.now(), stats: newStats };
                 }
                 return f;
             });
-            
+
             // Equality check to prevent re-render loop if nothing changed
             if (JSON.stringify(updated) !== JSON.stringify(prevFriends)) {
                 return updated;
@@ -571,6 +572,16 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setShowConfig(false);
     };
 
+    const hasOnlineFriends = friends.some(
+        f => !f.id.startsWith('bot_') && onlineUsers.some(ou => ou.id === f.id)
+    );
+
+    const hubStatusColor = hasOnlineFriends
+        ? 'bg-green-500 shadow-[0_0_5px_lime]'
+        : isConnectedToSupabase
+        ? 'bg-blue-500 shadow-[0_0_5px_#3b82f6]' // Blue for connected but no friends online
+        : 'bg-gray-500';
+
     return (
         <>
             {/* DRAGGABLE FLOATING BUTTON */}
@@ -587,7 +598,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 >
                     <Users size={24} />
                     {/* Status Dot */}
-                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-900 ${isConnectedToSupabase ? 'bg-green-500 shadow-[0_0_5px_lime]' : 'bg-gray-500'}`}></div>
+                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-900 ${hubStatusColor}`}></div>
                     
                     {unreadCount > 0 && (
                         <div className="absolute top-2 left-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-bounce border-2 border-black pointer-events-none">
@@ -736,16 +747,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {socialTab === 'COMMUNITY' && (
                                 <div className="space-y-4">
                                     {/* CLOUD STATUS */}
-                                    <div className={`border p-3 rounded-lg text-center mb-2 flex items-center justify-between gap-2 ${isConnectedToSupabase ? 'bg-green-900/20 border-green-500/30 text-green-400' : 'bg-gray-800/50 border-white/10 text-gray-400'}`}>
-                                        <div className="flex items-center gap-2">
-                                            {isConnectedToSupabase ? (
-                                                <><Cloud size={16} /> <span className="text-xs font-bold">CONNECTÉ</span></>
-                                            ) : !isSupabaseConfigured ? (
-                                                <><CloudOff size={16} /> <span className="text-xs font-bold">MODE HORS-LIGNE</span></>
-                                            ) : (
-                                                <><Wifi size={16} className="animate-pulse" /> <span className="text-xs font-bold">CONNEXION...</span></>
-                                            )}
-                                        </div>
+                                    <div className={`border p-3 rounded-lg text-center mb-2 flex items-center justify-center gap-2 ${isConnectedToSupabase ? 'bg-green-900/20 border-green-500/30 text-green-400' : 'bg-gray-800/50 border-white/10 text-gray-400'}`}>
+                                        {isConnectedToSupabase ? (
+                                            <><Cloud size={16} /> <span className="text-xs font-bold">CONNECTÉ</span></>
+                                        ) : !isSupabaseConfigured ? (
+                                            <><CloudOff size={16} /> <span className="text-xs font-bold">MODE HORS-LIGNE</span></>
+                                        ) : (
+                                            <><Wifi size={16} className="animate-pulse" /> <span className="text-xs font-bold">CONNEXION...</span></>
+                                        )}
                                     </div>
 
                                     {/* ACTIVITY FEED */}
