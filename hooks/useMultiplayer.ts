@@ -1,17 +1,19 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Peer, DataConnection } from 'peerjs';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface PlayerInfo {
-    id: string; // Peer ID
+    id: string;
     name: string;
     avatarId: string;
-    extraInfo?: string; // Info additionnelle (ex: Difficulté du jeu, Stats, Social ID)
+    extraInfo?: string;
     status: 'idle' | 'hosting' | 'in_game';
 }
 
 export interface MultiplayerState {
     peerId: string | null;
-    isConnected: boolean; // Connected to lobby host or network
+    isConnected: boolean;
     isHost: boolean;
     error: string | null;
     isLoading: boolean;
@@ -19,78 +21,315 @@ export interface MultiplayerState {
     players: PlayerInfo[];
     gameOpponent: PlayerInfo | null;
     isMyTurn: boolean;
-    amIP1: boolean; // Am I Player 1 (Game Creator/Host)?
+    amIP1: boolean;
 }
 
-type DataCallback = (data: any, conn: DataConnection) => void;
+type DataCallback = (data: any, conn: any) => void;
 
 export const useMultiplayer = () => {
     const [state, setState] = useState<MultiplayerState>({
         peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
         mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
     });
-    
-    // Create a Ref to hold the latest state to avoid stale closures in event listeners
+
     const stateRef = useRef(state);
+    useEffect(() => { stateRef.current = state; }, [state]);
 
-    useEffect(() => {
-        stateRef.current = state;
-    }, [state]);
-
-    const peerRef = useRef<Peer | null>(null);
-    
-    // Unified connection management
-    const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
-    
-    // Subscribers for data events
+    // Supabase Channels
+    const lobbyChannelRef = useRef<RealtimeChannel | null>(null);
+    const gameChannelRef = useRef<RealtimeChannel | null>(null);
     const subscribersRef = useRef<Set<DataCallback>>(new Set());
-
-    const myInfoRef = useRef<{name: string, avatarId: string, extraInfo?: string}>({name: 'Joueur', avatarId: 'av_bot'});
-    const isHostRef = useRef(false);
     
-    // Track host status explicitly since it's not stored in a connection object
-    const hostStatusRef = useRef<'idle' | 'hosting'>('idle');
+    // User Info
+    const myInfoRef = useRef<{name: string, avatarId: string, extraInfo?: string}>({name: 'Joueur', avatarId: 'av_bot'});
+    const myIdRef = useRef<string | null>(null);
 
-    useEffect(() => {
-        isHostRef.current = state.isHost;
-    }, [state.isHost]);
+    // --- UTILS ---
+    const notifySubscribers = useCallback((data: any, senderId: string) => {
+        // Mock connection object for compatibility with existing game code
+        const mockConn = { peer: senderId };
+        subscribersRef.current.forEach(cb => cb(data, mockConn));
+    }, []);
 
-    // --- HEARTBEAT & CLEANUP SYSTEM ---
-    useEffect(() => {
-        let interval: any;
+    // --- CONNECTION ---
+    const connect = useCallback(() => {
+        if (!isSupabaseConfigured || !supabase) {
+            setState(prev => ({ ...prev, error: "Serveur non configuré" }));
+            return;
+        }
+        if (lobbyChannelRef.current) return;
 
-        if (state.peerId) {
-            interval = setInterval(() => {
-                // If hosting, broadcast list to everyone
-                if (state.isHost) {
-                    broadcastPlayerList();
-                }
+        setState(prev => ({ ...prev, isLoading: true, mode: 'connecting', error: null }));
+
+        // Get or Create Persistent ID
+        let id = localStorage.getItem('neon_social_id');
+        if (!id) {
+            id = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('neon_social_id', id);
+        }
+        myIdRef.current = id;
+
+        // Join Global Lobby
+        const channel = supabase.channel('neon_lobby', {
+            config: { presence: { key: id } }
+        });
+
+        channel
+            .on('presence', { event: 'sync' }, () => {
+                const newState = channel.presenceState();
+                const playerList: PlayerInfo[] = [];
                 
-                // Cleanup closed connections
-                connectionsRef.current.forEach((conn, key) => {
-                    if (!conn.open) {
-                        connectionsRef.current.delete(key);
+                Object.keys(newState).forEach(key => {
+                    const presence = newState[key][0] as any;
+                    if (presence) {
+                        playerList.push({
+                            id: key,
+                            name: presence.name || 'Inconnu',
+                            avatarId: presence.avatarId || 'av_bot',
+                            status: presence.status || 'idle',
+                            extraInfo: presence.extraInfo
+                        });
                     }
                 });
-            }, 3000); // Check every 3 seconds
+                setState(prev => ({ ...prev, players: playerList }));
+            })
+            .on('broadcast', { event: 'dm' }, ({ payload }) => {
+                // Handle Direct Messages (Signaling) targeted at me
+                if (payload.to === myIdRef.current) {
+                    handleSignalingMessage(payload.from, payload.data);
+                }
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({
+                        name: myInfoRef.current.name,
+                        avatarId: myInfoRef.current.avatarId,
+                        extraInfo: myInfoRef.current.extraInfo,
+                        status: 'idle'
+                    });
+                    setState(prev => ({ 
+                        ...prev, 
+                        isConnected: true, 
+                        peerId: id, 
+                        mode: 'lobby', 
+                        isLoading: false 
+                    }));
+                }
+            });
+
+        lobbyChannelRef.current = channel;
+    }, []);
+
+    const disconnect = useCallback(() => {
+        if (gameChannelRef.current) supabase?.removeChannel(gameChannelRef.current);
+        if (lobbyChannelRef.current) supabase?.removeChannel(lobbyChannelRef.current);
+        gameChannelRef.current = null;
+        lobbyChannelRef.current = null;
+        setState(prev => ({ ...prev, isConnected: false, mode: 'disconnected' }));
+    }, []);
+
+    const updateSelfInfo = useCallback((name: string, avatarId: string, extraInfo?: string) => {
+        myInfoRef.current = { name, avatarId, extraInfo };
+        if (lobbyChannelRef.current) {
+            const currentStatus = stateRef.current.isHost ? 'hosting' : (stateRef.current.mode === 'in_game' ? 'in_game' : 'idle');
+            lobbyChannelRef.current.track({
+                name,
+                avatarId,
+                extraInfo,
+                status: currentStatus
+            });
+        }
+    }, []);
+
+    // --- GAME ROOM LOGIC ---
+
+    // Handle Incoming Signals (Lobby Level)
+    const handleSignalingMessage = (senderId: string, data: any) => {
+        // Pass generic messages (Friend requests, Chat) to subscribers
+        if (data.type !== 'JOIN_REQUEST' && data.type !== 'GAME_START_ACK') {
+            notifySubscribers(data, senderId);
         }
 
-        return () => clearInterval(interval);
-    }, [state.isHost, state.peerId]);
+        // Host Logic: Handle Join Request
+        if (data.type === 'JOIN_REQUEST') {
+            if (stateRef.current.isHost) {
+                // Accept joiner
+                const joinerInfo = stateRef.current.players.find(p => p.id === senderId);
+                
+                setState(prev => ({
+                    ...prev,
+                    mode: 'in_game',
+                    gameOpponent: joinerInfo || { id: senderId, name: 'Opposant', avatarId: 'av_bot', status: 'in_game' },
+                    isMyTurn: true,
+                    amIP1: true
+                }));
 
-    // Handle Tab Close
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            connectionsRef.current.forEach(conn => {
-                if (conn.open) conn.send({ type: 'DISCONNECTING' });
-                conn.close();
-            });
-            if (peerRef.current) {
-                peerRef.current.destroy();
+                // Update Lobby Presence
+                lobbyChannelRef.current?.track({
+                    ...myInfoRef.current,
+                    status: 'in_game'
+                });
+
+                // Send ACK to Joiner so they switch to Game Mode
+                sendTo(senderId, { 
+                    type: 'GAME_START_ACK', 
+                    opponent: { id: myIdRef.current, ...myInfoRef.current, status: 'in_game' },
+                    starts: false 
+                });
             }
+        }
+        
+        // Guest Logic: Handle Game Start Ack
+        if (data.type === 'GAME_START_ACK') {
+            setState(prev => ({
+                ...prev,
+                mode: 'in_game',
+                gameOpponent: data.opponent,
+                isMyTurn: data.starts,
+                amIP1: false,
+                isHost: false
+            }));
+            
+            // Update Lobby Presence
+            lobbyChannelRef.current?.track({
+                ...myInfoRef.current,
+                status: 'in_game'
+            });
+            
+            // Trigger subscribers (Games need to know game started)
+            notifySubscribers({ type: 'GAME_START', opponent: data.opponent, starts: data.starts }, senderId);
+        }
+    };
+
+    // Handle Game Channel Events (Gameplay)
+    const handleGameEvent = (payload: any) => {
+        // Filter out my own messages (Supabase broadcasts echo back)
+        if (payload.from === myIdRef.current) return;
+        notifySubscribers(payload.data, payload.from);
+        
+        // Internal Logic for Leaving
+        if (payload.data.type === 'LEAVE_GAME') {
+            leaveGameInternal();
+        }
+    };
+
+    const subscribeToGameChannel = (roomId: string) => {
+        if (gameChannelRef.current) supabase?.removeChannel(gameChannelRef.current);
+        
+        const channel = supabase!.channel(`room_${roomId}`, {
+            config: { broadcast: { self: false } } 
+        });
+
+        channel
+            .on('broadcast', { event: 'game_data' }, ({ payload }) => handleGameEvent(payload))
+            .subscribe();
+
+        gameChannelRef.current = channel;
+    };
+
+    const createRoom = useCallback(() => {
+        if (!myIdRef.current) return;
+        
+        setState(prev => ({ ...prev, isHost: true }));
+        
+        // Update Status in Lobby
+        lobbyChannelRef.current?.track({
+            ...myInfoRef.current,
+            status: 'hosting'
+        });
+
+        // Subscribe to my own room channel
+        subscribeToGameChannel(myIdRef.current);
+
+    }, []);
+
+    const joinRoom = useCallback((hostId: string) => {
+        // 1. Subscribe to Host's room channel
+        subscribeToGameChannel(hostId);
+        
+        // 2. Signal Host via Lobby DM to initiate handshake
+        sendTo(hostId, { type: 'JOIN_REQUEST' });
+        
+    }, []);
+
+    const sendData = useCallback((data: any) => {
+        // Send to Game Channel if in game
+        if (stateRef.current.mode === 'in_game' && gameChannelRef.current) {
+            gameChannelRef.current.send({
+                type: 'broadcast',
+                event: 'game_data',
+                payload: { from: myIdRef.current, data }
+            });
+        }
+        // Fallback or specific logic could go here
+    }, []);
+
+    const sendTo = useCallback((targetId: string, data: any) => {
+        // Send Direct Message via Lobby Broadcast
+        if (lobbyChannelRef.current) {
+            lobbyChannelRef.current.send({
+                type: 'broadcast',
+                event: 'dm',
+                payload: { from: myIdRef.current, to: targetId, data }
+            });
+        }
+    }, []);
+
+    const leaveGameInternal = () => {
+        if (gameChannelRef.current) {
+            supabase?.removeChannel(gameChannelRef.current);
+            gameChannelRef.current = null;
+        }
+        
+        lobbyChannelRef.current?.track({
+            ...myInfoRef.current,
+            status: 'idle'
+        });
+
+        setState(prev => ({ 
+            ...prev, 
+            mode: 'lobby', 
+            gameOpponent: null, 
+            isMyTurn: false, 
+            isHost: false 
+        }));
+    };
+
+    const leaveGame = useCallback(() => {
+        sendData({ type: 'LEAVE_GAME' });
+        leaveGameInternal();
+    }, [sendData]);
+
+    const cancelHosting = useCallback(() => {
+        if (gameChannelRef.current) {
+            supabase?.removeChannel(gameChannelRef.current);
+            gameChannelRef.current = null;
+        }
+        lobbyChannelRef.current?.track({
+            ...myInfoRef.current,
+            status: 'idle'
+        });
+        setState(prev => ({ ...prev, isHost: false, mode: 'lobby' }));
+    }, []);
+
+    const sendGameMove = useCallback((moveData: any) => {
+        const payload = {
+            type: 'GAME_MOVE',
+            ...((typeof moveData === 'object') ? moveData : { col: moveData })
         };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+        sendData(payload);
+    }, [sendData]);
+
+    const requestRematch = useCallback(() => {
+        sendData({ type: 'REMATCH_START' });
+        // Local trigger
+        notifySubscribers({ type: 'REMATCH_START' }, stateRef.current.gameOpponent?.id || '');
+    }, [sendData]);
+
+    // Helpers for compatibility
+    const connectTo = useCallback((id: string) => {
+        // In Supabase version, we are already "connected" via lobby.
+        // This is a no-op or could trigger a specific handshake if needed for DMs.
     }, []);
 
     const subscribe = useCallback((callback: DataCallback) => {
@@ -99,312 +338,6 @@ export const useMultiplayer = () => {
             subscribersRef.current.delete(callback);
         };
     }, []);
-
-    const notifySubscribers = useCallback((data: any, conn: DataConnection) => {
-        subscribersRef.current.forEach(cb => cb(data, conn));
-    }, []);
-
-    const disconnect = useCallback(() => {
-        if (peerRef.current) {
-            peerRef.current.destroy();
-            peerRef.current = null;
-        }
-        connectionsRef.current.clear();
-        hostStatusRef.current = 'idle';
-        setState({
-            peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
-            mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
-        });
-    }, []);
-
-    const sendData = useCallback((data: any) => {
-        // Broadcast to all connected peers (simple mesh for now, mostly star topology when hosting)
-        connectionsRef.current.forEach(conn => {
-            if (conn.open) conn.send(data);
-        });
-    }, []);
-
-    const sendTo = useCallback((peerId: string, data: any) => {
-        const conn = connectionsRef.current.get(peerId);
-        if (conn && conn.open) {
-            conn.send(data);
-        }
-    }, []);
-
-    const broadcastPlayerList = useCallback((hostStatusOverride?: string) => {
-        if (!isHostRef.current || !peerRef.current) return;
-
-        const connectedPlayers = Array.from(connectionsRef.current.values())
-            .map(c => (c as any).playerInfo)
-            .filter(Boolean);
-
-        const currentState = stateRef.current;
-        const hostInGame = currentState.mode === 'in_game';
-        const currentHostStatus = hostStatusOverride || (hostInGame ? 'in_game' : hostStatusRef.current);
-        const hostSelfInfo: PlayerInfo = { id: peerRef.current.id, ...myInfoRef.current, status: currentHostStatus as any };
-
-        const fullList = [hostSelfInfo, ...connectedPlayers];
-        
-        // Send to everyone
-        connectionsRef.current.forEach(conn => {
-            if(conn.open) conn.send({ type: 'PLAYER_LIST', players: fullList });
-        });
-        
-        setState(prev => ({ ...prev, players: fullList }));
-    }, []);
-    
-    // Core data handling logic
-    const handleDataReceived = useCallback((data: any, conn: DataConnection) => {
-        if (data.type === 'HEARTBEAT') return; 
-
-        // Pass to generic subscribers (Games, Chat, Social)
-        notifySubscribers(data, conn);
-
-        // --- INTERNAL LOGIC ---
-        const senderId = conn.peer;
-        const senderInfo = (conn as any).playerInfo;
-        const currentState = stateRef.current;
-
-        if (data.type === 'HELLO' || data.type === 'HELLO_FRIEND') {
-             // Register player info
-             (conn as any).playerInfo = { id: senderId, name: data.name, avatarId: data.avatarId, status: 'idle', extraInfo: data.extraInfo };
-             // If we are hosting, update everyone
-             if (isHostRef.current) broadcastPlayerList();
-        }
-        else if (data.type === 'UPDATE_INFO') {
-            if (senderInfo) {
-                senderInfo.name = data.name;
-                senderInfo.avatarId = data.avatarId;
-                senderInfo.extraInfo = data.extraInfo;
-            }
-            if (isHostRef.current) broadcastPlayerList();
-        }
-        else if (data.type === 'DISCONNECTING') {
-            connectionsRef.current.delete(conn.peer);
-            if (isHostRef.current) broadcastPlayerList();
-        }
-        
-        // --- HOST LOGIC SPECIFIC ---
-        if (isHostRef.current) {
-            switch (data.type) {
-                case 'JOIN_ROOM': {
-                    // Logic to join the game hosted by ME
-                    if (hostStatusRef.current === 'hosting') {
-                         const joinerInfo = (conn as any).playerInfo;
-                         hostStatusRef.current = 'idle'; 
-                         
-                         setState(prev => ({
-                            ...prev,
-                            mode: 'in_game',
-                            gameOpponent: joinerInfo,
-                            isMyTurn: true,
-                            amIP1: true 
-                         }));
-
-                         const hostInfo = { id: peerRef.current?.id || '', ...myInfoRef.current, status: 'in_game' };
-                         if (joinerInfo) joinerInfo.status = 'in_game';
-                         
-                         conn.send({ type: 'GAME_START', opponent: hostInfo, starts: false });
-                         broadcastPlayerList('in_game');
-                    }
-                    break;
-                }
-                case 'LEAVE_GAME':
-                     if (senderInfo) senderInfo.status = 'idle';
-                     if (currentState.mode === 'in_game' && currentState.gameOpponent?.id === senderId) {
-                         setState(prev => ({...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false, amIP1: false}));
-                         hostStatusRef.current = 'idle';
-                     }
-                     broadcastPlayerList();
-                     break;
-                 case 'REMATCH_REQUEST':
-                     if (senderInfo) senderInfo.status = 'in_game';
-                     if (currentState.mode === 'in_game' && currentState.gameOpponent?.id === senderId) {
-                         notifySubscribers({ type: 'REMATCH_START' }, conn);
-                         conn.send({ type: 'REMATCH_START', opponent: { id: peerRef.current?.id, ...myInfoRef.current, status: 'in_game' }, starts: false });
-                     }
-                     broadcastPlayerList();
-                     break;
-            }
-        } 
-        // --- GUEST LOGIC SPECIFIC ---
-        else {
-            switch (data.type) {
-                case 'PLAYER_LIST':
-                    setState(prev => ({ ...prev, players: data.players }));
-                    break;
-                case 'GAME_START':
-                    setState(prev => ({
-                        ...prev,
-                        mode: 'in_game',
-                        gameOpponent: data.opponent,
-                        isMyTurn: data.starts,
-                        amIP1: false // Guest is ALWAYS Player 2 (or not P1)
-                    }));
-                    notifySubscribers(data, conn);
-                    break;
-            }
-        }
-    }, [broadcastPlayerList, notifySubscribers]);
-
-    const handleConnectionOpen = useCallback((conn: DataConnection) => {
-        connectionsRef.current.set(conn.peer, conn);
-        
-        conn.on('data', (data) => handleDataReceived(data, conn));
-        conn.on('close', () => {
-            connectionsRef.current.delete(conn.peer);
-            if (isHostRef.current) broadcastPlayerList();
-        });
-        
-        // Handshake
-        conn.send({ 
-            type: 'HELLO', 
-            name: myInfoRef.current.name, 
-            avatarId: myInfoRef.current.avatarId,
-            extraInfo: myInfoRef.current.extraInfo 
-        });
-    }, [handleDataReceived, broadcastPlayerList]);
-
-    const connect = useCallback(() => {
-        if (peerRef.current && !peerRef.current.destroyed) return;
-
-        setState(prev => ({ ...prev, isLoading: true, mode: 'connecting', error: null }));
-        
-        let id = localStorage.getItem('neon_social_id');
-        if (!id) {
-            id = 'neon_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('neon_social_id', id);
-        }
-
-        const peer = new Peer(id);
-
-        peer.on('open', (id) => {
-            setState(prev => ({ ...prev, peerId: id, isConnected: true, isLoading: false, mode: 'lobby', error: null }));
-            peerRef.current = peer;
-            
-            peer.on('connection', (conn) => {
-                conn.on('open', () => handleConnectionOpen(conn));
-            });
-        });
-
-        // Auto-reconnect on disconnect
-        peer.on('disconnected', () => {
-            console.log('Peer disconnected from server. Attempting reconnect...');
-            setState(prev => ({ ...prev, isConnected: false }));
-            setTimeout(() => {
-                if (peer && !peer.destroyed) {
-                    peer.reconnect();
-                }
-            }, 1000);
-        });
-
-        peer.on('close', () => {
-            console.log('Peer connection closed.');
-            setState(prev => ({ ...prev, isConnected: false, mode: 'disconnected', peerId: null }));
-            peerRef.current = null;
-        });
-
-        peer.on('error', (err) => {
-            console.error('Peer error:', err);
-            // Silent fail for peer-unavailable (offline friends)
-            if (err.type === 'peer-unavailable') return;
-            // Ignore disconnected errors as they are handled by the disconnected event
-            if (err.type === 'disconnected') return;
-            
-            setState(prev => ({ ...prev, error: 'Connexion instable', isLoading: false }));
-        });
-    }, [handleConnectionOpen]);
-
-    const connectTo = useCallback((peerId: string) => {
-        if (!peerRef.current || connectionsRef.current.has(peerId)) return;
-        const conn = peerRef.current.connect(peerId);
-        conn.on('open', () => handleConnectionOpen(conn));
-        // Error handling for this specific connection is managed by the global peer 'error' event
-    }, [handleConnectionOpen]);
-
-    const updateSelfInfo = useCallback((name: string, avatarId: string, extraInfo?: string) => {
-        myInfoRef.current = { name, avatarId, extraInfo };
-        const updateMsg = { type: 'UPDATE_INFO', name, avatarId, extraInfo };
-        sendData(updateMsg);
-        
-        if (isHostRef.current) {
-            broadcastPlayerList();
-        }
-    }, [sendData, broadcastPlayerList]);
-
-    const createRoom = useCallback(() => {
-        hostStatusRef.current = 'hosting';
-        // CRITICAL FIX: Manually update ref so subsequent calls see we are hosting immediately
-        isHostRef.current = true;
-        
-        setState(prev => ({ ...prev, isHost: true }));
-        updateSelfInfo(myInfoRef.current.name, myInfoRef.current.avatarId, myInfoRef.current.extraInfo);
-        
-        // Force broadcast immediately
-        broadcastPlayerList();
-    }, [updateSelfInfo, broadcastPlayerList]);
-
-    const joinRoom = useCallback((targetPeerId: string) => {
-        if (!peerRef.current) return;
-        
-        // Reuse existing connection if present
-        let conn = connectionsRef.current.get(targetPeerId);
-        
-        if (!conn || !conn.open) {
-            conn = peerRef.current.connect(targetPeerId);
-            conn.on('open', () => {
-                handleConnectionOpen(conn!);
-                conn!.send({ type: 'JOIN_ROOM', targetId: targetPeerId });
-            });
-        } else {
-            conn.send({ type: 'JOIN_ROOM', targetId: targetPeerId });
-        }
-        
-        setState(prev => ({ ...prev, isHost: false }));
-    }, [handleConnectionOpen]);
-
-    const sendGameMove = useCallback((moveData: any) => {
-        const currentState = stateRef.current;
-        if (currentState.mode !== 'in_game' || !currentState.gameOpponent) return;
-    
-        const payload = {
-            type: 'GAME_MOVE',
-            ...((typeof moveData === 'object') ? moveData : { col: moveData })
-        };
-        
-        // Both host and guest just send the move to their opponent.
-        sendTo(currentState.gameOpponent.id, payload);
-    
-    }, [sendTo]);
-
-    const cancelHosting = useCallback(() => {
-        hostStatusRef.current = 'idle';
-        setState(prev => ({ ...prev, isHost: false, mode: 'lobby' }));
-        sendData({ type: 'CANCEL_HOSTING' });
-    }, [sendData]);
-
-    const leaveGame = useCallback(() => {
-        const currentState = stateRef.current;
-        sendData({ type: 'LEAVE_GAME', opponentId: currentState.gameOpponent?.id });
-        hostStatusRef.current = 'idle';
-        setState(prev => ({ ...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false }));
-    }, [sendData]);
-
-    const requestRematch = useCallback(() => {
-        const currentState = stateRef.current;
-        
-        // CORRECTION : Si je suis l'hôte, je force le redémarrage immédiatement
-        if (isHostRef.current) {
-             // 1. Reset local (Pour moi)
-             notifySubscribers({ type: 'REMATCH_START' }, null as any);
-             
-             // 2. Reset distant (Pour l'adversaire)
-             sendData({ type: 'REMATCH_START' });
-        } else {
-             // Si je suis invité, je demande poliment
-             sendData({ type: 'REMATCH_REQUEST', opponentId: currentState.gameOpponent?.id });
-        }
-    }, [sendData, notifySubscribers]);
 
     return {
         ...state,
@@ -415,11 +348,11 @@ export const useMultiplayer = () => {
         updateSelfInfo,
         sendData,
         sendTo,
-        connectTo,
         sendGameMove,
         subscribe,
         cancelHosting,
         leaveGame,
-        requestRematch
+        requestRematch,
+        connectTo 
     };
 };
