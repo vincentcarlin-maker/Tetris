@@ -912,11 +912,19 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                             )
                         )}
                         
+                        {/* COINS DISPLAY FOR ONLINE/MULTIPLAYER WIN */}
+                        {(gameMode === 'ONLINE' || gameMode === 'LOCAL_VS') && earnedCoins > 0 && (
+                             <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                                <Coins className="text-yellow-400" size={20} />
+                                <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
+                            </div>
+                        )}
+
                         <div className="flex flex-col gap-3 mt-4">
                             {gameMode === 'ONLINE' ? (
                                 <>
-                                    {!opponentLeft && <button onClick={() => mp.requestRematch()} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg">REVANCHE</button>}
-                                    <button onClick={() => { mp.leaveGame(); setGameState('menu'); }} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">QUITTER</button>
+                                    {!opponentLeft && <button onClick={() => mp.requestRematch()} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2 justify-center"><Play size={20} fill="black"/> REVANCHE</button>}
+                                    <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>
                                 </>
                             ) : (
                                 <>
