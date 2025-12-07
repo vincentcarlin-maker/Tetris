@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -616,6 +616,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             )}
                         </div>
                      </div>
+
+                     {/* ADMIN TOGGLE BUTTON */}
+                     {isAuthenticated && currency.isSuperUser && (
+                         <button 
+                            onClick={currency.toggleAdminMode}
+                            className={`w-full py-2 mt-2 rounded-lg font-black text-xs tracking-widest flex items-center justify-center gap-2 transition-all border ${
+                                currency.adminModeActive 
+                                ? 'bg-red-900/50 text-red-400 border-red-500/50 hover:bg-red-900/80 shadow-[0_0_15px_rgba(239,68,68,0.3)]' 
+                                : 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-900/80'
+                            }`}
+                         >
+                             {currency.adminModeActive ? (
+                                 <><ShieldAlert size={16}/> GOD MODE : ACTIVÉ</>
+                             ) : (
+                                 <><Shield size={16}/> GOD MODE : DÉSACTIVÉ</>
+                             )}
+                         </button>
+                     )}
 
                      <div className="w-full h-px bg-white/10" />
 

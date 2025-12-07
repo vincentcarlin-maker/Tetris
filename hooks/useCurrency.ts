@@ -193,7 +193,13 @@ export const useCurrency = () => {
     const [ownedMallets, setOwnedMallets] = useState<string[]>(["m_classic"]);
 
     // --- ADMIN CHECK ---
-    const isAdmin = username === 'Vincent';
+    const [adminModeActive, setAdminModeActive] = useState(true); // Active par défaut à la connexion
+    const isSuperUser = username === 'Vincent';
+    const isAdmin = isSuperUser && adminModeActive;
+
+    const toggleAdminMode = useCallback(() => {
+        setAdminModeActive(prev => !prev);
+    }, []);
 
     const refreshData = useCallback(() => {
         // Load Economy
@@ -395,7 +401,7 @@ export const useCurrency = () => {
 
     // Système de Rangs basé sur le nombre de badges
     const playerRank = useMemo(() => {
-        if (isAdmin) return { title: 'ADMINISTRATEUR', color: 'text-red-500', glow: 'shadow-red-500/50' };
+        if (isSuperUser) return { title: 'ADMINISTRATEUR', color: 'text-red-500', glow: 'shadow-red-500/50' };
         
         const count = inventory.length;
         if (count >= 12) return { title: 'LÉGENDE VIVANTE', color: 'text-amber-400', glow: 'shadow-amber-400/50' };
@@ -403,10 +409,10 @@ export const useCurrency = () => {
         if (count >= 5) return { title: 'CHASSEUR DE PIXELS', color: 'text-cyan-400', glow: 'shadow-cyan-400/50' };
         if (count >= 2) return { title: 'EXPLORATEUR', color: 'text-green-400', glow: 'shadow-green-400/50' };
         return { title: 'VAGABOND NÉON', color: 'text-gray-400', glow: 'shadow-gray-400/20' };
-    }, [inventory, isAdmin]);
+    }, [inventory, isSuperUser]);
 
     return { 
-        // Admin Overrides applied here
+        // Admin Overrides applied here ONLY IF isAdmin is true (Vincent + Toggle On)
         coins: isAdmin ? 99999999 : coins, 
         inventory: isAdmin ? BADGES_CATALOG.map(b => b.id) : inventory,
         ownedAvatars: isAdmin ? AVATARS_CATALOG.map(a => a.id) : ownedAvatars,
@@ -415,6 +421,11 @@ export const useCurrency = () => {
         ownedTitles: isAdmin ? TITLES_CATALOG.map(t => t.id) : ownedTitles,
         ownedMallets: isAdmin ? MALLETS_CATALOG.map(m => m.id) : ownedMallets,
         
+        // Expose Admin state control
+        isSuperUser,
+        adminModeActive,
+        toggleAdminMode,
+
         refreshData,
         addCoins, 
         buyBadge, 
