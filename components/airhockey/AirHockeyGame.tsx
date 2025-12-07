@@ -71,6 +71,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     const opponentMalletRef = useRef<Entity>({ x: TABLE_WIDTH / 2, y: 100, vx: 0, vy: 0, radius: MALLET_RADIUS, color: '#ffe600' });
     
     const animationFrameRef = useRef<number>(0);
+    const isScoringRef = useRef(false); // Prevents multiple goals per shot
     
     // Input Refs (Targets for smoothing)
     const p1TargetRef = useRef<{ x: number, y: number }>({ x: TABLE_WIDTH / 2, y: TABLE_HEIGHT - 100 });
@@ -103,9 +104,12 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     // Define resetRound first so it can be used in startGame
     const resetRound = useCallback((isBottomGoal: boolean) => {
+        const newPuckY = isBottomGoal ? TABLE_HEIGHT / 2 + 50 : TABLE_HEIGHT / 2 - 50;
+        
+        // Reset Local State
         puckRef.current = {
             x: TABLE_WIDTH / 2,
-            y: isBottomGoal ? TABLE_HEIGHT / 2 + 50 : TABLE_HEIGHT / 2 - 50,
+            y: newPuckY,
             vx: 0, vy: 0, radius: PUCK_RADIUS, color: '#ff00ff'
         };
         // Reset positions
@@ -118,8 +122,15 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         p1TargetRef.current = { x: TABLE_WIDTH / 2, y: TABLE_HEIGHT - 100 };
         p2TargetRef.current = { x: TABLE_WIDTH / 2, y: 100 };
         
+        isScoringRef.current = false;
+        
+        // If Host, broadcast reset to ensure client snaps
+        if (gameMode === 'ONLINE' && isHost) {
+            sendData({ type: 'AIRHOCKEY_RESET', puckY: newPuckY });
+        }
+
         setGameState('playing');
-    }, []);
+    }, [gameMode, isHost, sendData]);
 
     const startGame = useCallback((diff: Difficulty, mode: GameMode = 'SINGLE') => {
         setDifficulty(diff);
@@ -127,6 +138,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         setScore({ p1: 0, p2: 0 });
         setWinner(null);
         setEarnedCoins(0);
+        isScoringRef.current = false;
         resetRound(true);
         setGameState('playing');
         resumeAudio();
@@ -208,6 +220,21 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     playGoalScore();
                 }
             }
+            else if (data.type === 'AIRHOCKEY_RESET') {
+                // FORCE SNAP on Reset
+                const hostPuckY = data.puckY;
+                // Invert Y for Client
+                const clientPuckY = TABLE_HEIGHT - hostPuckY;
+                
+                puckRef.current = {
+                    x: TABLE_WIDTH / 2,
+                    y: clientPuckY,
+                    vx: 0, vy: 0, radius: PUCK_RADIUS, color: '#ff00ff'
+                };
+                latestNetworkStateRef.current = null; // Clear interpolator
+                isScoringRef.current = false;
+                setGameState('playing');
+            }
             else if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
                 setGameState('gameOver');
@@ -231,18 +258,17 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     };
 
     const handleGoal = (isBottomGoal: boolean) => {
+        if (isScoringRef.current) return;
         // Only Host or Single Player handles game logic
         if (gameMode === 'ONLINE' && !isHost) return;
 
+        isScoringRef.current = true;
         setGameState('scored');
         
         setScore(prevScore => {
             const newScore = { ...prevScore };
             if (isBottomGoal) {
-                newScore.p2 += 1; // P2 scored (puck went into bottom goal) - WAIT, physics usually implies:
-                // If puck passes bottom line -> Top player (P2/CPU) scored.
-                // If puck passes top line -> Bottom player (P1) scored.
-                // Let's verify goals Y coords.
+                newScore.p2 += 1; // P2 scored (puck went into bottom goal)
             } else {
                 newScore.p1 += 1; // P1 scored (puck went into top goal)
             }
