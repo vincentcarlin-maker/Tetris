@@ -132,7 +132,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     // Handle Online Mode Transition
     useEffect(() => {
-        // Fix: Use isHost directly instead of players array to avoid race conditions
+        // Fix: Use isHost directly instead of players array to avoid race conditions and stability issues
         if (mpMode === 'lobby') {
             if (isHost) {
                 if (onlineStep !== 'game') {
@@ -145,8 +145,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     setOnlineStep('lobby');
                 }
                 // Ensure we are in menu state to show the lobby list properly
-                // But avoid infinite loop by checking current state
-                if (gameState === 'playing') setGameState('menu'); 
+                if (gameState === 'playing' || gameState === 'gameOver') setGameState('menu'); 
             }
         } else if (mpMode === 'in_game') {
             if (onlineStep !== 'game') setOnlineStep('game');
