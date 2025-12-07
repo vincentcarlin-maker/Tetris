@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -579,7 +580,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const hubStatusColor = hasOnlineFriends
         ? 'bg-green-500 shadow-[0_0_5px_lime]'
         : isConnectedToSupabase
-        ? 'bg-blue-500 shadow-[0_0_5px_#3b82f6]' // Blue for connected but no friends online
+        ? 'bg-blue-400 shadow-[0_0_8px_#3b82f6]' // Blue for connected but no friends online
         : 'bg-gray-500';
 
     return (
@@ -597,8 +598,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     title="Amis & Social"
                 >
                     <Users size={24} />
-                    {/* Status Dot */}
-                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-900 ${hubStatusColor}`}></div>
+                    {/* Status Dot - Repositioned inside the button */}
+                    <div className={`absolute top-2 right-3 w-3 h-3 rounded-full border-2 border-gray-900 ${hubStatusColor} pointer-events-none`}></div>
                     
                     {unreadCount > 0 && (
                         <div className="absolute top-2 left-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-bounce border-2 border-black pointer-events-none">
