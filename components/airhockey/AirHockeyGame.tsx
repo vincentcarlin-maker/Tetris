@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -163,9 +164,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             if (onlineStep !== 'game') setOnlineStep('game');
             setOpponentLeft(false);
             
-            // IMPORTANT FIX: Prevent game restart when scoring (state is 'scored') or playing.
-            // Only restart if we are in a menu-like state.
-            if (gameState === 'menu' || gameState === 'difficulty_select' || gameState === 'gameOver') {
+            // Only restart if we are in a true menu state. 
+            // Removed 'gameOver' to prevent auto-rematch loops.
+            if (gameState === 'menu' || gameState === 'difficulty_select') {
                 startGame('MEDIUM', 'ONLINE'); // Difficulty ignored for online
             }
         }

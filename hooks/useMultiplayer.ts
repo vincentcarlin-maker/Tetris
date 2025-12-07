@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -157,13 +158,22 @@ export const useMultiplayer = () => {
         // Host Logic: Handle Join Request
         if (data.type === 'JOIN_REQUEST') {
             if (stateRef.current.isHost) {
-                // Accept joiner
-                const joinerInfo = stateRef.current.players.find(p => p.id === senderId);
+                // Accept joiner - Attempt to find via presence first
+                const presenceInfo = stateRef.current.players.find(p => p.id === senderId);
+                
+                // Fallback / Merge with payload data (malletId is critical here)
+                const opponentInfo: PlayerInfo = {
+                    id: senderId,
+                    name: presenceInfo?.name || 'Opposant',
+                    avatarId: presenceInfo?.avatarId || 'av_bot',
+                    status: 'in_game',
+                    malletId: data.malletId || presenceInfo?.malletId || 'm_classic'
+                };
                 
                 setState(prev => ({
                     ...prev,
                     mode: 'in_game',
-                    gameOpponent: joinerInfo || { id: senderId, name: 'Opposant', avatarId: 'av_bot', status: 'in_game', malletId: 'm_classic' },
+                    gameOpponent: opponentInfo,
                     isMyTurn: true,
                     amIP1: true
                 }));
@@ -252,7 +262,11 @@ export const useMultiplayer = () => {
         subscribeToGameChannel(hostId);
         
         // 2. Signal Host via Lobby DM to initiate handshake
-        sendTo(hostId, { type: 'JOIN_REQUEST' });
+        // Explicitly send malletId here to ensure host sees it immediately
+        sendTo(hostId, { 
+            type: 'JOIN_REQUEST', 
+            malletId: myInfoRef.current.malletId 
+        });
         
     }, []);
 
