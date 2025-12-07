@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -46,6 +46,16 @@ interface FriendRequest {
     timestamp: number;
     stats?: PlayerStats;
 }
+
+// --- MOCK DATA FOR COMMUNITY ---
+const MOCK_COMMUNITY_PLAYERS: Friend[] = [
+    { id: 'bot_1', name: 'NeonStriker', avatarId: 'av_rocket', status: 'online', lastSeen: Date.now(), stats: { tetris: 12000, breaker: 5000, pacman: 0, memory: 0, rush: 5, sudoku: 0 } },
+    { id: 'bot_2', name: 'PixelQueen', avatarId: 'av_cat', frameId: 'fr_neon_pink', status: 'online', lastSeen: Date.now(), stats: { tetris: 5000, breaker: 8000, pacman: 15000, memory: 12, rush: 10, sudoku: 0 } },
+    { id: 'bot_3', name: 'CyberWolf', avatarId: 'av_skull', frameId: 'fr_glitch', status: 'online', lastSeen: Date.now(), stats: { tetris: 25000, breaker: 2000, pacman: 5000, memory: 0, rush: 20, sudoku: 0 } },
+    { id: 'bot_4', name: 'RetroMaster', avatarId: 'av_game', status: 'offline', lastSeen: Date.now() - 300000, stats: { tetris: 0, breaker: 0, pacman: 20000, memory: 0, rush: 0, sudoku: 0 } },
+    { id: 'bot_5', name: 'GlitchHunter', avatarId: 'av_ghost', frameId: 'fr_cyber', status: 'online', lastSeen: Date.now(), stats: { tetris: 15000, breaker: 15000, pacman: 15000, memory: 20, rush: 15, sudoku: 0 } },
+    { id: 'bot_6', name: 'ArcadeFan', avatarId: 'av_bot', status: 'online', lastSeen: Date.now(), stats: { tetris: 2000, breaker: 1000, pacman: 2000, memory: 5, rush: 2, sudoku: 0 } },
+];
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
@@ -249,7 +259,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     useEffect(() => {
         if (mp.isConnected && friends.length > 0) {
             friends.forEach(f => {
-                mp.connectTo(f.id);
+                // Don't connect to bots via PeerJS
+                if (!f.id.startsWith('bot_')) {
+                    mp.connectTo(f.id);
+                }
             });
         }
     }, [mp.isConnected, friends, mp]);
@@ -262,6 +275,46 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     // --- ACTIONS ---
     const sendFriendRequest = (targetId: string) => {
         if (targetId === mp.peerId) return;
+
+        // --- BOT LOGIC ---
+        if (targetId.startsWith('bot_')) {
+            alert(`Demande envoyée !`);
+            
+            // Simulate Acceptance Delay
+            setTimeout(() => {
+                const bot = MOCK_COMMUNITY_PLAYERS.find(b => b.id === targetId);
+                if (bot) {
+                    setFriends(prev => {
+                        // Avoid duplicates
+                        if (prev.find(f => f.id === bot.id)) return prev;
+                        
+                        audio.playVictory(); // Sound feedback
+                        
+                        // Fake Welcome Message
+                        const welcomeMsg = ["Salut !", "Prêt à jouer ?", "Duel ?", "Bienvenue !", "Hey !"][Math.floor(Math.random() * 5)];
+                        const msg: PrivateMessage = {
+                            id: Date.now().toString(),
+                            senderId: bot.id,
+                            text: welcomeMsg,
+                            timestamp: Date.now(),
+                            read: false
+                        };
+                        setMessages(prevMsgs => {
+                            const updated = { ...prevMsgs, [bot.id]: [msg] };
+                            localStorage.setItem('neon_dms', JSON.stringify(updated));
+                            return updated;
+                        });
+
+                        const updated = [...prev, { ...bot, status: 'online' }];
+                        localStorage.setItem('neon_friends', JSON.stringify(updated));
+                        return updated;
+                    });
+                }
+            }, 1500);
+            return;
+        }
+
+        // --- REAL LOGIC ---
         mp.connectTo(targetId);
         // Send request after short delay to ensure connection
         setTimeout(() => {
@@ -297,7 +350,24 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             return updated;
         });
 
-        mp.sendTo(activeChatId, { type: 'DM', text: chatInput.trim() });
+        // Handle Bot Reply
+        if (activeChatId.startsWith('bot_')) {
+            setTimeout(() => {
+                const replies = ["Haha", "Bien joué", "Ok", "On verra !", ":)", "Pas mal", "Trop fort"];
+                const reply = replies[Math.floor(Math.random() * replies.length)];
+                const botMsg: PrivateMessage = { id: Date.now().toString(), senderId: activeChatId, text: reply, timestamp: Date.now(), read: false };
+                setMessages(prev => {
+                    const chat = prev[activeChatId] || [];
+                    const updated = { ...prev, [activeChatId]: [...chat, botMsg] };
+                    localStorage.setItem('neon_dms', JSON.stringify(updated));
+                    return updated;
+                });
+                audio.playCoin();
+            }, 2000);
+        } else {
+            mp.sendTo(activeChatId, { type: 'DM', text: chatInput.trim() });
+        }
+        
         setChatInput('');
     };
 
@@ -335,15 +405,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     };
 
     // --- COMMUNITY LOGIC ---
-    // Filtre les joueurs qui sont connectés via le Multiplayer (dans le même Lobby par exemple)
-    // et qui ne sont PAS dans la liste d'amis.
-    const communityPlayers = mp.players.filter(p => {
-        // Exclure soi-même
-        if (p.id === mp.peerId) return false; 
-        // Exclure si déjà ami
-        if (friends.some(f => f.id === p.id)) return false; 
-        return true;
-    });
+    // Merge real players and mock players (filtering out friends and self)
+    const displayedCommunity = [
+        ...mp.players.filter(p => p.id !== mp.peerId),
+        ...MOCK_COMMUNITY_PLAYERS
+    ].filter(p => !friends.some(f => f.id === p.id) && p.id !== mp.peerId);
 
     const getFrameClass = (frameId?: string) => {
         return framesCatalog.find(f => f.id === frameId)?.cssClass || 'border-white/10';
@@ -446,48 +512,48 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {/* TAB: COMMUNITY */}
                             {socialTab === 'COMMUNITY' && (
                                 <div className="space-y-4">
-                                    <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-2">
-                                        <p className="text-purple-300 text-xs font-bold flex items-center justify-center gap-2"><Globe size={14}/> JOUEURS CONNECTÉS ({communityPlayers.length})</p>
+                                    <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-2 animate-pulse">
+                                        <p className="text-purple-300 text-xs font-bold flex items-center justify-center gap-2"><Globe size={14}/> JOUEURS EN LIGNE ({displayedCommunity.length + 128})</p>
                                     </div>
                                     
-                                    {communityPlayers.length === 0 ? (
-                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center border border-white/5 rounded-xl bg-white/5 p-6">
-                                            <Globe size={48} className="mb-4 opacity-50 text-gray-400" />
-                                            <p className="text-sm font-bold text-gray-300">Aucun joueur inconnu détecté</p>
-                                            <p className="text-xs text-gray-500 mt-2 max-w-[200px]">Rejoignez un Salon Multijoueur pour voir d'autres participants ici.</p>
-                                        </div>
-                                    ) : (
-                                        communityPlayers.map(player => {
-                                            const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
-                                            const AvIcon = avatar.icon;
-                                            const tempFriend: Friend = { id: player.id, name: player.name, avatarId: player.avatarId, frameId: undefined, status: 'online', lastSeen: Date.now() };
-                                            
-                                            // Check if invitation sent
-                                            const isRequested = requests.some(r => r.id === player.id); // Incoming request? Or we track outgoing? Currently simple check.
-
-                                            return (
-                                                <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/60 hover:bg-gray-800 rounded-xl border border-white/10 hover:border-purple-500/50 transition-all cursor-pointer group`}>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass()}`}>
-                                                            <AvIcon size={18} className={avatar.color} />
-                                                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <h4 className="font-bold text-white text-sm group-hover:text-purple-300 transition-colors">{player.name}</h4>
-                                                            <span className="text-[10px] text-gray-500">{player.status === 'in_game' ? 'En Jeu' : 'Dans le Lobby'}</span>
-                                                        </div>
+                                    {displayedCommunity.map(player => {
+                                        const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                        const AvIcon = avatar.icon;
+                                        // Cast to Friend type for safety with mock data
+                                        const tempFriend: Friend = { 
+                                            id: player.id, 
+                                            name: player.name, 
+                                            avatarId: player.avatarId, 
+                                            frameId: (player as any).frameId, 
+                                            status: 'online', 
+                                            lastSeen: Date.now() 
+                                        };
+                                        
+                                        return (
+                                            <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/60 hover:bg-gray-800 rounded-xl border border-white/10 hover:border-purple-500/50 transition-all cursor-pointer group`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(tempFriend.frameId)}`}>
+                                                        <AvIcon size={18} className={avatar.color} />
+                                                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>
                                                     </div>
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); sendFriendRequest(player.id); }} 
-                                                        className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg active:scale-95"
-                                                        title="Ajouter en ami"
-                                                    >
-                                                        <UserPlus size={16} />
-                                                    </button>
+                                                    <div className="flex flex-col">
+                                                        <h4 className="font-bold text-white text-sm group-hover:text-purple-300 transition-colors flex items-center gap-1">
+                                                            {player.name}
+                                                            {player.id.startsWith('bot_') && <Bot size={10} className="text-gray-500" />}
+                                                        </h4>
+                                                        <span className="text-[10px] text-gray-500">{(player as any).status === 'in_game' ? 'En Jeu' : 'Dans le Lobby'}</span>
+                                                    </div>
                                                 </div>
-                                            );
-                                        })
-                                    )}
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); sendFriendRequest(player.id); }} 
+                                                    className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg active:scale-95"
+                                                    title="Ajouter en ami"
+                                                >
+                                                    <UserPlus size={16} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                     
                                     <div className="pt-4 mt-4 border-t border-white/10">
                                         <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Ajout Manuel</p>
