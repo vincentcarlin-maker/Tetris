@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -176,6 +175,32 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setConfigKey(conf.key);
     }, []);
 
+    // --- SYNC FRIENDS ONLINE STATUS ---
+    useEffect(() => {
+        setFriends(prevFriends => {
+            const updated = prevFriends.map(f => {
+                // Check if user is in the Supabase online list
+                const isRealUserOnline = onlineUsers.some(u => u.id === f.id);
+                // Bots are always simulated as online for engagement
+                const isBot = f.id.startsWith('bot_');
+                
+                const newStatus = (isRealUserOnline || isBot) ? 'online' : 'offline';
+                
+                // Only update if status changed to avoid loops
+                if (f.status !== newStatus) {
+                    return { ...f, status: newStatus as 'online' | 'offline', lastSeen: Date.now() };
+                }
+                return f;
+            });
+            
+            // Equality check to prevent re-render loop if nothing changed
+            if (JSON.stringify(updated) !== JSON.stringify(prevFriends)) {
+                return updated;
+            }
+            return prevFriends;
+        });
+    }, [onlineUsers]);
+
     // --- STORE & FORWARD LOGIC ---
     useEffect(() => {
         if (!mp.isConnected || !isConnectedToSupabase) return;
@@ -210,14 +235,24 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     }, [onlineUsers, messages, mp, isConnectedToSupabase]);
 
 
-    // --- FAKE SERVER ACTIVITY GENERATOR ---
+    // --- ACTIVITY GENERATOR ---
     useEffect(() => {
         const interval = setInterval(() => {
             if (Math.random() > 0.4) { // 60% chance to skip to vary timing
                 const template = ACTIVITY_TEMPLATES[Math.floor(Math.random() * ACTIVITY_TEMPLATES.length)];
-                // Mix bots and real Supabase users for the activity feed
-                const potentialUsers = [...MOCK_COMMUNITY_PLAYERS, ...onlineUsers.map(u => ({...u} as Friend))];
-                const randomUser = potentialUsers[Math.floor(Math.random() * potentialUsers.length)];
+                
+                // PRIORITÉ AUX AMIS EN LIGNE (80% de chance)
+                const onlineFriends = friends.filter(f => f.status === 'online');
+                let randomUser: Friend | undefined;
+
+                if (onlineFriends.length > 0 && Math.random() > 0.2) {
+                    // Priorité aux amis
+                    randomUser = onlineFriends[Math.floor(Math.random() * onlineFriends.length)];
+                } else {
+                    // Sinon mélange bots et joueurs globaux
+                    const potentialUsers = [...MOCK_COMMUNITY_PLAYERS, ...onlineUsers.map(u => ({...u} as Friend))];
+                    randomUser = potentialUsers[Math.floor(Math.random() * potentialUsers.length)];
+                }
                 
                 if (randomUser) {
                     const text = template.replace("{name}", randomUser.name);
@@ -235,7 +270,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         }, 3000); // New event every ~3-5 seconds
 
         return () => clearInterval(interval);
-    }, [onlineUsers]);
+    }, [onlineUsers, friends]);
 
     // Unread Count
     useEffect(() => {
@@ -711,9 +746,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                 <><Wifi size={16} className="animate-pulse" /> <span className="text-xs font-bold">CONNEXION...</span></>
                                             )}
                                         </div>
-                                        <button onClick={() => setShowConfig(true)} className="p-2 hover:bg-white/10 rounded-full transition-colors" title="Configurer Supabase">
-                                            <Settings size={16} />
-                                        </button>
                                     </div>
 
                                     {/* ACTIVITY FEED */}
@@ -784,6 +816,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         friends.map(friend => {
                                             const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
                                             const AvIcon = avatar.icon;
+                                            // Stats preview
+                                            const bestScore = friend.stats ? Math.max(friend.stats.tetris || 0, friend.stats.breaker || 0, friend.stats.pacman || 0) : 0;
+
                                             return (
                                                 <div key={friend.id} onClick={() => setSelectedPlayer(friend)} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-xl border border-white/5 hover:bg-gray-800 transition-colors cursor-pointer group">
                                                     <div className="flex items-center gap-3">
@@ -793,7 +828,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-sm text-gray-200">{friend.name}</span>
-                                                            <span className="text-[10px] text-gray-500">{friend.status === 'online' ? 'En ligne' : `Vu ${formatLastSeen(friend.lastSeen)}`}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] text-gray-500">{friend.status === 'online' ? 'En ligne' : `Vu ${formatLastSeen(friend.lastSeen)}`}</span>
+                                                                {bestScore > 0 && (
+                                                                    <span className="text-[9px] bg-yellow-900/40 text-yellow-500 px-1.5 rounded border border-yellow-500/20 flex items-center gap-0.5">
+                                                                        <Trophy size={8}/> {bestScore.toLocaleString()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <button onClick={(e) => { e.stopPropagation(); openChat(friend.id); }} className="p-2 bg-purple-600/20 text-purple-400 rounded-full hover:bg-purple-600 hover:text-white transition-colors">
