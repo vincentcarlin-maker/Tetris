@@ -74,6 +74,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     // Network Data Refs
     const latestNetworkStateRef = useRef<any>(null);
     const latestNetworkInputRef = useRef<{x: number, y: number} | null>(null);
+    const handleDataRef = useRef<any>(null);
 
     // Sync Self Info
     useEffect(() => {
@@ -98,7 +99,11 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
-            setGameState('menu'); // Reset to menu if dropped to lobby
+            
+            // CRITICAL: Ensure we reset to menu state when entering lobby, but only if not already there
+            if (gameState !== 'menu' && !opponentLeft) {
+                setGameState('menu'); 
+            }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
@@ -108,9 +113,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         }
     }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
-    // Network Message Handling
+    // Network Message Handling - STABLE REF PATTERN
     useEffect(() => {
-        const unsubscribe = mp.subscribe((data: any) => {
+        handleDataRef.current = (data: any) => {
             if (data.type === 'AIRHOCKEY_STATE') {
                 latestNetworkStateRef.current = data;
             }
@@ -133,9 +138,17 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             else if (data.type === 'REMATCH_START') {
                 startGame('MEDIUM', 'ONLINE');
             }
+        };
+    });
+
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (handleDataRef.current) {
+                handleDataRef.current(data);
+            }
         });
         return () => unsubscribe();
-    }, [mp]);
+    }, [mp.subscribe]); // Dependent on subscribe only
 
     const selectMode = (mode: GameMode) => {
         setGameMode(mode);
@@ -184,25 +197,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             if (gameMode === 'SINGLE') {
                 setWinner(p1Wins ? 'Player' : 'CPU');
             } else if (gameMode === 'ONLINE') {
-                // In Online, score.player is ALWAYS "Me" (Bottom) for both players in their own view?
-                // No, usually Host logic dictates.
-                // Let's rely on Host sending score: P1 (Host), P2 (Client).
-                // Client receives: score.player = HostScore, score.opponent = ClientScore?
-                // Wait, easier if score object is { host: X, client: Y }.
-                // But current state is { player: 0, opponent: 0 }.
-                // HOST: Player = Host, Opponent = Client.
-                // CLIENT: We will flip received score in render/update.
-                // Host sends { player: hostScore, opponent: clientScore }
-                // Client receives it. If Client is Player 2, 'player' is Host (Opponent), 'opponent' is Me (Player).
-                // So Client needs to swap them locally?
-                // Actually, let's keep it simple: Host sends 'score' object as is.
-                // Host: P1=Me, P2=Opp. Client: P1=Opp, P2=Me.
-                
-                // Let's unify: Player always means "Bottom / Me". Opponent always means "Top / Them".
-                // Host logic:
-                // p1Wins = Host wins.
-                // If I am Host: winner = 'MOI'.
-                // If I am Client: Host sends "Player (Host) Wins". So winner = 'ADVERSAIRE'.
+                setWinner(p1Wins ? 'MOI' : 'ADVERSAIRE'); // Simplified logic
             } else {
                 setWinner(p1Wins ? 'J1' : 'J2');
             }
@@ -210,9 +205,12 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             setGameState('gameOver');
             
             // Audio & Coins
+            // Note: In online, 'player' score usually means 'Host'. 
+            // This basic logic assumes score.player maps to the local 'player' for single, but for online it might be Host.
+            // Simplified for now assuming sync is correct.
             const amIWinner = (gameMode === 'SINGLE' && p1Wins) || 
                               (gameMode === 'ONLINE' && ((mp.isHost && p1Wins) || (!mp.isHost && !p1Wins))) ||
-                              (gameMode === 'LOCAL_VS' && p1Wins); // Local VS always victory sound?
+                              (gameMode === 'LOCAL_VS' && p1Wins); 
 
             if (amIWinner) {
                 playVictory();
@@ -414,6 +412,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     const gameLoop = useCallback(() => {
         if (gameState !== 'playing') {
+            // Keep requesting frames to allow UI updates, but don't run physics
             animationFrameRef.current = requestAnimationFrame(gameLoop);
             return;
         }
@@ -463,8 +462,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             } else {
                 // CLIENT LOGIC
                 // 1. Send Local Input (from client POV bottom) to Host
-                // Note: We send raw input relative to our view. Host handles rotation.
-                // Using p1TargetRef because client controls "their" paddle which is visually bottom (player)
                 mp.sendData({
                     type: 'AIRHOCKEY_INPUT',
                     x: p1TargetRef.current.x,
@@ -484,8 +481,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     opponent.y = TABLE_HEIGHT - state.p1.y;
                     
                     // Self (Host P2): Invert to Bottom
-                    // Ideally we predict local movement, but for simplicity, snap to server for now
-                    // Or interpolation
                     const myTrueX = TABLE_WIDTH - state.p2.x;
                     const myTrueY = TABLE_HEIGHT - state.p2.y;
                     
@@ -577,7 +572,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         animationFrameRef.current = requestAnimationFrame(gameLoop);
     }, [gameState, difficulty, currentMalletId, malletsCatalog, gameMode, mp.isHost]);
 
-    // Physics Engine (Extracted to reuse/skip)
+    // Physics Engine
     const runPhysics = (puck: Entity, player: Entity, opponent: Entity) => {
         puck.x += puck.vx;
         puck.y += puck.vy;
@@ -670,10 +665,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         const y = (clientY - rect.top) * scaleY;
 
         // Player 1 Control (Standard Bottom) - Always active for "Me"
-        // In Online mode, client only cares about their own input (visually bottom)
         if (gameMode !== 'LOCAL_VS' || y > TABLE_HEIGHT / 2) {
-             // In Online Client mode, we treat the whole board as input area but clamp to bottom half
-             // This allows dragging from anywhere but paddle stays in half
              p1TargetRef.current = {
                 x: Math.max(MALLET_RADIUS, Math.min(TABLE_WIDTH - MALLET_RADIUS, x)),
                 y: Math.max(TABLE_HEIGHT / 2 + MALLET_RADIUS, Math.min(TABLE_HEIGHT - MALLET_RADIUS, y)),
@@ -715,42 +707,51 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             setGameState('menu');
         } else if (gameState === 'playing' && gameMode === 'ONLINE') {
             mp.leaveGame();
-            setGameState('menu');
+            setOnlineStep('lobby'); // Go back to lobby UI
+            setGameState('menu'); // Hide game canvas
+        } else if (gameMode === 'ONLINE') {
+             mp.leaveGame();
+             setOnlineStep('lobby');
+             setGameState('menu');
         } else {
             setGameState('menu');
         }
     };
 
     const renderLobby = () => {
-        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const availablePlayers = mp.players.filter(p => p.id !== mp.peerId);
         return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
                  <div className="flex flex-col gap-3 mb-4">
                      <h3 className="text-xl font-black text-center text-blue-300 tracking-wider drop-shadow-md">LOBBY AIR HOCKEY</h3>
-                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                     <button onClick={() => mp.createRoom('airhockey')} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
                         <Play size={18} fill="black"/> CRÉER UNE PARTIE
                      </button>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {hostingPlayers.length > 0 && (
-                        <>
-                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
-                            {hostingPlayers.map(player => {
-                                const avatar = useCurrency().avatarsCatalog.find(a => a.id === player.avatarId) || useCurrency().avatarsCatalog[0];
-                                const AvatarIcon = avatar.icon;
-                                return (
-                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
-                                            <span className="font-bold">{player.name}</span>
-                                        </div>
-                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                    {availablePlayers.length > 0 ? (
+                        availablePlayers.map(player => {
+                            const isHostingThis = player.status === 'hosting' && player.extraInfo === 'airhockey';
+                            const isHostingOther = player.status === 'hosting' && player.extraInfo !== 'airhockey';
+                            
+                            return (
+                                <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-white">{player.name}</span>
+                                        {isHostingOther && <span className="text-[9px] text-gray-500">Joue à {player.extraInfo || 'autre chose'}</span>}
+                                        {!isHostingThis && !isHostingOther && <span className="text-[9px] text-green-400">DISPONIBLE</span>}
                                     </div>
-                                );
-                            })}
-                        </>
-                    )}
-                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                                    {isHostingThis ? (
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                    ) : (
+                                        <div className="px-3 py-1.5 bg-gray-800 text-gray-500 font-bold rounded text-[10px]">
+                                            {isHostingOther ? 'OCCUPÉ' : 'EN LIGNE'}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    ) : <p className="text-center text-gray-500 italic text-sm py-8">Aucun joueur en ligne...</p>}
                 </div>
              </div>
          );
@@ -855,7 +856,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                                     <Trophy size={64} className={winner === 'J1' || winner === 'Player' ? "text-neon-blue" : "text-pink-500"} />
                                     <h2 className="text-4xl font-black text-white mb-2 mt-4">
                                         {gameMode === 'ONLINE' ? 
-                                            ((mp.isHost && winner === 'Player') || (!mp.isHost && winner === 'CPU') ? "VICTOIRE !" : "DÉFAITE...") 
+                                            ((mp.isHost && winner === 'MOI') || (!mp.isHost && winner === 'ADVERSAIRE') ? "VICTOIRE !" : "DÉFAITE...") 
                                             : `${winner === 'J1' ? 'JOUEUR 1' : 'JOUEUR 2'} GAGNE !`}
                                     </h2>
                                 </>
@@ -866,7 +867,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                             {gameMode === 'ONLINE' ? (
                                 <>
                                     {!opponentLeft && <button onClick={() => mp.requestRematch()} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors shadow-lg">REVANCHE</button>}
-                                    <button onClick={() => { mp.leaveGame(); setGameState('menu'); }} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">QUITTER</button>
+                                    <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); setGameState('menu'); }} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">QUITTER</button>
                                 </>
                             ) : (
                                 <>

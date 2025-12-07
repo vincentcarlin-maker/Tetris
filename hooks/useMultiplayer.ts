@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Peer, DataConnection } from 'peerjs';
 
@@ -5,7 +6,7 @@ export interface PlayerInfo {
     id: string; // Peer ID
     name: string;
     avatarId: string;
-    extraInfo?: string; // Info additionnelle (ex: Difficulté du jeu, Stats, Social ID)
+    extraInfo?: string; // Info additionnelle (ex: Difficulté du jeu, Stats, Social ID, Game ID when hosting)
     status: 'idle' | 'hosting' | 'in_game';
 }
 
@@ -332,13 +333,14 @@ export const useMultiplayer = () => {
         }
     }, [sendData, broadcastPlayerList]);
 
-    const createRoom = useCallback(() => {
+    const createRoom = useCallback((gameId: string = 'unknown') => {
         hostStatusRef.current = 'hosting';
         // CRITICAL FIX: Manually update ref so subsequent calls see we are hosting immediately
         isHostRef.current = true;
         
         setState(prev => ({ ...prev, isHost: true }));
-        updateSelfInfo(myInfoRef.current.name, myInfoRef.current.avatarId, myInfoRef.current.extraInfo);
+        // Update extraInfo with gameId to broadcast which game we are hosting
+        updateSelfInfo(myInfoRef.current.name, myInfoRef.current.avatarId, gameId);
         
         // Force broadcast immediately
         broadcastPlayerList();
@@ -380,15 +382,21 @@ export const useMultiplayer = () => {
     const cancelHosting = useCallback(() => {
         hostStatusRef.current = 'idle';
         setState(prev => ({ ...prev, isHost: false, mode: 'lobby' }));
+        // Clear gameId
+        updateSelfInfo(myInfoRef.current.name, myInfoRef.current.avatarId, undefined);
         sendData({ type: 'CANCEL_HOSTING' });
-    }, [sendData]);
+    }, [sendData, updateSelfInfo]);
 
     const leaveGame = useCallback(() => {
         const currentState = stateRef.current;
         sendData({ type: 'LEAVE_GAME', opponentId: currentState.gameOpponent?.id });
         hostStatusRef.current = 'idle';
+        // Clear gameId if I was hosting
+        if (isHostRef.current) {
+             updateSelfInfo(myInfoRef.current.name, myInfoRef.current.avatarId, undefined);
+        }
         setState(prev => ({ ...prev, mode: 'lobby', gameOpponent: null, isMyTurn: false }));
-    }, [sendData]);
+    }, [sendData, updateSelfInfo]);
 
     const requestRematch = useCallback(() => {
         const currentState = stateRef.current;
