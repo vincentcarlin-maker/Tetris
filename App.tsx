@@ -18,6 +18,8 @@ import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
 import { useMultiplayer } from './hooks/useMultiplayer';
 import { useDailySystem } from './hooks/useDailySystem';
+import { useHighScores } from './hooks/useHighScores';
+import { useSupabase } from './hooks/useSupabase';
 
 
 type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'shop';
@@ -30,6 +32,7 @@ const App: React.FC = () => {
     const audio = useGameAudio();
     const currency = useCurrency();
     const mp = useMultiplayer(); // Global Multiplayer Lobby Connection
+    const { highScores, updateHighScore } = useHighScores(); // Global High Scores
 
     // DAILY SYSTEM INTEGRATION - Lifted to App level to persist state
     const { 
@@ -42,6 +45,16 @@ const App: React.FC = () => {
         checkCoinQuest, 
         claimQuestReward 
     } = useDailySystem(currency.addCoins);
+
+    // SUPABASE PRESENCE (Global)
+    // We pass highScores here so they are broadcasted to other players
+    const { onlineUsers, isConnectedToSupabase, isSupabaseConfigured } = useSupabase(
+        mp.peerId, 
+        currency.username, 
+        currency.currentAvatarId, 
+        currency.currentFrameId,
+        highScores
+    );
 
     // Check for existing session
     useEffect(() => {
@@ -161,7 +174,14 @@ const App: React.FC = () => {
 
             {/* Social Overlay only active when authenticated */}
             {isAuthenticated && (
-                <SocialOverlay audio={audio} currency={currency} mp={mp} />
+                <SocialOverlay 
+                    audio={audio} 
+                    currency={currency} 
+                    mp={mp} 
+                    onlineUsers={onlineUsers} 
+                    isConnectedToSupabase={isConnectedToSupabase}
+                    isSupabaseConfigured={isSupabaseConfigured}
+                />
             )}
             
             {currentView === 'shop' && isAuthenticated && (
@@ -225,6 +245,7 @@ const App: React.FC = () => {
                         quests,
                         claimQuestReward
                     }}
+                    onlineUsers={onlineUsers} // Pass online users for leaderboard
                 />
             )}
         </>

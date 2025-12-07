@@ -10,9 +10,10 @@ export interface OnlineUser {
     status: 'online';
     lastSeen: number;
     online_at: string;
+    stats?: any; // High Scores object
 }
 
-export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: string, myFrame: string) => {
+export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: string, myFrame: string, myStats: any) => {
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
     const [isConnectedToSupabase, setIsConnectedToSupabase] = useState(false);
     const channelRef = useRef<any>(null);
@@ -48,7 +49,8 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                             frameId: presence.frameId,
                             status: 'online',
                             lastSeen: Date.now(),
-                            online_at: presence.online_at
+                            online_at: presence.online_at,
+                            stats: presence.stats || {}
                         });
                     }
                 }
@@ -63,11 +65,12 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     setIsConnectedToSupabase(true);
-                    // Envoyer mon état initial
+                    // Envoyer mon état initial avec les scores
                     await channel.track({
                         name: myName,
                         avatarId: myAvatar,
                         frameId: myFrame,
+                        stats: myStats,
                         online_at: new Date().toISOString(),
                     });
                 } else {
@@ -82,17 +85,18 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
         };
     }, [myPeerId]); // Re-run only if peerID changes (on init)
 
-    // Mettre à jour ma présence si mes infos changent
+    // Mettre à jour ma présence si mes infos ou mes scores changent
     useEffect(() => {
         if (channelRef.current && isConnectedToSupabase && myPeerId) {
             channelRef.current.track({
                 name: myName,
                 avatarId: myAvatar,
                 frameId: myFrame,
+                stats: myStats, // Broadcast updated scores
                 online_at: new Date().toISOString(),
             }).catch(console.error);
         }
-    }, [myName, myAvatar, myFrame, isConnectedToSupabase, myPeerId]);
+    }, [myName, myAvatar, myFrame, myStats, isConnectedToSupabase, myPeerId]);
 
     return {
         onlineUsers,

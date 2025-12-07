@@ -4,13 +4,16 @@ import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, Check
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
-import { useSupabase } from '../hooks/useSupabase';
 import { saveSupabaseConfig, clearSupabaseConfig, getStoredConfig } from '../lib/supabaseClient';
+import { OnlineUser } from '../hooks/useSupabase';
 
 interface SocialOverlayProps {
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
     mp: ReturnType<typeof useMultiplayer>;
+    onlineUsers: OnlineUser[];
+    isConnectedToSupabase: boolean;
+    isSupabaseConfigured: boolean;
 }
 
 interface PlayerStats {
@@ -72,11 +75,10 @@ const ACTIVITY_TEMPLATES = [
     "{name} domine le classement",
 ];
 
-export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
+export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     
-    // --- SUPABASE INTEGRATION ---
-    const { onlineUsers: supabaseUsers, isConnectedToSupabase, isSupabaseConfigured } = useSupabase(mp.peerId, username, currentAvatarId, currentFrameId);
+    // We now receive onlineUsers from props, no need to call useSupabase here
 
     const [showSocial, setShowSocial] = useState(false);
     const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY'); // Default to Community to see "people"
@@ -181,7 +183,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             if (Math.random() > 0.4) { // 60% chance to skip to vary timing
                 const template = ACTIVITY_TEMPLATES[Math.floor(Math.random() * ACTIVITY_TEMPLATES.length)];
                 // Mix bots and real Supabase users for the activity feed
-                const potentialUsers = [...MOCK_COMMUNITY_PLAYERS, ...supabaseUsers.map(u => ({...u} as Friend))];
+                const potentialUsers = [...MOCK_COMMUNITY_PLAYERS, ...onlineUsers.map(u => ({...u} as Friend))];
                 const randomUser = potentialUsers[Math.floor(Math.random() * potentialUsers.length)];
                 
                 if (randomUser) {
@@ -200,7 +202,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         }, 3000); // New event every ~3-5 seconds
 
         return () => clearInterval(interval);
-    }, [supabaseUsers]);
+    }, [onlineUsers]);
 
     // Unread Count
     useEffect(() => {
@@ -464,8 +466,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     // --- COMMUNITY LOGIC ---
     const displayedCommunity = [
-        ...mp.players.filter(p => p.id !== mp.peerId), // PeerJS Local Network
-        ...supabaseUsers.filter(u => u.id !== mp.peerId), // Supabase Global
+        ...onlineUsers.filter(u => u.id !== mp.peerId), // Supabase Global
         ...MOCK_COMMUNITY_PLAYERS // Bots
     ]
     .filter(p => !friends.some(f => f.id === p.id))

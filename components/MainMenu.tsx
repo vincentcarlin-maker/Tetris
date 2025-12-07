@@ -7,6 +7,7 @@ import { useHighScores } from '../hooks/useHighScores';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 import { DailyQuest } from '../hooks/useDailySystem'; // Import interface
 import { DailyBonusModal } from './DailyBonusModal';
+import { OnlineUser } from '../hooks/useSupabase'; // Import for leaderboards
 
 interface MainMenuProps {
     onSelectGame: (game: string) => void;
@@ -24,6 +25,7 @@ interface MainMenuProps {
         quests: DailyQuest[];
         claimQuestReward: (id: string) => void;
     };
+    onlineUsers: OnlineUser[]; // Added for global leaderboard
 }
 
 // Custom Snake Icon
@@ -290,10 +292,11 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
+    const [scoreTab, setScoreTab] = useState<'LOCAL' | 'GLOBAL'>('LOCAL');
     
     // --- DAILY SYSTEM DATA (Passed from App) ---
     const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward } = dailyData;
@@ -433,7 +436,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const currentTitle = titlesCatalog.find(t => t.id === currentTitleId);
     const AvatarIcon = currentAvatar.icon;
 
-    // Calcul des stats pour affichage
+    // Calcul des stats pour affichage (Local)
     const sudokuEasyBest = highScores.sudoku?.easy;
     const sudokuMediumBest = highScores.sudoku?.medium;
     const sudokuHardBest = highScores.sudoku?.hard;
@@ -442,6 +445,31 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const snakeHighScore = highScores.snake || 0;
     const invadersHighScore = highScores.invaders || 0;
     const memoryBestMoves = highScores.memory || 0;
+
+    // --- LEADERBOARD HELPER ---
+    const getTopScoreForGame = (game: string) => {
+        if (onlineUsers.length === 0) return { name: '-', score: 0 };
+        
+        const sorted = [...onlineUsers].sort((a, b) => {
+            const scoreA = a.stats?.[game] || 0;
+            const scoreB = b.stats?.[game] || 0;
+            if (game === 'memory' || game === 'sudoku') {
+                // Lower is better, but 0 means no score so treat as Infinity
+                const realA = scoreA === 0 ? Infinity : scoreA;
+                const realB = scoreB === 0 ? Infinity : scoreB;
+                return realA - realB;
+            }
+            return scoreB - scoreA; // Higher is better
+        });
+
+        const top = sorted[0];
+        const topScore = top.stats?.[game] || 0;
+        
+        // If score is 0/invalid
+        if (!topScore) return { name: '-', score: 0 };
+
+        return { name: top.name, score: topScore };
+    };
 
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
@@ -730,28 +758,68 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Trophy size={20} className="text-yellow-400" />
-                            <h3 className="text-lg font-bold text-white italic">MEILLEURS SCORES</h3>
+                            <h3 className="text-lg font-bold text-white italic">SCORES & CLASSEMENTS</h3>
                         </div>
                         <ChevronDown size={20} className={`transition-transform ${showScores ? 'rotate-180' : ''}`} />
                     </button>
                     
                     {showScores && (
-                        <div className="px-4 pb-4 border-t border-white/10 animate-in fade-in duration-300">
-                            <div className="py-2"><h4 className="font-bold text-neon-blue">TETRIS NÉON</h4><p className="text-2xl font-mono">{highScores.tetris?.toLocaleString() || 0}</p></div>
-                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-rose-500">NEON INVADERS</h4><p className="text-2xl font-mono">{invadersHighScore.toLocaleString() || 0}</p></div>
-                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-green-500">NEON SNAKE</h4><p className="text-2xl font-mono">{snakeHighScore.toLocaleString() || 0}</p></div>
-                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-pink">NEON BREAKER</h4><p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p></div>
-                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-yellow-400">NEON PAC</h4><p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p></div>
-                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-purple-400">NEON MEMORY</h4><p className="text-2xl font-mono">{memoryBestMoves > 0 ? memoryBestMoves + ' coups' : '-'}</p></div>
-                            <div className="py-2 border-t border-white/5"><h4 className="font-bold text-cyan-400">NEON SUDOKU</h4>
-                                {sudokuEasyBest !== undefined || sudokuMediumBest !== undefined || sudokuHardBest !== undefined ? (
-                                    <div className="flex justify-around text-center text-xs mt-1">
-                                        <div><p className="text-green-400">FACILE</p><p className="font-mono text-lg">{sudokuEasyBest ?? '-'}</p></div>
-                                        <div><p className="text-yellow-400">MOYEN</p><p className="font-mono text-lg">{sudokuMediumBest ?? '-'}</p></div>
-                                        <div><p className="text-red-500">DIFFICILE</p><p className="font-mono text-lg">{sudokuHardBest ?? '-'}</p></div>
-                                    </div>
-                                ) : <p className="text-sm text-gray-500">Aucun record</p>}
+                        <div className="px-4 pb-4 animate-in fade-in duration-300">
+                            {/* SCORE TABS */}
+                            <div className="flex bg-black/30 p-1 rounded-lg mb-3">
+                                <button onClick={() => setScoreTab('LOCAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'LOCAL' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white'}`}>MON RECORDS</button>
+                                <button onClick={() => setScoreTab('GLOBAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}>MONDE (LIVE)</button>
                             </div>
+
+                            {scoreTab === 'LOCAL' ? (
+                                <div className="space-y-2">
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-blue">TETRIS NÉON</h4><p className="text-2xl font-mono">{highScores.tetris?.toLocaleString() || 0}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-rose-500">NEON INVADERS</h4><p className="text-2xl font-mono">{invadersHighScore.toLocaleString() || 0}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-green-500">NEON SNAKE</h4><p className="text-2xl font-mono">{snakeHighScore.toLocaleString() || 0}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-pink">NEON BREAKER</h4><p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-yellow-400">NEON PAC</h4><p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-purple-400">NEON MEMORY</h4><p className="text-2xl font-mono">{memoryBestMoves > 0 ? memoryBestMoves + ' coups' : '-'}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-cyan-400">NEON SUDOKU</h4>
+                                        {sudokuEasyBest !== undefined || sudokuMediumBest !== undefined || sudokuHardBest !== undefined ? (
+                                            <div className="flex justify-around text-center text-xs mt-1">
+                                                <div><p className="text-green-400">FACILE</p><p className="font-mono text-lg">{sudokuEasyBest ?? '-'}</p></div>
+                                                <div><p className="text-yellow-400">MOYEN</p><p className="font-mono text-lg">{sudokuMediumBest ?? '-'}</p></div>
+                                                <div><p className="text-red-500">DIFFICILE</p><p className="font-mono text-lg">{sudokuHardBest ?? '-'}</p></div>
+                                            </div>
+                                        ) : <p className="text-sm text-gray-500">Aucun record</p>}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] text-gray-500 text-center italic mb-2">Meilleurs scores des joueurs connectés</p>
+                                    {[
+                                        { id: 'tetris', name: 'TETRIS', color: 'text-neon-blue' },
+                                        { id: 'invaders', name: 'INVADERS', color: 'text-rose-500' },
+                                        { id: 'snake', name: 'SNAKE', color: 'text-green-500' },
+                                        { id: 'breaker', name: 'BREAKER', color: 'text-neon-pink' },
+                                        { id: 'pacman', name: 'PACMAN', color: 'text-yellow-400' },
+                                    ].map(game => {
+                                        const top = getTopScoreForGame(game.id);
+                                        return (
+                                            <div key={game.id} className="py-2 border-t border-white/5 flex justify-between items-center">
+                                                <h4 className={`font-bold text-sm ${game.color}`}>{game.name}</h4>
+                                                <div className="text-right">
+                                                    <p className="text-xs text-gray-400 font-bold">{top.name}</p>
+                                                    <p className="font-mono text-lg">{top.score > 0 ? top.score.toLocaleString() : '-'}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {/* Special Handling for Memory (Lower is Better) */}
+                                    <div className="py-2 border-t border-white/5 flex justify-between items-center">
+                                        <h4 className="font-bold text-sm text-purple-400">MEMORY</h4>
+                                        <div className="text-right">
+                                            <p className="text-xs text-gray-400 font-bold">{getTopScoreForGame('memory').name}</p>
+                                            <p className="font-mono text-lg">{getTopScoreForGame('memory').score > 0 ? getTopScoreForGame('memory').score + ' cps' : '-'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -786,7 +854,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     ))}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.6 • GUEST MODE UPDATE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.7 • GLOBAL SCORES</div>
              </div>
         </div>
     );
