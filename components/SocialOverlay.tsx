@@ -26,6 +26,7 @@ interface Friend {
     avatarId: string;
     frameId?: string;
     status: 'online' | 'offline';
+    extraInfo?: string; // Holds the current game/activity
     lastSeen: number;
     stats?: PlayerStats;
 }
@@ -46,6 +47,22 @@ interface FriendRequest {
     timestamp: number;
     stats?: PlayerStats;
 }
+
+const GAME_NAMES: Record<string, string> = {
+    'tetris': 'TETRIS',
+    'breaker': 'BREAKER',
+    'pacman': 'PACMAN',
+    'snake': 'SNAKE',
+    'invaders': 'INVADERS',
+    'sudoku': 'SUDOKU',
+    'connect4': 'CONNECT 4',
+    'memory': 'MEMORY',
+    'battleship': 'BATAILLE',
+    'airhockey': 'AIR HOCKEY',
+    'rush': 'RUSH',
+    'shop': 'BOUTIQUE',
+    'menu': 'MENU PRINCIPAL'
+};
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
@@ -120,7 +137,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             try {
                 const parsed = JSON.parse(storedFriends);
                 if (Array.isArray(parsed)) {
-                    setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: f.lastSeen || 0 }))); 
+                    setFriends(parsed.map((f: any) => ({ ...f, status: 'offline', lastSeen: f.lastSeen || 0, extraInfo: undefined }))); 
                 }
             } catch (e) { localStorage.removeItem('neon_friends'); }
         }
@@ -183,7 +200,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                         frameId: data.frameId,
                         status: 'online' as const, 
                         lastSeen: Date.now(),
+                        extraInfo: data.extraInfo, // Capture game/activity
                         stats: data.stats
+                    } : f);
+                });
+            }
+            else if (data.type === 'UPDATE_INFO') {
+                setFriends(prev => {
+                    if (!prev.find(f => f.id === senderId)) return prev;
+                    return prev.map(f => f.id === senderId ? { 
+                        ...f, 
+                        name: data.name, 
+                        avatarId: data.avatarId, 
+                        extraInfo: data.extraInfo // Update game/activity
                     } : f);
                 });
             }
@@ -207,6 +236,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     frameId: data.frameId,
                     status: 'online',
                     lastSeen: Date.now(),
+                    extraInfo: data.extraInfo,
                     stats: data.stats
                 };
                 
@@ -245,7 +275,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         };
     }, [mp, showSocial, audio]);
 
-    // Connect to friends automatically when online (No longer requires opening social tab)
+    // Connect to friends automatically when online
     useEffect(() => {
         if (mp.isConnected && friends.length > 0) {
             friends.forEach(f => {
@@ -263,7 +293,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const sendFriendRequest = (targetId: string) => {
         if (targetId === mp.peerId) return;
         mp.connectTo(targetId);
-        // Send request after short delay to ensure connection
         setTimeout(() => {
             mp.sendTo(targetId, { type: 'FRIEND_REQUEST', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
             alert('Demande envoyée !');
@@ -281,7 +310,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
         mp.connectTo(req.id);
         setTimeout(() => {
-            mp.sendTo(req.id, { type: 'FRIEND_ACCEPT', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
+            // Include my current activity when accepting
+            const currentActivity = window.location.hash || 'menu'; // Fallback approximation, App updates strictly after
+            mp.sendTo(req.id, { type: 'FRIEND_ACCEPT', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId, extraInfo: 'menu' }); 
         }, 500);
     };
 
@@ -325,6 +356,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         return `${Math.floor(hours / 24)} j`;
     };
 
+    const formatActivity = (activity?: string) => {
+        if (!activity) return 'EN LIGNE';
+        if (GAME_NAMES[activity]) return GAME_NAMES[activity];
+        if (activity === 'lobby') return 'DANS UN SALON';
+        return 'EN LIGNE';
+    };
+
     const removeFriend = (id: string) => {
         setFriends(prev => {
             const updated = prev.filter(f => f.id !== id);
@@ -334,7 +372,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (activeChatId === id) setActiveChatId(null);
     };
 
-    // Filter community players (exclude self and friends)
     const communityPlayers = mp.players.filter(p => {
         if (p.id === mp.peerId) return false; 
         if (friends.find(f => f.id === p.id)) return false; 
@@ -393,7 +430,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             <div className="flex flex-col items-center mb-6">
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className={`w-2 h-2 rounded-full ${selectedPlayer.status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-gray-500'}`} />
-                                    <span className="text-xs text-gray-400 font-bold tracking-widest">{selectedPlayer.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</span>
+                                    <span className="text-xs text-gray-400 font-bold tracking-widest">{selectedPlayer.status === 'online' ? formatActivity(selectedPlayer.extraInfo) : 'HORS LIGNE'}</span>
                                 </div>
                                 {selectedPlayer.status === 'offline' && selectedPlayer.lastSeen > 0 && <span className="text-[10px] text-gray-600 font-mono">VU : {formatLastSeen(selectedPlayer.lastSeen)}</span>}
                             </div>
@@ -452,7 +489,16 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                             const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                             const AvIcon = avatar.icon;
                                             const isMe = player.id === mp.peerId;
-                                            const tempFriend: Friend = { id: player.id, name: player.name, avatarId: player.avatarId, frameId: undefined, status: 'online', lastSeen: Date.now() };
+                                            // Mock extraInfo for strangers if available in player info
+                                            const tempFriend: Friend = { 
+                                                id: player.id, 
+                                                name: player.name, 
+                                                avatarId: player.avatarId, 
+                                                frameId: undefined, 
+                                                status: 'online', 
+                                                lastSeen: Date.now(), 
+                                                extraInfo: player.extraInfo 
+                                            };
 
                                             return (
                                                 <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group`}>
@@ -460,7 +506,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                         <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass()}`}>
                                                             <AvIcon size={18} className={avatar.color} />
                                                         </div>
-                                                        <div><h4 className="font-bold text-white text-sm group-hover:text-blue-300 transition-colors">{player.name} {isMe && '(Moi)'}</h4></div>
+                                                        <div className="flex flex-col">
+                                                            <h4 className="font-bold text-white text-sm group-hover:text-blue-300 transition-colors">{player.name} {isMe && '(Moi)'}</h4>
+                                                            {player.extraInfo && <p className="text-[9px] text-gray-500">{formatActivity(player.extraInfo)}</p>}
+                                                        </div>
                                                     </div>
                                                     {!isMe && <button onClick={(e) => { e.stopPropagation(); sendFriendRequest(player.id); }} className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"><UserPlus size={16} /></button>}
                                                 </div>
@@ -514,6 +563,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
                                         const AvIcon = avatar.icon;
                                         const unread = (messages[friend.id] || []).filter(m => !m.read && m.senderId !== mp.peerId).length;
+                                        const activity = formatActivity(friend.extraInfo);
+                                        const isGaming = activity !== 'EN LIGNE' && activity !== 'MENU PRINCIPAL' && activity !== 'BOUTIQUE';
+
                                         return (
                                             <div key={friend.id} onClick={() => setSelectedPlayer(friend)} className="group flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer">
                                                 <div className="flex items-center gap-3">
@@ -523,7 +575,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                                     </div>
                                                     <div>
                                                         <h4 className="font-bold text-white group-hover:text-blue-300 transition-colors">{friend.name}</h4>
-                                                        <p className="text-[10px] text-gray-500 font-mono">{friend.status === 'online' ? 'EN LIGNE' : 'HORS LIGNE'}</p>
+                                                        <p className={`text-[10px] font-bold tracking-wider ${
+                                                            friend.status === 'offline' ? 'text-gray-500' :
+                                                            isGaming ? 'text-blue-400 animate-pulse' :
+                                                            activity === 'MENU PRINCIPAL' ? 'text-green-400' :
+                                                            'text-gray-400'
+                                                        }`}>
+                                                            {friend.status === 'online' ? activity : 'HORS LIGNE'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
