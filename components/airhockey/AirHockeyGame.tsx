@@ -163,7 +163,10 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         } else if (mpMode === 'in_game') {
             if (onlineStep !== 'game') setOnlineStep('game');
             setOpponentLeft(false);
-            if (gameState !== 'playing') {
+            
+            // IMPORTANT FIX: Prevent game restart when scoring (state is 'scored') or playing.
+            // Only restart if we are in a menu-like state.
+            if (gameState === 'menu' || gameState === 'difficulty_select' || gameState === 'gameOver') {
                 startGame('MEDIUM', 'ONLINE'); // Difficulty ignored for online
             }
         }
