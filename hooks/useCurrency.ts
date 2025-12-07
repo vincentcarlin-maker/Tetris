@@ -192,7 +192,10 @@ export const useCurrency = () => {
     const [currentMalletId, setCurrentMalletId] = useState("m_classic");
     const [ownedMallets, setOwnedMallets] = useState<string[]>(["m_classic"]);
 
-    useEffect(() => {
+    // --- ADMIN CHECK ---
+    const isAdmin = username === 'Vincent';
+
+    const refreshData = useCallback(() => {
         // Load Economy
         const storedCoins = localStorage.getItem('neon-coins');
         const storedInv = localStorage.getItem('neon-inventory');
@@ -229,6 +232,10 @@ export const useCurrency = () => {
         if (storedOwnedMallets) setOwnedMallets(JSON.parse(storedOwnedMallets));
     }, []);
 
+    useEffect(() => {
+        refreshData();
+    }, [refreshData]);
+
     const addCoins = useCallback((amount: number) => {
         setCoins(prev => {
             const newVal = prev + amount;
@@ -238,6 +245,7 @@ export const useCurrency = () => {
     }, []);
 
     const buyBadge = useCallback((badgeId: string, cost: number) => {
+        if (isAdmin) return; // Admin has everything already
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -253,7 +261,7 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, []);
+    }, [isAdmin]);
 
     const updateUsername = useCallback((name: string) => {
         setUsername(name);
@@ -261,6 +269,7 @@ export const useCurrency = () => {
     }, []);
 
     const buyAvatar = useCallback((avatarId: string, cost: number) => {
+        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -275,16 +284,17 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, []);
+    }, [isAdmin]);
 
     const selectAvatar = useCallback((avatarId: string) => {
-        if (ownedAvatars.includes(avatarId)) {
+        if (isAdmin || ownedAvatars.includes(avatarId)) {
             setCurrentAvatarId(avatarId);
             localStorage.setItem('neon-avatar', avatarId);
         }
-    }, [ownedAvatars]);
+    }, [ownedAvatars, isAdmin]);
 
     const buyFrame = useCallback((frameId: string, cost: number) => {
+        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -299,16 +309,17 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, []);
+    }, [isAdmin]);
 
     const selectFrame = useCallback((frameId: string) => {
-        if (ownedFrames.includes(frameId)) {
+        if (isAdmin || ownedFrames.includes(frameId)) {
             setCurrentFrameId(frameId);
             localStorage.setItem('neon-frame', frameId);
         }
-    }, [ownedFrames]);
+    }, [ownedFrames, isAdmin]);
 
     const buyWallpaper = useCallback((wallpaperId: string, cost: number) => {
+        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -323,16 +334,17 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, []);
+    }, [isAdmin]);
 
     const selectWallpaper = useCallback((wallpaperId: string) => {
-        if (ownedWallpapers.includes(wallpaperId)) {
+        if (isAdmin || ownedWallpapers.includes(wallpaperId)) {
             setCurrentWallpaperId(wallpaperId);
             localStorage.setItem('neon-wallpaper', wallpaperId);
         }
-    }, [ownedWallpapers]);
+    }, [ownedWallpapers, isAdmin]);
 
     const buyTitle = useCallback((titleId: string, cost: number) => {
+        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -347,16 +359,17 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, []);
+    }, [isAdmin]);
 
     const selectTitle = useCallback((titleId: string) => {
-        if (ownedTitles.includes(titleId)) {
+        if (isAdmin || ownedTitles.includes(titleId)) {
             setCurrentTitleId(titleId);
             localStorage.setItem('neon-title', titleId);
         }
-    }, [ownedTitles]);
+    }, [ownedTitles, isAdmin]);
 
     const buyMallet = useCallback((malletId: string, cost: number) => {
+        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -371,28 +384,38 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, []);
+    }, [isAdmin]);
 
     const selectMallet = useCallback((malletId: string) => {
-        if (ownedMallets.includes(malletId)) {
+        if (isAdmin || ownedMallets.includes(malletId)) {
             setCurrentMalletId(malletId);
             localStorage.setItem('neon-mallet', malletId);
         }
-    }, [ownedMallets]);
+    }, [ownedMallets, isAdmin]);
 
     // Système de Rangs basé sur le nombre de badges
     const playerRank = useMemo(() => {
+        if (isAdmin) return { title: 'ADMINISTRATEUR', color: 'text-red-500', glow: 'shadow-red-500/50' };
+        
         const count = inventory.length;
         if (count >= 12) return { title: 'LÉGENDE VIVANTE', color: 'text-amber-400', glow: 'shadow-amber-400/50' };
         if (count >= 8) return { title: 'MAÎTRE ARCADE', color: 'text-purple-400', glow: 'shadow-purple-400/50' };
         if (count >= 5) return { title: 'CHASSEUR DE PIXELS', color: 'text-cyan-400', glow: 'shadow-cyan-400/50' };
         if (count >= 2) return { title: 'EXPLORATEUR', color: 'text-green-400', glow: 'shadow-green-400/50' };
         return { title: 'VAGABOND NÉON', color: 'text-gray-400', glow: 'shadow-gray-400/20' };
-    }, [inventory]);
+    }, [inventory, isAdmin]);
 
     return { 
-        coins, 
-        inventory, 
+        // Admin Overrides applied here
+        coins: isAdmin ? 99999999 : coins, 
+        inventory: isAdmin ? BADGES_CATALOG.map(b => b.id) : inventory,
+        ownedAvatars: isAdmin ? AVATARS_CATALOG.map(a => a.id) : ownedAvatars,
+        ownedFrames: isAdmin ? FRAMES_CATALOG.map(f => f.id) : ownedFrames,
+        ownedWallpapers: isAdmin ? WALLPAPERS_CATALOG.map(w => w.id) : ownedWallpapers,
+        ownedTitles: isAdmin ? TITLES_CATALOG.map(t => t.id) : ownedTitles,
+        ownedMallets: isAdmin ? MALLETS_CATALOG.map(m => m.id) : ownedMallets,
+        
+        refreshData,
         addCoins, 
         buyBadge, 
         catalog: BADGES_CATALOG, 
@@ -403,31 +426,26 @@ export const useCurrency = () => {
         currentAvatarId,
         selectAvatar,
         buyAvatar,
-        ownedAvatars,
         avatarsCatalog: AVATARS_CATALOG,
         // Frames
         currentFrameId,
         selectFrame,
         buyFrame,
-        ownedFrames,
         framesCatalog: FRAMES_CATALOG,
         // Wallpapers
         currentWallpaperId,
         selectWallpaper,
         buyWallpaper,
-        ownedWallpapers,
         wallpapersCatalog: WALLPAPERS_CATALOG,
         // Titles
         currentTitleId,
         selectTitle,
         buyTitle,
-        ownedTitles,
         titlesCatalog: TITLES_CATALOG,
         // Mallets
         currentMalletId,
         selectMallet,
         buyMallet,
-        ownedMallets,
         malletsCatalog: MALLETS_CATALOG,
     };
 };

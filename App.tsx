@@ -141,6 +141,7 @@ const App: React.FC = () => {
 
     const handleLogin = (username: string) => {
         currency.updateUsername(username);
+        currency.refreshData(); // Force reload data for this user
         setIsAuthenticated(true);
         setShowLoginModal(false);
         audio.playVictory(); // Little sound feedback
