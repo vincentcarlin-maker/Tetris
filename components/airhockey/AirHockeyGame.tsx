@@ -98,13 +98,50 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         return () => mp.disconnect();
     }, [gameMode]);
 
+    // Define resetRound first so it can be used in startGame
+    const resetRound = useCallback((isBottomServe: boolean) => {
+        puckRef.current = {
+            x: TABLE_WIDTH / 2,
+            y: isBottomServe ? TABLE_HEIGHT / 2 + 50 : TABLE_HEIGHT / 2 - 50,
+            vx: 0, vy: 0, radius: PUCK_RADIUS, color: '#ff00ff'
+        };
+        // Reset positions
+        playerMalletRef.current.x = TABLE_WIDTH / 2;
+        playerMalletRef.current.y = TABLE_HEIGHT - 100;
+        opponentMalletRef.current.x = TABLE_WIDTH / 2;
+        opponentMalletRef.current.y = 100;
+        
+        // Reset targets
+        p1TargetRef.current = { x: TABLE_WIDTH / 2, y: TABLE_HEIGHT - 100 };
+        p2TargetRef.current = { x: TABLE_WIDTH / 2, y: 100 };
+        
+        setGameState('playing');
+    }, []);
+
+    const startGame = useCallback((diff: Difficulty, mode: GameMode = 'SINGLE') => {
+        setDifficulty(diff);
+        setGameMode(mode);
+        setScore({ player: 0, opponent: 0 });
+        setWinner(null);
+        setEarnedCoins(0);
+        resetRound(true);
+        setGameState('playing');
+        resumeAudio();
+    }, [resetRound, resumeAudio]);
+
     // Handle Online Mode Transition
     useEffect(() => {
         const isHosting = players.find(p => p.id === peerId)?.status === 'hosting';
         if (mpMode === 'lobby') {
-            if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby');
-            setGameState('menu'); // Reset to menu if dropped to lobby
+            if (isHosting) {
+                setOnlineStep('game');
+                // When hosting, we go straight to "playing" state (but waiting for opponent)
+                // This prevents the menu overlay from appearing
+                resetRound(true);
+            } else {
+                setOnlineStep('lobby');
+                setGameState('menu'); 
+            }
         } else if (mpMode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
@@ -112,7 +149,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 startGame('MEDIUM', 'ONLINE'); // Difficulty ignored for online
             }
         }
-    }, [mpMode, isHost, players, peerId]);
+    }, [mpMode, isHost, players, peerId, gameState, resetRound, startGame]);
 
     // Network Message Handling
     useEffect(() => {
@@ -141,7 +178,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             }
         });
         return () => unsubscribe();
-    }, [subscribe]);
+    }, [subscribe, startGame]); // Added startGame dependency
 
     const selectMode = (mode: GameMode) => {
         setGameMode(mode);
@@ -153,36 +190,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         // For ONLINE, the useEffect triggers connection logic
     };
 
-    const startGame = (diff: Difficulty, mode: GameMode = 'SINGLE') => {
-        setDifficulty(diff);
-        setGameMode(mode);
-        setScore({ player: 0, opponent: 0 });
-        setWinner(null);
-        setEarnedCoins(0);
-        resetRound(true);
-        setGameState('playing');
-        resumeAudio();
-    };
-
-    const resetRound = (isBottomServe: boolean) => {
-        puckRef.current = {
-            x: TABLE_WIDTH / 2,
-            y: isBottomServe ? TABLE_HEIGHT / 2 + 50 : TABLE_HEIGHT / 2 - 50,
-            vx: 0, vy: 0, radius: PUCK_RADIUS, color: '#ff00ff'
-        };
-        // Reset positions
-        playerMalletRef.current.x = TABLE_WIDTH / 2;
-        playerMalletRef.current.y = TABLE_HEIGHT - 100;
-        opponentMalletRef.current.x = TABLE_WIDTH / 2;
-        opponentMalletRef.current.y = 100;
-        
-        // Reset targets
-        p1TargetRef.current = { x: TABLE_WIDTH / 2, y: TABLE_HEIGHT - 100 };
-        p2TargetRef.current = { x: TABLE_WIDTH / 2, y: 100 };
-        
-        setGameState('playing');
-    };
-
     const handleGameOverCheck = (currentScore: {player: number, opponent: number}) => {
         if (currentScore.player >= MAX_SCORE || currentScore.opponent >= MAX_SCORE) {
             const p1Wins = currentScore.player >= MAX_SCORE;
@@ -190,9 +197,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             if (gameMode === 'SINGLE') {
                 setWinner(p1Wins ? 'Player' : 'CPU');
             } else if (gameMode === 'ONLINE') {
-                // Online score logic is symmetric in 'player'/'opponent' keys
-                // but visual display handles the perspective swap.
-                // Here we just determine who reached MAX_SCORE first.
+                // Online score logic handled by display
             } else {
                 setWinner(p1Wins ? 'J1' : 'J2');
             }
