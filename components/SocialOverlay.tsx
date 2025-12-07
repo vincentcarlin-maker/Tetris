@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -334,10 +334,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (activeChatId === id) setActiveChatId(null);
     };
 
-    // Filter community players (exclude self and friends)
+    // --- COMMUNITY LOGIC ---
+    // Filtre les joueurs qui sont connectés via le Multiplayer (dans le même Lobby par exemple)
+    // et qui ne sont PAS dans la liste d'amis.
     const communityPlayers = mp.players.filter(p => {
+        // Exclure soi-même
         if (p.id === mp.peerId) return false; 
-        if (friends.find(f => f.id === p.id)) return false; 
+        // Exclure si déjà ami
+        if (friends.some(f => f.id === p.id)) return false; 
         return true;
     });
 
@@ -420,11 +424,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
                     <div className="bg-gray-900 w-full max-w-md h-[650px] max-h-full rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden relative">
                         {/* Header */}
-                        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
+                        <div className="p-4 border-b border-white/10 flex items-center justify-center bg-black/40 relative">
                             <h2 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-2">
-                                <Users className="text-blue-400" /> HUB SOCIAL
+                                <Users className="text-blue-400" /> SOCIAL
                             </h2>
-                            <button onClick={() => setShowSocial(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                            <button onClick={() => setShowSocial(false)} className="absolute right-4 p-2 hover:bg-white/10 rounded-full transition-colors">
                                 <X size={24} className="text-gray-400 hover:text-white" />
                             </button>
                         </div>
@@ -442,32 +446,62 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {/* TAB: COMMUNITY */}
                             {socialTab === 'COMMUNITY' && (
                                 <div className="space-y-4">
-                                    <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-4">
-                                        <p className="text-purple-300 text-xs font-bold">JOUEURS CONNECTÉS</p>
+                                    <div className="bg-purple-500/10 border border-purple-500/30 p-3 rounded-lg text-center mb-2">
+                                        <p className="text-purple-300 text-xs font-bold flex items-center justify-center gap-2"><Globe size={14}/> JOUEURS CONNECTÉS ({communityPlayers.length})</p>
                                     </div>
+                                    
                                     {communityPlayers.length === 0 ? (
-                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Globe size={48} className="mb-4 opacity-50" /><p className="text-sm">Personne d'autre n'est connecté...</p></div>
+                                        <div className="text-center text-gray-500 py-10 flex flex-col items-center border border-white/5 rounded-xl bg-white/5 p-6">
+                                            <Globe size={48} className="mb-4 opacity-50 text-gray-400" />
+                                            <p className="text-sm font-bold text-gray-300">Aucun joueur inconnu détecté</p>
+                                            <p className="text-xs text-gray-500 mt-2 max-w-[200px]">Rejoignez un Salon Multijoueur pour voir d'autres participants ici.</p>
+                                        </div>
                                     ) : (
                                         communityPlayers.map(player => {
                                             const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                             const AvIcon = avatar.icon;
-                                            const isMe = player.id === mp.peerId;
                                             const tempFriend: Friend = { id: player.id, name: player.name, avatarId: player.avatarId, frameId: undefined, status: 'online', lastSeen: Date.now() };
+                                            
+                                            // Check if invitation sent
+                                            const isRequested = requests.some(r => r.id === player.id); // Incoming request? Or we track outgoing? Currently simple check.
 
                                             return (
-                                                <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/40 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group`}>
+                                                <div key={player.id} onClick={() => setSelectedPlayer(tempFriend)} className={`flex items-center justify-between p-3 bg-gray-800/60 hover:bg-gray-800 rounded-xl border border-white/10 hover:border-purple-500/50 transition-all cursor-pointer group`}>
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass()}`}>
                                                             <AvIcon size={18} className={avatar.color} />
+                                                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>
                                                         </div>
-                                                        <div><h4 className="font-bold text-white text-sm group-hover:text-blue-300 transition-colors">{player.name} {isMe && '(Moi)'}</h4></div>
+                                                        <div className="flex flex-col">
+                                                            <h4 className="font-bold text-white text-sm group-hover:text-purple-300 transition-colors">{player.name}</h4>
+                                                            <span className="text-[10px] text-gray-500">{player.status === 'in_game' ? 'En Jeu' : 'Dans le Lobby'}</span>
+                                                        </div>
                                                     </div>
-                                                    {!isMe && <button onClick={(e) => { e.stopPropagation(); sendFriendRequest(player.id); }} className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg"><UserPlus size={16} /></button>}
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); sendFriendRequest(player.id); }} 
+                                                        className="p-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white transition-colors shadow-lg active:scale-95"
+                                                        title="Ajouter en ami"
+                                                    >
+                                                        <UserPlus size={16} />
+                                                    </button>
                                                 </div>
                                             );
                                         })
                                     )}
-                                    <div className="pt-4 border-t border-white/10 mt-4"><button onClick={() => setSocialTab('ADD')} className="w-full py-3 text-xs text-gray-400 hover:text-white border border-dashed border-white/20 rounded-lg hover:bg-white/5 transition-colors">Ajouter par Code Ami manuel</button></div>
+                                    
+                                    <div className="pt-4 mt-4 border-t border-white/10">
+                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Ajout Manuel</p>
+                                        <div className="flex gap-2">
+                                            <input 
+                                                type="text" 
+                                                value={friendInput} 
+                                                onChange={(e) => setFriendInput(e.target.value)} 
+                                                placeholder="Code ami..." 
+                                                className="flex-1 bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-green-500 transition-colors font-mono" 
+                                            />
+                                            <button onClick={() => { if(friendInput.trim()) sendFriendRequest(friendInput); setFriendInput(''); }} className="px-3 bg-gray-800 border border-white/20 rounded-lg hover:bg-white hover:text-black transition-colors text-white font-bold"><Plus size={16} /></button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -490,7 +524,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                 </div>
                             )}
 
-                            {/* TAB: ADD FRIEND */}
+                            {/* TAB: ADD FRIEND (Merged into Community/Friends in UI, but keep dedicated tab accessible if needed) */}
                             {socialTab === 'ADD' && (
                                 <div className="flex flex-col gap-6">
                                     <div className="bg-gray-800/50 p-4 rounded-xl border border-white/10 text-center">
@@ -510,6 +544,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {/* TAB: FRIENDS */}
                             {socialTab === 'FRIENDS' && (
                                 <div className="space-y-2">
+                                    <div className="flex justify-between items-center mb-4 px-1">
+                                        <span className="text-xs text-gray-400 font-bold">VOS AMIS</span>
+                                        <button onClick={() => setSocialTab('ADD')} className="text-[10px] bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-colors text-white font-bold flex items-center gap-1"><Plus size={12}/> CODE AMI</button>
+                                    </div>
+                                    
                                     {friends.length === 0 ? <div className="text-center text-gray-500 py-10 flex flex-col items-center"><Users size={48} className="mb-4 opacity-50" /><p>Aucun ami.</p><button onClick={() => setSocialTab('COMMUNITY')} className="mt-4 text-blue-400 underline text-sm">Voir la communauté</button></div> : friends.map(friend => {
                                         const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
                                         const AvIcon = avatar.icon;
