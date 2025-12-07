@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -79,6 +79,65 @@ const Connect4Icon = ({ size, className }: { size?: number | string, className?:
     </svg>
 );
 
+// Custom Air Hockey Icon
+const AirHockeyIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+       {/* Mallet (Striker) */}
+       <circle cx="16" cy="17" r="5" />
+       <circle cx="16" cy="17" r="2" />
+       
+       {/* Puck */}
+       <circle cx="6" cy="6" r="3" fill="currentColor" fillOpacity="0.2" />
+       
+       {/* Motion Lines */}
+       <path d="M2 9L5 6" />
+       <path d="M10 11L12 13" />
+    </svg>
+);
+
+// Custom Breaker Icon
+const BreakerIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+       {/* Bricks Row 1 */}
+       <rect x="4" y="4" width="4" height="3" rx="0.5" />
+       <rect x="10" y="4" width="4" height="3" rx="0.5" />
+       <rect x="16" y="4" width="4" height="3" rx="0.5" />
+       
+       {/* Bricks Row 2 */}
+       <rect x="4" y="9" width="4" height="3" rx="0.5" />
+       <rect x="10" y="9" width="4" height="3" rx="0.5" fill="currentColor" fillOpacity="0.3" />
+       <rect x="16" y="9" width="4" height="3" rx="0.5" />
+
+       {/* Ball */}
+       <circle cx="12" cy="16" r="2" />
+       
+       {/* Paddle */}
+       <rect x="6" y="20" width="12" height="2" rx="1" />
+    </svg>
+);
+
 const GAMES_CONFIG = [
     { 
         id: 'tetris', 
@@ -122,7 +181,7 @@ const GAMES_CONFIG = [
     { 
         id: 'breaker', 
         name: 'BREAKER', 
-        icon: Layers, 
+        icon: BreakerIcon, 
         color: 'text-fuchsia-500', 
         bg: 'bg-fuchsia-900/20',
         border: 'border-fuchsia-500/30',
@@ -148,7 +207,7 @@ const GAMES_CONFIG = [
     { 
         id: 'airhockey', 
         name: 'AIR HOCKEY', 
-        icon: Wind, 
+        icon: AirHockeyIcon, 
         color: 'text-sky-400', 
         bg: 'bg-sky-900/20',
         border: 'border-sky-500/30',
