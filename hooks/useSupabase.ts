@@ -114,7 +114,7 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [myPeerId]); // Re-run only if peerID changes (on init)
+    }, [myPeerId, myName]); // Re-run if peerID OR username changes
 
     // Mettre à jour ma présence si mes infos ou mes scores changent
     useEffect(() => {
