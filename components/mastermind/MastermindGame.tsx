@@ -215,7 +215,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 )}
 
                 {/* Rows - INVERTED ORDER (Row 1 at bottom) */}
-                <div className="flex flex-col gap-1.5 h-full justify-end">
+                <div className="flex flex-col gap-1.5 min-h-full justify-end">
                     {[...Array(MAX_ATTEMPTS)].map((_, i) => {
                         // Invert index: Render last attempt at top (index 9), first attempt at bottom (index 0)
                         const rowIndex = MAX_ATTEMPTS - 1 - i; 
