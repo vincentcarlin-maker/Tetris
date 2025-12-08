@@ -28,7 +28,7 @@ type GameState = 'playing' | 'gameover' | 'color_select';
 const COLORS: Color[] = ['red', 'blue', 'green', 'yellow'];
 const SPECIAL_VALUES: Value[] = ['skip', 'reverse', 'draw2'];
 
-// Tailwind color maps for borders and text
+// Tailwind color maps
 const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string, bg: string, gradient: string }> = {
     red: { 
         border: 'border-red-500', 
@@ -63,7 +63,7 @@ const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string
         text: 'text-white', 
         shadow: 'shadow-purple-500/50', 
         bg: 'bg-gray-900',
-        gradient: 'from-purple-600 via-pink-600 to-blue-600' // Rainbow-ish
+        gradient: 'from-purple-600 via-pink-600 to-blue-600' // Rainbow-ish for wild
     },
 };
 
@@ -432,6 +432,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
              }
         }
 
+        // Modified visual logic:
+        // - Lift playable cards
+        // - Darken unplayable cards (but keep them opaque)
         const liftClass = isPlayerHand 
             ? (isPlayable 
                 ? '-translate-y-4 sm:-translate-y-6 shadow-[0_0_20px_rgba(255,255,255,0.3)] z-20 brightness-110 ring-2 ring-white/50' 
@@ -539,22 +542,24 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     </div>
                 </div>
 
-                {/* Player Hand (Bottom) */}
-                <div className="flex justify-center -space-x-8 sm:-space-x-12 px-4 overflow-x-visible items-end pb-6 min-h-[140px]">
-                    {playerHand.map((card, i) => {
-                        return (
-                            <div 
-                                key={card.id} 
-                                style={{ 
-                                    transform: `rotate(${(i - playerHand.length/2) * 3}deg) translateY(${Math.abs(i - playerHand.length/2) * 5}px)`,
-                                    zIndex: i 
-                                }}
-                                className={`transition-transform duration-300 origin-bottom`}
-                            >
-                                <CardView card={card} onClick={() => handlePlayerCardClick(card, i)} />
-                            </div>
-                        );
-                    })}
+                {/* Player Hand (Bottom) - SCROLLABLE CONTAINER */}
+                <div className="w-full overflow-x-auto pb-6 px-4 no-scrollbar z-20">
+                    <div className="flex justify-center min-w-fit px-8 -space-x-8 sm:-space-x-12 items-end min-h-[160px] pt-4">
+                        {playerHand.map((card, i) => {
+                            return (
+                                <div 
+                                    key={card.id} 
+                                    style={{ 
+                                        transform: `rotate(${(i - playerHand.length/2) * 3}deg) translateY(${Math.abs(i - playerHand.length/2) * 5}px)`,
+                                        zIndex: i 
+                                    }}
+                                    className={`transition-transform duration-300 origin-bottom`}
+                                >
+                                    <CardView card={card} onClick={() => handlePlayerCardClick(card, i)} />
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
