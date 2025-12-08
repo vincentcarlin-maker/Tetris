@@ -21,6 +21,15 @@ interface Card {
     score: number;
 }
 
+interface FlyingCardData {
+    card: Card;
+    startX: number;
+    startY: number;
+    targetX: number;
+    targetY: number;
+    rotation: number;
+}
+
 type Turn = 'PLAYER' | 'CPU';
 type GameState = 'playing' | 'gameover' | 'color_select';
 
@@ -112,8 +121,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const [message, setMessage] = useState<string>('');
     const [earnedCoins, setEarnedCoins] = useState(0);
     
-    // NEW STATE: Track if player has already auto-drawn this turn
+    // Animation States
     const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
+    const [flyingCard, setFlyingCard] = useState<FlyingCardData | null>(null);
+    const [isAnimating, setIsAnimating] = useState(false); // Global lock during animation
+
+    const discardPileRef = useRef<HTMLDivElement>(null);
+    const cpuHandRef = useRef<HTMLDivElement>(null);
 
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
@@ -151,12 +165,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setMessage("C'est parti !");
         setEarnedCoins(0);
         setHasDrawnThisTurn(false);
+        setIsAnimating(false);
         resumeAudio();
     };
 
     // Draw Card Logic
     const drawCard = (target: Turn, amount: number = 1) => {
-        playLand();
+        playLand(); // Sound for drawing
         let currentDeck = [...deck];
         let currentDiscard = [...discardPile];
         const drawnCards: Card[] = [];
@@ -194,7 +209,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
     // --- AUTO DRAW LOGIC ---
     useEffect(() => {
-        if (turn === 'PLAYER' && gameState === 'playing') {
+        if (turn === 'PLAYER' && gameState === 'playing' && !isAnimating) {
             const topCard = discardPile[discardPile.length - 1];
             if (!topCard) return;
 
@@ -229,13 +244,77 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 }
             }
         }
-    }, [turn, playerHand, activeColor, discardPile, gameState, hasDrawnThisTurn]);
+    }, [turn, playerHand, activeColor, discardPile, gameState, hasDrawnThisTurn, isAnimating]);
 
-    // Play Card Logic
-    const playCard = (cardIndex: number, actor: Turn) => {
-        playMove();
+    // ANIMATION TRIGGER
+    const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect) => {
+        setIsAnimating(true);
+        playMove(); // "Swoosh" sound
+
+        // Destination: Discard Pile
+        const discardRect = discardPileRef.current?.getBoundingClientRect();
+        if (!discardRect) {
+            // Fallback if refs not ready
+            executeCardEffect(card, index, actor);
+            setIsAnimating(false);
+            return;
+        }
+
+        let startX = 0;
+        let startY = 0;
+
+        if (startRect) {
+            // Player: precise position
+            startX = startRect.left;
+            startY = startRect.top;
+        } else {
+            // CPU: Approximate position based on hand index
+            if (cpuHandRef.current) {
+                const cpuRect = cpuHandRef.current.getBoundingClientRect();
+                const centerX = cpuRect.left + cpuRect.width / 2;
+                // Approx offset per card: 32px (matches space-x-8 roughly)
+                const offset = (index - (cpuHand.length - 1) / 2) * 32;
+                
+                startX = centerX + offset - 40; // -40 is approx half card width (w-20 = 80px)
+                startY = cpuRect.top + 10;
+            } else {
+                startX = window.innerWidth / 2 - 40;
+                startY = 50;
+            }
+        }
+
+        // Trigger visual animation
+        setFlyingCard({
+            card,
+            startX,
+            startY,
+            targetX: discardRect.left,
+            targetY: discardRect.top,
+            rotation: Math.random() * 20 - 10
+        });
+
+        // Wait for animation duration (500ms) before updating game state
+        setTimeout(() => {
+            setFlyingCard(null);
+            playLand(); // "Slap" sound on pile
+            executeCardEffect(card, index, actor);
+            setIsAnimating(false);
+        }, 500);
+    };
+
+    // Actual Game Logic (Post-Animation)
+    const executeCardEffect = (card: Card, index: number, actor: Turn) => {
         let hand = actor === 'PLAYER' ? [...playerHand] : [...cpuHand];
-        const card = hand.splice(cardIndex, 1)[0];
+        
+        // Remove from hand
+        // NOTE: Since state might have changed (e.g. rapid fire prevention), we filter by ID
+        const cardInHandIndex = hand.findIndex(c => c.id === card.id);
+        if (cardInHandIndex !== -1) {
+            hand.splice(cardInHandIndex, 1);
+        } else {
+            // Safety fallback, though isAnimating prevents this usually
+            hand.splice(index, 1);
+        }
         
         // Update Hands
         if (actor === 'PLAYER') setPlayerHand(hand);
@@ -309,8 +388,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
     // --- PLAYER ACTIONS ---
 
-    const handlePlayerCardClick = (card: Card, index: number) => {
-        if (turn !== 'PLAYER' || gameState !== 'playing') return;
+    const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
+        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
 
         const topCard = discardPile[discardPile.length - 1];
         const isCompatible = 
@@ -319,7 +398,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             card.color === 'black';
 
         if (isCompatible) {
-            playCard(index, 'PLAYER');
+            // Start Animation
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            animateCardPlay(card, index, 'PLAYER', rect);
         } else {
             // Shake visual (todo)
         }
@@ -333,7 +414,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
     // --- CPU AI ---
     useEffect(() => {
-        if (turn === 'CPU' && gameState === 'playing') {
+        if (turn === 'CPU' && gameState === 'playing' && !isAnimating) {
             const timer = setTimeout(() => {
                 const topCard = discardPile[discardPile.length - 1];
                 
@@ -350,17 +431,20 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         return 0;
                     });
                     
-                    playCard(validIndices[0].i, 'CPU');
+                    // Trigger Animation for CPU
+                    const move = validIndices[0];
+                    animateCardPlay(move.c, move.i, 'CPU');
+
                 } else {
                     // Draw
                     drawCard('CPU', 1);
                     setTurn('PLAYER');
                 }
 
-            }, 1500); // Thinking time
+            }, 1000); // Thinking time
             return () => clearTimeout(timer);
         }
-    }, [turn, gameState, cpuHand, activeColor, discardPile]);
+    }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating]);
 
 
     const handleGameOver = (winnerTurn: Turn) => {
@@ -385,11 +469,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
     // --- RENDERING ---
 
-    const CardView = ({ card, onClick, faceUp = true, small = false }: { card: Card, onClick?: () => void, faceUp?: boolean, small?: boolean }) => {
+    const CardView = ({ card, onClick, faceUp = true, small = false, style }: { card: Card, onClick?: (e: React.MouseEvent) => void, faceUp?: boolean, small?: boolean, style?: React.CSSProperties }) => {
         // --- BACK OF CARD ---
         if (!faceUp) {
             return (
-                <div className={`
+                <div style={style} className={`
                     ${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} 
                     bg-gray-900 border-2 border-gray-700 rounded-xl flex items-center justify-center
                     shadow-lg relative overflow-hidden group
@@ -446,6 +530,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         return (
             <div 
                 onClick={onClick}
+                style={style}
                 className={`
                     ${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} 
                     relative rounded-xl flex flex-col items-center justify-center overflow-hidden
@@ -491,6 +576,47 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         );
     };
 
+    // --- ANIMATION OVERLAY ---
+    const FlyingCardOverlay = () => {
+        if (!flyingCard) return null;
+        
+        // CSS transition hack:
+        // 1. Initial render at startX/Y
+        // 2. Immediate timeout to set targetX/Y to trigger CSS transition
+        
+        // We use an inline style state to trigger the move
+        const [style, setStyle] = useState<React.CSSProperties>({
+            position: 'fixed',
+            left: flyingCard.startX,
+            top: flyingCard.startY,
+            transform: `rotate(${flyingCard.rotation}deg) scale(1)`,
+            transition: 'none', // No transition initially
+            zIndex: 100,
+            pointerEvents: 'none',
+        });
+
+        useEffect(() => {
+            // Trigger move in next frame
+            requestAnimationFrame(() => {
+                setStyle({
+                    position: 'fixed',
+                    left: flyingCard.targetX,
+                    top: flyingCard.targetY,
+                    transform: `rotate(${Math.random() * 360}deg) scale(1.1)`, // Rotate while flying
+                    transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)', // Smooth ease out
+                    zIndex: 100,
+                    pointerEvents: 'none',
+                });
+            });
+        }, []);
+
+        return (
+            <div style={style}>
+                <CardView card={flyingCard.card} />
+            </div>
+        );
+    };
+
     // Calculate dynamic spacing and rotation based on hand size
     let spacingClass = '-space-x-8 sm:-space-x-12';
     let rotationFactor = 3; 
@@ -513,6 +639,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             <div className={`absolute inset-0 transition-colors duration-1000 opacity-30 pointer-events-none ${COLOR_CONFIG[activeColor].bg}`}></div>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black/60 to-black pointer-events-none"></div>
 
+            <FlyingCardOverlay />
+
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
@@ -527,12 +655,18 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             <div className="flex-1 w-full max-w-lg flex flex-col justify-between py-4 relative z-10">
                 
                 {/* CPU Hand (Top) */}
-                <div className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-24 sm:h-32 items-start pt-2">
-                    {cpuHand.map((card, i) => (
-                        <div key={card.id} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
-                            <CardView card={card} faceUp={false} />
-                        </div>
-                    ))}
+                <div ref={cpuHandRef} className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-24 sm:h-32 items-start pt-2">
+                    {cpuHand.map((card, i) => {
+                        // Hide flying card from hand
+                        if (flyingCard && flyingCard.card.id === card.id) {
+                            return <div key={card.id} style={{ width: '0px', transition: 'width 0.5s' }}></div>
+                        }
+                        return (
+                            <div key={card.id} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
+                                <CardView card={card} faceUp={false} />
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Center Table */}
@@ -547,8 +681,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         </div>
                     </div>
 
-                    {/* Discard Pile */}
-                    <div className="relative">
+                    {/* Discard Pile - WITH REF FOR ANIMATION */}
+                    <div className="relative" ref={discardPileRef}>
                         <div className={`absolute -inset-6 rounded-full blur-2xl opacity-30 transition-colors duration-500 ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')}`}></div>
                         <div className="transform rotate-6 transition-transform duration-300 hover:scale-105 hover:rotate-0">
                             {discardPile.length > 0 && <CardView card={discardPile[discardPile.length-1]} />}
@@ -562,6 +696,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 <div className="w-full overflow-x-auto pb-6 px-4 no-scrollbar z-20">
                     <div className={`flex justify-center min-w-fit px-8 ${spacingClass} items-end min-h-[160px] pt-4 transition-all duration-500`}>
                         {playerHand.map((card, i) => {
+                            // Don't render the card that is currently flying
+                            if (flyingCard && flyingCard.card.id === card.id) {
+                                return (
+                                    <div key={card.id} style={{ width: '0px', transition: 'width 0.5s' }}></div> // Collapse space
+                                )
+                            }
+
                             return (
                                 <div 
                                     key={card.id} 
@@ -571,7 +712,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                                     }}
                                     className={`transition-transform duration-300 origin-bottom`}
                                 >
-                                    <CardView card={card} onClick={() => handlePlayerCardClick(card, i)} />
+                                    <CardView card={card} onClick={(e) => handlePlayerCardClick(e, card, i)} />
                                 </div>
                             );
                         })}
