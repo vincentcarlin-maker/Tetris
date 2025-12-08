@@ -107,7 +107,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-red-500', 
         shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', 
         glow: 'rgba(239,68,68,0.8)', 
-        badges: { solo: true, online: true, vs: true, new: true }, 
+        badges: { solo: true, online: false, vs: false, new: true }, 
         reward: 'GAINS' 
     },
     { 
