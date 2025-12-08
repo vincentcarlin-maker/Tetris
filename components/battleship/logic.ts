@@ -93,39 +93,48 @@ export const checkHit = (r: number, c: number, ships: Ship[]): { hit: boolean, s
   return { hit: false };
 };
 
-// --- AI LOGIC (Simple Hunt & Target) ---
-export const getCpuMove = (grid: Grid, lastHit: { r: number, c: number } | null): { r: number, c: number } => {
+// --- SMART AI LOGIC ---
+
+// Get valid neighbors (Up, Down, Left, Right) that haven't been shot at
+export const getValidNeighbors = (grid: Grid, r: number, c: number): { r: number, c: number }[] => {
+    const moves = [
+        { r: r - 1, c: c }, // Up
+        { r: r + 1, c: c }, // Down
+        { r: r, c: c - 1 }, // Left
+        { r: r, c: c + 1 }, // Right
+    ];
+
+    return moves.filter(pos => 
+        pos.r >= 0 && pos.r < GRID_SIZE && 
+        pos.c >= 0 && pos.c < GRID_SIZE && 
+        (grid[pos.r][pos.c] === 0 || grid[pos.r][pos.c] === 1) // 0=Empty, 1=Ship (Un-hit)
+    );
+};
+
+// Mode "Hunt": Tir optimisé par parité (Damier)
+// Cela permet de trouver les navires plus vite en ne tirant que sur 1 case sur 2
+export const getSmartRandomMove = (grid: Grid): { r: number, c: number } => {
   const availableMoves: { r: number, c: number }[] = [];
+  const parityMoves: { r: number, c: number }[] = [];
   
-  // Lister tous les coups possibles
   for (let r = 0; r < GRID_SIZE; r++) {
     for (let c = 0; c < GRID_SIZE; c++) {
-      if (grid[r][c] === 0 || grid[r][c] === 1) { // 0=Empty, 1=Ship (Hidden to AI logic, but targetable)
-        availableMoves.push({ r, c });
+      if (grid[r][c] === 0 || grid[r][c] === 1) { // Not shot yet
+        const pos = { r, c };
+        availableMoves.push(pos);
+        // Checkerboard pattern: (row + col) is even
+        if ((r + c) % 2 === 0) {
+            parityMoves.push(pos);
+        }
       }
     }
   }
 
-  // MODE "TARGET": Si on a touché au coup précédent, on essaie les cases adjacentes
-  if (lastHit) {
-    const adjacents = [
-      { r: lastHit.r - 1, c: lastHit.c }, // Up
-      { r: lastHit.r + 1, c: lastHit.c }, // Down
-      { r: lastHit.r, c: lastHit.c - 1 }, // Left
-      { r: lastHit.r, c: lastHit.c + 1 }, // Right
-    ];
-
-    const validTargets = adjacents.filter(pos => 
-      pos.r >= 0 && pos.r < GRID_SIZE && 
-      pos.c >= 0 && pos.c < GRID_SIZE && 
-      (grid[pos.r][pos.c] === 0 || grid[pos.r][pos.c] === 1)
-    );
-
-    if (validTargets.length > 0) {
-      return validTargets[Math.floor(Math.random() * validTargets.length)];
-    }
+  // Prioritize parity moves if available (Statistical advantage)
+  if (parityMoves.length > 0) {
+      return parityMoves[Math.floor(Math.random() * parityMoves.length)];
   }
 
-  // MODE "HUNT": Tir aléatoire
+  // Fallback to any random move
   return availableMoves[Math.floor(Math.random() * availableMoves.length)];
 };
