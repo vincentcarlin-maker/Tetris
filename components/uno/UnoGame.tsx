@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon, ChevronRight } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -595,9 +596,24 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 </div>
 
                 {/* Center Table */}
-                <div className="flex-1 flex items-center justify-center gap-8 sm:gap-16">
+                <div className="flex-1 flex items-center justify-center gap-8 sm:gap-16 relative">
+                    
+                    {/* Direction Indicator Area - Surrounding Both Piles */}
+                    <div className={`absolute pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text} opacity-30 z-0`}>
+                        <div className="w-[280px] h-[160px] sm:w-[380px] sm:h-[200px] border-4 border-dashed border-current rounded-[50px] relative flex items-center justify-center">
+                             {/* Top Arrow */}
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black px-3 transition-transform duration-300">
+                                 {playDirection === 1 ? <ArrowRight size={24} /> : <ArrowLeft size={24} />}
+                             </div>
+                             {/* Bottom Arrow */}
+                             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-black px-3 transition-transform duration-300">
+                                 {playDirection === 1 ? <ArrowLeft size={24} /> : <ArrowRight size={24} />}
+                             </div>
+                        </div>
+                    </div>
+
                     {/* Draw Pile */}
-                    <div className="relative group opacity-80 cursor-not-allowed">
+                    <div className="relative group opacity-80 cursor-not-allowed z-10">
                         <div className="w-20 h-28 sm:w-28 sm:h-40 bg-gray-900 border-2 border-gray-600 rounded-xl flex items-center justify-center shadow-2xl relative">
                             <Layers size={32} className="text-gray-600" />
                             <div className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border border-black shadow">
@@ -607,33 +623,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     </div>
 
                     {/* Discard Pile Area */}
-                    <div className="relative flex items-center justify-center" ref={discardPileRef}>
-                        {/* DIRECTION RING INDICATOR */}
-                        <div className={`absolute -inset-[50px] pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text}`}>
-                            <div 
-                                className="w-full h-full absolute inset-0 flex items-center justify-center"
-                                style={{
-                                    animation: `spin 4s linear infinite`,
-                                    animationDirection: playDirection === 1 ? 'normal' : 'reverse'
-                                }}
-                            >
-                                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                                {[0, 120, 240].map((deg) => (
-                                    <div 
-                                        key={deg} 
-                                        className="absolute w-8 h-8 flex items-center justify-center"
-                                        style={{
-                                            transform: `rotate(${deg}deg) translate(80px) rotate(90deg)`
-                                        }}
-                                    >
-                                        <ChevronRight size={32} strokeWidth={4} className="drop-shadow-[0_0_5px_currentColor]" />
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            <div className="absolute inset-0 rounded-full border-2 border-dashed opacity-20 border-current animate-pulse"></div>
-                        </div>
-
+                    <div className="relative flex items-center justify-center z-10" ref={discardPileRef}>
                         <div className={`absolute -inset-6 rounded-full blur-2xl opacity-40 transition-colors duration-500 ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')}`}></div>
                         
                         <div className="transform rotate-6 transition-transform duration-300 hover:scale-105 hover:rotate-0 z-10">
