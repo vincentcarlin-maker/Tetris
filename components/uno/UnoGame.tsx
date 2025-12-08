@@ -89,6 +89,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const [unoShout, setUnoShout] = useState<Turn | null>(null);
     const [message, setMessage] = useState<string>('');
     const [earnedCoins, setEarnedCoins] = useState(0);
+    
+    // NEW STATE: Track auto-draw status to avoid loops
+    const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
 
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
@@ -125,6 +128,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setUnoShout(null);
         setMessage("C'est parti !");
         setEarnedCoins(0);
+        setHasDrawnThisTurn(false);
         resumeAudio();
     };
 
@@ -158,6 +162,51 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         
         return drawnCards;
     };
+
+    // Reset drawn state when turn switches to player
+    useEffect(() => {
+        if (turn === 'PLAYER') {
+            setHasDrawnThisTurn(false);
+        }
+    }, [turn]);
+
+    // --- AUTO DRAW LOGIC ---
+    useEffect(() => {
+        if (turn === 'PLAYER' && gameState === 'playing') {
+            const topCard = discardPile[discardPile.length - 1];
+            if (!topCard) return;
+
+            // Check playability
+            const canPlay = playerHand.some(c =>
+                c.color === activeColor ||
+                c.value === topCard.value ||
+                c.color === 'black'
+            );
+
+            if (!canPlay) {
+                if (!hasDrawnThisTurn) {
+                    // Scenario 1: Start of turn, blocked. Auto draw.
+                    const timer = setTimeout(() => {
+                        setMessage("Bloqué... Pioche auto !");
+                        drawCard('PLAYER', 1);
+                        setHasDrawnThisTurn(true);
+                    }, 1000);
+                    return () => clearTimeout(timer);
+                } else {
+                    // Scenario 2: Already drew, still blocked. Auto pass.
+                    const timer = setTimeout(() => {
+                        setMessage("Toujours rien... Je passe !");
+                        setTurn('CPU');
+                    }, 1500);
+                    return () => clearTimeout(timer);
+                }
+            } else {
+                if (hasDrawnThisTurn) {
+                    setMessage("Tu peux jouer !");
+                }
+            }
+        }
+    }, [turn, playerHand, activeColor, discardPile, gameState, hasDrawnThisTurn]);
 
     // Play Card Logic
     const playCard = (cardIndex: number, actor: Turn) => {
@@ -253,21 +302,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     };
 
-    const handleDrawClick = () => {
-        if (turn !== 'PLAYER' || gameState !== 'playing') return;
-        const drawn = drawCard('PLAYER', 1);
-        // Check if playable
-        const card = drawn[0];
-        const isCompatible = card.color === activeColor || card.value === discardPile[discardPile.length-1].value || card.color === 'black';
-        
-        if (isCompatible) {
-            setMessage("Carte jouable piochée !");
-            setTurn('CPU'); 
-        } else {
-            setTurn('CPU');
-        }
-    };
-
     const handleColorSelect = (color: Color) => {
         setActiveColor(color);
         setGameState('playing');
@@ -354,16 +388,30 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         else if (card.value === 'wild') Icon = Palette;
         else if (card.value === 'wild4') displayValue = '+4';
 
+        // Add conditional opacity for player hand
+        const isPlayerHand = onClick !== undefined;
+        let isPlayable = true;
+        
+        if (isPlayerHand && turn === 'PLAYER') {
+             const topCard = discardPile[discardPile.length - 1];
+             if (topCard) {
+                 isPlayable = card.color === activeColor || card.value === topCard.value || card.color === 'black';
+             }
+        }
+
+        const visualStyle = isPlayerHand ? (isPlayable ? 'brightness-125 -translate-y-4 shadow-[0_0_15px_rgba(255,255,255,0.3)] z-10' : 'brightness-75 opacity-80') : '';
+
         return (
             <div 
                 onClick={onClick}
                 className={`
                     ${small ? 'w-10 h-14' : 'w-16 h-24 sm:w-24 sm:h-36'} 
                     bg-gray-900 ${bgClass} border-2 ${colorClass} rounded-lg flex flex-col items-center justify-center
-                    relative cursor-pointer hover:-translate-y-2 transition-transform duration-200 select-none
-                    shadow-xl
+                    relative cursor-pointer hover:-translate-y-6 transition-transform duration-200 select-none
+                    shadow-xl ${visualStyle}
                 `}
             >
+                <div className="absolute inset-0 bg-gray-900 opacity-90 -z-10 rounded-lg"></div>
                 <div className="absolute top-1 left-1 text-[10px] font-bold leading-none">{Icon ? <Icon size={10}/> : displayValue}</div>
                 <div className="absolute bottom-1 right-1 text-[10px] font-bold leading-none transform rotate-180">{Icon ? <Icon size={10}/> : displayValue}</div>
                 
@@ -404,9 +452,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
                 {/* Center Table */}
                 <div className="flex-1 flex items-center justify-center gap-8 sm:gap-16">
-                    {/* Draw Pile */}
-                    <div onClick={handleDrawClick} className="relative cursor-pointer group">
-                        <div className="absolute -inset-1 bg-white/20 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    {/* Draw Pile (Non interactive because auto-draw) */}
+                    <div className="relative group opacity-80 cursor-not-allowed">
                         <div className="w-20 h-28 sm:w-28 sm:h-40 bg-gray-900 border-2 border-gray-600 rounded-xl flex items-center justify-center shadow-2xl relative">
                             <Layers size={32} className="text-gray-600" />
                             <div className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border border-black shadow">
@@ -436,16 +483,14 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                             card.color === 'black'
                         );
                         
-                        const translateY = turn === 'PLAYER' ? (isPlayable ? -30 : 0) : 20;
-
                         return (
                             <div 
                                 key={card.id} 
                                 style={{ 
-                                    transform: `translateY(${translateY}px) rotate(${(i - playerHand.length/2) * 2}deg)`,
+                                    transform: `rotate(${(i - playerHand.length/2) * 2}deg)`,
                                     zIndex: i 
                                 }}
-                                className={`transition-transform duration-300 hover:-translate-y-10 hover:z-50 hover:scale-110`}
+                                className={`transition-transform duration-300 hover:z-50`}
                             >
                                 <CardView card={card} onClick={() => handlePlayerCardClick(card, i)} />
                             </div>
