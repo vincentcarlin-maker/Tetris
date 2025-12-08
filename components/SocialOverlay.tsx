@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock, Inbox } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock, Inbox, User } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -218,7 +217,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             }
         });
         return () => unsubscribe();
-    }, [mp.subscribe, playCoin, playVictory]); // Removed 'friends' dependency
+    }, [mp.subscribe, playCoin, playVictory]);
 
     // --- REALTIME MESSAGING SUBSCRIPTION ---
     useEffect(() => {
@@ -491,6 +490,15 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     <div className={`border p-3 rounded-lg text-center mb-2 flex items-center justify-center gap-2 ${isConnectedToSupabase ? 'bg-green-900/20 border-green-500/30 text-green-400' : 'bg-gray-800/50 border-white/10 text-gray-400'}`}>
                                         {isConnectedToSupabase ? ( <><Cloud size={16} /> <span className="text-xs font-bold">CONNECTÉ</span></> ) : !isSupabaseConfigured ? ( <><CloudOff size={16} /> <span className="text-xs font-bold">MODE HORS-LIGNE</span></> ) : ( <><Wifi size={16} className="animate-pulse" /> <span className="text-xs font-bold">CONNEXION...</span></> )}
                                     </div>
+
+                                    {/* FRIEND CODE DISPLAY */}
+                                    <div className="bg-gray-800/40 p-2 rounded-lg border border-white/5 flex items-center justify-between mb-4 shadow-sm">
+                                         <span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase flex items-center gap-2"><User size={12}/> MON CODE AMI</span>
+                                         <button onClick={() => { if(mp.peerId) { navigator.clipboard.writeText(mp.peerId); alert('Code copié !'); } }} className="flex items-center gap-2 text-xs font-mono font-bold text-blue-400 bg-blue-900/20 px-2 py-1 rounded border border-blue-500/30 hover:bg-blue-500/20 hover:text-blue-300 transition-colors active:scale-95" title="Copier le code">
+                                            {mp.peerId || '...'} <Copy size={12} />
+                                         </button>
+                                    </div>
+
                                     <div className="bg-black/30 rounded-lg p-2 border border-white/5 mb-4">
                                         <p className="text-[10px] text-gray-500 font-bold uppercase mb-1 flex items-center gap-1"><Activity size={10}/> Activité récente</p>
                                         <div className="space-y-1 max-h-24 overflow-y-auto custom-scrollbar-thin">
