@@ -491,6 +491,22 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         );
     };
 
+    // Calculate dynamic spacing and rotation based on hand size
+    let spacingClass = '-space-x-8 sm:-space-x-12';
+    let rotationFactor = 3; 
+    
+    if (playerHand.length <= 5) {
+        spacingClass = 'space-x-1 sm:space-x-2'; // Open packet
+        rotationFactor = 5;
+    } else if (playerHand.length <= 10) {
+        spacingClass = '-space-x-8 sm:-space-x-10'; // Standard overlap
+        rotationFactor = 3;
+    } else {
+        // Tight packet (close up)
+        spacingClass = '-space-x-14 sm:-space-x-20'; 
+        rotationFactor = 1.5; // Reduce rotation so left numbers remain visible
+    }
+
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-hidden text-white font-sans">
             {/* Background Effect */}
@@ -544,13 +560,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
                 {/* Player Hand (Bottom) - SCROLLABLE CONTAINER */}
                 <div className="w-full overflow-x-auto pb-6 px-4 no-scrollbar z-20">
-                    <div className="flex justify-center min-w-fit px-8 -space-x-8 sm:-space-x-12 items-end min-h-[160px] pt-4">
+                    <div className={`flex justify-center min-w-fit px-8 ${spacingClass} items-end min-h-[160px] pt-4 transition-all duration-500`}>
                         {playerHand.map((card, i) => {
                             return (
                                 <div 
                                     key={card.id} 
                                     style={{ 
-                                        transform: `rotate(${(i - playerHand.length/2) * 3}deg) translateY(${Math.abs(i - playerHand.length/2) * 5}px)`,
+                                        transform: `rotate(${(i - playerHand.length/2) * rotationFactor}deg) translateY(${Math.abs(i - playerHand.length/2) * (rotationFactor * 1.5)}px)`,
                                         zIndex: i 
                                     }}
                                     className={`transition-transform duration-300 origin-bottom`}
