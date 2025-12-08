@@ -69,7 +69,7 @@ const App: React.FC = () => {
     const saveTimeoutRef = useRef<any>(null);
 
     useEffect(() => {
-        if (!isAuthenticated || !currency.username || currency.username === 'Vincent') return;
+        if (!isAuthenticated || !currency.username) return;
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 

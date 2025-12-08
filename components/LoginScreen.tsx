@@ -48,11 +48,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         setError(null);
         setIsLoading(true);
 
-        // --- ADMIN CHECK ---
+        // --- ADMIN CHECK (Vincent) ---
         if (username === 'Vincent' && password === '12/05/2008') {
             setIsAnimating(true);
+            
+            // Try fetch Cloud data first, fallback to local current state if not found
+            let loginData = null;
+            try {
+                const cloudProfile = await onAttemptLogin('Vincent');
+                if (cloudProfile && cloudProfile.data) {
+                    loginData = cloudProfile.data; // Sync from Cloud
+                } else {
+                    loginData = saveCurrentDataToUserSlot('Vincent'); // Create/Use local
+                }
+            } catch(e) {
+                loginData = saveCurrentDataToUserSlot('Vincent');
+            }
+
             setTimeout(() => {
-                onLogin('Vincent');
+                onLogin('Vincent', loginData);
             }, 800);
             return;
         }
@@ -61,13 +75,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         if (username === 'Chloé' && password === 'pocky61') {
             setIsAnimating(true);
             
-            // Capture l'avancée actuelle (Local Storage générique) pour l'assigner au profil Chloé
-            // Cela permet de ne pas perdre la progression faite avant la connexion
-            const currentProgress = saveCurrentDataToUserSlot('Chloé');
+            // Try fetch Cloud data first to ensure sync, otherwise initialize with local progress
+            let loginData = null;
+            try {
+                const cloudProfile = await onAttemptLogin('Chloé');
+                if (cloudProfile && cloudProfile.data) {
+                    loginData = cloudProfile.data; // Found in cloud!
+                } else {
+                    // Not in cloud yet, capture local progress to create it
+                    loginData = saveCurrentDataToUserSlot('Chloé'); 
+                }
+            } catch(e) {
+                loginData = saveCurrentDataToUserSlot('Chloé');
+            }
 
             setTimeout(() => {
-                // On passe currentProgress comme "cloudData" pour forcer l'import immédiat dans l'App
-                onLogin('Chloé', currentProgress);
+                // On passe les données (Cloud ou Local) à l'App. L'auto-save de l'App se chargera de créer l'entrée DB si elle manque.
+                onLogin('Chloé', loginData);
             }, 800);
             return;
         }
