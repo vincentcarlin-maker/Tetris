@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon, ChevronRight } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -35,9 +34,7 @@ type GameState = 'playing' | 'gameover' | 'color_select';
 
 // --- CONFIG ---
 const COLORS: Color[] = ['red', 'blue', 'green', 'yellow'];
-const SPECIAL_VALUES: Value[] = ['skip', 'reverse', 'draw2'];
 
-// Tailwind color maps
 const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string, bg: string, gradient: string }> = {
     red: { 
         border: 'border-red-500', 
@@ -76,10 +73,10 @@ const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string
     },
 };
 
-// --- LOGIC ---
 const generateDeck = (): Card[] => {
     let deck: Card[] = [];
     let idCounter = 0;
+    const SPECIAL_VALUES: Value[] = ['skip', 'reverse', 'draw2'];
 
     const addCard = (color: Color, value: Value, score: number) => {
         deck.push({ id: `card_${idCounter++}`, color, value, score });
@@ -114,20 +111,20 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const [cpuHand, setCpuHand] = useState<Card[]>([]);
     const [turn, setTurn] = useState<Turn>('PLAYER');
     const [gameState, setGameState] = useState<GameState>('playing');
-    const [activeColor, setActiveColor] = useState<Color>('black'); 
+    const [activeColor, setActiveColor] = useState<Color>('black');
     const [winner, setWinner] = useState<Turn | null>(null);
     const [score, setScore] = useState(0);
     const [unoShout, setUnoShout] = useState<Turn | null>(null);
     const [message, setMessage] = useState<string>('');
     const [earnedCoins, setEarnedCoins] = useState(0);
     
-    // Direction State (1 = Clockwise, -1 = Counter-Clockwise)
+    // Direction: 1 = Clockwise, -1 = Counter-Clockwise
     const [playDirection, setPlayDirection] = useState<1 | -1>(1);
 
     // Animation States
     const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
     const [flyingCard, setFlyingCard] = useState<FlyingCardData | null>(null);
-    const [isAnimating, setIsAnimating] = useState(false); 
+    const [isAnimating, setIsAnimating] = useState(false);
 
     const discardPileRef = useRef<HTMLDivElement>(null);
     const cpuHandRef = useRef<HTMLDivElement>(null);
@@ -166,15 +163,17 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setEarnedCoins(0);
         setHasDrawnThisTurn(false);
         setIsAnimating(false);
-        setPlayDirection(1); // Reset direction
+        setPlayDirection(1); 
         resumeAudio();
     };
 
-    const drawCard = (target: Turn, amount: number = 1) => {
-        playLand(); 
+    // Draw Card Logic with optional manual discard pile state to prevent race conditions
+    const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[]) => {
+        playLand();
         let currentDeck = [...deck];
-        let currentDiscard = [...discardPile];
+        let currentDiscard = manualDiscardPile ? [...manualDiscardPile] : [...discardPile];
         const drawnCards: Card[] = [];
+        let didReshuffle = false;
 
         for(let i=0; i<amount; i++) {
             if (currentDeck.length === 0) {
@@ -183,15 +182,19 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     currentDeck = currentDiscard.sort(() => Math.random() - 0.5);
                     currentDiscard = [top];
                     setMessage("Mélange du talon...");
+                    didReshuffle = true;
                 } else {
-                    break; 
+                    break;
                 }
             }
             drawnCards.push(currentDeck.pop()!);
         }
 
         setDeck(currentDeck);
-        setDiscardPile(currentDiscard);
+        
+        if (didReshuffle) {
+            setDiscardPile(currentDiscard);
+        }
 
         if (target === 'PLAYER') setPlayerHand(prev => [...prev, ...drawnCards]);
         else setCpuHand(prev => [...prev, ...drawnCards]);
@@ -240,9 +243,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     }, [turn, playerHand, activeColor, discardPile, gameState, hasDrawnThisTurn, isAnimating]);
 
+    // --- ANIMATION ---
     const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect) => {
         setIsAnimating(true);
-        playMove(); 
+        playMove();
 
         const discardRect = discardPileRef.current?.getBoundingClientRect();
         if (!discardRect) {
@@ -281,7 +285,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
         setTimeout(() => {
             setFlyingCard(null);
-            playLand(); 
+            playLand();
             executeCardEffect(card, index, actor);
             setIsAnimating(false);
         }, 500);
@@ -300,7 +304,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         if (actor === 'PLAYER') setPlayerHand(hand);
         else setCpuHand(hand);
 
-        setDiscardPile(prev => [...prev, card]);
+        // Update pile immediately to prevent race conditions with drawCard
+        const newDiscardPile = [...discardPile, card];
+        setDiscardPile(newDiscardPile);
         
         if (card.color !== 'black') {
             setActiveColor(card.color);
@@ -308,7 +314,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
         if (hand.length === 1) {
             setUnoShout(actor);
-            playPaddleHit(); 
+            playPaddleHit();
             setTimeout(() => setUnoShout(null), 2000);
         }
 
@@ -321,20 +327,20 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         
         if (card.value === 'skip') {
             setMessage("Passe ton tour !");
-            nextTurn = actor; 
+            nextTurn = actor;
         } else if (card.value === 'reverse') {
             setMessage("Sens inverse !");
-            setPlayDirection(prev => prev * -1 as 1 | -1); // FLIP DIRECTION
-            nextTurn = actor; 
+            setPlayDirection(prev => prev * -1 as 1 | -1);
+            nextTurn = actor; // In 2 player, reverse acts like skip
         } else if (card.value === 'draw2') {
             setMessage("+2 cartes !");
-            drawCard(nextTurn, 2);
-            nextTurn = actor; 
+            drawCard(nextTurn, 2, newDiscardPile);
+            nextTurn = actor;
         } else if (card.value === 'wild') {
             setMessage("Joker !");
             if (actor === 'PLAYER') {
                 setGameState('color_select');
-                return; 
+                return;
             } else {
                 const colorsCount: any = { red: 0, blue: 0, green: 0, yellow: 0 };
                 cpuHand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
@@ -344,7 +350,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             }
         } else if (card.value === 'wild4') {
             setMessage("+4 cartes !");
-            drawCard(nextTurn, 4);
+            drawCard(nextTurn, 4, newDiscardPile);
             if (actor === 'PLAYER') {
                 setGameState('color_select');
                 return; 
@@ -354,13 +360,14 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 const bestColor = (Object.keys(colorsCount) as Color[]).reduce((a, b) => colorsCount[a] > colorsCount[b] ? a : b);
                 setActiveColor(bestColor);
                 setMessage(`CPU choisit : ${bestColor.toUpperCase()}`);
-                nextTurn = actor; 
+                nextTurn = actor;
             }
         }
 
         setTurn(nextTurn);
     };
 
+    // --- PLAYER ACTION ---
     const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
         if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
 
@@ -379,24 +386,23 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const handleColorSelect = (color: Color) => {
         setActiveColor(color);
         setGameState('playing');
-        setTurn('CPU'); 
+        setTurn('CPU');
     };
 
+    // --- CPU AI ---
     useEffect(() => {
         if (turn === 'CPU' && gameState === 'playing' && !isAnimating) {
             const timer = setTimeout(() => {
                 const topCard = discardPile[discardPile.length - 1];
                 
                 const validIndices = cpuHand.map((c, i) => ({c, i})).filter(({c}) => 
-                    c.color === activeColor || 
-                    c.value === topCard.value || 
-                    c.color === 'black'
+                    c.color === activeColor || c.value === topCard.value || c.color === 'black'
                 );
 
                 if (validIndices.length > 0) {
                     validIndices.sort((a, b) => {
-                        if (a.c.color === 'black') return 1; 
-                        if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1; 
+                        if (a.c.color === 'black') return 1;
+                        if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1;
                         return 0;
                     });
                     
@@ -408,7 +414,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     setTurn('PLAYER');
                 }
 
-            }, 1000); 
+            }, 1000);
             return () => clearTimeout(timer);
         }
     }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating]);
@@ -428,6 +434,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             playGameOver();
         }
     };
+
+    // --- SUB-COMPONENTS ---
 
     const CardView = ({ card, onClick, faceUp = true, small = false, style }: { card: Card, onClick?: (e: React.MouseEvent) => void, faceUp?: boolean, small?: boolean, style?: React.CSSProperties }) => {
         if (!faceUp) {
@@ -523,37 +531,26 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const FlyingCardOverlay = () => {
         if (!flyingCard) return null;
         
-        const [style, setStyle] = useState<React.CSSProperties>({
-            position: 'fixed',
-            left: flyingCard.startX,
-            top: flyingCard.startY,
-            transform: `rotate(${flyingCard.rotation}deg) scale(1)`,
-            transition: 'none',
-            zIndex: 100,
-            pointerEvents: 'none',
-        });
-
-        useEffect(() => {
-            requestAnimationFrame(() => {
-                setStyle({
-                    position: 'fixed',
-                    left: flyingCard.targetX,
-                    top: flyingCard.targetY,
-                    transform: `rotate(${Math.random() * 360}deg) scale(1.1)`,
-                    transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
-                    zIndex: 100,
-                    pointerEvents: 'none',
-                });
-            });
-        }, []);
-
         return (
-            <div style={style}>
-                <CardView card={flyingCard.card} />
+            <div 
+                className="fixed z-[100] pointer-events-none"
+                style={{
+                    left: 0, top: 0,
+                    animation: 'flyCard 0.5s ease-in-out forwards'
+                }}
+            >
+                <style>{`
+                    @keyframes flyCard {
+                        0% { transform: translate(${flyingCard.startX}px, ${flyingCard.startY}px) scale(1); }
+                        100% { transform: translate(${flyingCard.targetX}px, ${flyingCard.targetY}px) rotate(${flyingCard.rotation}deg) scale(0.8); }
+                    }
+                `}</style>
+                <CardView card={flyingCard.card} style={{ width: '80px', height: '112px' }} />
             </div>
         );
     };
 
+    // Calculate spacing
     let spacingClass = '-space-x-12 sm:-space-x-16';
     let rotationFactor = 3; 
     
@@ -575,6 +572,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
             <FlyingCardOverlay />
 
+            {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
@@ -584,6 +582,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 <button onClick={startNewGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
 
+            {/* Game Area */}
             <div className="flex-1 w-full max-w-lg flex flex-col justify-between py-4 relative z-10">
                 
                 {/* CPU Hand */}
@@ -609,10 +608,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
                     {/* Discard Pile Area */}
                     <div className="relative flex items-center justify-center" ref={discardPileRef}>
-                        
-                        {/* --- NEW DIRECTION INDICATOR RING --- */}
+                        {/* DIRECTION RING INDICATOR */}
                         <div className={`absolute -inset-[50px] pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text}`}>
-                            {/* Rotating Container */}
                             <div 
                                 className="w-full h-full absolute inset-0 flex items-center justify-center"
                                 style={{
@@ -620,7 +617,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                                     animationDirection: playDirection === 1 ? 'normal' : 'reverse'
                                 }}
                             >
-                                {/* 3 Arrows arranged in a circle */}
+                                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
                                 {[0, 120, 240].map((deg) => (
                                     <div 
                                         key={deg} 
@@ -634,14 +631,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                                 ))}
                             </div>
                             
-                            {/* Static Ring for visual anchor */}
                             <div className="absolute inset-0 rounded-full border-2 border-dashed opacity-20 border-current animate-pulse"></div>
                         </div>
 
-                        {/* Glow underneath */}
                         <div className={`absolute -inset-6 rounded-full blur-2xl opacity-40 transition-colors duration-500 ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')}`}></div>
                         
-                        {/* Actual card */}
                         <div className="transform rotate-6 transition-transform duration-300 hover:scale-105 hover:rotate-0 z-10">
                             {discardPile.length > 0 && <CardView card={discardPile[discardPile.length-1]} />}
                         </div>
