@@ -214,12 +214,12 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                     </div>
                 )}
 
-                {/* Rows */}
+                {/* Rows - INVERTED ORDER (Row 1 at bottom) */}
                 <div className="flex flex-col gap-1.5 h-full justify-end">
-                    {/* Reverse map to show current attempt at bottom like arcade machines */}
-                    {[...Array(MAX_ATTEMPTS)].map((_, index) => {
-                        // The actual index in the state arrays
-                        const rowIndex = index; 
+                    {[...Array(MAX_ATTEMPTS)].map((_, i) => {
+                        // Invert index: Render last attempt at top (index 9), first attempt at bottom (index 0)
+                        const rowIndex = MAX_ATTEMPTS - 1 - i; 
+                        
                         const isCurrent = rowIndex === activeRow;
                         const rowData = guesses[rowIndex];
                         const fb = feedback[rowIndex];
@@ -227,22 +227,22 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
 
                         return (
                             <div key={rowIndex} className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${isCurrent ? 'bg-cyan-900/40 border-cyan-500/50 shadow-[inset_0_0_10px_rgba(34,211,238,0.2)]' : 'bg-black/40 border-white/5'}`}>
-                                <span className="text-[10px] font-mono text-gray-600 w-4">{rowIndex + 1}</span>
+                                <span className={`text-xs font-mono font-bold w-6 text-center ${isCurrent ? 'text-white' : 'text-gray-500'}`}>{rowIndex + 1}</span>
                                 
                                 {/* Pegs */}
                                 <div className="flex-1 flex justify-center gap-2 sm:gap-4">
-                                    {[...Array(CODE_LENGTH)].map((_, i) => {
+                                    {[...Array(CODE_LENGTH)].map((_, slotIdx) => {
                                         let colorClass = 'bg-black/50 border border-white/10';
                                         
                                         if (isCurrent) {
-                                            if (i < currentGuess.length) colorClass = COLORS[currentGuess[i]];
-                                            else if (i === currentGuess.length) colorClass += ' ring-1 ring-white/50 animate-pulse'; // Cursor
+                                            if (slotIdx < currentGuess.length) colorClass = COLORS[currentGuess[slotIdx]];
+                                            else if (slotIdx === currentGuess.length) colorClass += ' ring-1 ring-white/50 animate-pulse'; // Cursor
                                         } else if (isPlayed) {
-                                            colorClass = COLORS[rowData[i]];
+                                            colorClass = COLORS[rowData[slotIdx]];
                                         }
 
                                         return (
-                                            <div key={i} className={`w-8 h-8 rounded-full shadow-inner ${colorClass} transition-all duration-200`}></div>
+                                            <div key={slotIdx} className={`w-8 h-8 rounded-full shadow-inner ${colorClass} transition-all duration-200`}></div>
                                         );
                                     })}
                                 </div>
@@ -251,12 +251,12 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                                 <div className="grid grid-cols-2 gap-1 w-8">
                                     {isPlayed ? (
                                         <>
-                                            {[...Array(fb.exact)].map((_, i) => <div key={`e${i}`} className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_5px_red]"></div>)}
-                                            {[...Array(fb.partial)].map((_, i) => <div key={`p${i}`} className="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_5px_white]"></div>)}
-                                            {[...Array(Math.max(0, 4 - fb.exact - fb.partial))].map((_, i) => <div key={`n${i}`} className="w-2.5 h-2.5 rounded-full bg-gray-800"></div>)}
+                                            {[...Array(fb.exact)].map((_, fi) => <div key={`e${fi}`} className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_5px_red]"></div>)}
+                                            {[...Array(fb.partial)].map((_, fi) => <div key={`p${fi}`} className="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_5px_white]"></div>)}
+                                            {[...Array(Math.max(0, 4 - fb.exact - fb.partial))].map((_, fi) => <div key={`n${fi}`} className="w-2.5 h-2.5 rounded-full bg-gray-800"></div>)}
                                         </>
                                     ) : (
-                                        [...Array(4)].map((_, i) => <div key={i} className="w-2.5 h-2.5 rounded-full bg-gray-800/50"></div>)
+                                        [...Array(4)].map((_, fi) => <div key={fi} className="w-2.5 h-2.5 rounded-full bg-gray-800/50"></div>)
                                     )}
                                 </div>
                             </div>
