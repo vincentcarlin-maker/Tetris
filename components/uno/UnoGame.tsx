@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -28,21 +28,43 @@ type GameState = 'playing' | 'gameover' | 'color_select';
 const COLORS: Color[] = ['red', 'blue', 'green', 'yellow'];
 const SPECIAL_VALUES: Value[] = ['skip', 'reverse', 'draw2'];
 
-// Tailwind color maps
-const COLOR_MAP: Record<Color, string> = {
-    red: 'border-red-500 text-red-500 shadow-[0_0_10px_#ef4444]',
-    blue: 'border-cyan-500 text-cyan-500 shadow-[0_0_10px_#06b6d4]',
-    green: 'border-green-500 text-green-500 shadow-[0_0_10px_#22c55e]',
-    yellow: 'border-yellow-400 text-yellow-400 shadow-[0_0_10px_#facc15]',
-    black: 'border-purple-500 text-purple-500 shadow-[0_0_10px_#a855f7] animate-pulse',
-};
-
-const BG_COLOR_MAP: Record<Color, string> = {
-    red: 'bg-red-500/20',
-    blue: 'bg-cyan-500/20',
-    green: 'bg-green-500/20',
-    yellow: 'bg-yellow-400/20',
-    black: 'bg-purple-500/20',
+// Tailwind color maps for borders and text
+const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string, bg: string, gradient: string }> = {
+    red: { 
+        border: 'border-red-500', 
+        text: 'text-red-500', 
+        shadow: 'shadow-red-500/50', 
+        bg: 'bg-red-950',
+        gradient: 'from-red-600 to-red-900'
+    },
+    blue: { 
+        border: 'border-cyan-500', 
+        text: 'text-cyan-500', 
+        shadow: 'shadow-cyan-500/50', 
+        bg: 'bg-cyan-950',
+        gradient: 'from-cyan-600 to-blue-900'
+    },
+    green: { 
+        border: 'border-green-500', 
+        text: 'text-green-500', 
+        shadow: 'shadow-green-500/50', 
+        bg: 'bg-green-950',
+        gradient: 'from-green-600 to-emerald-900'
+    },
+    yellow: { 
+        border: 'border-yellow-400', 
+        text: 'text-yellow-400', 
+        shadow: 'shadow-yellow-400/50', 
+        bg: 'bg-yellow-950',
+        gradient: 'from-yellow-500 to-orange-800'
+    },
+    black: { 
+        border: 'border-purple-500', 
+        text: 'text-white', 
+        shadow: 'shadow-purple-500/50', 
+        bg: 'bg-gray-900',
+        gradient: 'from-purple-600 via-pink-600 to-blue-600' // Rainbow-ish
+    },
 };
 
 // --- LOGIC ---
@@ -303,8 +325,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     };
 
-    // Removed manual draw handler since it is now automatic
-
     const handleColorSelect = (color: Color) => {
         setActiveColor(color);
         setGameState('playing');
@@ -366,21 +386,31 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     // --- RENDERING ---
 
     const CardView = ({ card, onClick, faceUp = true, small = false }: { card: Card, onClick?: () => void, faceUp?: boolean, small?: boolean }) => {
+        // --- BACK OF CARD ---
         if (!faceUp) {
             return (
                 <div className={`
-                    ${small ? 'w-10 h-14' : 'w-16 h-24 sm:w-24 sm:h-36'} 
-                    bg-gray-900 border-2 border-gray-700 rounded-lg flex items-center justify-center
-                    shadow-lg relative overflow-hidden
+                    ${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} 
+                    bg-gray-900 border-2 border-gray-700 rounded-xl flex items-center justify-center
+                    shadow-lg relative overflow-hidden group
                 `}>
-                    <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[length:4px_4px]"></div>
-                    <span className="font-black italic text-gray-700 text-xs transform -rotate-45">UNO</span>
+                    {/* Pattern */}
+                    <div className="absolute inset-0 opacity-10" 
+                         style={{backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '10px 10px'}}>
+                    </div>
+                    {/* Logo Area */}
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-black/50 rounded-full border border-gray-600 flex flex-col items-center justify-center relative z-10 rotate-12">
+                        <span className="font-script text-neon-pink text-[10px] sm:text-xs leading-none drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]">Neon</span>
+                        <span className="font-black italic text-cyan-400 text-sm sm:text-lg leading-none drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">UNO</span>
+                    </div>
+                    {/* Glow */}
+                    <div className="absolute -inset-1 bg-gradient-to-tr from-transparent via-white/5 to-transparent group-hover:via-white/10 transition-all"></div>
                 </div>
             );
         }
 
-        const colorClass = COLOR_MAP[card.color];
-        const bgClass = BG_COLOR_MAP[card.color];
+        // --- FRONT OF CARD ---
+        const config = COLOR_CONFIG[card.color];
         
         let displayValue: string = card.value;
         let Icon = null;
@@ -391,7 +421,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         else if (card.value === 'wild') Icon = Palette;
         else if (card.value === 'wild4') displayValue = '+4';
 
-        // Add conditional styling for player hand
+        // Styling logic for playable cards
         const isPlayerHand = onClick !== undefined;
         let isPlayable = true;
         
@@ -402,43 +432,58 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
              }
         }
 
-        // Logic for lifting playable cards:
-        // isPlayable -> lift, full brightness
-        // !isPlayable -> normal position, slightly darker (but NOT transparent)
-        const visualStyle = isPlayerHand 
+        const liftClass = isPlayerHand 
             ? (isPlayable 
-                ? 'brightness-125 -translate-y-4 shadow-[0_0_15px_rgba(255,255,255,0.4)] z-20 ring-1 ring-white/50' 
-                : 'brightness-50 z-0') 
+                ? '-translate-y-4 sm:-translate-y-6 shadow-[0_0_20px_rgba(255,255,255,0.3)] z-20 brightness-110 ring-2 ring-white/50' 
+                : 'brightness-50 z-0 translate-y-2') 
             : '';
+
+        const isWild = card.color === 'black';
 
         return (
             <div 
                 onClick={onClick}
                 className={`
-                    ${small ? 'w-10 h-14' : 'w-16 h-24 sm:w-24 sm:h-36'} 
-                    relative rounded-lg flex flex-col items-center justify-center overflow-hidden
-                    cursor-pointer hover:-translate-y-6 transition-all duration-300 select-none
-                    shadow-xl ${visualStyle}
+                    ${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} 
+                    relative rounded-xl flex flex-col items-center justify-center overflow-hidden
+                    cursor-pointer hover:scale-105 transition-all duration-300 select-none
+                    shadow-xl border-2 ${config.border} ${liftClass} bg-gray-900
                 `}
             >
-                {/* 1. Base Solid Layer to prevent transparency */}
-                <div className="absolute inset-0 bg-gray-900 z-0"></div>
+                {/* 1. Background Gradient/Fill */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-80 z-0`}></div>
                 
-                {/* 2. Color Tint Layer */}
-                <div className={`absolute inset-0 ${bgClass} z-0`}></div>
-                
-                {/* 3. Border Layer */}
-                <div className={`absolute inset-0 border-2 ${colorClass} rounded-lg z-10 pointer-events-none`}></div>
+                {/* 2. Cyber Pattern */}
+                <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSIvPgo8cGF0aCBkPSJNMCAwTDggOFpNOCAwTDAgOFoiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIvPjwvc3ZnPg==')] z-0"></div>
 
-                {/* Content */}
-                <div className="relative z-10 w-full h-full flex items-center justify-center">
-                    <div className="absolute top-1 left-1 text-[10px] font-bold leading-none text-white drop-shadow-md">{Icon ? <Icon size={10}/> : displayValue}</div>
-                    <div className="absolute bottom-1 right-1 text-[10px] font-bold leading-none transform rotate-180 text-white drop-shadow-md">{Icon ? <Icon size={10}/> : displayValue}</div>
-                    
-                    <div className="text-2xl sm:text-4xl font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] text-white">
-                        {Icon ? <Icon size={small ? 16 : 32}/> : displayValue}
+                {/* 3. Center Oval (The Uno Look) */}
+                <div className={`
+                    absolute inset-2 sm:inset-3 rounded-[50%_/_40%] border border-white/20 bg-black/40 backdrop-blur-sm 
+                    flex items-center justify-center z-10 shadow-inner
+                    ${isWild ? 'animate-pulse border-white/50' : ''}
+                `}>
+                    {/* Main Center Symbol */}
+                    <div className={`
+                        font-black italic drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] 
+                        ${isWild ? 'text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500 text-4xl sm:text-6xl' : 'text-white text-3xl sm:text-5xl'}
+                        flex items-center justify-center
+                    `}>
+                        {Icon ? <Icon size={small ? 20 : 40} strokeWidth={2.5}/> : displayValue}
                     </div>
                 </div>
+
+                {/* 4. Corners */}
+                <div className="absolute top-1 left-1.5 text-[10px] sm:text-sm font-bold leading-none text-white drop-shadow-md z-20">
+                    {Icon ? <Icon size={12}/> : displayValue}
+                </div>
+                <div className="absolute bottom-1 right-1.5 text-[10px] sm:text-sm font-bold leading-none transform rotate-180 text-white drop-shadow-md z-20">
+                    {Icon ? <Icon size={12}/> : displayValue}
+                </div>
+                
+                {/* 5. Wild Animation Effect */}
+                {isWild && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none z-30"></div>
+                )}
             </div>
         );
     };
@@ -446,15 +491,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-hidden text-white font-sans">
             {/* Background Effect */}
-            <div className={`absolute inset-0 transition-colors duration-1000 opacity-20 pointer-events-none ${BG_COLOR_MAP[activeColor] || 'bg-gray-900'}`}></div>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black pointer-events-none"></div>
+            <div className={`absolute inset-0 transition-colors duration-1000 opacity-30 pointer-events-none ${COLOR_CONFIG[activeColor].bg}`}></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black/60 to-black pointer-events-none"></div>
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">NEON UNO</h1>
-                    <span className="text-[10px] text-gray-400 font-bold tracking-widest">{message}</span>
+                    <span className="text-[10px] text-gray-400 font-bold tracking-widest bg-black/40 px-2 py-0.5 rounded-full border border-white/10">{message}</span>
                 </div>
                 <button onClick={startNewGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
@@ -463,9 +508,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             <div className="flex-1 w-full max-w-lg flex flex-col justify-between py-4 relative z-10">
                 
                 {/* CPU Hand (Top) */}
-                <div className="flex justify-center -space-x-4 px-4 overflow-hidden h-24 sm:h-32 items-start">
+                <div className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-24 sm:h-32 items-start pt-2">
                     {cpuHand.map((card, i) => (
-                        <div key={card.id} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg)` }}>
+                        <div key={card.id} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
                             <CardView card={card} faceUp={false} />
                         </div>
                     ))}
@@ -485,26 +530,26 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
                     {/* Discard Pile */}
                     <div className="relative">
-                        <div className={`absolute -inset-4 rounded-full blur-xl opacity-40 transition-colors duration-500 ${COLOR_MAP[activeColor].split(' ')[0].replace('border', 'bg')}`}></div>
-                        <div className="transform rotate-6">
+                        <div className={`absolute -inset-6 rounded-full blur-2xl opacity-30 transition-colors duration-500 ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')}`}></div>
+                        <div className="transform rotate-6 transition-transform duration-300 hover:scale-105 hover:rotate-0">
                             {discardPile.length > 0 && <CardView card={discardPile[discardPile.length-1]} />}
                         </div>
                         {/* Active Color Indicator */}
-                        <div className={`absolute -bottom-8 left-1/2 -translate-x-1/2 w-16 h-1.5 rounded-full ${COLOR_MAP[activeColor].split(' ')[0].replace('border', 'bg')} shadow-[0_0_10px_currentColor]`}></div>
+                        <div className={`absolute -bottom-10 left-1/2 -translate-x-1/2 w-20 h-2 rounded-full ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')} ${COLOR_CONFIG[activeColor].shadow}`}></div>
                     </div>
                 </div>
 
                 {/* Player Hand (Bottom) */}
-                <div className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-x-visible items-end pb-4 min-h-[120px]">
+                <div className="flex justify-center -space-x-8 sm:-space-x-12 px-4 overflow-x-visible items-end pb-6 min-h-[140px]">
                     {playerHand.map((card, i) => {
                         return (
                             <div 
                                 key={card.id} 
                                 style={{ 
-                                    transform: `rotate(${(i - playerHand.length/2) * 2}deg)`,
+                                    transform: `rotate(${(i - playerHand.length/2) * 3}deg) translateY(${Math.abs(i - playerHand.length/2) * 5}px)`,
                                     zIndex: i 
                                 }}
-                                className={`transition-transform duration-300`}
+                                className={`transition-transform duration-300 origin-bottom`}
                             >
                                 <CardView card={card} onClick={() => handlePlayerCardClick(card, i)} />
                             </div>
@@ -533,9 +578,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                             <button 
                                 key={c}
                                 onClick={() => handleColorSelect(c)}
-                                className={`w-32 h-32 rounded-2xl border-4 ${COLOR_MAP[c]} bg-gray-900 hover:scale-105 transition-transform flex items-center justify-center`}
+                                className={`w-32 h-32 rounded-2xl border-4 ${COLOR_CONFIG[c].border} bg-gray-900 hover:scale-105 transition-transform flex items-center justify-center group`}
                             >
-                                <div className={`w-16 h-16 rounded-full ${BG_COLOR_MAP[c].replace('/20', '')} shadow-[0_0_20px_currentColor]`}></div>
+                                <div className={`w-16 h-16 rounded-full ${COLOR_CONFIG[c].text.replace('text', 'bg')} shadow-[0_0_20px_currentColor] group-hover:scale-110 transition-transform`}></div>
                             </button>
                         ))}
                     </div>
