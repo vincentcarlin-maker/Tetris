@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb, PlayCircle, Loader2 } from 'lucide-react';
+import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb, PlayCircle, Loader2, ArrowLeftRight, ArrowUpDown } from 'lucide-react';
 import { CarData, LevelData } from './types';
 import { getLevel, TOTAL_LEVELS } from './levels';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -123,25 +124,6 @@ const CarVisual: React.FC<{ car: CarData, isSelected: boolean }> = ({ car, isSel
                                 : 'left-[25%] top-0 bottom-0 w-[2px] border-r'
                             }`} 
                         />
-                        {/* Détails sur la remorque (stries) */}
-                        <div className={`absolute border-dashed border-black/20 
-                            ${isVertical 
-                                ? 'top-[35%] bottom-[10%] left-1/2 -translate-x-1/2 w-0 border-l-2' 
-                                : 'left-[35%] right-[10%] top-1/2 -translate-y-1/2 h-0 border-t-2'
-                            }`} 
-                        />
-                        <div className={`absolute border-dashed border-black/20 
-                            ${isVertical 
-                                ? 'top-[35%] bottom-[10%] left-[30%] w-0 border-l' 
-                                : 'left-[35%] right-[10%] top-[30%] h-0 border-t'
-                            }`} 
-                        />
-                         <div className={`absolute border-dashed border-black/20 
-                            ${isVertical 
-                                ? 'top-[35%] bottom-[10%] right-[30%] w-0 border-l' 
-                                : 'left-[35%] right-[10%] bottom-[30%] h-0 border-t'
-                            }`} 
-                        />
                     </>
                 )}
 
@@ -222,6 +204,14 @@ const CarVisual: React.FC<{ car: CarData, isSelected: boolean }> = ({ car, isSel
                         : 'right-0 bottom-[10%] h-[18%] w-[2px]'
                      }
                 `}></div>
+
+                {/* DIRECTION ARROW OVERLAY */}
+                <div className="absolute inset-0 flex items-center justify-center z-30 opacity-40 pointer-events-none mix-blend-overlay">
+                    {isVertical 
+                        ? <ArrowUpDown size={isTruck ? 24 : 18} className="text-white" strokeWidth={3} />
+                        : <ArrowLeftRight size={isTruck ? 24 : 18} className="text-white" strokeWidth={3} />
+                    }
+                </div>
 
             </div>
         </div>

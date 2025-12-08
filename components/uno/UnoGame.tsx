@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon, ChevronRight } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, RotateCw, Plus, Palette, Layers } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -608,30 +609,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
                     {/* Discard Pile Area */}
                     <div className="relative flex items-center justify-center" ref={discardPileRef}>
-                        {/* DIRECTION RING INDICATOR */}
-                        <div className={`absolute -inset-[50px] pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text}`}>
-                            <div 
-                                className="w-full h-full absolute inset-0 flex items-center justify-center"
-                                style={{
-                                    animation: `spin 4s linear infinite`,
-                                    animationDirection: playDirection === 1 ? 'normal' : 'reverse'
-                                }}
-                            >
-                                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                                {[0, 120, 240].map((deg) => (
-                                    <div 
-                                        key={deg} 
-                                        className="absolute w-8 h-8 flex items-center justify-center"
-                                        style={{
-                                            transform: `rotate(${deg}deg) translate(80px) rotate(90deg)`
-                                        }}
-                                    >
-                                        <ChevronRight size={32} strokeWidth={4} className="drop-shadow-[0_0_5px_currentColor]" />
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            <div className="absolute inset-0 rounded-full border-2 border-dashed opacity-20 border-current animate-pulse"></div>
+                        {/* DIRECTION INDICATOR */}
+                        <div className={`absolute pointer-events-none flex items-center justify-center transition-colors duration-500 ${COLOR_CONFIG[activeColor].text}`}>
+                            {playDirection === 1 ? (
+                                <RotateCw size={160} strokeWidth={0.5} className="opacity-10" />
+                            ) : (
+                                <RotateCcw size={160} strokeWidth={0.5} className="opacity-10" />
+                            )}
                         </div>
 
                         <div className={`absolute -inset-6 rounded-full blur-2xl opacity-40 transition-colors duration-500 ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')}`}></div>
