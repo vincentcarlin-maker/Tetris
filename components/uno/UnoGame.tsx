@@ -319,7 +319,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
             if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
             if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); handleGameOver('PLAYER'); }
-            if (data.type === 'REMATCH_START') startNewGame();
+            if (data.type === 'REMATCH_START') startNewGame('ONLINE');
         };
     });
 
@@ -336,12 +336,17 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
     // --- GAME ACTIONS ---
 
-    const startNewGame = () => {
+    const startNewGame = (modeOverride?: 'SOLO' | 'ONLINE' | any) => {
+        // Handle explicit mode override or fallback to current state (careful with Event objects)
+        const targetMode = (typeof modeOverride === 'string' && (modeOverride === 'SOLO' || modeOverride === 'ONLINE')) 
+                           ? modeOverride 
+                           : gameMode;
+
         clearTable();
         resumeAudio();
         setMessage("Distribution...");
 
-        if (gameMode === 'SOLO') {
+        if (targetMode === 'SOLO') {
             const newDeck = generateDeck();
             const pHand = newDeck.splice(0, 7);
             const cHand = newDeck.splice(0, 7);
@@ -403,8 +408,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const initGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
         setPhase('GAME');
-        if (mode === 'SOLO') startNewGame();
-        else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame();
+        // Explicitly pass the mode to ensure logic runs correctly immediately
+        // (React state update is async, so gameMode might be stale inside startNewGame otherwise)
+        if (mode === 'SOLO') startNewGame('SOLO');
+        else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame('ONLINE');
     };
 
     const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[]) => {
@@ -915,7 +922,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">NEON UNO</h1>
                     <span className="text-[10px] text-gray-400 font-bold tracking-widest bg-black/40 px-2 py-0.5 rounded-full border border-white/10">{message}</span>
                 </div>
-                <button onClick={startNewGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <button onClick={() => startNewGame(gameMode)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
 
             {gameMode === 'ONLINE' && onlineStep === 'connecting' && (
@@ -1038,7 +1045,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                                 </>
                             )}
                             <div className="flex gap-4">
-                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : startNewGame} className="px-8 py-4 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : () => startNewGame(gameMode)} className="px-8 py-4 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
                                 <button onClick={backToMenu} className="px-8 py-4 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
                             </div>
                         </>
