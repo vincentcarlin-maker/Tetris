@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette, Globe, Users, Bot, User, Trash2, Plus, Loader2 } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette, Globe, Users, Bot, User, Trash2, Plus, Loader2, Cpu } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -43,7 +43,7 @@ interface UnoPlayer {
 }
 
 type GameMode = 'SOLO' | 'ONLINE';
-type GameState = 'playing' | 'gameover' | 'color_select' | 'lobby';
+type GameState = 'menu' | 'playing' | 'gameover' | 'color_select' | 'lobby';
 
 // --- CONFIG ---
 const COLORS: Color[] = ['red', 'blue', 'green', 'yellow'];
@@ -92,7 +92,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
 
     // Game State
     const [gameMode, setGameMode] = useState<GameMode>('SOLO');
-    const [gameState, setGameState] = useState<GameState>('lobby');
+    const [gameState, setGameState] = useState<GameState>('menu');
     const [players, setPlayers] = useState<UnoPlayer[]>([]);
     const [deck, setDeck] = useState<Card[]>([]);
     const [discardPile, setDiscardPile] = useState<Card[]>([]);
@@ -557,6 +557,18 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
         }
     };
 
+    const handleLocalBack = () => {
+        if (gameState === 'lobby') {
+            if (gameMode === 'ONLINE') mp.disconnect();
+            setGameState('menu');
+        } else if (gameState === 'playing' || gameState === 'gameover' || gameState === 'color_select') {
+            if (gameMode === 'ONLINE') mp.leaveGame();
+            setGameState('menu');
+        } else {
+            onBack();
+        }
+    };
+
     // --- RENDER HELPERS ---
 
     const CardView = ({ card, onClick, small = false, faceDown = false }: { card: Card, onClick?: () => void, small?: boolean, faceDown?: boolean }) => {
@@ -595,6 +607,24 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             </div>
         );
     };
+
+    // --- MENU VIEW ---
+    if (gameState === 'menu') {
+        return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+                <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#facc15] text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500">NEON UNO</h1>
+                <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
+                    <button onClick={() => initLobby('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-yellow-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                        <Cpu size={24} className="text-yellow-500"/> 1 JOUEUR
+                    </button>
+                    <button onClick={() => initLobby('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                        <Globe size={24} className="text-green-500"/> EN LIGNE
+                    </button>
+                </div>
+                <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
+            </div>
+        );
+    }
 
     // --- LOBBY VIEW ---
     if (gameState === 'lobby') {
@@ -637,7 +667,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                         </div>
                     )}
                 </div>
-                <button onClick={() => { if(gameMode==='ONLINE') mp.disconnect(); onBack(); }} className="mt-8 text-gray-500 text-sm hover:text-white underline">RETOUR</button>
+                <button onClick={handleLocalBack} className="mt-8 text-gray-500 text-sm hover:text-white underline">RETOUR</button>
             </div>
         );
     }
@@ -755,7 +785,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                     <Trophy size={64} className="text-yellow-400 mb-4"/>
                     <h2 className="text-4xl font-black text-white mb-2">{winner} A GAGNÉ !</h2>
                     {earnedCoins > 0 && <div className="text-yellow-400 font-bold mb-6">+{earnedCoins} PIÈCES</div>}
-                    <button onClick={onBack} className="px-8 py-3 bg-gray-800 rounded-full font-bold hover:bg-white hover:text-black transition-colors">QUITTER</button>
+                    <button onClick={handleLocalBack} className="px-8 py-3 bg-gray-800 rounded-full font-bold hover:bg-white hover:text-black transition-colors">QUITTER</button>
                 </div>
             )}
         </div>
