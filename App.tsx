@@ -33,10 +33,9 @@ const App: React.FC = () => {
     
     const audio = useGameAudio();
     const currency = useCurrency();
-    const mp = useMultiplayer(); // Global Multiplayer Lobby Connection
-    const { highScores, updateHighScore, importScores } = useHighScores(); // Global High Scores
+    const mp = useMultiplayer(); 
+    const { highScores, updateHighScore, importScores } = useHighScores(); 
 
-    // DAILY SYSTEM INTEGRATION - Lifted to App level to persist state
     const { 
         streak, 
         showDailyModal, 
@@ -48,7 +47,6 @@ const App: React.FC = () => {
         claimQuestReward 
     } = useDailySystem(currency.addCoins);
 
-    // SUPABASE PRESENCE & CLOUD SAVE
     const { 
         onlineUsers, 
         globalLeaderboard,
@@ -64,58 +62,60 @@ const App: React.FC = () => {
         highScores
     );
 
-    // --- CLOUD SYNC LOGIC ---
-    // Debounced save to cloud whenever critical state changes
     const saveTimeoutRef = useRef<any>(null);
 
+    const buildSavePayload = () => {
+        const cachedPassword = localStorage.getItem('neon_current_password');
+        const payload: any = {
+            coins: currency.coins,
+            inventory: currency.inventory,
+            avatarId: currency.currentAvatarId,
+            ownedAvatars: currency.ownedAvatars,
+            frameId: currency.currentFrameId,
+            ownedFrames: currency.ownedFrames,
+            wallpaperId: currency.currentWallpaperId,
+            ownedWallpapers: currency.ownedWallpapers,
+            titleId: currency.currentTitleId,
+            ownedTitles: currency.ownedTitles,
+            malletId: currency.currentMalletId,
+            ownedMallets: currency.ownedMallets,
+            highScores: highScores,
+            quests: quests,
+            streak: streak,
+            lastLogin: localStorage.getItem('neon_last_login')
+        };
+        
+        if (cachedPassword) {
+            payload.password = cachedPassword;
+        }
+        return payload;
+    };
+
+    // 1. Immediate Save on Login (Fixes "Missing data if closed quickly" bug)
+    useEffect(() => {
+        if (isAuthenticated && currency.username) {
+            console.log("💾 Force Initial Save for", currency.username);
+            syncProfileToCloud(currency.username, buildSavePayload());
+        }
+    }, [isAuthenticated]);
+
+    // 2. Debounced Save on State Change
     useEffect(() => {
         if (!isAuthenticated || !currency.username) return;
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
         saveTimeoutRef.current = setTimeout(() => {
-            // Retrieve cached password if available (set during login) to ensure it's kept in DB
-            const cachedPassword = localStorage.getItem('neon_current_password');
-
-            // Construct full payload
-            const payload: any = {
-                coins: currency.coins,
-                inventory: currency.inventory,
-                avatarId: currency.currentAvatarId,
-                ownedAvatars: currency.ownedAvatars,
-                frameId: currency.currentFrameId,
-                ownedFrames: currency.ownedFrames,
-                wallpaperId: currency.currentWallpaperId,
-                ownedWallpapers: currency.ownedWallpapers,
-                titleId: currency.currentTitleId,
-                ownedTitles: currency.ownedTitles,
-                malletId: currency.currentMalletId,
-                ownedMallets: currency.ownedMallets,
-                
-                highScores: highScores,
-                
-                // Generic Items (stored in localStorage usually, mapped here)
-                quests: quests,
-                streak: streak,
-                lastLogin: localStorage.getItem('neon_last_login')
-            };
-            
-            // Inject password into payload if we have it locally, so we don't lose it on upsert
-            if (cachedPassword) {
-                payload.password = cachedPassword;
-            }
-            
-            syncProfileToCloud(currency.username, payload);
+            syncProfileToCloud(currency.username, buildSavePayload());
             console.log("☁️ Auto-Saved to Cloud");
-        }, 2000); // Save after 2s of inactivity
+        }, 2000); 
 
     }, [
-        isAuthenticated, currency.username, currency.coins, currency.currentAvatarId, 
-        highScores, syncProfileToCloud, quests, streak
+        currency.coins, currency.currentAvatarId, 
+        highScores, quests, streak
     ]);
 
 
-    // Check for existing session
     useEffect(() => {
         const storedName = localStorage.getItem('neon-username');
         if (storedName) {
@@ -123,7 +123,6 @@ const App: React.FC = () => {
         }
     }, []);
 
-    // Connect global lobby on mount (only if authenticated)
     useEffect(() => {
         if (isAuthenticated) {
             mp.connect();
@@ -131,7 +130,6 @@ const App: React.FC = () => {
         return () => mp.disconnect();
     }, [isAuthenticated]);
 
-    // Apply Background Wallpaper
     useEffect(() => {
         const bgElement = document.getElementById('app-background');
         if (bgElement) {
@@ -139,16 +137,13 @@ const App: React.FC = () => {
             if (wallpaper) {
                 bgElement.style.background = wallpaper.cssValue;
                 
-                // Gestion spécifique de la taille du background
                 if (wallpaper.bgSize) {
                     bgElement.style.backgroundSize = wallpaper.bgSize;
-                    bgElement.style.backgroundPosition = '0 0'; // Start top left for patterns
+                    bgElement.style.backgroundPosition = '0 0'; 
                 } else if (currency.currentWallpaperId !== 'bg_brick') {
-                    // Pour les dégradés et images "cover"
                     bgElement.style.backgroundSize = 'cover';
                     bgElement.style.backgroundPosition = 'center';
                 } else {
-                    // Reset to default style for brick
                     bgElement.style.backgroundSize = '100% 100%, 200px 60px';
                     bgElement.style.backgroundPosition = '';
                 }
@@ -168,30 +163,26 @@ const App: React.FC = () => {
             document.body.style.touchAction = 'auto';
         }
 
-        // Cleanup function to restore default on component unmount
         return () => {
             document.body.classList.remove('overflow-hidden');
             document.body.style.touchAction = 'auto';
         };
     }, [currentView]);
 
-    // Wrapper pour déclencher le son à chaque gain ET vérifier les quêtes de pièces
     const addCoinsWithSoundAndQuest = (amount: number) => {
         if (amount > 0) {
             currency.addCoins(amount);
             audio.playCoin();
-            checkCoinQuest(amount); // Check if this completes a coin quest
+            checkCoinQuest(amount); 
         }
     };
 
     const handleSelectGame = (game: string) => {
-        // Bloquer l'accès au jeu si non connecté
         if (!isAuthenticated) {
             setShowLoginModal(true);
             return;
         }
 
-        // Trigger "Play X" quest immediately when starting
         checkGameQuest(game);
 
         if (game === 'tetris') setCurrentView('tetris');
@@ -217,14 +208,13 @@ const App: React.FC = () => {
         currency.updateUsername(username);
         
         if (cloudData) {
-            // Restore Cloud Data
             console.log("📥 Importing Cloud Data...", cloudData);
             currency.importData(cloudData);
             if (cloudData.highScores) {
                 importScores(cloudData.highScores);
             }
         } else {
-            currency.refreshData(); // Fallback Local
+            currency.refreshData(); 
         }
 
         setIsAuthenticated(true);
@@ -239,7 +229,6 @@ const App: React.FC = () => {
 
     return (
         <>
-            {/* Show Login Modal on demand */}
             {showLoginModal && (
                 <LoginScreen 
                     onLogin={handleLogin} 
@@ -248,7 +237,6 @@ const App: React.FC = () => {
                 />
             )}
 
-            {/* Social Overlay only active when authenticated */}
             {isAuthenticated && (
                 <SocialOverlay 
                     audio={audio} 
@@ -329,7 +317,6 @@ const App: React.FC = () => {
                         quests,
                         claimQuestReward
                     }}
-                    // Combine Online + Historical for a richer experience
                     onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers} 
                 />
             )}

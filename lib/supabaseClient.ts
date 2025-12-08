@@ -2,28 +2,17 @@
 import { createClient } from '@supabase/supabase-js';
 
 // --- CONFIGURATION SUPABASE ---
-// 1. Créez un compte sur https://supabase.com
-// 2. Créez un nouveau projet "Neon Arcade"
-// 3. Allez dans Project Settings -> API
-
-// Valeurs par défaut (Code source)
 const DEFAULT_SUPABASE_URL = 'https://taallvoewrojegodndtb.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_rCAQ6RFblfxvPsxnhTB1Mg_qPjwysb_';
 
-// --- LOGIQUE DE CHARGEMENT DYNAMIQUE ---
-
-// On vérifie d'abord si l'utilisateur a entré ses clés via l'interface (localStorage)
-// Cela permet de surcharger la config par défaut si besoin sans recompiler
 const storedUrl = localStorage.getItem('neon_supabase_url');
 const storedKey = localStorage.getItem('neon_supabase_key');
 
-// On utilise les valeurs stockées en priorité, sinon les valeurs par défaut du code
 const SUPABASE_URL = storedUrl || DEFAULT_SUPABASE_URL;
 const SUPABASE_ANON_KEY = storedKey || DEFAULT_SUPABASE_ANON_KEY;
 
 let supabaseInstance = null;
 
-// Validation simple pour éviter d'initialiser avec des valeurs placeholders ou vides
 const isValidUrl = (url: string) => url && url.startsWith('http') && !url.includes('VOTRE_URL');
 const isValidKey = (key: string) => key && key.length > 10 && !key.includes('VOTRE_CLE');
 
@@ -47,12 +36,9 @@ if (isValidUrl(SUPABASE_URL) && isValidKey(SUPABASE_ANON_KEY)) {
 export const supabase = supabaseInstance;
 export const isSupabaseConfigured = !!supabaseInstance;
 
-// --- FONCTIONS UTILITAIRES POUR L'INTERFACE ---
-
 export const saveSupabaseConfig = (url: string, key: string) => {
     if (url) localStorage.setItem('neon_supabase_url', url.trim());
     if (key) localStorage.setItem('neon_supabase_key', key.trim());
-    // On recharge la page pour appliquer la nouvelle configuration proprement
     window.location.reload();
 };
 
@@ -70,7 +56,6 @@ export const getStoredConfig = () => ({
 // --- CLOUD SAVE, LEADERBOARD & MESSAGING HELPERS ---
 
 export const DB = {
-    // Récupérer le profil complet d'un joueur (pour Login)
     getUserProfile: async (username: string) => {
         if (!supabase) return null;
         try {
@@ -81,28 +66,26 @@ export const DB = {
                 .single();
             
             if (error) return null;
-            return data; // { username, data: { coins, inventory, password... } }
+            return data; 
         } catch (e) {
             return null;
         }
     },
 
-    // Sauvegarder/Mettre à jour le profil (Upsert avec MERGE)
     saveUserProfile: async (username: string, profileData: any) => {
         if (!supabase) return null;
         try {
-            // 1. D'abord récupérer les données existantes pour ne pas les écraser (ex: password)
+            // 1. Fetch existing data first to prevent overwrite
             const { data: existing } = await supabase
                 .from('profiles')
                 .select('data')
                 .eq('username', username)
                 .single();
             
-            // 2. Fusionner les anciennes données avec les nouvelles
-            // Les nouvelles données (profileData) sont prioritaires
+            // 2. Merge existing data with new data (new data takes precedence)
             const mergedData = { ...(existing?.data || {}), ...profileData };
 
-            // 3. Sauvegarder le tout
+            // 3. Save merged data
             const { error } = await supabase
                 .from('profiles')
                 .upsert({ 
@@ -117,11 +100,9 @@ export const DB = {
         }
     },
 
-    // Récupérer le classement global (Tous les joueurs)
     getGlobalLeaderboard: async () => {
         if (!supabase) return [];
         try {
-            // On récupère tous les profils (limité à 100 pour la performance)
             const { data, error } = await supabase
                 .from('profiles')
                 .select('username, data, updated_at')
@@ -129,13 +110,12 @@ export const DB = {
 
             if (error || !data) return [];
 
-            // On formate pour l'UI
             return data.map((row: any) => ({
-                id: row.username, // Use username as ID for leaderboard
+                id: row.username,
                 name: row.username,
                 avatarId: row.data?.avatarId || 'av_bot',
                 frameId: row.data?.frameId,
-                status: 'offline', // Historique = offline par défaut
+                status: 'offline', 
                 lastSeen: new Date(row.updated_at).getTime(),
                 online_at: row.updated_at,
                 stats: row.data?.highScores || {}
@@ -145,9 +125,6 @@ export const DB = {
         }
     },
 
-    // --- MESSAGING SYSTEM ---
-
-    // Récupérer l'historique de conversation entre deux utilisateurs
     getMessages: async (user1: string, user2: string) => {
         if (!supabase) return [];
         try {
@@ -156,17 +133,15 @@ export const DB = {
                 .select('*')
                 .or(`and(sender_id.eq.${user1},receiver_id.eq.${user2}),and(sender_id.eq.${user2},receiver_id.eq.${user1})`)
                 .order('created_at', { ascending: true })
-                .limit(50); // Charger les 50 derniers messages
+                .limit(50);
 
             if (error) throw error;
             return data || [];
         } catch (e) {
-            console.warn("Erreur chargement messages (Table existe-t-elle ?):", e);
             return [];
         }
     },
 
-    // Envoyer un message
     sendMessage: async (senderId: string, receiverId: string, text: string) => {
         if (!supabase) return null;
         try {
@@ -179,12 +154,10 @@ export const DB = {
             if (error) throw error;
             return data;
         } catch (e) {
-            console.error("Erreur envoi message:", e);
             return null;
         }
     },
 
-    // Marquer les messages comme lus
     markMessagesAsRead: async (senderId: string, receiverId: string) => {
         if (!supabase) return;
         try {
@@ -197,7 +170,6 @@ export const DB = {
         }
     },
 
-    // Récupérer le nombre de messages non lus pour l'utilisateur actuel
     getUnreadCount: async (userId: string) => {
         if (!supabase) return 0;
         try {

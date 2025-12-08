@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon, ArrowRight, ArrowLeft, AlertTriangle, Megaphone } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -119,7 +119,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const [message, setMessage] = useState<string>('');
     const [earnedCoins, setEarnedCoins] = useState(0);
     
-    // Direction: 1 = Clockwise, -1 = Counter-Clockwise
+    // Direction: 1 = Clockwise, -1 = Counter-Clockwise (Visual only in 1v1)
     const [playDirection, setPlayDirection] = useState<1 | -1>(1);
 
     // Manual Mechanics State
@@ -174,7 +174,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         resumeAudio();
     };
 
-    // Draw Card Logic with optional manual discard pile state to prevent race conditions
     const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[]) => {
         playLand();
         let currentDeck = [...deck];
@@ -212,7 +211,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     useEffect(() => {
         if (turn === 'PLAYER') {
             setHasDrawnThisTurn(false);
-            setPlayerCalledUno(false); // Reset uno call at start of turn
+            setPlayerCalledUno(false); 
         }
     }, [turn]);
 
@@ -259,7 +258,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     };
 
-    // --- ANIMATION ---
+    // --- ANIMATION & PLAY ---
     const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect) => {
         setIsAnimating(true);
         playMove();
@@ -310,7 +309,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const executeCardEffect = (card: Card, index: number, actor: Turn) => {
         let hand = actor === 'PLAYER' ? [...playerHand] : [...cpuHand];
         
-        // Remove card logic
         const cardInHandIndex = hand.findIndex(c => c.id === card.id);
         if (cardInHandIndex !== -1) hand.splice(cardInHandIndex, 1);
         else hand.splice(index, 1);
@@ -318,7 +316,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         if (actor === 'PLAYER') setPlayerHand(hand);
         else setCpuHand(hand);
 
-        // Update pile
         const newDiscardPile = [...discardPile, card];
         setDiscardPile(newDiscardPile);
         
@@ -330,14 +327,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         if (hand.length === 1) {
             if (actor === 'PLAYER') {
                 if (!playerCalledUno) {
-                    // Penalty!
                     setMessage("OUBLI UNO ! +2");
-                    playGameOver(); // Bad sound
+                    playGameOver(); 
                     drawCard('PLAYER', 2, newDiscardPile);
                 }
             } else {
-                // CPU Logic
-                // 25% chance CPU forgets to say UNO
+                // CPU Logic: 25% chance CPU forgets to say UNO
                 const cpuForgets = Math.random() < 0.25; 
                 
                 if (cpuForgets) {
@@ -364,7 +359,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         } else if (card.value === 'reverse') {
             setMessage("Sens inverse !");
             setPlayDirection(prev => prev * -1 as 1 | -1);
-            nextTurn = actor; // In 2 player, reverse acts like skip
+            nextTurn = actor; 
         } else if (card.value === 'draw2') {
             setMessage("+2 cartes !");
             drawCard(nextTurn, 2, newDiscardPile);
@@ -438,18 +433,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1;
                         return 0;
                     });
-                    
                     const move = validIndices[0];
                     animateCardPlay(move.c, move.i, 'CPU');
-
                 } else {
-                    // CPU Draws
                     drawCard('CPU', 1);
-                    // Standard pass for CPU if it draws
                     setTurn('PLAYER');
                 }
-
-            }, 1500); // Slower CPU turn for better pacing
+            }, 1500); 
             return () => clearTimeout(timer);
         }
     }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating]);
@@ -471,7 +461,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     };
 
     // --- SUB-COMPONENTS ---
-
     const CardView = ({ card, onClick, faceUp = true, small = false, style }: { card: Card, onClick?: (e: React.MouseEvent) => void, faceUp?: boolean, small?: boolean, style?: React.CSSProperties }) => {
         if (!faceUp) {
             return (
@@ -487,13 +476,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         <span className="font-script text-neon-pink text-[10px] sm:text-xs leading-none drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]">Neon</span>
                         <span className="font-black italic text-cyan-400 text-sm sm:text-lg leading-none drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">UNO</span>
                     </div>
-                    <div className="absolute -inset-1 bg-gradient-to-tr from-transparent via-white/5 to-transparent group-hover:via-white/10 transition-all"></div>
                 </div>
             );
         }
 
         const config = COLOR_CONFIG[card.color];
-        
         let displayValue: string = card.value;
         let Icon = null;
 
@@ -555,10 +542,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 <div className="absolute bottom-1 right-1.5 text-[10px] sm:text-sm font-bold leading-none transform rotate-180 text-white drop-shadow-md z-20">
                     {Icon ? <Icon size={12}/> : displayValue}
                 </div>
-                
-                {isWild && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none z-30"></div>
-                )}
             </div>
         );
     };
@@ -584,7 +567,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         );
     };
 
-    // Calculate spacing for hand
     let spacingClass = '-space-x-12 sm:-space-x-16';
     let rotationFactor = 3; 
     
@@ -629,18 +611,17 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 </div>
 
                 {/* Center Table */}
-                <div className="flex-1 flex items-center justify-center gap-8 sm:gap-16 relative">
+                <div className="flex-1 flex items-center justify-center gap-4 sm:gap-8 relative">
                     
                     {/* Direction Indicator Area - Surrounding Both Piles */}
                     <div className={`absolute pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text} opacity-30 z-0`}>
-                        <div className="w-[280px] h-[160px] sm:w-[380px] sm:h-[200px] border-4 border-dashed border-current rounded-[50px] relative flex items-center justify-center">
-                             {/* Top Arrow */}
-                             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black px-3 transition-transform duration-300">
-                                 {playDirection === 1 ? <ArrowRight size={24} /> : <ArrowLeft size={24} />}
+                        <div className="w-[320px] h-[180px] border-4 border-dashed border-current rounded-[50px] relative flex items-center justify-center">
+                             {/* Arrows indicating direction (Static) */}
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black px-3">
+                                 {playDirection === 1 ? <ArrowRight size={32} /> : <ArrowLeft size={32} />}
                              </div>
-                             {/* Bottom Arrow */}
-                             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-black px-3 transition-transform duration-300">
-                                 {playDirection === 1 ? <ArrowLeft size={24} /> : <ArrowRight size={24} />}
+                             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-black px-3">
+                                 {playDirection === 1 ? <ArrowLeft size={32} /> : <ArrowRight size={32} />}
                              </div>
                         </div>
                     </div>
@@ -674,12 +655,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     </div>
                 </div>
 
-                {/* Player Area Container - Increased Height/Flexibility */}
+                {/* Player Area Container */}
                 <div className="w-full relative px-4 z-20 pb-8 min-h-[180px] flex flex-col justify-end">
                     
-                    {/* UNO Buttons Layer */}
+                    {/* Buttons Layer */}
                     <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-30 h-16 items-end">
-                        {/* Player UNO Button */}
                         {playerHand.length === 2 && turn === 'PLAYER' && !playerCalledUno && (
                             <button 
                                 onClick={handleUnoClick}
@@ -689,7 +669,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                             </button>
                         )}
 
-                        {/* Contest Button */}
                         {showContestButton && (
                             <button 
                                 onClick={handleContestClick}
@@ -700,7 +679,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         )}
                     </div>
 
-                    {/* Player Hand - Overflow Visible */}
+                    {/* Player Hand - Overflow Visible Fix */}
                     <div className="w-full overflow-x-auto overflow-y-visible no-scrollbar pt-10 pb-4">
                         <div className={`flex justify-center min-w-fit px-8 ${spacingClass} items-end min-h-[160px] transition-all duration-500`}>
                             {playerHand.map((card, i) => {
@@ -773,7 +752,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         </>
                     ) : (
                         <>
-                            <Cpu size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
+                            <Ban size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
                             <h2 className="text-5xl font-black text-white italic mb-4">DÉFAITE...</h2>
                             <p className="text-gray-400 mb-8 text-center">L'ordinateur a vidé sa main.</p>
                         </>
