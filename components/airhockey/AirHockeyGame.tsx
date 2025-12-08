@@ -107,7 +107,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         setIsPaused(prev => !prev);
     };
 
-    const resetRound = useCallback((isBottomGoal: boolean) => {
+    const resetRound = useCallback((isBottomGoal: boolean, forceGameMode?: GameMode) => {
         const newPuckY = isBottomGoal ? TABLE_HEIGHT / 2 + 50 : TABLE_HEIGHT / 2 - 50;
         
         puckRef.current = {
@@ -125,7 +125,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         
         isScoringRef.current = false;
         
-        if (gameMode === 'ONLINE' && isHost) {
+        const mode = forceGameMode || gameMode;
+        if (mode === 'ONLINE' && isHost) {
             sendData({ type: 'AIRHOCKEY_RESET', puckY: newPuckY });
         }
 
@@ -141,7 +142,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         setEarnedCoins(0);
         isScoringRef.current = false;
         setIsPaused(false);
-        resetRound(true);
+        resetRound(true, mode);
         setGameState('playing');
         resumeAudio();
     }, [resetRound, resumeAudio]);
@@ -152,7 +153,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             if (isHost) {
                 if (onlineStep !== 'game') {
                     setOnlineStep('game');
-                    resetRound(true);
+                    resetRound(true, 'ONLINE');
                 }
             } else {
                 if (onlineStep !== 'lobby') {
