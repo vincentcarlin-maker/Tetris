@@ -177,6 +177,45 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setConfigKey(conf.key);
     }, [isConnectedToSupabase, username]);
 
+    // --- REALTIME FRIEND REQUESTS SUBSCRIPTION ---
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (data.type === 'FRIEND_REQUEST') {
+                setRequests(prev => {
+                    // Prevent duplicates
+                    if (prev.some(r => r.id === data.senderId) || friends.some(f => f.id === data.senderId)) return prev;
+                    
+                    audio.playCoin(); // Sound notification
+                    return [...prev, {
+                        id: data.senderId,
+                        name: data.name,
+                        avatarId: data.avatarId,
+                        frameId: data.frameId,
+                        timestamp: Date.now()
+                    }];
+                });
+            }
+            if (data.type === 'FRIEND_ACCEPT') {
+                audio.playVictory();
+                const newFriend: Friend = { 
+                    id: data.senderId, 
+                    name: data.name, 
+                    avatarId: data.avatarId, 
+                    frameId: data.frameId, 
+                    status: 'online', 
+                    lastSeen: Date.now() 
+                };
+                setFriends(prev => {
+                    if (prev.some(f => f.id === newFriend.id)) return prev;
+                    const updated = [...prev, newFriend];
+                    localStorage.setItem('neon_friends', JSON.stringify(updated));
+                    return updated;
+                });
+            }
+        });
+        return () => unsubscribe();
+    }, [mp, friends, audio]);
+
     // --- REALTIME MESSAGING SUBSCRIPTION ---
     useEffect(() => {
         if (!isConnectedToSupabase || !supabase || !username) return;
@@ -329,12 +368,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             return;
         }
 
-        // Real Logic (P2P for requests still, simpler for now)
-        mp.connectTo(targetId);
-        setTimeout(() => {
-            mp.sendTo(targetId, { type: 'FRIEND_REQUEST', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
-            alert('Demande envoyée !');
-        }, 500);
+        // Real Logic (Send directly via Lobby DM)
+        mp.sendTo(targetId, { type: 'FRIEND_REQUEST', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
+        alert('Demande envoyée !');
     };
 
     const acceptRequest = (req: FriendRequest) => {
@@ -346,10 +382,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         });
         setRequests(prev => prev.filter(r => r.id !== req.id));
 
-        mp.connectTo(req.id);
-        setTimeout(() => {
-            mp.sendTo(req.id, { type: 'FRIEND_ACCEPT', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
-        }, 500);
+        mp.sendTo(req.id, { type: 'FRIEND_ACCEPT', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
+        audio.playVictory();
     };
 
     // --- MESSAGING LOGIC ---
