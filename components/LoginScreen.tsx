@@ -57,6 +57,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
             return;
         }
 
+        // --- CHLOÉ CHECK ---
+        if (username === 'Chloé' && password === 'chloé') {
+            setIsAnimating(true);
+            
+            // Capture l'avancée actuelle (Local Storage générique) pour l'assigner au profil Chloé
+            // Cela permet de ne pas perdre la progression faite avant la connexion
+            const currentProgress = saveCurrentDataToUserSlot('Chloé');
+
+            setTimeout(() => {
+                // On passe currentProgress comme "cloudData" pour forcer l'import immédiat dans l'App
+                onLogin('Chloé', currentProgress);
+            }, 800);
+            return;
+        }
+
         try {
             // 1. Check Cloud
             const cloudProfile = await onAttemptLogin(username);
