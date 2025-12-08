@@ -295,7 +295,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'uno' && isAuthenticated && (
-                <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
+                <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
             )}
 
             {currentView === 'menu' && (

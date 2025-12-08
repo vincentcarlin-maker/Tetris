@@ -4,7 +4,7 @@ import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins,
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
-import { GRID_SIZE, createEmptyGrid, generateRandomShips, checkHit, getSmartRandomMove, getValidNeighbors, SHIPS_CONFIG, isValidPlacement, placeShipOnGrid } from './logic';
+import { GRID_SIZE, createEmptyGrid, generateRandomShips, checkHit, getCpuMove, SHIPS_CONFIG, isValidPlacement, placeShipOnGrid } from './logic';
 import { Grid, Ship as ShipType, CellStatus, ShipType as ShipTypeName } from './types';
 
 interface BattleshipGameProps {
@@ -181,10 +181,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
   const [notification, setNotification] = useState<{text: string, subtext?: string, type: 'HIT'|'SUNK'|'MISS'} | null>(null);
   const [missile, setMissile] = useState<{ r: number, c: number, target: 'PLAYER' | 'CPU' } | null>(null);
-  
-  // --- IMPROVED AI STATE ---
-  const cpuTargetStack = useRef<{ r: number, c: number }[]>([]); // Stack for potential targets (Hunt mode)
-
+  const lastCpuHitRef = useRef<{ r: number, c: number } | null>(null);
   const [earnedCoins, setEarnedCoins] = useState(0);
   const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, resumeAudio } = audio;
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
@@ -215,10 +212,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     setSetupGrid(createEmptyGrid());
     setCurrentShipIndex(0);
     setEarnedCoins(0);
-    
-    // Reset AI State
-    cpuTargetStack.current = [];
-
+    lastCpuHitRef.current = null;
     setNotification(null);
     setMissile(null);
     setIsDragging(false);
@@ -607,26 +601,9 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     }
   }, [turn, phase, missile, gameMode]);
 
-  // --- SMART AI FIRE LOGIC ---
   const cpuFire = () => {
-    // 1. Determine Move Strategy
-    let r, c;
-    let fromStack = false;
-
-    // A. Priority: Target Stack (Hunt Mode after a hit)
-    if (cpuTargetStack.current.length > 0) {
-        // Pop last added target (Depth First helps follow lines)
-        const target = cpuTargetStack.current.pop()!;
-        r = target.r; 
-        c = target.c;
-        fromStack = true;
-    } else {
-        // B. Hunt Mode (Smart Random with Parity)
-        const move = getSmartRandomMove(playerGrid);
-        r = move.r; 
-        c = move.c;
-    }
-
+    const move = getCpuMove(playerGrid, lastCpuHitRef.current);
+    const { r, c } = move;
     launchAttack(r, c, 'PLAYER', () => {
         const isHit = playerGrid[r][c] === 1;
         const newPlayerGrid = playerGrid.map(row => [...row]);
@@ -635,29 +612,15 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
         if (isHit) {
             playBlockHit();
-            
-            // --- AI INTELLIGENCE UPDATE ---
-            // If hit, add neighbors to stack to investigate
-            const neighbors = getValidNeighbors(newPlayerGrid, r, c);
-            
-            // Randomize neighbors slightly so it doesn't always look same direction first
-            neighbors.sort(() => Math.random() - 0.5);
-            
-            // Add to stack
-            cpuTargetStack.current.push(...neighbors);
-
+            lastCpuHitRef.current = { r, c };
             const shipUpdate = checkHit(r, c, playerShips);
             if (shipUpdate.sunk) {
                 playShipSink();
-                // Note: We could clear the stack here if we knew for sure no other ships are adjacent,
-                // but in Battleship, ships can touch. It's safer to keep the stack.
-                // The `getValidNeighbors` check ensures we don't shoot at already revealed cells.
-                
+                lastCpuHitRef.current = null;
                 const sunkShip = playerShips.find(s => s.id === shipUpdate.shipId);
                 const shipName = SHIPS_CONFIG.find(sc => sc.type === sunkShip?.type)?.label || sunkShip?.type;
                 setNotification({ text: "ALERTE !", subtext: `${shipName} COULÉ`, type: 'SUNK' });
             } else { setNotification({ text: "IMPACT !", type: 'HIT' }); }
-            
             if (playerShips.every(s => s.sunk)) { handleGameOver('CPU'); }
         } else {
             playWallHit();
