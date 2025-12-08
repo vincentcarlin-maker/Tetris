@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers, Hexagon, ArrowRight, ArrowLeft, AlertTriangle, Megaphone } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -122,8 +122,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     // Direction: 1 = Clockwise, -1 = Counter-Clockwise
     const [playDirection, setPlayDirection] = useState<1 | -1>(1);
 
-    // Animation States
+    // Manual Mechanics State
     const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
+    const [playerCalledUno, setPlayerCalledUno] = useState(false);
+    const [showContestButton, setShowContestButton] = useState(false);
+
+    // Animation States
     const [flyingCard, setFlyingCard] = useState<FlyingCardData | null>(null);
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -164,7 +168,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setEarnedCoins(0);
         setHasDrawnThisTurn(false);
         setIsAnimating(false);
-        setPlayDirection(1); 
+        setPlayDirection(1);
+        setPlayerCalledUno(false);
+        setShowContestButton(false);
         resumeAudio();
     };
 
@@ -206,43 +212,52 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     useEffect(() => {
         if (turn === 'PLAYER') {
             setHasDrawnThisTurn(false);
+            setPlayerCalledUno(false); // Reset uno call at start of turn
         }
     }, [turn]);
 
-    // --- AUTO DRAW LOGIC ---
-    useEffect(() => {
-        if (turn === 'PLAYER' && gameState === 'playing' && !isAnimating) {
+    // --- MANUAL DRAW ACTION ---
+    const handleDrawPileClick = () => {
+        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating || hasDrawnThisTurn) return;
+
+        const drawn = drawCard('PLAYER', 1);
+        setHasDrawnThisTurn(true);
+
+        const newCard = drawn[0];
+        if (newCard) {
             const topCard = discardPile[discardPile.length - 1];
-            if (!topCard) return;
+            const canPlay = 
+                newCard.color === activeColor || 
+                newCard.value === topCard.value || 
+                newCard.color === 'black';
 
-            const canPlay = playerHand.some(c => 
-                c.color === activeColor || 
-                c.value === topCard.value || 
-                c.color === 'black'
-            );
-
-            if (!canPlay) {
-                if (!hasDrawnThisTurn) {
-                    const timer = setTimeout(() => {
-                        setMessage("Bloqué... Pioche auto !");
-                        drawCard('PLAYER', 1);
-                        setHasDrawnThisTurn(true);
-                    }, 1000);
-                    return () => clearTimeout(timer);
-                } else {
-                    const timer = setTimeout(() => {
-                        setMessage("Toujours rien... Passe !");
-                        setTurn('CPU');
-                    }, 1500);
-                    return () => clearTimeout(timer);
-                }
+            if (canPlay) {
+                setMessage("Carte jouable !");
             } else {
-                if (hasDrawnThisTurn) {
-                    setMessage("Tu peux jouer !");
-                }
+                setMessage("Pas de chance...");
+                setTimeout(() => setTurn('CPU'), 1000);
             }
         }
-    }, [turn, playerHand, activeColor, discardPile, gameState, hasDrawnThisTurn, isAnimating]);
+    };
+
+    // --- UNO CALL ACTIONS ---
+    const handleUnoClick = () => {
+        if (turn === 'PLAYER' && playerHand.length === 2 && !playerCalledUno) {
+            setPlayerCalledUno(true);
+            setUnoShout('PLAYER');
+            playPaddleHit();
+            setTimeout(() => setUnoShout(null), 1500);
+        }
+    };
+
+    const handleContestClick = () => {
+        if (showContestButton) {
+            setMessage("CONTRE-UNO ! +2 pour CPU");
+            playPaddleHit();
+            setShowContestButton(false);
+            drawCard('CPU', 2);
+        }
+    };
 
     // --- ANIMATION ---
     const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect) => {
@@ -295,17 +310,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const executeCardEffect = (card: Card, index: number, actor: Turn) => {
         let hand = actor === 'PLAYER' ? [...playerHand] : [...cpuHand];
         
+        // Remove card logic
         const cardInHandIndex = hand.findIndex(c => c.id === card.id);
-        if (cardInHandIndex !== -1) {
-            hand.splice(cardInHandIndex, 1);
-        } else {
-            hand.splice(index, 1);
-        }
+        if (cardInHandIndex !== -1) hand.splice(cardInHandIndex, 1);
+        else hand.splice(index, 1);
         
         if (actor === 'PLAYER') setPlayerHand(hand);
         else setCpuHand(hand);
 
-        // Update pile immediately to prevent race conditions with drawCard
+        // Update pile
         const newDiscardPile = [...discardPile, card];
         setDiscardPile(newDiscardPile);
         
@@ -313,10 +326,29 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setActiveColor(card.color);
         }
 
+        // --- UNO CHECK LOGIC ---
         if (hand.length === 1) {
-            setUnoShout(actor);
-            playPaddleHit();
-            setTimeout(() => setUnoShout(null), 2000);
+            if (actor === 'PLAYER') {
+                if (!playerCalledUno) {
+                    // Penalty!
+                    setMessage("OUBLI UNO ! +2");
+                    playGameOver(); // Bad sound
+                    drawCard('PLAYER', 2, newDiscardPile);
+                }
+            } else {
+                // CPU Logic
+                // 25% chance CPU forgets to say UNO
+                const cpuForgets = Math.random() < 0.25; 
+                
+                if (cpuForgets) {
+                    setShowContestButton(true);
+                    setTimeout(() => setShowContestButton(false), 2000);
+                } else {
+                    setUnoShout('CPU');
+                    playPaddleHit();
+                    setTimeout(() => setUnoShout(null), 1500);
+                }
+            }
         }
 
         if (hand.length === 0) {
@@ -411,11 +443,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     animateCardPlay(move.c, move.i, 'CPU');
 
                 } else {
+                    // CPU Draws
                     drawCard('CPU', 1);
+                    // Standard pass for CPU if it draws
                     setTurn('PLAYER');
                 }
 
-            }, 1000);
+            }, 1500); // Slower CPU turn for better pacing
             return () => clearTimeout(timer);
         }
     }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating]);
@@ -481,7 +515,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
         const liftClass = isPlayerHand 
             ? (isPlayable 
-                ? '-translate-y-4 sm:-translate-y-6 shadow-[0_0_20px_rgba(255,255,255,0.3)] z-20 brightness-110 ring-2 ring-white/50' 
+                ? '-translate-y-6 sm:-translate-y-8 shadow-[0_0_25px_rgba(255,255,255,0.4)] z-30 brightness-110 ring-2 ring-white/70' 
                 : 'brightness-50 z-0 translate-y-2') 
             : '';
 
@@ -531,7 +565,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
     const FlyingCardOverlay = () => {
         if (!flyingCard) return null;
-        
         return (
             <div 
                 className="fixed z-[100] pointer-events-none"
@@ -551,7 +584,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         );
     };
 
-    // Calculate spacing
+    // Calculate spacing for hand
     let spacingClass = '-space-x-12 sm:-space-x-16';
     let rotationFactor = 3; 
     
@@ -612,13 +645,22 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         </div>
                     </div>
 
-                    {/* Draw Pile */}
-                    <div className="relative group opacity-80 cursor-not-allowed z-10">
+                    {/* Draw Pile (Deck) - Interactive */}
+                    <div 
+                        onClick={handleDrawPileClick}
+                        className={`relative group z-10 transition-transform ${turn === 'PLAYER' && !hasDrawnThisTurn ? 'cursor-pointer hover:scale-105 active:scale-95' : 'opacity-80 cursor-not-allowed'}`}
+                    >
                         <div className="w-20 h-28 sm:w-28 sm:h-40 bg-gray-900 border-2 border-gray-600 rounded-xl flex items-center justify-center shadow-2xl relative">
+                            {turn === 'PLAYER' && !hasDrawnThisTurn && <div className="absolute inset-0 bg-white/10 animate-pulse rounded-xl"></div>}
                             <Layers size={32} className="text-gray-600" />
                             <div className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border border-black shadow">
                                 {deck.length}
                             </div>
+                            {turn === 'PLAYER' && !hasDrawnThisTurn && (
+                                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-black/50 px-2 py-1 rounded">
+                                    PIOCHER
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -632,29 +674,56 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     </div>
                 </div>
 
-                {/* Player Hand */}
-                <div className="w-full overflow-x-auto pb-6 px-4 no-scrollbar z-20">
-                    <div className={`flex justify-center min-w-fit px-8 ${spacingClass} items-end min-h-[160px] pt-4 transition-all duration-500`}>
-                        {playerHand.map((card, i) => {
-                            if (flyingCard && flyingCard.card.id === card.id) {
-                                return (
-                                    <div key={card.id} style={{ width: '0px', transition: 'width 0.5s' }}></div>
-                                )
-                            }
+                {/* Player Area Container - Increased Height/Flexibility */}
+                <div className="w-full relative px-4 z-20 pb-8 min-h-[180px] flex flex-col justify-end">
+                    
+                    {/* UNO Buttons Layer */}
+                    <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-30 h-16 items-end">
+                        {/* Player UNO Button */}
+                        {playerHand.length === 2 && turn === 'PLAYER' && !playerCalledUno && (
+                            <button 
+                                onClick={handleUnoClick}
+                                className="pointer-events-auto bg-red-600 hover:bg-red-500 text-white font-black text-xl px-8 py-3 rounded-full shadow-[0_0_20px_red] animate-bounce transition-all active:scale-95 flex items-center gap-2 border-4 border-yellow-400"
+                            >
+                                <Megaphone size={24} fill="white" /> CRIER UNO !
+                            </button>
+                        )}
 
-                            return (
-                                <div 
-                                    key={card.id} 
-                                    style={{ 
-                                        transform: `rotate(${(i - playerHand.length/2) * rotationFactor}deg) translateY(${Math.abs(i - playerHand.length/2) * (rotationFactor * 1.5)}px)`,
-                                        zIndex: i 
-                                    }}
-                                    className={`transition-transform duration-300 origin-bottom`}
-                                >
-                                    <CardView card={card} onClick={(e) => handlePlayerCardClick(e, card, i)} />
-                                </div>
-                            );
-                        })}
+                        {/* Contest Button */}
+                        {showContestButton && (
+                            <button 
+                                onClick={handleContestClick}
+                                className="pointer-events-auto bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg px-6 py-3 rounded-full shadow-[0_0_20px_yellow] animate-pulse transition-all active:scale-95 flex items-center gap-2 border-4 border-red-600"
+                            >
+                                <AlertTriangle size={24} fill="black" /> CONTRE-UNO !
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Player Hand - Overflow Visible */}
+                    <div className="w-full overflow-x-auto overflow-y-visible no-scrollbar pt-10 pb-4">
+                        <div className={`flex justify-center min-w-fit px-8 ${spacingClass} items-end min-h-[160px] transition-all duration-500`}>
+                            {playerHand.map((card, i) => {
+                                if (flyingCard && flyingCard.card.id === card.id) {
+                                    return (
+                                        <div key={card.id} style={{ width: '0px', transition: 'width 0.5s' }}></div>
+                                    )
+                                }
+
+                                return (
+                                    <div 
+                                        key={card.id} 
+                                        style={{ 
+                                            transform: `rotate(${(i - playerHand.length/2) * rotationFactor}deg) translateY(${Math.abs(i - playerHand.length/2) * (rotationFactor * 1.5)}px)`,
+                                            zIndex: i 
+                                        }}
+                                        className={`transition-transform duration-300 origin-bottom`}
+                                    >
+                                        <CardView card={card} onClick={(e) => handlePlayerCardClick(e, card, i)} />
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>
