@@ -65,7 +65,13 @@ export const DB = {
                 .eq('username', username)
                 .single();
             
-            if (error) return null;
+            if (error) {
+                // Ignore "row not found" errors, they are normal for new users
+                if (error.code !== 'PGRST116') {
+                    console.warn("Error fetching profile:", error.message);
+                }
+                return null;
+            }
             return data; 
         } catch (e) {
             return null;
@@ -73,20 +79,26 @@ export const DB = {
     },
 
     saveUserProfile: async (username: string, profileData: any) => {
-        if (!supabase) return null;
+        if (!supabase) return { success: false, error: "No Supabase client" };
         try {
+            console.log(`☁️ Saving profile for [${username}]...`);
+            
             // 1. Fetch existing data first to prevent overwrite
-            const { data: existing } = await supabase
+            const { data: existing, error: fetchError } = await supabase
                 .from('profiles')
                 .select('data')
                 .eq('username', username)
                 .single();
             
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.warn("⚠️ Fetch error before save:", fetchError.message);
+            }
+            
             // 2. Merge existing data with new data (new data takes precedence)
             const mergedData = { ...(existing?.data || {}), ...profileData };
 
             // 3. Save merged data
-            const { error } = await supabase
+            const { error: saveError } = await supabase
                 .from('profiles')
                 .upsert({ 
                     username: username,
@@ -94,8 +106,15 @@ export const DB = {
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'username' });
             
-            return { success: !error, error };
+            if (saveError) {
+                console.error("❌ SAVE FAILED:", saveError.message, saveError.details);
+                return { success: false, error: saveError };
+            }
+            
+            console.log("✅ Profile saved successfully!");
+            return { success: true, error: null };
         } catch (e) {
+            console.error("❌ Exception during save:", e);
             return { success: false, error: e };
         }
     },

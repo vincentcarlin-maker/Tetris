@@ -91,15 +91,7 @@ const App: React.FC = () => {
         return payload;
     };
 
-    // 1. Immediate Save on Login (Fixes "Missing data if closed quickly" bug)
-    useEffect(() => {
-        if (isAuthenticated && currency.username) {
-            console.log("💾 Force Initial Save for", currency.username);
-            syncProfileToCloud(currency.username, buildSavePayload());
-        }
-    }, [isAuthenticated]);
-
-    // 2. Debounced Save on State Change
+    // 1. Debounced Save on State Change
     useEffect(() => {
         if (!isAuthenticated || !currency.username) return;
 
@@ -213,6 +205,12 @@ const App: React.FC = () => {
             if (cloudData.highScores) {
                 importScores(cloudData.highScores);
             }
+            
+            // FORCE IMMEDIATE SAVE FOR NEW PROFILES
+            // If cloudData came from local scraping (LoginScreen), it needs to be pushed to Supabase immediately.
+            // We use the passed 'username' and 'cloudData' directly to avoid state race conditions.
+            console.log("💾 Force Initial Save for", username);
+            syncProfileToCloud(username, cloudData);
         } else {
             currency.refreshData(); 
         }
