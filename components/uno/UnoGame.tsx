@@ -184,11 +184,44 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setOnlineStep('connecting');
             mp.connect();
         } else {
-            mp.disconnect();
+            // DO NOT DISCONNECT GLOBALLY (PRESERVES LOBBY CONNECTION)
+            // Only leave specific game context
+            if (mp.mode === 'in_game' || mp.isHost) {
+                mp.leaveGame();
+            }
             setOpponentLeft(false);
         }
-        return () => mp.disconnect();
     }, [gameMode]);
+
+    // --- HELPER: RESET TABLE (Does NOT change phase to MENU) ---
+    const clearTable = useCallback(() => {
+        setPlayerHand([]);
+        setCpuHand([]);
+        setDeck([]);
+        setDiscardPile([]);
+        setScore(0);
+        setUnoShout(null);
+        setEarnedCoins(0);
+        setHasDrawnThisTurn(false);
+        setIsAnimating(false);
+        setPlayDirection(1);
+        setPlayerCalledUno(false);
+        setShowContestButton(false);
+        setChatHistory([]);
+        setOpponentLeft(false);
+        setGameState('playing');
+        setWinner(null);
+        setMessage('');
+        setIsWaitingForHost(false);
+    }, []);
+
+    const backToMenu = () => {
+        setPhase('MENU');
+        if (gameMode === 'ONLINE') {
+            // Keep connection but reset UI
+            if (mp.mode === 'in_game' || mp.isHost) mp.leaveGame();
+        }
+    };
 
     // --- EFFECT: LOBBY/GAME TRANSITION ---
     useEffect(() => {
@@ -196,7 +229,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
-            if (phase === 'GAME') resetGame(); // Kick back to menu if game ends abruptly
+            
+            // If in lobby but have game data, just clear the table, don't kick to menu
+            if (phase === 'GAME' && (playerHand.length > 0 || cpuHand.length > 0 || winner)) {
+                clearTable();
+            }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
@@ -205,7 +242,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 initGame('ONLINE');
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, playerHand.length, cpuHand.length, winner, clearTable]);
 
     // --- EFFECT: ONLINE DATA HANDLER (STABLE) ---
     useEffect(() => {
@@ -300,20 +337,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     // --- GAME ACTIONS ---
 
     const startNewGame = () => {
-        setScore(0);
-        setUnoShout(null);
-        setMessage("Distribution...");
-        setEarnedCoins(0);
-        setHasDrawnThisTurn(false);
-        setIsAnimating(false);
-        setPlayDirection(1);
-        setPlayerCalledUno(false);
-        setShowContestButton(false);
-        setChatHistory([]);
-        setOpponentLeft(false);
-        setGameState('playing');
-        setWinner(null);
+        clearTable();
         resumeAudio();
+        setMessage("Distribution...");
 
         if (gameMode === 'SOLO') {
             const newDeck = generateDeck();
@@ -379,10 +405,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setPhase('GAME');
         if (mode === 'SOLO') startNewGame();
         else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame();
-    };
-
-    const resetGame = () => {
-        setPhase('MENU');
     };
 
     const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[]) => {
@@ -734,11 +756,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
     const handleLocalBack = () => {
         if (phase === 'GAME') {
-            if (gameMode === 'ONLINE') mp.leaveGame();
-            setPhase('MENU');
+            backToMenu();
         } else if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
-            setPhase('MENU');
-            mp.disconnect();
+            backToMenu();
         } else {
             onBack();
         }
@@ -1000,7 +1020,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         <>
                             <LogOut size={64} className="text-red-500 mb-4" />
                             <h2 className="text-3xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
-                            <button onClick={handleLocalBack} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 mt-4"><Home size={18} /> RETOUR AU MENU</button>
+                            <button onClick={backToMenu} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 mt-4"><Home size={18} /> RETOUR AU MENU</button>
                         </>
                     ) : (
                         <>
@@ -1019,7 +1039,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                             )}
                             <div className="flex gap-4">
                                 <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : startNewGame} className="px-8 py-4 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
-                                <button onClick={handleLocalBack} className="px-8 py-4 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
+                                <button onClick={backToMenu} className="px-8 py-4 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
                             </div>
                         </>
                     )}
