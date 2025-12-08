@@ -110,6 +110,15 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     const chatEndRef = useRef<HTMLDivElement>(null);
 
+    // Refs to track state inside event listeners without re-subscribing
+    const activeChatIdRef = useRef(activeChatId);
+    const showSocialRef = useRef(showSocial);
+
+    useEffect(() => {
+        activeChatIdRef.current = activeChatId;
+        showSocialRef.current = showSocial;
+    }, [activeChatId, showSocial]);
+
     const handleDragStart = (clientY: number) => {
         isDraggingRef.current = true;
         dragStartRef.current = clientY;
@@ -204,28 +213,38 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         return () => unsubscribe();
     }, [mp, friends, audio]);
 
-    // ... (Rest of messaging subscription and activity logic remains similar)
+    // --- REALTIME MESSAGING SUBSCRIPTION ---
+    // Moved out to be stable and not depend on activeChatId/showSocial
     useEffect(() => {
         if (!isConnectedToSupabase || !supabase || !username) return;
+
         const channel = supabase.channel('messages_listener')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${username}` }, (payload) => {
                     const newMsg = payload.new;
                     audio.playCoin();
+                    
                     setMessages(prev => {
                         const senderId = newMsg.sender_id;
                         const existingChat = prev[senderId] || [];
                         if (existingChat.find(m => m.id === newMsg.id.toString())) return prev;
                         return { ...prev, [senderId]: [...existingChat, { id: newMsg.id.toString(), senderId: senderId, text: newMsg.text, timestamp: new Date(newMsg.created_at).getTime(), read: false }] };
                     });
-                    if (activeChatId !== newMsg.sender_id || !showSocial) {
+
+                    // Use refs to check current UI state without re-subscribing
+                    const currentActiveId = activeChatIdRef.current;
+                    const isSocialOpen = showSocialRef.current;
+
+                    if (currentActiveId !== newMsg.sender_id || !isSocialOpen) {
                         setUnreadCount(prev => prev + 1);
                     } else {
+                        // If chat is open, mark read immediately
                         DB.markMessagesAsRead(newMsg.sender_id, username);
                     }
                 }
             ).subscribe();
+
         return () => { supabase.removeChannel(channel); };
-    }, [isConnectedToSupabase, username, activeChatId, showSocial, audio]);
+    }, [isConnectedToSupabase, username, audio]); // Stable dependencies
 
     useEffect(() => {
         setFriends(prevFriends => {
@@ -440,8 +459,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 </div>
             )}
 
-            {/* Rest of the component (Config Modal, Main Modal) is mostly UI and omitted for brevity as main logic is in handlers above */}
-            {/* Make sure to include the full JSX structure in the real file */}
             {showSocial && (
                 <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
                     <div className="bg-gray-900 w-full max-w-md h-[650px] max-h-full rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden relative">
@@ -456,7 +473,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             {activeChatId && <button onClick={() => setSocialTab('CHAT')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'CHAT' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>TCHAT</button>}
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/20">
-                            {/* ... Content Rendering Logic ... */}
                             {socialTab === 'COMMUNITY' && (
                                 <div className="space-y-4">
                                     <div className={`border p-3 rounded-lg text-center mb-2 flex items-center justify-center gap-2 ${isConnectedToSupabase ? 'bg-green-900/20 border-green-500/30 text-green-400' : 'bg-gray-800/50 border-white/10 text-gray-400'}`}>
