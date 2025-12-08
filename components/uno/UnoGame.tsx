@@ -90,7 +90,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const [message, setMessage] = useState<string>('');
     const [earnedCoins, setEarnedCoins] = useState(0);
     
-    // NEW STATE: Track auto-draw status to avoid loops
+    // NEW STATE: Track if player has already auto-drawn this turn
     const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
 
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
@@ -163,7 +163,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         return drawnCards;
     };
 
-    // Reset drawn state when turn switches to player
+    // Reset draw state when turn changes to PLAYER
     useEffect(() => {
         if (turn === 'PLAYER') {
             setHasDrawnThisTurn(false);
@@ -176,16 +176,16 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             const topCard = discardPile[discardPile.length - 1];
             if (!topCard) return;
 
-            // Check playability
-            const canPlay = playerHand.some(c =>
-                c.color === activeColor ||
-                c.value === topCard.value ||
+            // Check if player has ANY playable card
+            const canPlay = playerHand.some(c => 
+                c.color === activeColor || 
+                c.value === topCard.value || 
                 c.color === 'black'
             );
 
             if (!canPlay) {
                 if (!hasDrawnThisTurn) {
-                    // Scenario 1: Start of turn, blocked. Auto draw.
+                    // Scenario 1: First check, no cards -> Auto Draw after delay
                     const timer = setTimeout(() => {
                         setMessage("Bloqué... Pioche auto !");
                         drawCard('PLAYER', 1);
@@ -193,14 +193,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     }, 1000);
                     return () => clearTimeout(timer);
                 } else {
-                    // Scenario 2: Already drew, still blocked. Auto pass.
+                    // Scenario 2: Already drawn, STILL no cards -> Auto Pass
                     const timer = setTimeout(() => {
-                        setMessage("Toujours rien... Je passe !");
+                        setMessage("Toujours rien... Passe !");
                         setTurn('CPU');
                     }, 1500);
                     return () => clearTimeout(timer);
                 }
             } else {
+                // Player CAN play (either initially or after drawing)
                 if (hasDrawnThisTurn) {
                     setMessage("Tu peux jouer !");
                 }
@@ -302,6 +303,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     };
 
+    // Removed manual draw handler since it is now automatic
+
     const handleColorSelect = (color: Color) => {
         setActiveColor(color);
         setGameState('playing');
@@ -388,7 +391,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         else if (card.value === 'wild') Icon = Palette;
         else if (card.value === 'wild4') displayValue = '+4';
 
-        // Add conditional opacity for player hand
+        // Add conditional styling for player hand
         const isPlayerHand = onClick !== undefined;
         let isPlayable = true;
         
@@ -399,24 +402,42 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
              }
         }
 
-        const visualStyle = isPlayerHand ? (isPlayable ? 'brightness-125 -translate-y-4 shadow-[0_0_15px_rgba(255,255,255,0.3)] z-10' : 'brightness-75 opacity-80') : '';
+        // Logic for lifting playable cards:
+        // isPlayable -> lift, full brightness
+        // !isPlayable -> normal position, slightly darker (but NOT transparent)
+        const visualStyle = isPlayerHand 
+            ? (isPlayable 
+                ? 'brightness-125 -translate-y-4 shadow-[0_0_15px_rgba(255,255,255,0.4)] z-20 ring-1 ring-white/50' 
+                : 'brightness-50 z-0') 
+            : '';
 
         return (
             <div 
                 onClick={onClick}
                 className={`
                     ${small ? 'w-10 h-14' : 'w-16 h-24 sm:w-24 sm:h-36'} 
-                    bg-gray-900 ${bgClass} border-2 ${colorClass} rounded-lg flex flex-col items-center justify-center
-                    relative cursor-pointer hover:-translate-y-6 transition-transform duration-200 select-none
+                    relative rounded-lg flex flex-col items-center justify-center overflow-hidden
+                    cursor-pointer hover:-translate-y-6 transition-all duration-300 select-none
                     shadow-xl ${visualStyle}
                 `}
             >
-                <div className="absolute inset-0 bg-gray-900 opacity-90 -z-10 rounded-lg"></div>
-                <div className="absolute top-1 left-1 text-[10px] font-bold leading-none">{Icon ? <Icon size={10}/> : displayValue}</div>
-                <div className="absolute bottom-1 right-1 text-[10px] font-bold leading-none transform rotate-180">{Icon ? <Icon size={10}/> : displayValue}</div>
+                {/* 1. Base Solid Layer to prevent transparency */}
+                <div className="absolute inset-0 bg-gray-900 z-0"></div>
                 
-                <div className="text-2xl sm:text-4xl font-black drop-shadow-md">
-                    {Icon ? <Icon size={small ? 16 : 32}/> : displayValue}
+                {/* 2. Color Tint Layer */}
+                <div className={`absolute inset-0 ${bgClass} z-0`}></div>
+                
+                {/* 3. Border Layer */}
+                <div className={`absolute inset-0 border-2 ${colorClass} rounded-lg z-10 pointer-events-none`}></div>
+
+                {/* Content */}
+                <div className="relative z-10 w-full h-full flex items-center justify-center">
+                    <div className="absolute top-1 left-1 text-[10px] font-bold leading-none text-white drop-shadow-md">{Icon ? <Icon size={10}/> : displayValue}</div>
+                    <div className="absolute bottom-1 right-1 text-[10px] font-bold leading-none transform rotate-180 text-white drop-shadow-md">{Icon ? <Icon size={10}/> : displayValue}</div>
+                    
+                    <div className="text-2xl sm:text-4xl font-black drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] text-white">
+                        {Icon ? <Icon size={small ? 16 : 32}/> : displayValue}
+                    </div>
                 </div>
             </div>
         );
@@ -476,13 +497,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 {/* Player Hand (Bottom) */}
                 <div className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-x-visible items-end pb-4 min-h-[120px]">
                     {playerHand.map((card, i) => {
-                        const topCard = discardPile[discardPile.length - 1];
-                        const isPlayable = turn === 'PLAYER' && gameState === 'playing' && (
-                            card.color === activeColor || 
-                            (topCard && card.value === topCard.value) || 
-                            card.color === 'black'
-                        );
-                        
                         return (
                             <div 
                                 key={card.id} 
@@ -490,7 +504,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                                     transform: `rotate(${(i - playerHand.length/2) * 2}deg)`,
                                     zIndex: i 
                                 }}
-                                className={`transition-transform duration-300 hover:z-50`}
+                                className={`transition-transform duration-300`}
                             >
                                 <CardView card={card} onClick={() => handlePlayerCardClick(card, i)} />
                             </div>
