@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency, Mallet } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -51,6 +51,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [gameState, setGameState] = useState<GameState>('menu');
     const [gameMode, setGameMode] = useState<GameMode>('SINGLE');
+    const [isPaused, setIsPaused] = useState(false);
     
     // Score is now absolute: P1 (Host/Bottom in Single) vs P2 (Client/Top in Single)
     const [score, setScore] = useState({ p1: 0, p2: 0 });
@@ -102,6 +103,12 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         return () => mp.disconnect();
     }, [gameMode]);
 
+    const togglePause = () => {
+        if (gameState !== 'playing') return;
+        if (gameMode === 'ONLINE') return; // No pause in online mode
+        setIsPaused(prev => !prev);
+    };
+
     // Define resetRound first so it can be used in startGame
     const resetRound = useCallback((isBottomGoal: boolean) => {
         const newPuckY = isBottomGoal ? TABLE_HEIGHT / 2 + 50 : TABLE_HEIGHT / 2 - 50;
@@ -130,6 +137,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         }
 
         setGameState('playing');
+        setIsPaused(false);
     }, [gameMode, isHost, sendData]);
 
     const startGame = useCallback((diff: Difficulty, mode: GameMode = 'SINGLE') => {
@@ -139,6 +147,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         setWinner(null);
         setEarnedCoins(0);
         isScoringRef.current = false;
+        setIsPaused(false);
         resetRound(true);
         setGameState('playing');
         resumeAudio();
@@ -185,6 +194,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             }
             
             setGameState('gameOver');
+            setIsPaused(false);
             
             // Audio & Coins logic
             // In Single: P1 is Player.
@@ -237,6 +247,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 latestNetworkStateRef.current = null; // Clear interpolator
                 isScoringRef.current = false;
                 setGameState('playing');
+                setIsPaused(false);
             }
             else if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
@@ -431,6 +442,13 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             return;
         }
 
+        // --- PAUSE LOGIC ---
+        // If paused, we still want to render (keep the drawing active) but skip physics updates
+        if (isPaused) {
+            animationFrameRef.current = requestAnimationFrame(gameLoop);
+            return;
+        }
+
         const puck = puckRef.current;
         const player = playerMalletRef.current;
         const opponent = opponentMalletRef.current;
@@ -598,7 +616,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         }
 
         animationFrameRef.current = requestAnimationFrame(gameLoop);
-    }, [gameState, difficulty, currentMalletId, malletsCatalog, gameMode, isHost, sendData]);
+    }, [gameState, difficulty, currentMalletId, malletsCatalog, gameMode, isHost, sendData, isPaused]);
 
     // Physics Engine (Extracted to reuse/skip)
     const runPhysics = (puck: Entity, player: Entity, opponent: Entity) => {
@@ -684,7 +702,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     // --- INPUT HANDLING ---
 
     const updateTargets = (clientX: number, clientY: number) => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current || isPaused) return;
         const rect = canvasRef.current.getBoundingClientRect();
         const scaleX = TABLE_WIDTH / rect.width;
         const scaleY = TABLE_HEIGHT / rect.height;
@@ -714,18 +732,19 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
         updateTargets(e.clientX, e.clientY);
-    }, [gameMode]);
+    }, [gameMode, isPaused]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current || isPaused) return;
         e.preventDefault();
         for (let i = 0; i < e.touches.length; i++) {
             const touch = e.touches[i];
             updateTargets(touch.clientX, touch.clientY);
         }
-    }, [gameMode]);
+    }, [gameMode, isPaused]);
 
     const handleTouchStart = (e: React.TouchEvent) => {
+        if (isPaused) return;
         resumeAudio();
         handleTouchMove(e);
     };
@@ -810,7 +829,14 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     <span className="text-white text-lg">VS</span>
                     <span className="text-pink-500">{oppScore}</span>
                 </div>
-                <button onClick={() => { if(gameMode==='ONLINE') mp.requestRematch(); else setGameState('menu'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2">
+                    {gameMode !== 'ONLINE' && gameState === 'playing' && (
+                        <button onClick={togglePause} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
+                            {isPaused ? <Play size={20} /> : <Pause size={20} />}
+                        </button>
+                    )}
+                    <button onClick={() => { if(gameMode==='ONLINE') mp.requestRematch(); else setGameState('menu'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
 
             <div 
@@ -835,6 +861,21 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                             </button>
                             <button onClick={() => selectMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2">
                                 <Globe size={20} className="text-green-500"/> EN LIGNE
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* PAUSE OVERLAY */}
+                {isPaused && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+                        <h2 className="text-4xl font-black text-white mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">PAUSE</h2>
+                        <div className="flex flex-col gap-3 w-48">
+                            <button onClick={togglePause} className="w-full py-3 bg-green-500 text-black font-bold rounded-full hover:bg-white transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+                                <Play size={20} /> REPRENDRE
+                            </button>
+                            <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 border border-white/10">
+                                <Home size={20} /> QUITTER
                             </button>
                         </div>
                     </div>
