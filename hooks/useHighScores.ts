@@ -9,7 +9,8 @@ export interface HighScores {
   invaders: number;
   sudoku: { [difficulty: string]: number }; // difficulty: minMistakes
   memory: number; // minMoves (Lower is better)
-  rush?: { [level: string]: number }; // Add missing type
+  rush?: { [level: string]: number };
+  mastermind?: number; // minAttempts (Lower is better)
 }
 
 const initialHighScores: HighScores = {
@@ -20,7 +21,8 @@ const initialHighScores: HighScores = {
   invaders: 0,
   sudoku: {},
   memory: 0,
-  rush: {}
+  rush: {},
+  mastermind: 0
 };
 
 const HIGHSCORES_KEY = 'neon-highscores';
@@ -41,6 +43,7 @@ export const useHighScores = () => {
         if (!parsed.invaders) parsed.invaders = 0;
         if (!parsed.memory) parsed.memory = 0;
         if (!parsed.rush) parsed.rush = {};
+        if (!parsed.mastermind) parsed.mastermind = 0;
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -81,6 +84,13 @@ export const useHighScores = () => {
         const current = prev.memory || 0;
         if (current === 0 || value < current) {
             newScores.memory = value;
+            shouldUpdate = true;
+        }
+      } else if (game === 'mastermind') {
+        // Lower is better for mastermind. 0 means unset.
+        const current = prev.mastermind || 0;
+        if (current === 0 || value < current) {
+            newScores.mastermind = value;
             shouldUpdate = true;
         }
       } else if (game === 'rush' && subkey !== undefined) {

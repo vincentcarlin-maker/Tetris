@@ -159,7 +159,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-sky-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', 
         glow: 'rgba(56,189,248,0.8)', 
-        badges: { solo: true, online: true, vs: true, new: true }, 
+        badges: { solo: true, online: true, vs: true, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -174,6 +174,19 @@ const GAMES_CONFIG = [
         glow: 'rgba(56,189,248,0.8)', 
         badges: { solo: true, online: false, vs: false, new: false }, 
         reward: '50' 
+    },
+    { 
+        id: 'mastermind', 
+        name: 'MASTERMIND', 
+        icon: BrainCircuit, 
+        color: 'text-indigo-400', 
+        bg: 'bg-indigo-900/20',
+        border: 'border-indigo-500/30',
+        hoverBorder: 'hover:border-indigo-400', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', 
+        glow: 'rgba(129,140,248,0.8)', 
+        badges: { solo: true, online: false, vs: false, new: true }, 
+        reward: 'GAINS' 
     },
     { 
         id: 'connect4', 
@@ -217,7 +230,6 @@ const GAMES_CONFIG = [
 ];
 
 const COMING_SOON = [
-    { name: 'MASTERMIND', icon: BrainCircuit },
     { name: 'UNO', icon: Copy }
 ];
 
@@ -445,6 +457,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const snakeHighScore = highScores.snake || 0;
     const invadersHighScore = highScores.invaders || 0;
     const memoryBestMoves = highScores.memory || 0;
+    const mastermindBestMoves = highScores.mastermind || 0;
 
     // --- LEADERBOARD HELPER ---
     const getTopScoreForGame = (game: string) => {
@@ -453,7 +466,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         const sorted = [...onlineUsers].sort((a, b) => {
             const scoreA = a.stats?.[game] || 0;
             const scoreB = b.stats?.[game] || 0;
-            if (game === 'memory' || game === 'sudoku') {
+            if (game === 'memory' || game === 'sudoku' || game === 'mastermind') {
                 // Lower is better, but 0 means no score so treat as Infinity
                 const realA = scoreA === 0 ? Infinity : scoreA;
                 const realB = scoreB === 0 ? Infinity : scoreB;
@@ -797,6 +810,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-pink">NEON BREAKER</h4><p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p></div>
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-yellow-400">NEON PAC</h4><p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p></div>
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-purple-400">NEON MEMORY</h4><p className="text-2xl font-mono">{memoryBestMoves > 0 ? memoryBestMoves + ' coups' : '-'}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-indigo-400">NEON MASTERMIND</h4><p className="text-2xl font-mono">{mastermindBestMoves > 0 ? mastermindBestMoves + ' essais' : '-'}</p></div>
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-cyan-400">NEON SUDOKU</h4>
                                         {sudokuEasyBest !== undefined || sudokuMediumBest !== undefined || sudokuHardBest !== undefined ? (
                                             <div className="flex justify-around text-center text-xs mt-1">
@@ -828,12 +842,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                             </div>
                                         );
                                     })}
-                                    {/* Special Handling for Memory (Lower is Better) */}
+                                    {/* Special Handling for Memory/Mastermind (Lower is Better) */}
                                     <div className="py-2 border-t border-white/5 flex justify-between items-center">
                                         <h4 className="font-bold text-sm text-purple-400">MEMORY</h4>
                                         <div className="text-right">
                                             <p className="text-xs text-gray-400 font-bold">{getTopScoreForGame('memory').name}</p>
                                             <p className="font-mono text-lg">{getTopScoreForGame('memory').score > 0 ? getTopScoreForGame('memory').score + ' cps' : '-'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="py-2 border-t border-white/5 flex justify-between items-center">
+                                        <h4 className="font-bold text-sm text-indigo-400">MASTERMIND</h4>
+                                        <div className="text-right">
+                                            <p className="text-xs text-gray-400 font-bold">{getTopScoreForGame('mastermind').name}</p>
+                                            <p className="font-mono text-lg">{getTopScoreForGame('mastermind').score > 0 ? getTopScoreForGame('mastermind').score + ' cps' : '-'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -872,7 +893,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     ))}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.8 • CLOUD SAVE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.9 • CLOUD SAVE</div>
              </div>
         </div>
     );
