@@ -87,17 +87,27 @@ export const DB = {
         }
     },
 
-    // Sauvegarder/Mettre à jour le profil (Upsert)
+    // Sauvegarder/Mettre à jour le profil (Upsert avec MERGE)
     saveUserProfile: async (username: string, profileData: any) => {
         if (!supabase) return null;
         try {
-            // On structure les données pour faciliter les requêtes de classement si besoin plus tard
-            // Pour l'instant on dump tout dans une colonne JSONB 'data'
+            // 1. D'abord récupérer les données existantes pour ne pas les écraser (ex: password)
+            const { data: existing } = await supabase
+                .from('profiles')
+                .select('data')
+                .eq('username', username)
+                .single();
+            
+            // 2. Fusionner les anciennes données avec les nouvelles
+            // Les nouvelles données (profileData) sont prioritaires
+            const mergedData = { ...(existing?.data || {}), ...profileData };
+
+            // 3. Sauvegarder le tout
             const { error } = await supabase
                 .from('profiles')
                 .upsert({ 
                     username: username,
-                    data: profileData,
+                    data: mergedData,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'username' });
             

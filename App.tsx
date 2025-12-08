@@ -74,8 +74,11 @@ const App: React.FC = () => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
         saveTimeoutRef.current = setTimeout(() => {
+            // Retrieve cached password if available (set during login) to ensure it's kept in DB
+            const cachedPassword = localStorage.getItem('neon_current_password');
+
             // Construct full payload
-            const payload = {
+            const payload: any = {
                 coins: currency.coins,
                 inventory: currency.inventory,
                 avatarId: currency.currentAvatarId,
@@ -96,6 +99,11 @@ const App: React.FC = () => {
                 streak: streak,
                 lastLogin: localStorage.getItem('neon_last_login')
             };
+            
+            // Inject password into payload if we have it locally, so we don't lose it on upsert
+            if (cachedPassword) {
+                payload.password = cachedPassword;
+            }
             
             syncProfileToCloud(currency.username, payload);
             console.log("☁️ Auto-Saved to Cloud");

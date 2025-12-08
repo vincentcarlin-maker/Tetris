@@ -43,6 +43,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         return data;
     };
 
+    const handleSuccess = (user: string, pass: string, data: any) => {
+        // Sauvegarde temporaire du mot de passe pour la session en cours
+        // Cela permet à App.tsx de l'inclure dans les sauvegardes auto
+        localStorage.setItem('neon_current_password', pass);
+        
+        setIsAnimating(true);
+        setTimeout(() => {
+            onLogin(user, data);
+        }, 800);
+    };
+
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -50,8 +61,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
 
         // --- ADMIN CHECK (Vincent) ---
         if (username === 'Vincent' && password === '12/05/2008') {
-            setIsAnimating(true);
-            
             // Try fetch Cloud data first, fallback to local current state if not found
             let loginData = null;
             try {
@@ -64,17 +73,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
             } catch(e) {
                 loginData = saveCurrentDataToUserSlot('Vincent');
             }
-
-            setTimeout(() => {
-                onLogin('Vincent', loginData);
-            }, 800);
+            handleSuccess('Vincent', password, loginData);
             return;
         }
 
         // --- CHLOÉ CHECK ---
         if (username === 'Chloé' && password === 'pocky61') {
-            setIsAnimating(true);
-            
             // Try fetch Cloud data first to ensure sync, otherwise initialize with local progress
             let loginData = null;
             try {
@@ -88,11 +92,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
             } catch(e) {
                 loginData = saveCurrentDataToUserSlot('Chloé');
             }
-
-            setTimeout(() => {
-                // On passe les données (Cloud ou Local) à l'App. L'auto-save de l'App se chargera de créer l'entrée DB si elle manque.
-                onLogin('Chloé', loginData);
-            }, 800);
+            handleSuccess('Chloé', password, loginData);
             return;
         }
 
@@ -112,10 +112,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
                 }
                 
                 // Success Cloud Login
-                setIsAnimating(true);
-                setTimeout(() => {
-                    onLogin(username, cloudData);
-                }, 800);
+                handleSuccess(username, password, cloudData);
                 return;
             }
         } catch (e) {
@@ -138,13 +135,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         }
 
         // Success Local Login
-        setIsAnimating(true);
-        setTimeout(() => {
-            // Restore local data slot
-            const dataStr = localStorage.getItem(DATA_PREFIX + username);
-            const localData = dataStr ? JSON.parse(dataStr) : null;
-            onLogin(username, localData);
-        }, 800);
+        const dataStr = localStorage.getItem(DATA_PREFIX + username);
+        const localData = dataStr ? JSON.parse(dataStr) : null;
+        handleSuccess(username, password, localData);
     };
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -177,10 +170,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         // Embed password in data for our simple cloud logic
         currentData.password = password;
 
-        setIsAnimating(true);
-        setTimeout(() => {
-            onLogin(username, currentData); // This will trigger the initial save to cloud in App
-        }, 800);
+        handleSuccess(username, password, currentData);
     };
 
     const handleClose = () => {
