@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause, Loader2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency, Mallet } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -45,7 +45,7 @@ const lerp = (start: number, end: number, t: number) => {
 };
 
 export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, addCoins, mp }) => {
-    const { currentMalletId, malletsCatalog, username, currentAvatarId } = useCurrency();
+    const { currentMalletId, malletsCatalog, username, currentAvatarId, avatarsCatalog } = useCurrency();
     const { subscribe, sendData, isHost, peerId, mode: mpMode } = mp; 
     
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -374,8 +374,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         // --- PAUSE CHECK ---
         if (isPaused) {
             animationFrameRef.current = requestAnimationFrame(gameLoop);
-            // We return early to skip physics, but ideally we'd still render the last frame.
-            // For now, this freezes the game state which is sufficient.
             return;
         }
 
@@ -471,7 +469,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             const ctx = canvas.getContext('2d');
             if (ctx) {
                 ctx.clearRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
-                // ... (Rendering code same as before, simplified for brevity)
                 ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
                 ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, TABLE_HEIGHT/2); ctx.lineTo(TABLE_WIDTH, TABLE_HEIGHT/2); ctx.stroke();
                 
@@ -587,9 +584,75 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         else setGameState('menu');
     };
 
-    const renderLobby = () => { /* ... same as before ... */ return null; }; // Placeholder to keep concise in XML
+    const renderLobby = () => {
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+         return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-cyan-300 tracking-wider drop-shadow-md">LOBBY AIR HOCKEY</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
+                </div>
+             </div>
+         );
+    };
 
-    // ... (Views handling)
+    if (gameMode === 'ONLINE' && onlineStep !== 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-300 pr-2 pb-1">AIR HOCKEY</h1>
+                    <div className="w-10"></div>
+                </div>
+                {onlineStep === 'connecting' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-cyan-400 animate-spin mb-4" /><p className="text-cyan-300 font-bold">CONNEXION...</p></div>
+                ) : renderLobby()}
+            </div>
+        );
+    }
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
@@ -629,6 +692,19 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     </div>
                 )}
 
+                {/* Other Overlays... */}
+                {gameState === 'difficulty_select' && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in">
+                        <h2 className="text-3xl font-black text-white mb-8">DIFFICULTÉ</h2>
+                        <div className="flex flex-col gap-3 w-48">
+                            <button onClick={() => startGame('EASY')} className="px-6 py-3 border border-green-500 text-green-400 font-bold rounded hover:bg-green-500 hover:text-black transition-all">FACILE</button>
+                            <button onClick={() => startGame('MEDIUM')} className="px-6 py-3 border border-yellow-500 text-yellow-400 font-bold rounded hover:bg-yellow-500 hover:text-black transition-all">MOYEN</button>
+                            <button onClick={() => startGame('HARD')} className="px-6 py-3 border border-red-500 text-red-500 font-bold rounded hover:bg-red-500 hover:text-white transition-all">DIFFICILE</button>
+                        </div>
+                        <button onClick={() => setGameState('menu')} className="mt-8 text-gray-500 text-sm hover:text-white">RETOUR</button>
+                    </div>
+                )}
+
                 {isPaused && (
                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
                         <h2 className="text-4xl font-black text-white mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">PAUSE</h2>
@@ -639,8 +715,42 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     </div>
                 )}
 
-                {/* Other Overlays (Wait, Difficulty, GameOver) */}
-                {/* ... */}
+                {gameState === 'gameOver' && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md animate-in zoom-in fade-in">
+                        <h2 className="text-5xl font-black italic mb-2 drop-shadow-[0_0_10px_currentColor]" style={{ color: winner === 'Player' || winner === 'P1' || winner === 'J1' ? '#00f3ff' : '#ff0055' }}>
+                            {winner === 'Player' ? 'VICTOIRE !' : winner === 'CPU' ? 'DÉFAITE...' : `${winner} GAGNE !`}
+                        </h2>
+                        <div className="text-center mb-6">
+                            <p className="text-gray-400 text-xs tracking-widest">SCORE FINAL</p>
+                            <div className="flex gap-4 justify-center items-center mt-2">
+                                <span className="text-4xl font-mono text-neon-blue">{score.p1}</span>
+                                <span className="text-gray-500">-</span>
+                                <span className="text-4xl font-mono text-pink-500">{score.p2}</span>
+                            </div>
+                        </div>
+                        {earnedCoins > 0 && (
+                            <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                                <Coins className="text-yellow-400" size={20} />
+                                <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
+                            </div>
+                        )}
+                        <div className="flex gap-4">
+                            <button onClick={() => { if(gameMode==='ONLINE') mp.requestRematch(); else startGame(difficulty, gameMode); }} className="px-8 py-3 bg-white text-black font-black tracking-widest rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2">
+                                <RefreshCw size={20} /> {gameMode==='ONLINE' ? 'REVANCHE' : 'REJOUER'}
+                            </button>
+                            {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                        </div>
+                        <button onClick={handleLocalBack} className="mt-4 text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">RETOUR AU MENU</button>
+                    </div>
+                )}
+                
+                {gameMode === 'ONLINE' && isHost && onlineStep === 'game' && !mp.gameOpponent && (
+                    <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                        <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
+                        <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                        <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
+                    </div>
+                )}
             </div>
         </div>
     );
