@@ -83,6 +83,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     // Network Data Refs
     const latestNetworkStateRef = useRef<any>(null);
     const latestNetworkInputRef = useRef<{x: number, y: number} | null>(null);
+    const lastNetworkUpdateRef = useRef(0);
 
     // Sync Self Info
     useEffect(() => {
@@ -382,7 +383,10 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         const opponent = opponentMalletRef.current;
 
         if (gameMode === 'ONLINE') {
-            // ... (Online physics logic same as before)
+            const now = Date.now();
+            // Throttle network updates to ~25fps (40ms) to avoid flooding
+            const shouldSend = now - lastNetworkUpdateRef.current > 40;
+
             if (isHost) {
                 // Host logic
                 player.vx = player.x - lastP1PosRef.current.x;
@@ -406,12 +410,15 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
                 runPhysics(puck, player, opponent);
 
-                sendData({
-                    type: 'AIRHOCKEY_STATE',
-                    puck: { x: puck.x, y: puck.y, vx: puck.vx, vy: puck.vy },
-                    p1: { x: player.x, y: player.y },
-                    p2: { x: opponent.x, y: opponent.y }
-                });
+                if (shouldSend) {
+                    sendData({
+                        type: 'AIRHOCKEY_STATE',
+                        puck: { x: puck.x, y: puck.y, vx: puck.vx, vy: puck.vy },
+                        p1: { x: player.x, y: player.y },
+                        p2: { x: opponent.x, y: opponent.y }
+                    });
+                    lastNetworkUpdateRef.current = now;
+                }
 
             } else {
                 // Client logic
@@ -422,11 +429,14 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 player.x += (p1TargetRef.current.x - player.x) * 0.4;
                 player.y += (p1TargetRef.current.y - player.y) * 0.4;
 
-                sendData({
-                    type: 'AIRHOCKEY_INPUT',
-                    x: p1TargetRef.current.x,
-                    y: p1TargetRef.current.y
-                });
+                if (shouldSend) {
+                    sendData({
+                        type: 'AIRHOCKEY_INPUT',
+                        x: p1TargetRef.current.x,
+                        y: p1TargetRef.current.y
+                    });
+                    lastNetworkUpdateRef.current = now;
+                }
 
                 if (latestNetworkStateRef.current) {
                     const state = latestNetworkStateRef.current;
@@ -470,7 +480,27 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             if (ctx) {
                 ctx.clearRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
                 ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
-                ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, TABLE_HEIGHT/2); ctx.lineTo(TABLE_WIDTH, TABLE_HEIGHT/2); ctx.stroke();
+                
+                // Draw Table Decorations
+                // Center Line
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.5)'; ctx.lineWidth = 2; 
+                ctx.beginPath(); ctx.moveTo(0, TABLE_HEIGHT/2); ctx.lineTo(TABLE_WIDTH, TABLE_HEIGHT/2); ctx.stroke();
+                
+                // Center Circle
+                ctx.beginPath(); ctx.arc(TABLE_WIDTH/2, TABLE_HEIGHT/2, 50, 0, 2*Math.PI); ctx.stroke();
+                ctx.beginPath(); ctx.arc(TABLE_WIDTH/2, TABLE_HEIGHT/2, 4, 0, 2*Math.PI); ctx.fillStyle = '#00f3ff'; ctx.fill();
+
+                // Goals Visuals
+                const goalX = (TABLE_WIDTH - GOAL_WIDTH) / 2;
+                ctx.fillStyle = 'rgba(255, 0, 255, 0.1)';
+                ctx.fillRect(goalX, -20, GOAL_WIDTH, 40); // Top
+                ctx.fillRect(goalX, TABLE_HEIGHT - 20, GOAL_WIDTH, 40); // Bottom
+                
+                // Goal Line Markers
+                ctx.strokeStyle = '#ff00ff';
+                ctx.beginPath(); ctx.moveTo(goalX, 0); ctx.lineTo(goalX + GOAL_WIDTH, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(goalX, TABLE_HEIGHT); ctx.lineTo(goalX + GOAL_WIDTH, TABLE_HEIGHT); ctx.stroke();
+
                 
                 ctx.beginPath(); ctx.arc(puck.x, puck.y, puck.radius, 0, 2*Math.PI); ctx.fillStyle = puck.color; ctx.fill();
 
