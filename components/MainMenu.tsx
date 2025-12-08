@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -98,6 +98,19 @@ const GAMES_CONFIG = [
         reward: 'GAINS' 
     },
     { 
+        id: 'uno', 
+        name: 'UNO', 
+        icon: Palette, 
+        color: 'text-red-500', 
+        bg: 'bg-red-900/20',
+        border: 'border-red-500/30',
+        hoverBorder: 'hover:border-red-500', 
+        shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', 
+        glow: 'rgba(239,68,68,0.8)', 
+        badges: { solo: true, online: false, vs: false, new: true }, 
+        reward: 'GAINS' 
+    },
+    { 
         id: 'snake', 
         name: 'SNAKE', 
         icon: SnakeIcon, 
@@ -185,7 +198,7 @@ const GAMES_CONFIG = [
         hoverBorder: 'hover:border-indigo-400', 
         shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', 
         glow: 'rgba(129,140,248,0.8)', 
-        badges: { solo: true, online: false, vs: false, new: true }, 
+        badges: { solo: true, online: false, vs: false, new: false }, 
         reward: 'GAINS' 
     },
     { 
@@ -229,9 +242,7 @@ const GAMES_CONFIG = [
     },
 ];
 
-const COMING_SOON = [
-    { name: 'UNO', icon: Copy }
-];
+const COMING_SOON = [];
 
 const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {
     const [style, setStyle] = useState<React.CSSProperties>({
@@ -458,6 +469,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const invadersHighScore = highScores.invaders || 0;
     const memoryBestMoves = highScores.memory || 0;
     const mastermindBestMoves = highScores.mastermind || 0;
+    const unoHighScore = highScores.uno || 0;
 
     // --- LEADERBOARD HELPER ---
     const getTopScoreForGame = (game: string) => {
@@ -806,6 +818,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 <div className="space-y-2">
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-blue">TETRIS NÉON</h4><p className="text-2xl font-mono">{highScores.tetris?.toLocaleString() || 0}</p></div>
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-rose-500">NEON INVADERS</h4><p className="text-2xl font-mono">{invadersHighScore.toLocaleString() || 0}</p></div>
+                                    <div className="py-2 border-t border-white/5"><h4 className="font-bold text-red-500">NEON UNO</h4><p className="text-2xl font-mono">{unoHighScore.toLocaleString() || 0} pts</p></div>
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-green-500">NEON SNAKE</h4><p className="text-2xl font-mono">{snakeHighScore.toLocaleString() || 0}</p></div>
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-neon-pink">NEON BREAKER</h4><p className="text-2xl font-mono">{breakerHighScore.toLocaleString() || 0}</p></div>
                                     <div className="py-2 border-t border-white/5"><h4 className="font-bold text-yellow-400">NEON PAC</h4><p className="text-2xl font-mono">{pacmanHighScore.toLocaleString() || 0}</p></div>
@@ -826,6 +839,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                     <p className="text-[10px] text-gray-500 text-center italic mb-2 flex items-center justify-center gap-1"><Cloud size={10}/> Classement historique Cloud</p>
                                     {[
                                         { id: 'tetris', name: 'TETRIS', color: 'text-neon-blue' },
+                                        { id: 'uno', name: 'UNO', color: 'text-red-500' },
                                         { id: 'invaders', name: 'INVADERS', color: 'text-rose-500' },
                                         { id: 'snake', name: 'SNAKE', color: 'text-green-500' },
                                         { id: 'breaker', name: 'BREAKER', color: 'text-neon-pink' },
@@ -893,7 +907,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     ))}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v1.9.9 • CLOUD SAVE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.0 • CLOUD SAVE</div>
              </div>
         </div>
     );

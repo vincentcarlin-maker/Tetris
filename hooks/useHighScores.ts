@@ -11,6 +11,7 @@ export interface HighScores {
   memory: number; // minMoves (Lower is better)
   rush?: { [level: string]: number };
   mastermind?: number; // minAttempts (Lower is better)
+  uno?: number; // Total Score (Accumulated)
 }
 
 const initialHighScores: HighScores = {
@@ -22,7 +23,8 @@ const initialHighScores: HighScores = {
   sudoku: {},
   memory: 0,
   rush: {},
-  mastermind: 0
+  mastermind: 0,
+  uno: 0
 };
 
 const HIGHSCORES_KEY = 'neon-highscores';
@@ -44,6 +46,7 @@ export const useHighScores = () => {
         if (!parsed.memory) parsed.memory = 0;
         if (!parsed.rush) parsed.rush = {};
         if (!parsed.mastermind) parsed.mastermind = 0;
+        if (!parsed.uno) parsed.uno = 0;
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -101,6 +104,10 @@ export const useHighScores = () => {
               newScores.rush[key] = value;
               shouldUpdate = true;
           }
+      } else if (game === 'uno') {
+          // Accumulate Score
+          newScores.uno = (prev.uno || 0) + value;
+          shouldUpdate = true;
       }
 
       if (shouldUpdate) {
