@@ -85,6 +85,7 @@ const formatFullDate = (timestamp: number) => {
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
+    const { playCoin, playVictory } = audio;
     
     const [showSocial, setShowSocial] = useState(false);
     const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
@@ -113,11 +114,16 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     // Refs to track state inside event listeners without re-subscribing
     const activeChatIdRef = useRef(activeChatId);
     const showSocialRef = useRef(showSocial);
+    const friendsRef = useRef(friends);
 
     useEffect(() => {
         activeChatIdRef.current = activeChatId;
         showSocialRef.current = showSocial;
     }, [activeChatId, showSocial]);
+
+    useEffect(() => {
+        friendsRef.current = friends;
+    }, [friends]);
 
     const handleDragStart = (clientY: number) => {
         isDraggingRef.current = true;
@@ -181,8 +187,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'FRIEND_REQUEST') {
                 setRequests(prev => {
-                    if (prev.some(r => r.id === data.senderId) || friends.some(f => f.id === data.senderId)) return prev;
-                    audio.playCoin();
+                    // Check against current friends using ref to avoid re-subscribing when friends change
+                    if (prev.some(r => r.id === data.senderId) || friendsRef.current.some(f => f.id === data.senderId)) return prev;
+                    playCoin();
                     return [...prev, {
                         id: data.senderId,
                         name: data.name,
@@ -193,7 +200,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 });
             }
             if (data.type === 'FRIEND_ACCEPT') {
-                audio.playVictory();
+                playVictory();
                 const newFriend: Friend = { 
                     id: data.senderId, 
                     name: data.name, 
@@ -211,17 +218,23 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             }
         });
         return () => unsubscribe();
-    }, [mp, friends, audio]);
+    }, [mp.subscribe, playCoin, playVictory]); // Removed 'friends' dependency
 
     // --- REALTIME MESSAGING SUBSCRIPTION ---
-    // Moved out to be stable and not depend on activeChatId/showSocial
     useEffect(() => {
         if (!isConnectedToSupabase || !supabase || !username) return;
 
-        const channel = supabase.channel('messages_listener')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${username}` }, (payload) => {
+        // Unique channel name to prevent collisions/zombie listeners
+        const channelName = `messages_${username}_${Date.now()}`;
+        
+        const channel = supabase.channel(channelName)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
                     const newMsg = payload.new;
-                    audio.playCoin();
+                    
+                    // Client-side filtering check (plus robuste que le filtre serveur pour les pseudos complexes)
+                    if (newMsg.receiver_id !== username) return;
+
+                    playCoin();
                     
                     setMessages(prev => {
                         const senderId = newMsg.sender_id;
@@ -244,7 +257,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             ).subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [isConnectedToSupabase, username, audio]); // Stable dependencies
+    }, [isConnectedToSupabase, username, playCoin]);
 
     useEffect(() => {
         setFriends(prevFriends => {
@@ -303,7 +316,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 if (bot) {
                     setFriends(prev => {
                         if (prev.find(f => f.id === bot.id)) return prev;
-                        audio.playVictory(); 
+                        playVictory(); 
                         const updated = [...prev, { ...bot, status: 'online' }];
                         localStorage.setItem('neon_friends', JSON.stringify(updated));
                         return updated;
@@ -326,7 +339,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         });
         setRequests(prev => prev.filter(r => r.id !== req.id));
         mp.sendTo(req.id, { type: 'FRIEND_ACCEPT', senderId: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId });
-        audio.playVictory();
+        playVictory();
     };
 
     const openChat = async (friendId: string) => {
@@ -361,7 +374,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 const reply = replies[Math.floor(Math.random() * replies.length)];
                 const botMsg: PrivateMessage = { id: Date.now().toString(), senderId: activeChatId, text: reply, timestamp: Date.now(), read: false };
                 setMessages(prev => ({ ...prev, [activeChatId]: [...(prev[activeChatId] || []), botMsg] }));
-                audio.playCoin();
+                playCoin();
             }, 2000);
         } else if (isConnectedToSupabase) {
             const result = await DB.sendMessage(username, activeChatId, text);
