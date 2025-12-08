@@ -264,8 +264,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             // UNO_PLAY: Opponent Played a Card
             if (data.type === 'UNO_PLAY') {
                 const card = data.card;
-                // Animate from opponent hand
-                animateCardPlay(card, 0, 'CPU');
+                // Animate from opponent hand, mark as Remote
+                animateCardPlay(card, 0, 'CPU', undefined, true);
                 if (data.nextColor) setActiveColor(data.nextColor);
             }
 
@@ -414,14 +414,40 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame('ONLINE');
     };
 
-    const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[]) => {
-        // Only Host/Solo manages the deck
-        if (gameMode === 'ONLINE' && !mp.isHost && target === 'PLAYER') {
-            // Client requesting draw from Host
-            mp.sendData({ type: 'UNO_DRAW_REQ', amount });
-            return [];
+    const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[], isRemoteEffect: boolean = false) => {
+        // Client Side Logic (Not Host)
+        if (gameMode === 'ONLINE' && !mp.isHost) {
+            if (target === 'PLAYER') {
+                // I need to draw.
+                // If this is a remote effect (Host played +2), I assume Host sent me cards via UNO_DRAW_RESP separately or logic handles it.
+                // However, usually host manages state.
+                // If Host sends +2 PLAY, Host should ALSO send a draw command or Client should request it.
+                // Better approach: If it's a remote effect (I am victim of +2), I should NOT request draw if Host already assigned cards.
+                // But Host doesn't assign cards to Client directly unless Client requests or Host forces update.
+                // Current logic: Client requests draw. Host responds.
+                
+                // If this call comes from `executeCardEffect` triggered by `UNO_PLAY` (Remote),
+                // we should suppress the draw request here because the Host sends cards via `UNO_DRAW_RESP` usually?
+                // Actually no, Host sends `UNO_PLAY`. Client sees +2. Client logic triggers `drawCard`.
+                // Client MUST request the cards.
+                
+                // BUT: Double draw bug suggests multiple triggers.
+                if (isRemoteEffect) return []; // Prevent automatic draw on effect if we handle it otherwise?
+                
+                // Let's assume standard flow: I request cards.
+                mp.sendData({ type: 'UNO_DRAW_REQ', amount });
+                return [];
+            } else {
+                // CPU (Host) needs to draw (Visually).
+                // If I played +2, I want to see Host draw.
+                // Just add dummies.
+                const dummies = Array(amount).fill({ id: `opp_draw_${Date.now()}_${Math.random()}`, color: 'black', value: '0', score: 0 });
+                setCpuHand(prev => [...prev, ...dummies]);
+                return []; 
+            }
         }
 
+        // Host / Solo Logic (Deck Manager)
         playLand();
         let currentDeck = [...deck];
         let currentDiscard = manualDiscardPile ? [...manualDiscardPile] : [...discardPile];
@@ -452,14 +478,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 mp.sendData({ type: 'UNO_DRAW_NOTIFY', count: drawnCards.length });
             }
         } else {
-            // In Solo, CPU draws. In Online Host, "CPU" is Client.
+            // Target CPU (Client)
             if (gameMode === 'SOLO') {
                 setCpuHand(prev => [...prev, ...drawnCards]);
             } else {
                 // Host dealing to Client
-                // Don't put real cards in cpuHand (local visual of opponent), just dummies
-                // But we must send real cards to client
-                setCpuHand(prev => [...prev, ...Array(drawnCards.length).fill({id:'opp',color:'black'})]);
+                // Visually add dummies to cpuHand (Host's view of Opponent)
+                const dummies = Array(drawnCards.length).fill({id:'opp',color:'black', value:'0', score:0});
+                setCpuHand(prev => [...prev, ...dummies]);
+                // Send Real Cards to Client
                 mp.sendData({ type: 'UNO_DRAW_RESP', cards: drawnCards });
             }
         }
@@ -527,13 +554,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     };
 
-    const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect) => {
+    const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect, isRemote: boolean = false) => {
         setIsAnimating(true);
         playMove();
 
         const discardRect = discardPileRef.current?.getBoundingClientRect();
         if (!discardRect) {
-            executeCardEffect(card, index, actor);
+            executeCardEffect(card, index, actor, isRemote);
             setIsAnimating(false);
             return;
         }
@@ -569,12 +596,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setTimeout(() => {
             setFlyingCard(null);
             playLand();
-            executeCardEffect(card, index, actor);
+            executeCardEffect(card, index, actor, isRemote);
             setIsAnimating(false);
         }, 500);
     };
 
-    const executeCardEffect = (card: Card, index: number, actor: Turn) => {
+    const executeCardEffect = (card: Card, index: number, actor: Turn, isRemote: boolean) => {
         let hand = actor === 'PLAYER' ? [...playerHand] : [...cpuHand];
         
         const cardInHandIndex = hand.findIndex(c => c.id === card.id);
@@ -619,7 +646,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             nextTurn = actor; 
         } else if (card.value === 'draw2') {
             setMessage("+2 cartes !");
-            drawCard(nextTurn, 2, newDiscardPile);
+            // If remote, assume cards are handled by separate message, do not request draw here
+            if (!isRemote) {
+                drawCard(nextTurn, 2, newDiscardPile);
+            }
             nextTurn = actor;
         } else if (card.value === 'wild') {
             setMessage("Joker !");
@@ -640,7 +670,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             }
         } else if (card.value === 'wild4') {
             setMessage("+4 cartes !");
-            drawCard(nextTurn, 4, newDiscardPile);
+            // If remote, assume cards are handled by separate message
+            if (!isRemote) {
+                drawCard(nextTurn, 4, newDiscardPile);
+            }
+            
             if (actor === 'PLAYER') {
                 setGameState('color_select');
                 return; 
@@ -680,7 +714,24 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const handleColorSelect = (color: Color) => {
         setActiveColor(color);
         setGameState('playing');
-        setTurn('CPU');
+        
+        // Correctly set turn based on card type just played
+        // If Wild+4 was played, it skips opponent, so it remains Player's turn (in 1v1 rules where skip = go again)
+        // Wait, standard Uno: Wild+4 skips next player.
+        // If 2 players: Player A plays Wild+4. Player B draws 4 and is skipped. Player A goes again.
+        // So turn should be PLAYER.
+        
+        const topCard = discardPile[discardPile.length - 1];
+        let nextTurn: Turn = 'CPU';
+        
+        if (topCard.value === 'wild4') {
+             // In 1v1, skipping opponent means Player goes again
+             nextTurn = 'PLAYER';
+             setMessage("L'adversaire passe son tour !");
+        }
+        
+        setTurn(nextTurn);
+        
         if (gameMode === 'ONLINE') {
             // Need to find the last played wild card to send it
             // Or just send 'nextColor' in the packet
