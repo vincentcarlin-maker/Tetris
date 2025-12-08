@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, User, Cpu, Ban, RotateCcw, Plus, Palette, Layers } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -255,24 +256,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const handleDrawClick = () => {
         if (turn !== 'PLAYER' || gameState !== 'playing') return;
         const drawn = drawCard('PLAYER', 1);
-        // Play immediately if valid? Standard rule is usually optional, but let's just add to hand for simplicity.
-        // Optional: Auto-play if valid to speed up? Let's keep manual.
-        
-        // Pass turn if drawn card is not playable immediately (Standard rule variant: draw 1 and pass)
-        // Let's implement: Draw 1, if playable you CAN play, else pass.
-        // For simplicity in UI: Draw 1 -> Pass turn automatically to keep flow fast.
-        
         // Check if playable
         const card = drawn[0];
         const isCompatible = card.color === activeColor || card.value === discardPile[discardPile.length-1].value || card.color === 'black';
         
         if (isCompatible) {
             setMessage("Carte jouable piochée !");
-            // Give user a chance to play it? Or auto pass?
-            // Let's pass to keep it simple for mobile arcade feel
-            // Actually, better UX: Add to hand, user must play or pass. 
-            // BUT to avoid "Pass" button, let's auto-pass if not playable.
-            // If playable, user stays on turn? No, simpler: Draw = Pass turn.
             setTurn('CPU'); 
         } else {
             setTurn('CPU');
@@ -298,8 +287,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
                 if (validIndices.length > 0) {
                     // Simple AI: Prioritize Special cards if hand size > 2, else get rid of regular
-                    // Or simply random valid
-                    // Let's try to match color first to keep changing colors minimized
                     validIndices.sort((a, b) => {
                         if (a.c.color === 'black') return 1; // Play wilds last
                         if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1; // Aggressive
@@ -372,8 +359,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 onClick={onClick}
                 className={`
                     ${small ? 'w-10 h-14' : 'w-16 h-24 sm:w-24 sm:h-36'} 
-                    ${bgClass} border-2 ${colorClass} rounded-lg flex flex-col items-center justify-center
+                    bg-gray-900 ${bgClass} border-2 ${colorClass} rounded-lg flex flex-col items-center justify-center
                     relative cursor-pointer hover:-translate-y-2 transition-transform duration-200 select-none
+                    shadow-xl
                 `}
             >
                 <div className="absolute top-1 left-1 text-[10px] font-bold leading-none">{Icon ? <Icon size={10}/> : displayValue}</div>
@@ -441,15 +429,23 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 {/* Player Hand (Bottom) */}
                 <div className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-x-visible items-end pb-4 min-h-[120px]">
                     {playerHand.map((card, i) => {
-                        const isHover = turn === 'PLAYER';
+                        const topCard = discardPile[discardPile.length - 1];
+                        const isPlayable = turn === 'PLAYER' && gameState === 'playing' && (
+                            card.color === activeColor || 
+                            (topCard && card.value === topCard.value) || 
+                            card.color === 'black'
+                        );
+                        
+                        const translateY = turn === 'PLAYER' ? (isPlayable ? -30 : 0) : 20;
+
                         return (
                             <div 
                                 key={card.id} 
                                 style={{ 
-                                    transform: `translateY(${isHover ? 0 : 20}px) rotate(${(i - playerHand.length/2) * 2}deg)`,
+                                    transform: `translateY(${translateY}px) rotate(${(i - playerHand.length/2) * 2}deg)`,
                                     zIndex: i 
                                 }}
-                                className="transition-transform duration-300 hover:-translate-y-6 hover:z-50 hover:scale-110"
+                                className={`transition-transform duration-300 hover:-translate-y-10 hover:z-50 hover:scale-110`}
                             >
                                 <CardView card={card} onClick={() => handlePlayerCardClick(card, i)} />
                             </div>
