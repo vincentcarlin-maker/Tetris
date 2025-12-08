@@ -58,7 +58,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         }
 
         // --- CHLOÉ CHECK ---
-        if (username === 'Chloé' && password === 'chloé') {
+        if (username === 'Chloé' && password === 'pocky61') {
             setIsAnimating(true);
             
             // Capture l'avancée actuelle (Local Storage générique) pour l'assigner au profil Chloé
