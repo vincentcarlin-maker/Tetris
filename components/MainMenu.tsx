@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Layers, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -62,16 +62,16 @@ const UnoIcon = ({ size, className }: { size?: number | string, className?: stri
         className={className}
     >
        {/* Card 1: Red (Left) */}
-       <rect x="2" y="6" width="10" height="14" rx="1.5" transform="rotate(-25 7 18)" fill="#ef4444" stroke="#ef4444" fillOpacity="0.3" />
+       <rect x="4" y="6" width="8.5" height="13" rx="1.5" transform="rotate(-20 8.25 18)" fill="#ef4444" stroke="#ef4444" fillOpacity="0.3" />
        {/* Card 2: Blue (Mid-Left) */}
-       <rect x="5" y="4" width="10" height="14" rx="1.5" transform="rotate(-10 10 16)" fill="#3b82f6" stroke="#3b82f6" fillOpacity="0.3" />
+       <rect x="6.5" y="5" width="8.5" height="13" rx="1.5" transform="rotate(-5 10.75 18)" fill="#3b82f6" stroke="#3b82f6" fillOpacity="0.3" />
        {/* Card 3: Green (Mid-Right) */}
-       <rect x="9" y="4" width="10" height="14" rx="1.5" transform="rotate(10 14 16)" fill="#22c55e" stroke="#22c55e" fillOpacity="0.3" />
+       <rect x="9" y="5" width="8.5" height="13" rx="1.5" transform="rotate(10 13.25 18)" fill="#22c55e" stroke="#22c55e" fillOpacity="0.3" />
        {/* Card 4: Yellow (Right) */}
-       <rect x="12" y="6" width="10" height="14" rx="1.5" transform="rotate(25 17 18)" fill="#eab308" stroke="#eab308" fillOpacity="0.3" />
+       <rect x="11.5" y="6" width="8.5" height="13" rx="1.5" transform="rotate(20 15.75 18)" fill="#eab308" stroke="#eab308" fillOpacity="0.3" />
        
        {/* Generic Oval on top card to simulate Uno design */}
-       <ellipse cx="17" cy="13" rx="2.5" ry="4" transform="rotate(25 17 13)" fill="none" stroke="rgba(255,255,255,0.5)" />
+       <ellipse cx="15.75" cy="12.5" rx="2" ry="3.5" transform="rotate(20 15.75 12.5)" fill="none" stroke="rgba(255,255,255,0.5)" />
     </svg>
 );
 
@@ -108,6 +108,37 @@ const Connect4Icon = ({ size, className }: { size?: number | string, className?:
        <circle cx="7" cy="15" r="1.5" fill="currentColor"/>
        <circle cx="12" cy="15" r="1.5" fill="currentColor"/>
        <circle cx="17" cy="15" r="1.5" />
+    </svg>
+);
+
+// Custom Breaker Icon
+const BreakerIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+       {/* Row 1 Blocks */}
+       <rect x="2" y="3" width="6" height="4" rx="1" />
+       <rect x="9" y="3" width="6" height="4" rx="1" />
+       <rect x="16" y="3" width="6" height="4" rx="1" />
+       
+       {/* Row 2 Blocks (Middle missing implies broken) */}
+       <rect x="2" y="8" width="6" height="4" rx="1" />
+       <rect x="16" y="8" width="6" height="4" rx="1" />
+       
+       {/* Ball */}
+       <circle cx="12" cy="15" r="2" fill="currentColor" />
+       
+       {/* Paddle */}
+       <path d="M4 20h16" strokeWidth="2.5" />
     </svg>
 );
 
@@ -167,7 +198,7 @@ const GAMES_CONFIG = [
     { 
         id: 'breaker', 
         name: 'BREAKER', 
-        icon: Layers, 
+        icon: BreakerIcon, 
         color: 'text-fuchsia-500', 
         bg: 'bg-fuchsia-900/20',
         border: 'border-fuchsia-500/30',
