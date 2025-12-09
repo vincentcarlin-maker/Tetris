@@ -175,6 +175,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
     const handleDataRef = useRef<(data: any) => void>(null);
     const mainContainerRef = useRef<HTMLDivElement>(null);
 
+    // STATE REF to fix stale closures in timeouts
+    const gameStateRef = useRef({ playerHand, cpuHand, discardPile, activeColor, turn });
+    useEffect(() => {
+        gameStateRef.current = { playerHand, cpuHand, discardPile, activeColor, turn };
+    }, [playerHand, cpuHand, discardPile, activeColor, turn]);
+
     // --- EFFECT: PREVENT OVERSCROLL ---
     useEffect(() => {
         const container = mainContainerRef.current;
@@ -182,8 +188,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
 
         const handleTouchMove = (e: TouchEvent) => {
             const target = e.target as HTMLElement;
-            // Allow scrolling only in chat/lists marked with custom-scrollbar
-            if (target.closest('.custom-scrollbar')) return;
+            // Allow scrolling only in chat/lists marked with custom-scrollbar or root if auto
+            if (target.closest('.custom-scrollbar') || target === container) return;
             e.preventDefault();
         };
 
@@ -228,6 +234,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
         setEarnedCoins(0);
         setHasDrawnThisTurn(false);
         setIsAnimating(false);
+        setFlyingCard(null); // Fix: Reset flying card to prevent ghost blocks
         setPlayDirection(1);
         setPlayerCalledUno(false);
         setShowContestButton(false);
@@ -626,7 +633,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
     };
 
     const executeCardEffect = (card: Card, index: number, actor: Turn, isRemote: boolean) => {
-        let hand = actor === 'PLAYER' ? [...playerHand] : [...cpuHand];
+        // USE STATE REF TO AVOID STALE CLOSURES
+        const currentState = gameStateRef.current;
+        let hand = actor === 'PLAYER' ? [...currentState.playerHand] : [...currentState.cpuHand];
+        let discard = [...currentState.discardPile];
         
         const cardInHandIndex = hand.findIndex(c => c.id === card.id);
         if (cardInHandIndex !== -1) hand.splice(cardInHandIndex, 1);
@@ -635,7 +645,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
         if (actor === 'PLAYER') setPlayerHand(hand);
         else setCpuHand(hand);
 
-        const newDiscardPile = [...discardPile, card];
+        const newDiscardPile = [...discard, card];
         setDiscardPile(newDiscardPile);
         
         if (card.color !== 'black') {
@@ -670,8 +680,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
 
                 if (forgot) {
                     setShowContestButton(true);
-                    // Hide button after 3s if user is slow (or let it stay until player moves)
-                    // Better to let it stay until player interacts
                 }
             } else {
                 setShowContestButton(false);
@@ -683,8 +691,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             handleGameOver(actor);
             
             // IMPORTANT FIX: Only the actual winner (local player) sends the GAME_OVER signal
-            // This prevents the opponent (who is executing this as a remote move) from sending a signal 
-            // saying "The OPPONENT won", which creates an echo where both players think they lost.
             if (gameMode === 'ONLINE' && !isRemote) {
                 mp.sendData({ type: 'UNO_GAME_OVER', winner: mp.peerId });
             }
@@ -715,7 +721,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             } else {
                 if (gameMode === 'SOLO') {
                     const colorsCount: any = { red: 0, blue: 0, green: 0, yellow: 0 };
-                    cpuHand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
+                    hand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
                     const bestColor = (Object.keys(colorsCount) as Color[]).reduce((a, b) => colorsCount[a] > colorsCount[b] ? a : b);
                     setActiveColor(bestColor);
                     setMessage(`CPU choisit : ${bestColor.toUpperCase()}`);
@@ -732,7 +738,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             } else {
                 if (gameMode === 'SOLO') {
                     const colorsCount: any = { red: 0, blue: 0, green: 0, yellow: 0 };
-                    cpuHand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
+                    hand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
                     const bestColor = (Object.keys(colorsCount) as Color[]).reduce((a, b) => colorsCount[a] > colorsCount[b] ? a : b);
                     setActiveColor(bestColor);
                     setMessage(`CPU choisit : ${bestColor.toUpperCase()}`);
@@ -1007,7 +1013,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
     else { spacingClass = '-space-x-16 sm:-space-x-24'; rotationFactor = 1.5; }
 
     return (
-        <div ref={mainContainerRef} className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-hidden text-white font-sans touch-none select-none">
+        <div ref={mainContainerRef} className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans touch-none select-none">
             <div className={`absolute inset-0 transition-colors duration-1000 opacity-30 pointer-events-none ${COLOR_CONFIG[activeColor].bg}`}></div>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black/60 to-black pointer-events-none"></div>
 
@@ -1043,9 +1049,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             )}
 
             {/* Game Area */}
-            <div className="flex-1 w-full max-w-lg flex flex-col justify-between py-4 relative z-10">
+            <div className="flex-1 w-full max-w-lg flex flex-col justify-between py-4 relative z-10 min-h-0">
                 {/* CPU Hand */}
-                <div ref={cpuHandRef} className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-32 sm:h-48 items-start pt-4">
+                <div ref={cpuHandRef} className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-32 sm:h-48 items-start pt-4 shrink-0">
                     {cpuHand.map((card, i) => (
                         <div key={card.id || i} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
                             <CardView card={card} faceUp={false} />
@@ -1054,7 +1060,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 </div>
 
                 {/* Center Table */}
-                <div className="flex-1 flex items-center justify-center gap-4 sm:gap-8 relative">
+                <div className="flex-1 flex items-center justify-center gap-4 sm:gap-8 relative min-h-[150px] shrink">
                     <div className={`absolute pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text} opacity-30 z-0`}>
                         <div className="w-[320px] h-[180px] border-4 border-dashed border-current rounded-[50px] relative flex items-center justify-center">
                              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black px-3">{playDirection === 1 ? <ArrowRight size={32} /> : <ArrowLeft size={32} />}</div>
@@ -1077,7 +1083,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 </div>
 
                 {/* Player Hand */}
-                <div className={`w-full relative px-4 z-20 ${gameMode === 'ONLINE' ? 'pb-24' : 'pb-4'} min-h-[180px] flex flex-col justify-end`}>
+                <div className={`w-full relative px-4 z-20 ${gameMode === 'ONLINE' ? 'pb-24' : 'pb-4'} min-h-[180px] flex flex-col justify-end shrink-0`}>
                     <div className="absolute -top-20 left-0 right-0 flex justify-center pointer-events-none z-50 h-20 items-end gap-4">
                         {playerHand.length === 2 && turn === 'PLAYER' && !playerCalledUno && (
                             <button onClick={handleUnoClick} className="pointer-events-auto bg-red-600 hover:bg-red-500 text-white font-black text-xl px-8 py-3 rounded-full shadow-[0_0_20px_red] animate-bounce transition-all active:scale-95 flex items-center gap-2 border-4 border-yellow-400"><Megaphone size={24} fill="white" /> CRIER UNO !</button>
