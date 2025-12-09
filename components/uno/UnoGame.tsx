@@ -302,6 +302,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 animateCardPlay(card, 0, 'CPU', undefined, true);
                 if (data.nextColor) setActiveColor(data.nextColor);
             }
+            if (data.type === 'UNO_DRAW_REQ') {
+                if (mp.isHost) {
+                    drawCard('CPU', data.amount || 1);
+                }
+            }
             if (data.type === 'UNO_DRAW_NOTIFY') {
                 const count = data.count;
                 const dummies = Array(count).fill({ id: `opp_draw_${Date.now()}`, color: 'black', value: '0', score: 0 });
@@ -424,8 +429,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 mp.sendData({ type: 'UNO_DRAW_REQ', amount });
                 return [];
             } else {
-                const dummies = Array(amount).fill({ id: `opp_draw_${Date.now()}_${Math.random()}`, color: 'black', value: '0', score: 0 });
-                setCpuHand(prev => [...prev, ...dummies]);
+                // Target is CPU (Host) - This runs when Guest plays +2/+4 against Host
+                // We rely on UNO_DRAW_NOTIFY to add dummies to ensure no duplication
                 return []; 
             }
         }
@@ -468,6 +473,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 // If CPU drew, reset their call state
                 setOpponentCalledUno(false);
             } else {
+                // Online Host logic for Opponent
                 const dummies = Array(drawnCards.length).fill({id:'opp',color:'black', value:'0', score:0});
                 setCpuHand(prev => [...prev, ...dummies]);
                 setOpponentCalledUno(false);
@@ -669,7 +675,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             nextTurn = actor; 
         } else if (card.value === 'draw2') {
             setMessage("+2 cartes !");
-            if (!isRemote) {
+            if (!isRemote || (mp.isHost && gameMode === 'ONLINE')) {
                 drawCard(nextTurn, 2, newDiscardPile);
             }
             nextTurn = actor;
@@ -689,7 +695,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             }
         } else if (card.value === 'wild4') {
             setMessage("+4 cartes !");
-            if (!isRemote) {
+            if (!isRemote || (mp.isHost && gameMode === 'ONLINE')) {
                 drawCard(nextTurn, 4, newDiscardPile);
             }
             if (actor === 'PLAYER') {
