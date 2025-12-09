@@ -14,6 +14,26 @@ interface PacmanGameProps {
 
 const GAME_SPEED_BASE = 0.11; // Vitesse de base
 
+// --- VISUAL CONSTANTS ---
+const TRAIL_LIFETIME = 15; // Frames
+const GHOST_COLORS: Record<string, string> = {
+    red: '#ef4444',
+    pink: '#f472b6',
+    cyan: '#22d3ee',
+    orange: '#fb923c',
+    frightened: '#93c5fd', // Blue-300
+    eaten: 'rgba(255, 255, 255, 0.3)' // Eyes/Transparent
+};
+
+interface TrailParticle {
+    x: number;
+    y: number;
+    color: string;
+    life: number;
+    maxLife: number;
+    size: number;
+}
+
 // --- GHOST AI CONSTANTS ---
 const SCATTER_TARGETS = [
     { x: COLS - 2, y: 1 }, // Blinky (red) -> top-right
@@ -74,6 +94,10 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     const gameModeIndexRef = useRef(0);
     const gameModeRef = useRef<'CHASE' | 'SCATTER'>('SCATTER');
     
+    // FX Refs
+    const fxCanvasRef = useRef<HTMLCanvasElement>(null);
+    const trailsRef = useRef<TrailParticle[]>([]);
+
     // Swipe Control Refs
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
     
@@ -163,6 +187,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         };
         
         ghostsRef.current = createGhosts(speedMultiplier);
+        trailsRef.current = [];
         
         gameTimerRef.current = 0;
         gameModeIndexRef.current = 0;
@@ -180,6 +205,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         setLevelComplete(false);
         setIsPlaying(false);
         setEarnedCoins(0);
+        trailsRef.current = [];
     };
 
     const startNextLevel = () => {
@@ -387,6 +413,58 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         });
     }, []);
 
+    const updateTrails = useCallback(() => {
+        const ctx = fxCanvasRef.current?.getContext('2d');
+        if (!ctx) return;
+
+        // Clear Canvas
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+        // Add new particles
+        ghostsRef.current.forEach(g => {
+            if (g.mode === 'EATEN' || g.mode === 'AT_HOME') return; // No trails for eaten/home ghosts
+            
+            let color = GHOST_COLORS[g.color];
+            if (g.mode === 'FRIGHTENED') color = GHOST_COLORS['frightened'];
+            
+            trailsRef.current.push({
+                x: g.pos.x,
+                y: g.pos.y,
+                color: color,
+                life: TRAIL_LIFETIME,
+                maxLife: TRAIL_LIFETIME,
+                size: 0.6 // Relative to cell size
+            });
+        });
+
+        // Update and Draw Particles
+        // We use grid coords (0..COLS, 0..ROWS) and scale to canvas size
+        const scaleX = ctx.canvas.width / COLS;
+        const scaleY = ctx.canvas.height / ROWS;
+
+        for (let i = trailsRef.current.length - 1; i >= 0; i--) {
+            const p = trailsRef.current[i];
+            p.life--;
+            
+            if (p.life <= 0) {
+                trailsRef.current.splice(i, 1);
+                continue;
+            }
+
+            const alpha = p.life / p.maxLife;
+            const radius = (p.size / 2) * scaleX * alpha; // Shrink with life
+            const cx = (p.x + 0.5) * scaleX; // Center of cell
+            const cy = (p.y + 0.5) * scaleY;
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = alpha * 0.6; // Base transparency
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }, []);
+
     const handleDeath = () => {
         setIsPlaying(false);
         if (lives > 1) {
@@ -398,6 +476,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                 pacmanRef.current.dir = 'LEFT';
                 pacmanRef.current.nextDir = 'LEFT';
                 ghostsRef.current = createGhosts(1 + (level - 1) * 0.1);
+                trailsRef.current = [];
                 gameTimerRef.current = 0;
                 gameModeIndexRef.current = 0;
                 setIsPlaying(true); 
@@ -462,6 +541,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                 updateGameTimers();
                 movePacman();
                 moveGhosts();
+                updateTrails();
                 checkCollisions();
                 setTick(t => t + 1);
             }
@@ -469,7 +549,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         };
         animationFrameRef.current = requestAnimationFrame(update);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [isPlaying, gameOver, gameWon, levelComplete, movePacman, moveGhosts, checkCollisions, updateGameTimers]);
+    }, [isPlaying, gameOver, gameWon, levelComplete, movePacman, moveGhosts, checkCollisions, updateGameTimers, updateTrails]);
 
     const getStyle = (x: number, y: number) => ({
         left: `${(x / COLS) * 100}%`,
@@ -519,6 +599,14 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
             
             <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg relative z-10 min-h-0 pb-6">
                 <div className="relative w-full h-auto aspect-[19/21] bg-black/80 border-2 border-blue-900/50 rounded-lg shadow-[0_0_20px_rgba(30,58,138,0.3)] overflow-hidden backdrop-blur-md">
+                    {/* FX Canvas Overlay */}
+                    <canvas 
+                        ref={fxCanvasRef}
+                        width={COLS * 20}
+                        height={ROWS * 20}
+                        className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-70"
+                    />
+
                     {gridRef.current.map((row, r) => (row.map((cell, c) => {
                         if (cell === 0) return null;
                         const style = getStyle(c, r);
@@ -533,14 +621,14 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                         const isFrightened = g.mode === 'FRIGHTENED';
                         const isEaten = g.mode === 'EATEN';
                         const colorClass = isFrightened ? 'text-blue-300' : g.color === 'red' ? 'text-red-500' : g.color === 'pink' ? 'text-pink-400' : g.color === 'cyan' ? 'text-cyan-400' : 'text-orange-400';
-                        return (<div key={g.id} className={`absolute flex items-center justify-center`} style={{...style, transform: 'scale(1.2)', transition: 'none'}}>
+                        return (<div key={g.id} className={`absolute flex items-center justify-center z-20`} style={{...style, transform: 'scale(1.2)', transition: 'none'}}>
                             {isEaten ? (<div className="relative w-full h-full flex items-center justify-center"><div className="w-1/3 h-1/3 bg-white rounded-full absolute -translate-x-1/4" /><div className="w-1/3 h-1/3 bg-white rounded-full absolute translate-x-1/4" /></div>)
                             : (<Ghost size={24} className={`${colorClass} ${isFrightened ? 'animate-pulse' : ''} drop-shadow-[0_0_5px_currentColor]`} fill="currentColor" />)}
                         </div>);
                     })}
                     
                     {/* CLASSIC PACMAN RENDER */}
-                    <div className="absolute flex items-center justify-center" 
+                    <div className="absolute flex items-center justify-center z-20" 
                          style={{
                              ...getStyle(pacmanRef.current.pos.x, pacmanRef.current.pos.y), 
                              transform: `scale(0.9) rotate(${pacmanRef.current.dir === 'RIGHT' ? 0 : pacmanRef.current.dir === 'DOWN' ? 90 : pacmanRef.current.dir === 'LEFT' ? 180 : -90}deg)`, 
@@ -554,7 +642,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                         </div>
                     </div>
 
-                    {!isPlaying && !gameOver && !gameWon && !levelComplete && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
+                    {!isPlaying && !gameOver && !gameWon && !levelComplete && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-30 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
                     
                     {levelComplete && (
                         <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in">
