@@ -1011,7 +1011,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         {showContestButton && <button onClick={handleContestClick} className="pointer-events-auto bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg px-6 py-3 rounded-full shadow-[0_0_20px_yellow] animate-pulse transition-all active:scale-95 flex items-center gap-2 border-4 border-red-600"><AlertTriangle size={24} fill="black" /> CONTRE-UNO !</button>}
                     </div>
                     <div className="w-full overflow-x-auto overflow-y-visible no-scrollbar pt-10 pb-4">
-                        <div className={`flex justify-center min-w-fit px-8 ${spacingClass} items-end min-h-[160px] transition-all duration-500`}>
+                        <div className={`flex w-fit mx-auto px-8 ${spacingClass} items-end min-h-[160px] transition-all duration-500`}>
                             {playerHand.map((card, i) => {
                                 if (flyingCard && flyingCard.card.id === card.id) return <div key={card.id} style={{ width: '0px', transition: 'width 0.5s' }}></div>;
                                 return <div key={card.id} style={{ transform: `rotate(${(i - playerHand.length/2) * rotationFactor}deg) translateY(${Math.abs(i - playerHand.length/2) * (rotationFactor * 1.5)}px)`, zIndex: i }} className={`transition-transform duration-300 origin-bottom`}><CardView card={card} onClick={(e) => handlePlayerCardClick(e, card, i)} /></div>;
