@@ -267,6 +267,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
 
     // --- EFFECT: LOBBY/GAME TRANSITION ---
     useEffect(() => {
+        // Fix: Do not interrupt SOLO game when lobby state changes
+        if (gameMode === 'SOLO') return;
+
         const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
@@ -287,7 +290,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 }
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, playerHand.length, cpuHand.length, winner, clearTable, isWaitingForHost]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, playerHand.length, cpuHand.length, winner, clearTable, isWaitingForHost, gameMode]);
 
     // --- EFFECT: ONLINE DATA HANDLER (STABLE) ---
     useEffect(() => {
