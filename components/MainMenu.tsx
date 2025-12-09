@@ -47,7 +47,7 @@ const SnakeIcon = ({ size, className }: { size?: number | string, className?: st
     </svg>
 );
 
-// Custom Uno Icon
+// Custom Uno Icon (4 Cards Fan)
 const UnoIcon = ({ size, className }: { size?: number | string, className?: string }) => (
     <svg 
         xmlns="http://www.w3.org/2000/svg" 
@@ -56,13 +56,22 @@ const UnoIcon = ({ size, className }: { size?: number | string, className?: stri
         viewBox="0 0 24 24" 
         fill="none" 
         stroke="currentColor" 
-        strokeWidth="2" 
+        strokeWidth="1.5" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
         className={className}
     >
-       <rect x="2" y="4" width="14" height="18" rx="2" transform="rotate(-15 9 13)" />
-       <rect x="8" y="2" width="14" height="18" rx="2" transform="rotate(10 15 11)" fill="currentColor" fillOpacity="0.2" />
+       {/* Card 1: Red (Left) */}
+       <rect x="2" y="6" width="10" height="14" rx="1.5" transform="rotate(-25 7 18)" fill="#ef4444" stroke="#ef4444" fillOpacity="0.3" />
+       {/* Card 2: Blue (Mid-Left) */}
+       <rect x="5" y="4" width="10" height="14" rx="1.5" transform="rotate(-10 10 16)" fill="#3b82f6" stroke="#3b82f6" fillOpacity="0.3" />
+       {/* Card 3: Green (Mid-Right) */}
+       <rect x="9" y="4" width="10" height="14" rx="1.5" transform="rotate(10 14 16)" fill="#22c55e" stroke="#22c55e" fillOpacity="0.3" />
+       {/* Card 4: Yellow (Right) */}
+       <rect x="12" y="6" width="10" height="14" rx="1.5" transform="rotate(25 17 18)" fill="#eab308" stroke="#eab308" fillOpacity="0.3" />
+       
+       {/* Generic Oval on top card to simulate Uno design */}
+       <ellipse cx="17" cy="13" rx="2.5" ry="4" transform="rotate(25 17 13)" fill="none" stroke="rgba(255,255,255,0.5)" />
     </svg>
 );
 
