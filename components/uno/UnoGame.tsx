@@ -231,6 +231,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     };
 
+    // --- EFFECT: TURN CHANGE RESET ---
+    useEffect(() => {
+        if (turn === 'PLAYER') {
+            setHasDrawnThisTurn(false);
+        }
+    }, [turn]);
+
     // --- EFFECT: LOBBY/GAME TRANSITION ---
     useEffect(() => {
         const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
@@ -299,10 +306,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     setMessage("Carte jouable !");
                 } else {
                     setMessage("Pas de chance...");
-                    setTimeout(() => {
-                        setTurn('CPU');
-                        mp.sendData({ type: 'UNO_PASS' });
-                    }, 1000);
+                    // We don't auto-pass in online for drawn card logic here as per manual draw logic fix
+                    // But we could auto pass to speed up? No, manual pass is better for consistency.
+                    // Actually, if it's not playable, we used to auto-pass.
+                    // Now we will let user click "Passer" (Deck) if they want.
                 }
             }
 
@@ -486,9 +493,25 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         return drawnCards;
     };
 
+    const handlePassTurn = () => {
+        setMessage("Tour passé");
+        setHasDrawnThisTurn(false);
+        setTurn('CPU');
+        if (gameMode === 'ONLINE') {
+            mp.sendData({ type: 'UNO_PASS' });
+        }
+    };
+
     // --- MANUAL DRAW ACTION ---
-    const handleDrawPileClick = () => {
-        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating || hasDrawnThisTurn) return;
+    const handleDrawPileClick = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
+
+        // If player already drew a card, clicking again means "Pass"
+        if (hasDrawnThisTurn) {
+            handlePassTurn();
+            return;
+        }
 
         if (gameMode === 'SOLO') {
             const drawn = drawCard('PLAYER', 1);
@@ -1003,11 +1026,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                         </div>
                     </div>
                     {/* Draw Pile */}
-                    <div onClick={handleDrawPileClick} className={`relative group z-10 transition-transform ${turn === 'PLAYER' && !hasDrawnThisTurn ? 'cursor-pointer hover:scale-105 active:scale-95' : 'opacity-80 cursor-not-allowed'}`}>
+                    <div onClick={handleDrawPileClick} className={`relative group z-10 transition-transform ${turn === 'PLAYER' ? 'cursor-pointer hover:scale-105 active:scale-95' : 'opacity-80 cursor-not-allowed'}`}>
                         <div className="w-20 h-28 sm:w-28 sm:h-40 bg-gray-900 border-2 border-gray-600 rounded-xl flex items-center justify-center shadow-2xl relative">
                             {turn === 'PLAYER' && !hasDrawnThisTurn && <div className="absolute inset-0 bg-white/10 animate-pulse rounded-xl"></div>}
                             <Layers size={32} className="text-gray-600" />
-                            {turn === 'PLAYER' && !hasDrawnThisTurn && <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white bg-black/50 px-2 py-1 rounded">PIOCHER</div>}
+                            {turn === 'PLAYER' && <div className={`absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white ${hasDrawnThisTurn ? 'bg-red-600' : 'bg-black/50'} px-2 py-1 rounded transition-colors`}>{hasDrawnThisTurn ? 'PASSER' : 'PIOCHER'}</div>}
                         </div>
                     </div>
                     {/* Discard Pile */}
