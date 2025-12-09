@@ -173,6 +173,14 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const chatEndRef = useRef<HTMLDivElement>(null);
     const handleDataRef = useRef<(data: any) => void>(null);
 
+    // --- HELPER: CONSISTENT COMPATIBILITY CHECK ---
+    // This is the single source of truth for whether a card can be played
+    const checkCompatibility = useCallback((card: Card) => {
+        const topCard = discardPile[discardPile.length - 1];
+        if (!topCard) return false;
+        return card.color === activeColor || card.value === topCard.value || card.color === 'black';
+    }, [activeColor, discardPile]);
+
     // --- EFFECT: SYNC SELF INFO ---
     useEffect(() => {
         mp.updateSelfInfo(username, currentAvatarId);
@@ -285,8 +293,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 setHasDrawnThisTurn(true);
                 // Check playability of last drawn card
                 const last = newCards[newCards.length-1];
-                const top = discardPile[discardPile.length-1];
-                if (last.color === activeColor || last.value === top.value || last.color === 'black') {
+                
+                // --- FIX: USE SHARED CHECK ---
+                if (last && checkCompatibility(last)) {
                     setMessage("Carte jouable !");
                 } else {
                     setMessage("Pas de chance...");
@@ -418,29 +427,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         // Client Side Logic (Not Host)
         if (gameMode === 'ONLINE' && !mp.isHost) {
             if (target === 'PLAYER') {
-                // I need to draw.
-                // If this is a remote effect (Host played +2), I assume Host sent me cards via UNO_DRAW_RESP separately or logic handles it.
-                // However, usually host manages state.
-                // If Host sends +2 PLAY, Host should ALSO send a draw command or Client should request it.
-                // Better approach: If it's a remote effect (I am victim of +2), I should NOT request draw if Host already assigned cards.
-                // But Host doesn't assign cards to Client directly unless Client requests or Host forces update.
-                // Current logic: Client requests draw. Host responds.
-                
-                // If this call comes from `executeCardEffect` triggered by `UNO_PLAY` (Remote),
-                // we should suppress the draw request here because the Host sends cards via `UNO_DRAW_RESP` usually?
-                // Actually no, Host sends `UNO_PLAY`. Client sees +2. Client logic triggers `drawCard`.
-                // Client MUST request the cards.
-                
-                // BUT: Double draw bug suggests multiple triggers.
                 if (isRemoteEffect) return []; // Prevent automatic draw on effect if we handle it otherwise?
                 
-                // Let's assume standard flow: I request cards.
                 mp.sendData({ type: 'UNO_DRAW_REQ', amount });
                 return [];
             } else {
                 // CPU (Host) needs to draw (Visually).
-                // If I played +2, I want to see Host draw.
-                // Just add dummies.
                 const dummies = Array(amount).fill({ id: `opp_draw_${Date.now()}_${Math.random()}`, color: 'black', value: '0', score: 0 });
                 setCpuHand(prev => [...prev, ...dummies]);
                 return []; 
@@ -502,14 +494,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             const drawn = drawCard('PLAYER', 1);
             setHasDrawnThisTurn(true);
             const newCard = drawn[0];
-            if (newCard) {
-                const topCard = discardPile[discardPile.length - 1];
-                const canPlay = newCard.color === activeColor || newCard.value === topCard.value || newCard.color === 'black';
-                if (canPlay) setMessage("Carte jouable !");
-                else {
-                    setMessage("Pas de chance...");
-                    setTimeout(() => setTurn('CPU'), 1000);
-                }
+            
+            // --- FIX: USE SHARED CHECK ---
+            if (newCard && checkCompatibility(newCard)) {
+                setMessage("Carte jouable !");
+            } else {
+                setMessage("Pas de chance...");
+                setTimeout(() => setTurn('CPU'), 1000);
             }
         } else {
             // Online: Request draw
@@ -519,12 +510,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 setHasDrawnThisTurn(true);
                 // Check playability (Same logic)
                 const newCard = drawn[0];
-                const topCard = discardPile[discardPile.length - 1];
-                if (!newCard || !(newCard.color === activeColor || newCard.value === topCard.value || newCard.color === 'black')) {
+                
+                // --- FIX: USE SHARED CHECK ---
+                if (!newCard || !checkCompatibility(newCard)) {
                     setTimeout(() => {
                         setTurn('CPU');
                         mp.sendData({ type: 'UNO_PASS' });
                     }, 1000);
+                } else {
+                    setMessage("Carte jouable !");
                 }
             } else {
                 // Client requests
@@ -694,12 +688,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     };
 
     const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
+        // Adding stopPropagation to prevent double events if cards overlap or bubble
+        e.stopPropagation();
+        
         if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
 
-        const topCard = discardPile[discardPile.length - 1];
-        const isCompatible = card.color === activeColor || card.value === topCard.value || card.color === 'black';
-
-        if (isCompatible) {
+        // --- FIX: USE SHARED CHECK ---
+        if (checkCompatibility(card)) {
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             animateCardPlay(card, index, 'PLAYER', rect);
             if (gameMode === 'ONLINE') {
@@ -884,8 +879,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         const isPlayerHand = onClick !== undefined;
         let isPlayable = true;
         if (isPlayerHand && turn === 'PLAYER') {
-             const topCard = discardPile[discardPile.length - 1];
-             if (topCard) isPlayable = card.color === activeColor || card.value === topCard.value || card.color === 'black';
+             // --- FIX: USE SHARED CHECK ---
+             isPlayable = checkCompatibility(card);
         }
 
         const liftClass = isPlayerHand ? (isPlayable ? '-translate-y-6 sm:-translate-y-8 shadow-[0_0_25px_rgba(255,255,255,0.4)] z-30 brightness-110 ring-2 ring-white/70' : 'brightness-50 z-0 translate-y-2') : '';
