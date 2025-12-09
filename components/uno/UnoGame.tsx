@@ -10,6 +10,7 @@ interface UnoGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    mp: ReturnType<typeof useMultiplayer>;
 }
 
 // --- TYPES ---
@@ -125,12 +126,11 @@ const generateDeck = (): Card[] => {
     return deck.sort(() => Math.random() - 0.5);
 };
 
-export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => {
+export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp }) => {
     // --- HOOKS ---
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const { username, currentAvatarId, avatarsCatalog } = useCurrency();
-    const mp = useMultiplayer(); // Multiplayer Hook
 
     // --- GAME STATE ---
     const [phase, setPhase] = useState<GamePhase>('MENU');
@@ -215,7 +215,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             }
             setOpponentLeft(false);
         }
-    }, [gameMode]);
+    }, [gameMode, mp]);
 
     // --- HELPER: RESET TABLE ---
     const clearTable = useCallback(() => {
