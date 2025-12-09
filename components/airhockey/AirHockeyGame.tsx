@@ -343,14 +343,66 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     const drawMallet = (ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, malletStyle?: Mallet, isOpponent: boolean = false) => {
         if (malletStyle) {
-            // ... (Style logic remains same)
+            ctx.save();
             ctx.beginPath();
             ctx.arc(x, y, radius, 0, 2 * Math.PI);
-            ctx.fillStyle = malletStyle.colors[0];
+
+            if (malletStyle.type === 'basic') {
+                ctx.fillStyle = malletStyle.colors[0];
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 15;
+            } else if (malletStyle.type === 'gradient' || malletStyle.type === 'complex') {
+                const grad = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
+                if (malletStyle.colors.length > 1) {
+                    malletStyle.colors.forEach((c, i) => {
+                        grad.addColorStop(i / (malletStyle.colors.length - 1), c);
+                    });
+                } else {
+                    grad.addColorStop(0, malletStyle.colors[0]);
+                    grad.addColorStop(1, malletStyle.colors[0]);
+                }
+                ctx.fillStyle = grad;
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 15;
+            } else if (malletStyle.type === 'target') {
+                const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                grad.addColorStop(0, malletStyle.colors[0]);
+                grad.addColorStop(0.3, malletStyle.colors[0]);
+                grad.addColorStop(0.3, malletStyle.colors[1] || '#000');
+                grad.addColorStop(0.6, malletStyle.colors[1] || '#000');
+                grad.addColorStop(0.6, malletStyle.colors[0]);
+                grad.addColorStop(1, malletStyle.colors[0]);
+                ctx.fillStyle = grad;
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 10;
+            } else if (malletStyle.type === 'flower') {
+                const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                grad.addColorStop(0, malletStyle.colors[1] || '#fff');
+                grad.addColorStop(0.2, malletStyle.colors[1] || '#fff');
+                grad.addColorStop(0.2, malletStyle.colors[0]);
+                grad.addColorStop(1, malletStyle.colors[0]);
+                ctx.fillStyle = grad;
+                ctx.shadowColor = malletStyle.colors[0];
+                ctx.shadowBlur = 15;
+            } else {
+                ctx.fillStyle = malletStyle.colors[0];
+            }
+
             ctx.fill();
-            ctx.strokeStyle = '#fff';
+            
+            // Inner border/highlight
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
             ctx.lineWidth = 2;
             ctx.stroke();
+            
+            // Inner circle detail (handle)
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 0.4, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
             return;
         }
 
@@ -363,6 +415,13 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         ctx.fill();
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Default handle
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.4, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fill();
         ctx.stroke();
     };
 
