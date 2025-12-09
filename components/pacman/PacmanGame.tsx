@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Ghost } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Ghost, ArrowRight, Star } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { Direction, Position, Pacman, Ghost as GhostType, Grid, TileType, GhostMode } from './types';
-import { LEVEL_MAP, PACMAN_START, COLS, ROWS, GHOST_HOUSE_EXIT, GHOST_HOUSE_CENTER } from './level';
+import { LEVELS, PACMAN_START, COLS, ROWS, GHOST_HOUSE_EXIT, GHOST_HOUSE_CENTER } from './level';
 
 interface PacmanGameProps {
     onBack: () => void;
@@ -11,7 +12,7 @@ interface PacmanGameProps {
     addCoins: (amount: number) => void;
 }
 
-const GAME_SPEED_BASE = 0.11; // Vitesse réduite pour meilleur contrôle
+const GAME_SPEED_BASE = 0.11; // Vitesse de base
 
 // --- GHOST AI CONSTANTS ---
 const SCATTER_TARGETS = [
@@ -37,11 +38,11 @@ const MODE_SWITCH_TIMES = [
 // Ghost release timers in frames
 const GHOST_RELEASE_TIMES = [0, 4 * 60, 8 * 60, 12 * 60];
 
-const INITIAL_GHOSTS: GhostType[] = [
-    { id: 0, pos: { ...GHOST_HOUSE_EXIT }, dir: 'LEFT', color: 'red', mode: 'SCATTER', startPos: { x: 9, y: 10 }, speed: GAME_SPEED_BASE * 0.45 },
-    { id: 1, pos: { x: 9, y: 10 }, dir: 'UP', color: 'pink', mode: 'AT_HOME', startPos: { x: 9, y: 10 }, speed: GAME_SPEED_BASE * 0.42 },
-    { id: 2, pos: { x: 8, y: 10 }, dir: 'UP', color: 'cyan', mode: 'AT_HOME', startPos: { x: 8, y: 10 }, speed: GAME_SPEED_BASE * 0.40 },
-    { id: 3, pos: { x: 10, y: 10 }, dir: 'UP', color: 'orange', mode: 'AT_HOME', startPos: { x: 10, y: 10 }, speed: GAME_SPEED_BASE * 0.38 }
+const createGhosts = (speedMultiplier: number = 1): GhostType[] => [
+    { id: 0, pos: { ...GHOST_HOUSE_EXIT }, dir: 'LEFT', color: 'red', mode: 'SCATTER', startPos: { x: 9, y: 10 }, speed: GAME_SPEED_BASE * 0.45 * speedMultiplier },
+    { id: 1, pos: { x: 9, y: 10 }, dir: 'UP', color: 'pink', mode: 'AT_HOME', startPos: { x: 9, y: 10 }, speed: GAME_SPEED_BASE * 0.42 * speedMultiplier },
+    { id: 2, pos: { x: 8, y: 10 }, dir: 'UP', color: 'cyan', mode: 'AT_HOME', startPos: { x: 8, y: 10 }, speed: GAME_SPEED_BASE * 0.40 * speedMultiplier },
+    { id: 3, pos: { x: 10, y: 10 }, dir: 'UP', color: 'orange', mode: 'AT_HOME', startPos: { x: 10, y: 10 }, speed: GAME_SPEED_BASE * 0.38 * speedMultiplier }
 ];
 
 
@@ -49,8 +50,10 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     // Game State
     const [score, setScore] = useState(0);
     const [lives, setLives] = useState(3);
+    const [level, setLevel] = useState(1);
     const [gameOver, setGameOver] = useState(false);
-    const [gameWon, setGameWon] = useState(false);
+    const [gameWon, setGameWon] = useState(false); // Global victory (all levels)
+    const [levelComplete, setLevelComplete] = useState(false); // Single level done
     const [isPlaying, setIsPlaying] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
 
@@ -61,8 +64,8 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
 
     // Game Logic Refs
     const pacmanRef = useRef<Pacman>({ pos: { ...PACMAN_START }, dir: 'LEFT', nextDir: 'LEFT', speed: GAME_SPEED_BASE, isPowered: false });
-    const ghostsRef = useRef<GhostType[]>(JSON.parse(JSON.stringify(INITIAL_GHOSTS)));
-    const gridRef = useRef<Grid>(JSON.parse(JSON.stringify(LEVEL_MAP)));
+    const ghostsRef = useRef<GhostType[]>(createGhosts());
+    const gridRef = useRef<Grid>([]); // Will be set in initLevel
     const dotsCountRef = useRef(0);
     const powerTimerRef = useRef<any>(null);
     const animationFrameRef = useRef<number>(0);
@@ -76,15 +79,22 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     
     const [, setTick] = useState(0);
 
+    // Load saved level or start at 1
+    const getSavedLevel = () => {
+        const saved = localStorage.getItem('pacman-max-level');
+        return saved ? Math.min(parseInt(saved, 10), LEVELS.length) : 1;
+    };
+
     useEffect(() => {
-        resetGame();
+        // Start at level 1 by default, but we could add level select later
+        resetGame(1);
         return () => cancelAnimationFrame(animationFrameRef.current);
     }, []);
 
     // Gestion du clavier pour Desktop / Test
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (gameOver || gameWon) return;
+            if (gameOver || gameWon || levelComplete) return;
             const key = e.key;
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
                 e.preventDefault();
@@ -99,7 +109,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [gameOver, gameWon, isPlaying, resumeAudio]);
+    }, [gameOver, gameWon, levelComplete, isPlaying, resumeAudio]);
 
     // --- SWIPE CONTROLS LOGIC ---
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -114,22 +124,17 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         const diffX = touch.clientX - touchStartRef.current.x;
         const diffY = touch.clientY - touchStartRef.current.y;
         
-        // Increased sensitivity: threshold lowered from 20 to 6
         const threshold = 6; 
 
-        // Si le mouvement est significatif
         if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
             resumeAudio();
-            if (!isPlaying && !gameOver && !gameWon) setIsPlaying(true);
+            if (!isPlaying && !gameOver && !gameWon && !levelComplete) setIsPlaying(true);
 
-            // Determine dominant direction
             if (Math.abs(diffX) > Math.abs(diffY)) {
                 pacmanRef.current.nextDir = diffX > 0 ? 'RIGHT' : 'LEFT';
             } else {
                 pacmanRef.current.nextDir = diffY > 0 ? 'DOWN' : 'UP';
             }
-
-            // Reset start point to current to allow continuous steering
             touchStartRef.current = { x: touch.clientX, y: touch.clientY };
         }
     };
@@ -138,39 +143,72 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         touchStartRef.current = null;
     };
 
-
-    const resetGame = () => {
-        gridRef.current = JSON.parse(JSON.stringify(LEVEL_MAP));
+    const initLevel = (levelIndex: number) => {
+        const mapData = LEVELS[levelIndex - 1] || LEVELS[0];
+        gridRef.current = JSON.parse(JSON.stringify(mapData));
+        
         let dots = 0;
         gridRef.current.forEach(row => row.forEach(cell => { if (cell === 2 || cell === 3) dots++; }));
         dotsCountRef.current = dots;
 
-        resetActors(true);
+        // Speed increases by 10% each level
+        const speedMultiplier = 1 + (levelIndex - 1) * 0.1;
+        
+        pacmanRef.current = { 
+            pos: { ...PACMAN_START }, 
+            dir: 'LEFT', 
+            nextDir: 'LEFT', 
+            speed: GAME_SPEED_BASE * speedMultiplier, 
+            isPowered: false 
+        };
+        
+        ghostsRef.current = createGhosts(speedMultiplier);
+        
+        gameTimerRef.current = 0;
+        gameModeIndexRef.current = 0;
+        gameModeRef.current = 'SCATTER';
+    };
+
+    const resetGame = (startLevel: number = 1) => {
+        setLevel(startLevel);
+        initLevel(startLevel);
+        
         setScore(0);
         setLives(3);
         setGameOver(false);
         setGameWon(false);
+        setLevelComplete(false);
         setIsPlaying(false);
         setEarnedCoins(0);
     };
 
-    const resetActors = (fullReset = false) => {
-        pacmanRef.current = { pos: { ...PACMAN_START }, dir: 'LEFT', nextDir: 'LEFT', speed: GAME_SPEED_BASE, isPowered: false };
-        ghostsRef.current = JSON.parse(JSON.stringify(INITIAL_GHOSTS));
-        if (fullReset) {
-            gameTimerRef.current = 0;
-            gameModeIndexRef.current = 0;
-            gameModeRef.current = 'SCATTER';
+    const startNextLevel = () => {
+        const nextLevel = level + 1;
+        
+        if (nextLevel > LEVELS.length) {
+            // Victory Royale
+            setGameWon(true);
+            playVictory();
+            // Big Bonus
+            addCoins(200);
+            setEarnedCoins(prev => prev + 200);
+        } else {
+            setLevel(nextLevel);
+            initLevel(nextLevel);
+            setLevelComplete(false);
+            setIsPlaying(false);
+            
+            // Save progress
+            const currentMax = parseInt(localStorage.getItem('pacman-max-level') || '1', 10);
+            if (nextLevel > currentMax) {
+                localStorage.setItem('pacman-max-level', nextLevel.toString());
+            }
         }
     };
 
     const isWall = (x: number, y: number): boolean => {
-        // Special Tunnel handling: Tunnel row is usually index 10
-        if (y === 10 && (x < 0 || x >= COLS)) return false;
-
-        // Out of bounds are walls (except tunnel)
+        if (y === 10 && (x < 0 || x >= COLS)) return false; // Tunnel
         if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return true;
-
         const cell = gridRef.current[Math.floor(y)][Math.floor(x)];
         return cell === 1 || cell === 4;
     };
@@ -183,11 +221,19 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
 
     const checkWin = () => {
         if (dotsCountRef.current <= 0) {
-            setGameWon(true);
             setIsPlaying(false);
             playVictory();
             addCoins(50);
             setEarnedCoins(e => e + 50);
+            setLevelComplete(true);
+            
+            setTimeout(() => {
+                if (level < LEVELS.length) {
+                    startNextLevel();
+                } else {
+                    setGameWon(true);
+                }
+            }, 3000);
         }
     };
 
@@ -206,7 +252,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         const p = pacmanRef.current;
         const speed = p.speed;
 
-        // 1. Gestion du demi-tour immédiat
+        // Demi-tour immédiat
         if (
             (p.dir === 'LEFT' && p.nextDir === 'RIGHT') ||
             (p.dir === 'RIGHT' && p.nextDir === 'LEFT') ||
@@ -216,11 +262,9 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
             p.dir = p.nextDir;
         }
 
-        // 2. Calculs de position sur la grille
         const center = { x: Math.round(p.pos.x), y: Math.round(p.pos.y) };
         const distToCenter = Math.abs(p.pos.x - center.x) + Math.abs(p.pos.y - center.y);
 
-        // 3. Logique de virage et d'alignement
         if (distToCenter <= speed + 0.02) {
             if (p.nextDir !== p.dir) {
                 let canTurn = false;
@@ -348,7 +392,16 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         if (lives > 1) {
             setLives(l => l - 1);
             playGameOver();
-            setTimeout(() => { resetActors(); setIsPlaying(true); }, 1500);
+            // Just reset actors to start position
+            setTimeout(() => { 
+                pacmanRef.current.pos = { ...PACMAN_START };
+                pacmanRef.current.dir = 'LEFT';
+                pacmanRef.current.nextDir = 'LEFT';
+                ghostsRef.current = createGhosts(1 + (level - 1) * 0.1);
+                gameTimerRef.current = 0;
+                gameModeIndexRef.current = 0;
+                setIsPlaying(true); 
+            }, 1500);
         } else {
             setLives(0);
             setGameOver(true);
@@ -405,7 +458,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
 
     useEffect(() => {
         const update = () => {
-            if (isPlaying && !gameOver && !gameWon) {
+            if (isPlaying && !gameOver && !gameWon && !levelComplete) {
                 updateGameTimers();
                 movePacman();
                 moveGhosts();
@@ -416,7 +469,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         };
         animationFrameRef.current = requestAnimationFrame(update);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [isPlaying, gameOver, gameWon, movePacman, moveGhosts, checkCollisions, updateGameTimers]);
+    }, [isPlaying, gameOver, gameWon, levelComplete, movePacman, moveGhosts, checkCollisions, updateGameTimers]);
 
     const getStyle = (x: number, y: number) => ({
         left: `${(x / COLS) * 100}%`,
@@ -445,14 +498,16 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                 }
             `}</style>
             
-            {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-yellow-400/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)] pr-2 pb-1">NEON PAC</h1>
-                <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex flex-col items-center">
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)] pr-2">NEON PAC</h1>
+                    <span className="text-[10px] text-yellow-300 font-bold tracking-widest bg-yellow-900/30 px-2 rounded border border-yellow-500/30">NIVEAU {level}</span>
+                </div>
+                <button onClick={() => resetGame(1)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
             <div className="w-full max-w-lg flex justify-between items-center px-6 mb-2 z-10">
                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-xl font-mono font-bold text-white">{score}</span></div>
@@ -499,9 +554,27 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
                         </div>
                     </div>
 
-                    {!isPlaying && !gameOver && !gameWon && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
-                    {gameOver && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-red-500 italic mb-2">GAME OVER</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-500">REJOUER</button></div>)}
-                    {gameWon && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-green-400 italic mb-2">VICTOIRE !</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">REJOUER</button></div>)}
+                    {!isPlaying && !gameOver && !gameWon && !levelComplete && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
+                    
+                    {levelComplete && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in">
+                            <h2 className="text-4xl font-black text-green-400 italic mb-2">NIVEAU {level} TERMINÉ !</h2>
+                            <div className="flex gap-1 mb-4">{Array.from({length: 3}).map((_,i) => <Star key={i} className="text-yellow-400 animate-bounce" style={{animationDelay: `${i*0.2}s`}} fill="currentColor"/>)}</div>
+                            <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+50 PIÈCES</span></div>
+                            <p className="text-white animate-pulse text-xs tracking-widest">NIVEAU SUIVANT...</p>
+                        </div>
+                    )}
+
+                    {gameOver && (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in"><h2 className="text-4xl font-black text-red-500 italic mb-2">GAME OVER</h2>{earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={() => resetGame(1)} className="px-6 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-500">REJOUER</button></div>)}
+                    
+                    {gameWon && (
+                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in">
+                            <h2 className="text-4xl font-black text-green-400 italic mb-2">VICTOIRE TOTALE !</h2>
+                            <p className="text-gray-300 text-sm mb-4 text-center max-w-[200px]">Tu as terminé tous les niveaux !</p>
+                            {earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}
+                            <button onClick={() => resetGame(1)} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">REJOUER</button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
