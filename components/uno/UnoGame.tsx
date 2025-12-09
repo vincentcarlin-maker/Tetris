@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Megaphone, AlertTriangle, User, Users, Globe, Loader2, RotateCcw } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette, User, Globe, Users, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
-import { useCurrency } from '../../hooks/useCurrency';
+import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
+import { useCurrency } from '../../hooks/useCurrency';
 
 interface UnoGameProps {
     onBack: () => void;
@@ -12,15 +13,24 @@ interface UnoGameProps {
     mp: ReturnType<typeof useMultiplayer>;
 }
 
-// --- TYPES & CONSTANTS ---
-type Color = 'RED' | 'BLUE' | 'GREEN' | 'YELLOW' | 'BLACK';
-type Type = 'NUMBER' | 'SKIP' | 'REVERSE' | 'DRAW2' | 'WILD' | 'WILD4';
+// --- TYPES ---
+type Color = 'red' | 'blue' | 'green' | 'yellow' | 'black';
+type Value = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | 'draw2' | 'wild' | 'wild4';
 
 interface Card {
     id: string;
     color: Color;
-    type: Type;
-    value?: number; // 0-9
+    value: Value;
+    score: number;
+}
+
+interface FlyingCardData {
+    card: Card;
+    startX: number;
+    startY: number;
+    targetX: number;
+    targetY: number;
+    rotation: number;
 }
 
 interface ChatMessage {
@@ -31,16 +41,52 @@ interface ChatMessage {
     timestamp: number;
 }
 
-const COLORS: Color[] = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
-const COLOR_CONFIG: Record<string, { bg: string, text: string, border: string }> = {
-    RED: { bg: 'bg-red-500', text: 'text-red-500', border: 'border-red-500' },
-    BLUE: { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500' },
-    GREEN: { bg: 'bg-green-500', text: 'text-green-500', border: 'border-green-500' },
-    YELLOW: { bg: 'bg-yellow-400', text: 'text-yellow-400', border: 'border-yellow-400' },
-    BLACK: { bg: 'bg-gray-800', text: 'text-white', border: 'border-gray-600' },
+type Turn = 'PLAYER' | 'CPU'; // CPU = Opponent in Online
+type GameState = 'playing' | 'gameover' | 'color_select';
+type GamePhase = 'MENU' | 'GAME';
+
+// --- CONFIG ---
+const COLORS: Color[] = ['red', 'blue', 'green', 'yellow'];
+
+const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string, bg: string, gradient: string }> = {
+    red: { 
+        border: 'border-red-500', 
+        text: 'text-red-500', 
+        shadow: 'shadow-red-500/50', 
+        bg: 'bg-red-950',
+        gradient: 'from-red-600 to-red-900'
+    },
+    blue: { 
+        border: 'border-cyan-500', 
+        text: 'text-cyan-500', 
+        shadow: 'shadow-cyan-500/50', 
+        bg: 'bg-cyan-950',
+        gradient: 'from-cyan-600 to-blue-900'
+    },
+    green: { 
+        border: 'border-green-500', 
+        text: 'text-green-500', 
+        shadow: 'shadow-green-500/50', 
+        bg: 'bg-green-950',
+        gradient: 'from-green-600 to-emerald-900'
+    },
+    yellow: { 
+        border: 'border-yellow-400', 
+        text: 'text-yellow-400', 
+        shadow: 'shadow-yellow-400/50', 
+        bg: 'bg-yellow-950',
+        gradient: 'from-yellow-500 to-orange-800'
+    },
+    black: { 
+        border: 'border-purple-500', 
+        text: 'text-white', 
+        shadow: 'shadow-purple-500/50', 
+        bg: 'bg-gray-900',
+        gradient: 'from-purple-600 via-pink-600 to-blue-600' 
+    },
 };
 
-// Reactions
+// Réactions Néon Animées
 const REACTIONS = [
     { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
     { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
@@ -50,275 +96,778 @@ const REACTIONS = [
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
 ];
 
-const CardView = ({ card, onClick, className }: { card: Card, onClick?: (e: React.MouseEvent) => void, className?: string }) => {
-    const config = COLOR_CONFIG[card.color] || COLOR_CONFIG['BLACK'];
-    
-    const renderContent = () => {
-        if (card.type === 'NUMBER') return <span className="text-4xl font-black">{card.value}</span>;
-        if (card.type === 'SKIP') return <div className="flex flex-col items-center"><div className="w-8 h-8 border-4 border-current rounded-full flex items-center justify-center"><div className="w-6 h-1 bg-current rotate-45"></div></div></div>;
-        if (card.type === 'REVERSE') return <RotateCcw size={32} strokeWidth={3} />;
-        if (card.type === 'DRAW2') return <div className="text-2xl font-black flex flex-col items-center leading-none"><span>+2</span><div className="flex -space-x-2 mt-1"><div className="w-4 h-6 border bg-current rounded-sm"></div><div className="w-4 h-6 border bg-current rounded-sm"></div></div></div>;
-        if (card.type === 'WILD') return <div className="grid grid-cols-2 w-12 h-12 gap-0.5"><div className="bg-red-500 rounded-tl-full"></div><div className="bg-blue-500 rounded-tr-full"></div><div className="bg-yellow-400 rounded-bl-full"></div><div className="bg-green-500 rounded-br-full"></div></div>;
-        if (card.type === 'WILD4') return <div className="flex flex-col items-center"><span className="text-xl font-black mb-1">+4</span><div className="grid grid-cols-2 w-8 h-8 gap-0.5"><div className="bg-red-500 rounded-sm"></div><div className="bg-blue-500 rounded-sm"></div><div className="bg-yellow-400 rounded-sm"></div><div className="bg-green-500 rounded-sm"></div></div></div>;
+const generateDeck = (): Card[] => {
+    let deck: Card[] = [];
+    let idCounter = 0;
+    const SPECIAL_VALUES: Value[] = ['skip', 'reverse', 'draw2'];
+
+    const addCard = (color: Color, value: Value, score: number) => {
+        deck.push({ id: `card_${idCounter++}_${Math.random().toString(36).substr(2, 5)}`, color, value, score });
     };
 
-    return (
-        <div 
-            onClick={onClick}
-            className={`w-24 h-36 rounded-xl border-4 ${config.border} ${config.bg} ${config.text} flex flex-col items-center justify-center shadow-lg relative select-none cursor-pointer hover:-translate-y-4 transition-transform duration-200 ${className}`}
-        >
-            <div className="w-20 h-32 rounded-lg border-2 border-white/20 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
-                <div className="drop-shadow-md filter">{renderContent()}</div>
-            </div>
-            {/* Small corner indicators */}
-            <div className="absolute top-1 left-1 text-[10px] font-bold">{card.type === 'NUMBER' ? card.value : (card.type === 'WILD' ? 'W' : card.type === 'WILD4' ? '+4' : card.type[0])}</div>
-            <div className="absolute bottom-1 right-1 text-[10px] font-bold rotate-180">{card.type === 'NUMBER' ? card.value : (card.type === 'WILD' ? 'W' : card.type === 'WILD4' ? '+4' : card.type[0])}</div>
-        </div>
-    );
+    COLORS.forEach(color => {
+        addCard(color, '0', 0); // 1 zero
+        for (let i = 1; i <= 9; i++) {
+            addCard(color, i.toString() as Value, i);
+            addCard(color, i.toString() as Value, i);
+        }
+        SPECIAL_VALUES.forEach(val => {
+            addCard(color, val, 20);
+            addCard(color, val, 20);
+        });
+    });
+
+    // Wilds
+    for (let i = 0; i < 4; i++) {
+        addCard('black', 'wild', 50);
+        addCard('black', 'wild4', 50);
+    }
+
+    return deck.sort(() => Math.random() - 0.5);
 };
 
 export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp }) => {
-    // --- STATE ---
-    const [gameState, setGameState] = useState<'menu' | 'playing' | 'color_select' | 'gameover'>('menu');
+    // --- HOOKS ---
+    const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
+    const { highScores, updateHighScore } = useHighScores();
+    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
+
+    // --- GAME STATE ---
+    const [phase, setPhase] = useState<GamePhase>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
-    const [turn, setTurn] = useState<'PLAYER' | 'OPPONENT'>('PLAYER');
-    const [winner, setWinner] = useState<'PLAYER' | 'OPPONENT' | null>(null);
-    
-    const [playerHand, setPlayerHand] = useState<Card[]>([]);
-    const [opponentHandCount, setOpponentHandCount] = useState(7);
+    const [deck, setDeck] = useState<Card[]>([]);
     const [discardPile, setDiscardPile] = useState<Card[]>([]);
-    const [drawPileCount, setDrawPileCount] = useState(50);
-    const [currentColor, setCurrentColor] = useState<Color>('RED'); // Active color (handles Wilds)
+    const [playerHand, setPlayerHand] = useState<Card[]>([]);
+    const [cpuHand, setCpuHand] = useState<Card[]>([]); // Represents Opponent in Online
+    const [turn, setTurn] = useState<Turn>('PLAYER');
+    const [gameState, setGameState] = useState<GameState>('playing');
+    const [activeColor, setActiveColor] = useState<Color>('black');
+    const [winner, setWinner] = useState<Turn | null>(null);
+    const [score, setScore] = useState(0);
+    const [unoShout, setUnoShout] = useState<Turn | null>(null);
+    const [message, setMessage] = useState<string>('');
+    const [earnedCoins, setEarnedCoins] = useState(0);
     
-    const [direction, setDirection] = useState(1); // 1 or -1
-    const [unoShout, setUnoShout] = useState(false);
+    // Direction: 1 = Clockwise, -1 = Counter-Clockwise (Visual only in 1v1)
+    const [playDirection, setPlayDirection] = useState<1 | -1>(1);
+
+    // Manual Mechanics State
+    const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
     const [playerCalledUno, setPlayerCalledUno] = useState(false);
     const [showContestButton, setShowContestButton] = useState(false);
-    const [flyingCard, setFlyingCard] = useState<{card: Card, from: 'PLAYER' | 'OPPONENT' | 'DECK', to: 'DISCARD' | 'PLAYER' | 'OPPONENT'} | null>(null);
+    const [opponentCalledUno, setOpponentCalledUno] = useState(false);
 
-    // Online
+    // Animation States
+    const [flyingCard, setFlyingCard] = useState<FlyingCardData | null>(null);
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    // Online States
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
+    const [isWaitingForHost, setIsWaitingForHost] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
 
-    const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
-    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
-
-    // --- REFS ---
-    const handleDataRef = useRef<any>(null);
+    const discardPileRef = useRef<HTMLDivElement>(null);
+    const cpuHandRef = useRef<HTMLDivElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const handleDataRef = useRef<(data: any) => void>(null);
+    const mainContainerRef = useRef<HTMLDivElement>(null);
 
+    // STATE REF to fix stale closures in timeouts
+    const gameStateRef = useRef({ playerHand, cpuHand, discardPile, activeColor, turn });
+    useEffect(() => {
+        gameStateRef.current = { playerHand, cpuHand, discardPile, activeColor, turn };
+    }, [playerHand, cpuHand, discardPile, activeColor, turn]);
+
+    // --- EFFECT: PREVENT OVERSCROLL ---
+    useEffect(() => {
+        const container = mainContainerRef.current;
+        if (!container) return;
+
+        const handleTouchMove = (e: TouchEvent) => {
+            const target = e.target as HTMLElement;
+            // Allow scrolling only in chat/lists marked with custom-scrollbar or root if auto
+            if (target.closest('.custom-scrollbar') || target === container) return;
+            e.preventDefault();
+        };
+
+        container.addEventListener('touchmove', handleTouchMove, { passive: false });
+        return () => container.removeEventListener('touchmove', handleTouchMove);
+    }, []);
+
+    // --- HELPER: CONSISTENT COMPATIBILITY CHECK ---
+    const checkCompatibility = useCallback((card: Card) => {
+        const topCard = discardPile[discardPile.length - 1];
+        if (!topCard) return false;
+        return card.color === activeColor || card.value === topCard.value || card.color === 'black';
+    }, [activeColor, discardPile]);
+
+    // --- EFFECT: SYNC SELF INFO ---
     useEffect(() => {
         mp.updateSelfInfo(username, currentAvatarId);
     }, [username, currentAvatarId, mp]);
+
+    // --- EFFECT: CONNECT/DISCONNECT ---
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            // Only leave specific game context
+            if (mp.mode === 'in_game' || mp.isHost) {
+                mp.leaveGame();
+            }
+            setOpponentLeft(false);
+        }
+    }, [gameMode, mp]);
+
+    // --- HELPER: RESET TABLE ---
+    const clearTable = useCallback(() => {
+        setPlayerHand([]);
+        setCpuHand([]);
+        setDeck([]);
+        setDiscardPile([]);
+        setScore(0);
+        setUnoShout(null);
+        setEarnedCoins(0);
+        setHasDrawnThisTurn(false);
+        setIsAnimating(false);
+        setFlyingCard(null); // Fix: Reset flying card to prevent ghost blocks
+        setPlayDirection(1);
+        setPlayerCalledUno(false);
+        setShowContestButton(false);
+        setOpponentCalledUno(false);
+        setChatHistory([]);
+        setOpponentLeft(false);
+        setGameState('playing');
+        setWinner(null);
+        setMessage('');
+        setIsWaitingForHost(false);
+    }, []);
+
+    const backToMenu = () => {
+        setPhase('MENU');
+        if (gameMode === 'ONLINE') {
+            if (mp.mode === 'in_game' || mp.isHost) mp.leaveGame();
+        }
+    };
+
+    // --- EFFECT: TURN CHANGE LOGIC ---
+    useEffect(() => {
+        if (turn === 'PLAYER') {
+            setHasDrawnThisTurn(false);
+        } else {
+            // When turn goes to CPU, reset player flags
+            setPlayerCalledUno(false);
+            setShowContestButton(false);
+        }
+    }, [turn]);
+
+    // --- EFFECT: LOBBY/GAME TRANSITION ---
+    useEffect(() => {
+        // Fix: Do not interrupt SOLO game when lobby state changes
+        if (gameMode === 'SOLO') return;
+
+        const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+            
+            if (phase === 'GAME' && (playerHand.length > 0 || cpuHand.length > 0 || winner)) {
+                clearTable();
+            }
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            if (phase === 'MENU') {
+                initGame('ONLINE');
+            } else if (phase === 'GAME') {
+                const isGameRunning = playerHand.length > 0 || cpuHand.length > 0 || isWaitingForHost;
+                if (!isGameRunning) {
+                    startNewGame('ONLINE');
+                }
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, playerHand.length, cpuHand.length, winner, clearTable, isWaitingForHost, gameMode]);
+
+    // --- EFFECT: ONLINE DATA HANDLER (STABLE) ---
+    useEffect(() => {
+        handleDataRef.current = (data: any) => {
+            if (data.type === 'UNO_INIT') {
+                setPlayerHand(data.hand);
+                const dummies = Array.from({ length: data.oppHandCount }).map((_, i) => ({ id: `opp_init_${i}`, color: 'black' as Color, value: '0' as Value, score: 0 }));
+                setCpuHand(dummies);
+                setDiscardPile([data.topCard]);
+                setActiveColor(data.topCard.color === 'black' ? 'red' : data.topCard.color);
+                setTurn(data.startTurn === mp.peerId ? 'PLAYER' : 'CPU');
+                setDeck(Array(20).fill(null) as any);
+                setGameState('playing');
+                setMessage("La partie commence !");
+                setIsWaitingForHost(false);
+                setPlayDirection(1);
+            }
+            if (data.type === 'UNO_PLAY') {
+                const card = data.card;
+                animateCardPlay(card, 0, 'CPU', undefined, true);
+                if (data.nextColor) setActiveColor(data.nextColor);
+            }
+            if (data.type === 'UNO_DRAW_REQ') {
+                if (mp.isHost) {
+                    drawCard('CPU', data.amount || 1);
+                }
+            }
+            if (data.type === 'UNO_DRAW_NOTIFY') {
+                const count = data.count;
+                // Generate unique IDs for dummies to avoid key collision
+                const dummies = Array.from({ length: count }).map((_, i) => ({ 
+                    id: `opp_draw_${Date.now()}_${i}`, 
+                    color: 'black' as Color, 
+                    value: '0' as Value, 
+                    score: 0 
+                }));
+                setCpuHand(prev => [...prev, ...dummies]);
+                setMessage("L'adversaire pioche...");
+                setOpponentCalledUno(false);
+            }
+            if (data.type === 'UNO_DRAW_RESP') {
+                const newCards = data.cards;
+                setPlayerHand(prev => [...prev, ...newCards]);
+                setHasDrawnThisTurn(true);
+                const last = newCards[newCards.length-1];
+                if (last && checkCompatibility(last)) {
+                    setMessage("Carte jouable !");
+                } else {
+                    setMessage("Pas de chance...");
+                    // Fix: Auto-pass for Guest if unplayable to match Host behavior
+                    setTimeout(() => handlePassTurn(), 1000);
+                }
+            }
+            if (data.type === 'UNO_PASS') {
+                setTurn('PLAYER');
+                setMessage("À toi de jouer !");
+            }
+            if (data.type === 'UNO_SHOUT') {
+                setUnoShout('CPU');
+                setOpponentCalledUno(true);
+                playPaddleHit();
+                setTimeout(() => setUnoShout(null), 1500);
+            }
+            if (data.type === 'UNO_GAME_OVER') {
+                // IMPORTANT FIX: Check current state to prevent overriding local win
+                // If I already won locally (gameover), ignore incoming defeat signals
+                if (gameState === 'gameover') return;
+                
+                handleGameOver(data.winner === mp.peerId ? 'PLAYER' : 'CPU');
+            }
+            if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
+            if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
+            if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); handleGameOver('PLAYER'); }
+            if (data.type === 'REMATCH_START') startNewGame('ONLINE');
+        };
+    });
+
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (handleDataRef.current) handleDataRef.current(data);
+        });
+        return () => unsubscribe();
+    }, [mp]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory]);
 
-    // --- GAME LOGIC HELPERS ---
-    const generateDeck = (): Card[] => {
-        const deck: Card[] = [];
-        const colors: Color[] = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
-        let idCounter = 0;
-
-        colors.forEach(color => {
-            deck.push({ id: `c-${idCounter++}`, color, type: 'NUMBER', value: 0 });
-            for (let i = 1; i <= 9; i++) {
-                deck.push({ id: `c-${idCounter++}`, color, type: 'NUMBER', value: i });
-                deck.push({ id: `c-${idCounter++}`, color, type: 'NUMBER', value: i });
-            }
-            ['SKIP', 'REVERSE', 'DRAW2'].forEach(type => {
-                deck.push({ id: `c-${idCounter++}`, color, type: type as Type });
-                deck.push({ id: `c-${idCounter++}`, color, type: type as Type });
-            });
-        });
-
-        for (let i = 0; i < 4; i++) {
-            deck.push({ id: `c-${idCounter++}`, color: 'BLACK', type: 'WILD' });
-            deck.push({ id: `c-${idCounter++}`, color: 'BLACK', type: 'WILD4' });
-        }
-
-        // Shuffle
-        for (let i = deck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [deck[i], deck[j]] = [deck[j], deck[i]];
-        }
-        return deck;
-    };
-
-    const drawCards = (count: number, deck: Card[]): Card[] => {
-        return deck.splice(0, count);
-    };
-
-    const checkPlayable = (card: Card, topCard: Card, activeColor: Color) => {
-        if (card.color === 'BLACK') return true; // Wilds always playable
-        if (card.color === activeColor) return true;
-        if (card.type === topCard.type) {
-            if (card.type === 'NUMBER') return card.value === topCard.value;
-            return true;
-        }
-        return false;
-    };
-
     // --- GAME ACTIONS ---
-    const startGame = (mode: 'SOLO' | 'ONLINE') => {
-        setGameMode(mode);
-        if (mode === 'SOLO') {
-            resetGame();
-            setGameState('playing');
-        } else {
-            setOnlineStep('connecting');
-            mp.connect();
-        }
-    };
 
-    const resetGame = () => {
-        const deck = generateDeck();
-        const pHand = drawCards(7, deck);
-        const oHandCount = 7;
-        let startCard = deck.shift()!;
-        while (startCard.color === 'BLACK') {
-            deck.push(startCard);
-            startCard = deck.shift()!;
-        }
-        
-        setPlayerHand(pHand);
-        setOpponentHandCount(oHandCount);
-        setDiscardPile([startCard]);
-        setCurrentColor(startCard.color);
-        setDrawPileCount(deck.length);
-        setTurn('PLAYER');
-        setWinner(null);
-        setPlayerCalledUno(false);
-        setUnoShout(false);
-        setGameState('playing');
-    };
+    const startNewGame = (modeOverride?: 'SOLO' | 'ONLINE' | any) => {
+        const targetMode = (typeof modeOverride === 'string' && (modeOverride === 'SOLO' || modeOverride === 'ONLINE')) 
+                           ? modeOverride 
+                           : gameMode;
 
-    const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
-        e.stopPropagation();
-        if (turn !== 'PLAYER' || gameState !== 'playing') return;
-        
-        const topCard = discardPile[discardPile.length - 1];
-        if (checkPlayable(card, topCard, currentColor)) {
-            playMove();
-            
-            // Optimistic Update
-            const newHand = [...playerHand];
-            newHand.splice(index, 1);
-            setPlayerHand(newHand);
-            setDiscardPile(prev => [...prev, card]);
-            
-            if (card.color !== 'BLACK') setCurrentColor(card.color);
+        clearTable();
+        resumeAudio();
+        setMessage("Distribution...");
 
-            // Handle Special Cards
-            let nextTurn: 'PLAYER' | 'OPPONENT' = 'OPPONENT';
-            if (card.type === 'SKIP') nextTurn = 'PLAYER';
-            if (card.type === 'REVERSE') {
-                if (gameMode === 'SOLO' || gameMode === 'ONLINE') nextTurn = 'PLAYER'; // 1v1 reverse = skip
+        if (targetMode === 'SOLO') {
+            const newDeck = generateDeck();
+            const pHand = newDeck.splice(0, 7);
+            const cHand = newDeck.splice(0, 7);
+            let firstCard = newDeck.pop()!;
+            while (firstCard.color === 'black') {
+                newDeck.unshift(firstCard);
+                firstCard = newDeck.pop()!;
             }
-            
-            if (card.color === 'BLACK') {
-                setGameState('color_select');
-                // Don't switch turn yet
-            } else {
-                if (card.type === 'DRAW2') {
-                    setOpponentHandCount(c => c + 2); // Sim logic
-                    // In real implementation, we'd handle stacking or passing cards
-                    nextTurn = 'PLAYER'; // Skip opponent
+            setDeck(newDeck);
+            setPlayerHand(pHand);
+            setCpuHand(cHand);
+            setDiscardPile([firstCard]);
+            setActiveColor(firstCard.color);
+            setTurn('PLAYER');
+            setMessage("C'est parti !");
+        } else {
+            if (mp.isHost) {
+                const newDeck = generateDeck();
+                const pHand = newDeck.splice(0, 7);
+                const cHand = newDeck.splice(0, 7);
+                let firstCard = newDeck.pop()!;
+                while (firstCard.color === 'black') {
+                    newDeck.unshift(firstCard);
+                    firstCard = newDeck.pop()!;
                 }
-                setTurn(nextTurn);
-            }
-
-            if (newHand.length === 0) {
-                handleGameOver('PLAYER');
-            } else if (newHand.length === 1 && !playerCalledUno) {
-                // Forgot UNO penalty
+                setDeck(newDeck);
+                setPlayerHand(pHand);
+                const dummies = Array.from({ length: 7 }).map((_, i) => ({ id: `opp_init_${i}`, color: 'black' as Color, value: '0' as Value, score: 0 }));
+                setCpuHand(dummies);
+                setDiscardPile([firstCard]);
+                setActiveColor(firstCard.color);
+                setTurn('PLAYER');
+                
                 setTimeout(() => {
-                    const penalty = [
-                        {id: 'p1', color: 'RED', type: 'NUMBER', value: 1}, 
-                        {id: 'p2', color: 'BLUE', type: 'NUMBER', value: 2}
-                    ] as Card[]; // Mock penalty
-                    setPlayerHand(h => [...h, ...penalty]);
-                    playPaddleHit(); // Penalty sound
+                    mp.sendData({
+                        type: 'UNO_INIT',
+                        hand: cHand,
+                        oppHandCount: 7,
+                        topCard: firstCard,
+                        startTurn: mp.peerId
+                    });
                 }, 1000);
+            } else {
+                setIsWaitingForHost(true);
+                setPlayerHand([]);
+                setCpuHand([]);
+                setDiscardPile([]);
+            }
+        }
+    };
+
+    const initGame = (mode: 'SOLO' | 'ONLINE') => {
+        setGameMode(mode);
+        setPhase('GAME');
+        if (mode === 'SOLO') startNewGame('SOLO');
+        else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame('ONLINE');
+    };
+
+    const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[], isRemoteEffect: boolean = false) => {
+        if (gameMode === 'ONLINE' && !mp.isHost) {
+            if (target === 'PLAYER') {
+                if (isRemoteEffect) return [];
+                mp.sendData({ type: 'UNO_DRAW_REQ', amount });
+                return [];
+            } else {
+                // Target is CPU (Host) - This runs when Guest plays +2/+4 against Host
+                // We rely on UNO_DRAW_NOTIFY to add dummies to ensure no duplication
+                return []; 
+            }
+        }
+
+        playLand();
+        let currentDeck = [...deck];
+        let currentDiscard = manualDiscardPile ? [...manualDiscardPile] : [...discardPile];
+        const drawnCards: Card[] = [];
+        let didReshuffle = false;
+
+        for(let i=0; i<amount; i++) {
+            if (currentDeck.length === 0) {
+                if (currentDiscard.length > 1) {
+                    const top = currentDiscard.pop()!;
+                    currentDeck = currentDiscard.sort(() => Math.random() - 0.5);
+                    currentDiscard = [top];
+                    setMessage("Mélange du talon...");
+                    didReshuffle = true;
+                } else {
+                    break;
+                }
+            }
+            drawnCards.push(currentDeck.pop()!);
+        }
+
+        setDeck(currentDeck);
+        if (didReshuffle) setDiscardPile(currentDiscard);
+
+        if (target === 'PLAYER') {
+            setPlayerHand(prev => [...prev, ...drawnCards]);
+            // If player drew, they lose the right to contest previously
+            setShowContestButton(false);
+            
+            if (gameMode === 'ONLINE' && mp.isHost) {
+                mp.sendData({ type: 'UNO_DRAW_NOTIFY', count: drawnCards.length });
             }
         } else {
-            playPaddleHit(); // Invalid move
+            if (gameMode === 'SOLO') {
+                setCpuHand(prev => [...prev, ...drawnCards]);
+                // If CPU drew, reset their call state
+                setOpponentCalledUno(false);
+            } else {
+                // Online Host logic for Opponent - Add visual dummies with unique IDs
+                const dummies = Array.from({ length: drawnCards.length }).map((_, i) => ({ 
+                    id: `opp_draw_${Date.now()}_${i}`, 
+                    color: 'black' as Color, 
+                    value: '0' as Value, 
+                    score: 0 
+                }));
+                setCpuHand(prev => [...prev, ...dummies]);
+                setOpponentCalledUno(false);
+                mp.sendData({ type: 'UNO_DRAW_RESP', cards: drawnCards });
+            }
+        }
+        
+        return drawnCards;
+    };
+
+    const handlePassTurn = () => {
+        setMessage("Tour passé");
+        setHasDrawnThisTurn(false);
+        setTurn('CPU');
+        if (gameMode === 'ONLINE') {
+            mp.sendData({ type: 'UNO_PASS' });
         }
     };
 
-    const handleColorSelect = (color: Color) => {
-        setCurrentColor(color);
-        setGameState('playing');
-        
-        const topCard = discardPile[discardPile.length - 1];
-        let nextTurn: 'PLAYER' | 'OPPONENT' = 'OPPONENT';
-        
-        if (topCard.type === 'WILD4') {
-            setOpponentHandCount(c => c + 4);
-            nextTurn = 'PLAYER';
+    const handleDrawPileClick = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
+
+        setShowContestButton(false); // Player interacting clears contest opportunity
+
+        if (hasDrawnThisTurn) {
+            handlePassTurn();
+            return;
         }
-        
-        setTurn(nextTurn);
+
+        if (gameMode === 'SOLO') {
+            const drawn = drawCard('PLAYER', 1);
+            setHasDrawnThisTurn(true);
+            const newCard = drawn[0];
+            
+            if (newCard && checkCompatibility(newCard)) {
+                setMessage("Carte jouable !");
+            } else {
+                setMessage("Pas de chance...");
+                setTimeout(() => setTurn('CPU'), 1000);
+            }
+        } else {
+            if (mp.isHost) {
+                const drawn = drawCard('PLAYER', 1);
+                setHasDrawnThisTurn(true);
+                const newCard = drawn[0];
+                
+                if (!newCard || !checkCompatibility(newCard)) {
+                    setTimeout(() => {
+                        setTurn('CPU');
+                        mp.sendData({ type: 'UNO_PASS' });
+                    }, 1000);
+                } else {
+                    setMessage("Carte jouable !");
+                }
+            } else {
+                mp.sendData({ type: 'UNO_DRAW_REQ', amount: 1 });
+            }
+        }
     };
 
-    const handleDrawCard = () => {
-        if (turn !== 'PLAYER' || gameState !== 'playing') return;
-        playLand();
-        // Sim draw
-        const newCard: Card = { id: `d-${Date.now()}`, color: 'RED', type: 'NUMBER', value: Math.floor(Math.random() * 9) };
-        setPlayerHand(prev => [...prev, newCard]);
-        setTurn('OPPONENT');
-    };
-
-    const handleUnoClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (playerHand.length <= 2) {
+    // --- ACTIONS ---
+    const handleUnoClick = () => {
+        if (turn === 'PLAYER' && playerHand.length === 2 && !playerCalledUno) {
             setPlayerCalledUno(true);
-            setUnoShout(true);
-            setTimeout(() => setUnoShout(false), 2000);
-            resumeAudio();
+            setUnoShout('PLAYER');
+            playPaddleHit();
+            setTimeout(() => setUnoShout(null), 1500);
+            if (gameMode === 'ONLINE') mp.sendData({ type: 'UNO_SHOUT' });
         }
     };
 
     const handleContestClick = () => {
-        // Feature logic would go here
+        if (showContestButton) {
+            setMessage("CONTRE-UNO ! +2 pour ADV");
+            playPaddleHit();
+            setShowContestButton(false);
+            // Opponent draws 2 cards
+            drawCard('CPU', 2);
+        }
     };
 
-    const handleGameOver = (winner: 'PLAYER' | 'OPPONENT') => {
-        setWinner(winner);
+    const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect, isRemote: boolean = false) => {
+        setIsAnimating(true);
+        playMove();
+
+        const discardRect = discardPileRef.current?.getBoundingClientRect();
+        if (!discardRect) {
+            executeCardEffect(card, index, actor, isRemote);
+            setIsAnimating(false);
+            return;
+        }
+
+        let startX = 0;
+        let startY = 0;
+
+        if (startRect) {
+            startX = startRect.left;
+            startY = startRect.top;
+        } else {
+            if (cpuHandRef.current) {
+                const handRect = cpuHandRef.current.getBoundingClientRect();
+                const totalWidth = cpuHand.length * 20; 
+                const startOffset = handRect.left + (handRect.width / 2) - (totalWidth / 2);
+                startX = startOffset + (index * 20);
+                startY = handRect.top + 20;
+            } else {
+                startX = window.innerWidth / 2;
+                startY = 50;
+            }
+        }
+
+        setFlyingCard({
+            card,
+            startX,
+            startY,
+            targetX: discardRect.left,
+            targetY: discardRect.top,
+            rotation: Math.random() * 20 - 10
+        });
+
+        setTimeout(() => {
+            setFlyingCard(null);
+            playLand();
+            executeCardEffect(card, index, actor, isRemote);
+            setIsAnimating(false);
+        }, 500);
+    };
+
+    const executeCardEffect = (card: Card, index: number, actor: Turn, isRemote: boolean) => {
+        // USE STATE REF TO AVOID STALE CLOSURES
+        const currentState = gameStateRef.current;
+        let hand = actor === 'PLAYER' ? [...currentState.playerHand] : [...currentState.cpuHand];
+        let discard = [...currentState.discardPile];
+        
+        const cardInHandIndex = hand.findIndex(c => c.id === card.id);
+        if (cardInHandIndex !== -1) hand.splice(cardInHandIndex, 1);
+        else hand.splice(index, 1);
+        
+        if (actor === 'PLAYER') setPlayerHand(hand);
+        else setCpuHand(hand);
+
+        const newDiscardPile = [...discard, card];
+        setDiscardPile(newDiscardPile);
+        
+        if (card.color !== 'black') {
+            setActiveColor(card.color);
+        }
+
+        // --- UNO CHECK LOGIC ---
+        if (actor === 'PLAYER') {
+            // Player Validation
+            if (hand.length === 1 && !playerCalledUno) {
+                 setMessage("OUBLI UNO ! +2");
+                 playGameOver(); 
+                 drawCard('PLAYER', 2, newDiscardPile);
+            }
+            setShowContestButton(false); // Player's turn effectively ends
+        } else {
+            // CPU/Opponent Validation
+            if (hand.length === 1) {
+                let forgot = false;
+                
+                if (gameMode === 'SOLO') {
+                    // CPU randomly forgets
+                    forgot = Math.random() > 0.8;
+                    if (!forgot) {
+                        setUnoShout('CPU');
+                        setTimeout(() => setUnoShout(null), 1500);
+                    }
+                } else {
+                    // Online: Check if they sent shout signal
+                    forgot = !opponentCalledUno;
+                }
+
+                if (forgot) {
+                    setShowContestButton(true);
+                }
+            } else {
+                setShowContestButton(false);
+            }
+        }
+        
+        // Check Win
+        if (hand.length === 0) {
+            handleGameOver(actor);
+            
+            // IMPORTANT FIX: Only the actual winner (local player) sends the GAME_OVER signal
+            if (gameMode === 'ONLINE' && !isRemote) {
+                mp.sendData({ type: 'UNO_GAME_OVER', winner: mp.peerId });
+            }
+            return;
+        }
+
+        let nextTurn: Turn = actor === 'PLAYER' ? 'CPU' : 'PLAYER';
+        
+        // Effects
+        if (card.value === 'skip') {
+            setMessage("Passe ton tour !");
+            nextTurn = actor;
+        } else if (card.value === 'reverse') {
+            setMessage("Sens inverse !");
+            setPlayDirection(prev => prev * -1 as 1 | -1);
+            nextTurn = actor; 
+        } else if (card.value === 'draw2') {
+            setMessage("+2 cartes !");
+            if (!isRemote || (mp.isHost && gameMode === 'ONLINE')) {
+                drawCard(nextTurn, 2, newDiscardPile);
+            }
+            nextTurn = actor;
+        } else if (card.value === 'wild') {
+            setMessage("Joker !");
+            if (actor === 'PLAYER') {
+                setGameState('color_select');
+                return;
+            } else {
+                if (gameMode === 'SOLO') {
+                    const colorsCount: any = { red: 0, blue: 0, green: 0, yellow: 0 };
+                    hand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
+                    const bestColor = (Object.keys(colorsCount) as Color[]).reduce((a, b) => colorsCount[a] > colorsCount[b] ? a : b);
+                    setActiveColor(bestColor);
+                    setMessage(`CPU choisit : ${bestColor.toUpperCase()}`);
+                }
+            }
+        } else if (card.value === 'wild4') {
+            setMessage("+4 cartes !");
+            if (!isRemote || (mp.isHost && gameMode === 'ONLINE')) {
+                drawCard(nextTurn, 4, newDiscardPile);
+            }
+            if (actor === 'PLAYER') {
+                setGameState('color_select');
+                return; 
+            } else {
+                if (gameMode === 'SOLO') {
+                    const colorsCount: any = { red: 0, blue: 0, green: 0, yellow: 0 };
+                    hand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
+                    const bestColor = (Object.keys(colorsCount) as Color[]).reduce((a, b) => colorsCount[a] > colorsCount[b] ? a : b);
+                    setActiveColor(bestColor);
+                    setMessage(`CPU choisit : ${bestColor.toUpperCase()}`);
+                }
+                nextTurn = actor;
+            }
+        }
+
+        setTurn(nextTurn);
+    };
+
+    const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
+        e.stopPropagation();
+        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
+
+        setShowContestButton(false); // Player action clears contest opportunity
+
+        if (checkCompatibility(card)) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            animateCardPlay(card, index, 'PLAYER', rect);
+            if (gameMode === 'ONLINE') {
+                if (card.color !== 'black') {
+                    mp.sendData({ type: 'UNO_PLAY', card });
+                }
+            }
+        }
+    };
+
+    const handleColorSelect = (color: Color) => {
+        setActiveColor(color);
+        setGameState('playing');
+        
+        const topCard = discardPile[discardPile.length - 1];
+        let nextTurn: Turn = 'CPU';
+        
+        if (topCard.value === 'wild4') {
+             nextTurn = 'PLAYER';
+             setMessage("L'adversaire passe son tour !");
+        }
+        
+        setTurn(nextTurn);
+        
+        if (gameMode === 'ONLINE') {
+            const playedCard = discardPile[discardPile.length - 1];
+            mp.sendData({ type: 'UNO_PLAY', card: playedCard, nextColor: color });
+        }
+    };
+
+    const handleGameOver = (winnerTurn: Turn) => {
+        setWinner(winnerTurn);
         setGameState('gameover');
-        if (winner === 'PLAYER') {
+        if (winnerTurn === 'PLAYER') {
             playVictory();
-            addCoins(100);
+            const points = cpuHand.length * 10 + 50; 
+            setScore(points);
+            const coins = Math.max(10, Math.floor(points / 2));
+            addCoins(coins);
+            setEarnedCoins(coins);
+            updateHighScore('uno', points);
         } else {
             playGameOver();
         }
     };
 
-    // --- AI ---
+    // --- SOLO AI LOOP ---
     useEffect(() => {
-        if (gameMode === 'SOLO' && turn === 'OPPONENT' && gameState === 'playing' && !winner) {
+        if (gameMode === 'SOLO' && turn === 'CPU' && gameState === 'playing' && !isAnimating) {
             const timer = setTimeout(() => {
-                // Simple AI
-                // Logic: Find first playable card
-                // If Wild, pick random color
-                setTurn('PLAYER');
-                setOpponentHandCount(prev => Math.max(0, prev - 1));
-                if (opponentHandCount <= 1) handleGameOver('OPPONENT');
-            }, 1500);
+                const topCard = discardPile[discardPile.length - 1];
+                const validIndices = cpuHand.map((c, i) => ({c, i})).filter(({c}) => 
+                    c.color === activeColor || c.value === topCard.value || c.color === 'black'
+                );
+
+                if (validIndices.length > 0) {
+                    validIndices.sort((a, b) => {
+                        if (a.c.color === 'black') return 1;
+                        if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1; 
+                        return 0;
+                    });
+                    const move = validIndices[0];
+                    animateCardPlay(move.c, move.i, 'CPU');
+                } else {
+                    drawCard('CPU', 1);
+                    setTurn('PLAYER');
+                }
+            }, 1500); 
             return () => clearTimeout(timer);
         }
-    }, [turn, gameState, winner, gameMode]);
+    }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating, gameMode]);
 
-    // --- RENDER HELPERS ---
-    const rotationFactor = 5;
-    const spacingClass = playerHand.length > 7 ? '-ml-12' : '-ml-8';
+    // Chat Handlers
+    const sendChat = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!chatInput.trim() || mp.mode !== 'in_game') return;
+        const msg: ChatMessage = { id: Date.now(), text: chatInput.trim(), senderName: username, isMe: true, timestamp: Date.now() };
+        setChatHistory(prev => [...prev, msg]);
+        mp.sendData({ type: 'CHAT', text: msg.text, senderName: username });
+        setChatInput('');
+    };
 
-    // --- MULTIPLAYER LOBBY ---
+    const sendReaction = (reactionId: string) => {
+        if (gameMode === 'ONLINE' && mp.mode === 'in_game') {
+            setActiveReaction({ id: reactionId, isMe: true });
+            mp.sendData({ type: 'REACTION', id: reactionId });
+            setTimeout(() => setActiveReaction(null), 3000);
+        }
+    };
+
+    const renderReactionVisual = (reactionId: string, color: string) => {
+      const reaction = REACTIONS.find(r => r.id === reactionId);
+      if (!reaction) return null;
+      const Icon = reaction.icon;
+      const anim = reaction.anim || 'animate-bounce';
+      return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
+    };
+
+    const handleLocalBack = () => {
+        if (phase === 'GAME') {
+            backToMenu();
+        } else if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+            backToMenu();
+        } else {
+            onBack();
+        }
+    };
+
     const renderLobby = () => {
         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
         return (
@@ -350,33 +899,94 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
          );
     };
 
-    // Chat
-    const sendChat = (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        if (!chatInput.trim() || mp.mode !== 'in_game') return;
-        const msg: ChatMessage = { id: Date.now(), text: chatInput.trim(), senderName: username, isMe: true, timestamp: Date.now() };
-        setChatHistory(prev => [...prev, msg]);
-        mp.sendData({ type: 'CHAT', text: msg.text, senderName: username });
-        setChatInput('');
-    };
-
-    const sendReaction = (reactionId: string) => {
-        if (gameMode === 'ONLINE' && mp.mode === 'in_game') {
-            setActiveReaction({ id: reactionId, isMe: true });
-            mp.sendData({ type: 'REACTION', id: reactionId });
-            setTimeout(() => setActiveReaction(null), 3000);
+    const CardView = ({ card, onClick, faceUp = true, small = false, style }: { card: Card, onClick?: (e: React.MouseEvent) => void, faceUp?: boolean, small?: boolean, style?: React.CSSProperties }) => {
+        if (!faceUp) {
+            return (
+                <div style={style} className={`
+                    ${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} 
+                    bg-gray-900 border-2 border-gray-700 rounded-xl flex items-center justify-center
+                    shadow-lg relative overflow-hidden group
+                `}>
+                    <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-black/50 rounded-full border border-gray-600 flex flex-col items-center justify-center relative z-10 rotate-12">
+                        <span className="font-script text-neon-pink text-[10px] sm:text-xs leading-none drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]">Neon</span>
+                        <span className="font-black italic text-cyan-400 text-sm sm:text-lg leading-none drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">UNO</span>
+                    </div>
+                </div>
+            );
         }
+
+        const config = COLOR_CONFIG[card.color];
+        let displayValue: string = card.value;
+        let Icon = null;
+
+        if (card.value === 'skip') Icon = Ban;
+        else if (card.value === 'reverse') Icon = RotateCcw;
+        else if (card.value === 'draw2') displayValue = '+2';
+        else if (card.value === 'wild') Icon = Palette;
+        else if (card.value === 'wild4') displayValue = '+4';
+
+        const isPlayerHand = onClick !== undefined;
+        let isPlayable = true;
+        if (isPlayerHand && turn === 'PLAYER') {
+             isPlayable = checkCompatibility(card);
+        }
+
+        const liftClass = isPlayerHand ? (isPlayable ? '-translate-y-6 sm:-translate-y-8 shadow-[0_0_25px_rgba(255,255,255,0.4)] z-30 brightness-110 ring-2 ring-white/70' : 'brightness-50 z-0 translate-y-2') : '';
+        const isWild = card.color === 'black';
+
+        return (
+            <div onClick={onClick} style={style} className={`${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} relative rounded-xl flex flex-col items-center justify-center overflow-hidden cursor-pointer hover:scale-105 transition-all duration-300 select-none shadow-xl border-2 ${config.border} ${liftClass} bg-gray-900`}>
+                
+                {/* Dynamic Background */}
+                {isWild ? (
+                    <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ef4444,#eab308,#22c55e,#3b82f6,#ef4444)] animate-[spin_4s_linear_infinite] opacity-100 z-0"></div>
+                ) : (
+                    <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-80 z-0`}></div>
+                )}
+
+                {/* Glassmorphism Oval */}
+                <div className={`absolute inset-2 sm:inset-3 rounded-[50%_/_40%] border ${isWild ? 'border-white/40 bg-black/80' : 'border-white/20 bg-black/40'} backdrop-blur-sm flex items-center justify-center z-10 shadow-inner`}>
+                    <div className={`font-black italic drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isWild ? (Icon ? 'text-white' : 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400') : 'text-white'} text-3xl sm:text-5xl flex items-center justify-center`}>
+                        {Icon ? <Icon size={small ? 20 : 40} strokeWidth={2.5} className={isWild ? "drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : ""} /> : displayValue}
+                    </div>
+                </div>
+
+                {/* Corners */}
+                <div className="absolute top-1 left-1.5 text-[10px] sm:text-sm font-bold leading-none text-white drop-shadow-md z-20">
+                    {Icon ? <Icon size={12}/> : displayValue}
+                </div>
+                <div className="absolute bottom-1 right-1.5 text-[10px] sm:text-sm font-bold leading-none transform rotate-180 text-white drop-shadow-md z-20">
+                    {Icon ? <Icon size={12}/> : displayValue}
+                </div>
+                
+                {/* Gloss */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none z-20"></div>
+            </div>
+        );
     };
 
-    if (gameState === 'menu') {
+    const FlyingCardOverlay = () => {
+        if (!flyingCard) return null;
+        return (
+            <div className="fixed z-[100] pointer-events-none" style={{left: 0, top: 0, animation: 'flyCard 0.5s ease-in-out forwards'}}>
+                <style>{`@keyframes flyCard { 0% { transform: translate(${flyingCard.startX}px, ${flyingCard.startY}px) scale(1); } 100% { transform: translate(${flyingCard.targetX}px, ${flyingCard.targetY}px) rotate(${flyingCard.rotation}deg) scale(0.8); } }`}</style>
+                <CardView card={flyingCard.card} style={{ width: '80px', height: '112px' }} />
+            </div>
+        );
+    };
+
+    // --- MAIN RENDER ---
+
+    if (phase === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
                 <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#facc15]">NEON UNO</h1>
                 <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
-                    <button onClick={() => startGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
-                        <User size={24} className="text-neon-blue"/> SOLO
+                    <button onClick={() => initGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                        <User size={24} className="text-neon-blue"/> 1 JOUEUR
                     </button>
-                    <button onClick={() => startGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                    <button onClick={() => initGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
                         <Globe size={24} className="text-green-500"/> EN LIGNE
                     </button>
                 </div>
@@ -385,74 +995,98 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
         );
     }
 
-    if (gameMode === 'ONLINE' && onlineStep !== 'game') {
+    if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
                 <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
                 <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                    <button onClick={() => setGameState('menu')} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
-                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-300 pr-2 pb-1">UNO</h1>
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-300 pr-2 pb-1">NEON UNO</h1>
                     <div className="w-10"></div>
                 </div>
-                {onlineStep === 'connecting' ? (
-                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-yellow-400 animate-spin mb-4" /><p className="text-yellow-300 font-bold">CONNEXION...</p></div>
-                ) : renderLobby()}
+                {renderLobby()}
             </div>
         );
     }
 
+    let spacingClass = '-space-x-12 sm:-space-x-16';
+    let rotationFactor = 3; 
+    if (playerHand.length <= 5) { spacingClass = '-space-x-6 sm:-space-x-8'; rotationFactor = 5; } 
+    else if (playerHand.length <= 10) { spacingClass = '-space-x-12 sm:-space-x-16'; rotationFactor = 3; } 
+    else { spacingClass = '-space-x-16 sm:-space-x-24'; rotationFactor = 1.5; }
+
     return (
-        <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans">
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-yellow-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/20 via-black to-transparent pointer-events-none"></div>
+        <div ref={mainContainerRef} className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans touch-none select-none">
+            <div className={`absolute inset-0 transition-colors duration-1000 opacity-30 pointer-events-none ${COLOR_CONFIG[activeColor].bg}`}></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black/60 to-black pointer-events-none"></div>
+
+            <FlyingCardOverlay />
+
+            {activeReaction && (() => {
+                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
+                if (!reaction) return null;
+                const positionClass = activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
+                return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${reaction.anim || 'animate-bounce'}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
+            })()}
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
-                <button onClick={() => setGameState('menu')} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
-                <div className="flex items-center gap-2 bg-gray-900/80 px-4 py-1.5 rounded-full border border-white/10">
-                    <div className={`w-3 h-3 rounded-full ${COLOR_CONFIG[currentColor].bg} shadow-[0_0_10px_currentColor]`}></div>
-                    <span className="font-bold text-sm text-gray-300">{turn === 'PLAYER' ? 'À VOUS' : 'ADVERSAIRE'}</span>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
+                <div className="flex flex-col items-center">
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)] pr-2 pb-1">NEON UNO</h1>
+                    <span className="text-[10px] text-gray-400 font-bold tracking-widest bg-black/40 px-2 py-0.5 rounded-full border border-white/10">{message}</span>
                 </div>
-                <div className="w-10"></div>
+                <button onClick={() => startNewGame(gameMode)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
 
+            {gameMode === 'ONLINE' && onlineStep === 'connecting' && (
+                 <div className="flex-1 flex flex-col items-center justify-center z-20"><Loader2 size={48} className="text-yellow-400 animate-spin mb-4" /><p className="text-yellow-300 font-bold">CONNEXION...</p></div>
+            )}
+
+            {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                    <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                    <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold mt-4">ANNULER</button>
+                </div>
+            )}
+
             {/* Game Area */}
-            <div className="flex-1 w-full max-w-lg flex flex-col justify-between relative overflow-hidden">
-                
-                {/* Opponent Hand */}
-                <div className="flex justify-center -mt-8 relative z-0">
-                    {Array.from({ length: Math.min(opponentHandCount, 7) }).map((_, i) => (
-                        <div key={i} className="w-16 h-24 bg-gray-800 rounded-lg border-2 border-white/20 -ml-4 shadow-lg transform rotate-180">
-                            <div className="w-full h-full flex items-center justify-center bg-black/20 rounded-md">
-                                <span className="font-script text-xs text-white/20">Neon</span>
-                            </div>
+            <div className="flex-1 w-full max-w-lg flex flex-col justify-between py-4 relative z-10 min-h-0">
+                {/* CPU Hand */}
+                <div ref={cpuHandRef} className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-32 sm:h-48 items-start pt-4 shrink-0">
+                    {cpuHand.map((card, i) => (
+                        <div key={card.id || i} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
+                            <CardView card={card} faceUp={false} />
                         </div>
                     ))}
-                    {opponentHandCount > 7 && <div className="absolute top-10 right-10 text-white font-bold">+{opponentHandCount - 7}</div>}
                 </div>
 
-                {/* Center Field */}
-                <div className="flex-1 flex items-center justify-center gap-8 z-10">
-                    <div className="relative">
-                        <div onClick={handleDrawCard} className="w-24 h-36 bg-gray-800 rounded-xl border-4 border-white/10 flex flex-col items-center justify-center shadow-xl cursor-pointer hover:scale-105 transition-transform active:scale-95 group">
-                            <span className="font-script text-neon-pink text-xl drop-shadow-[0_0_5px_currentColor]">Neon</span>
-                            <span className="font-script text-cyan-400 text-xl drop-shadow-[0_0_5px_currentColor]">Uno</span>
-                            <div className="absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center border-2 border-gray-900 font-bold text-xs shadow-lg">{drawPileCount}</div>
+                {/* Center Table */}
+                <div className="flex-1 flex items-center justify-center gap-4 sm:gap-8 relative min-h-[150px] shrink">
+                    <div className={`absolute pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text} opacity-30 z-0`}>
+                        <div className="w-[320px] h-[180px] border-4 border-dashed border-current rounded-[50px] relative flex items-center justify-center">
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black px-3">{playDirection === 1 ? <ArrowRight size={32} /> : <ArrowLeft size={32} />}</div>
+                             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-black px-3">{playDirection === 1 ? <ArrowLeft size={32} /> : <ArrowRight size={32} />}</div>
                         </div>
                     </div>
-                    
-                    <div className="relative">
-                        {discardPile.length > 0 && (
-                            <div className="transform rotate-6 transition-transform">
-                                <CardView card={discardPile[discardPile.length - 1]} />
-                            </div>
-                        )}
-                        <div className={`absolute -inset-4 rounded-full blur-xl opacity-40 z-[-1] animate-pulse ${COLOR_CONFIG[currentColor].bg}`}></div>
+                    {/* Draw Pile */}
+                    <div onClick={handleDrawPileClick} className={`relative group z-10 transition-transform ${turn === 'PLAYER' ? 'cursor-pointer hover:scale-105 active:scale-95' : 'opacity-80 cursor-not-allowed'}`}>
+                        <div className="w-20 h-28 sm:w-28 sm:h-40 bg-gray-900 border-2 border-gray-600 rounded-xl flex items-center justify-center shadow-2xl relative">
+                            {turn === 'PLAYER' && !hasDrawnThisTurn && <div className="absolute inset-0 bg-white/10 animate-pulse rounded-xl"></div>}
+                            <Layers size={32} className="text-gray-600" />
+                            {turn === 'PLAYER' && <div className={`absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-white ${hasDrawnThisTurn ? 'bg-red-600' : 'bg-black/50'} px-2 py-1 rounded transition-colors`}>{hasDrawnThisTurn ? 'PASSER' : 'PIOCHER'}</div>}
+                        </div>
+                    </div>
+                    {/* Discard Pile */}
+                    <div className="relative flex items-center justify-center z-10" ref={discardPileRef}>
+                        <div className={`absolute -inset-6 rounded-full blur-2xl opacity-40 transition-colors duration-500 ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')}`}></div>
+                        <div className="transform rotate-6 transition-transform duration-300 hover:scale-105 hover:rotate-0 z-10">{discardPile.length > 0 && <CardView card={discardPile[discardPile.length-1]} />}</div>
                     </div>
                 </div>
 
                 {/* Player Hand */}
-                <div className={`w-full relative px-4 ${gameState === 'color_select' ? 'z-[60]' : 'z-20'} ${gameMode === 'ONLINE' ? 'pb-24' : 'pb-4'} min-h-[180px] flex flex-col justify-end shrink-0`}>
+                <div className={`w-full relative px-4 z-20 ${gameMode === 'ONLINE' ? 'pb-24' : 'pb-4'} min-h-[180px] flex flex-col justify-end shrink-0`}>
                     <div className="absolute -top-20 left-0 right-0 flex justify-center pointer-events-none z-50 h-20 items-end gap-4">
                         {playerHand.length === 2 && turn === 'PLAYER' && !playerCalledUno && (
                             <button onClick={handleUnoClick} className="pointer-events-auto bg-red-600 hover:bg-red-500 text-white font-black text-xl px-8 py-3 rounded-full shadow-[0_0_20px_red] animate-bounce transition-all active:scale-95 flex items-center gap-2 border-4 border-yellow-400"><Megaphone size={24} fill="white" /> CRIER UNO !</button>
@@ -472,7 +1106,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
 
             {/* ONLINE CHAT */}
             {gameMode === 'ONLINE' && !winner && mp.gameOpponent && (
-                <div className="w-full max-w-lg z-30 px-2 pb-4 absolute bottom-0 pointer-events-auto">
+                <div className="w-full max-w-lg z-30 px-2 pb-4 absolute bottom-0">
                     <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
                         {REACTIONS.map(reaction => {
                             const Icon = reaction.icon;
@@ -489,30 +1123,47 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             {unoShout && <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none"><div className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-yellow-400 to-red-600 animate-bounce drop-shadow-[0_0_25px_rgba(255,0,0,0.8)] transform -rotate-12">UNO !</div></div>}
 
             {gameState === 'color_select' && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-start pt-24 animate-in fade-in pointer-events-none">
-                    {/* Gradient Background - Clear at bottom */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/95 via-black/80 to-transparent pointer-events-auto" style={{ bottom: '250px' }} />
-                    
-                    <div className="relative z-10 pointer-events-auto flex flex-col items-center">
-                        <h2 className="text-3xl font-black text-white mb-8 animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">CHOISIR UNE COULEUR</h2>
-                        <div className="grid grid-cols-2 gap-6 bg-gray-900/90 p-6 rounded-3xl border border-white/10 shadow-2xl">
-                            {COLORS.map(c => (
-                                <button key={c} onClick={() => handleColorSelect(c)} className={`w-28 h-28 rounded-2xl border-4 ${COLOR_CONFIG[c].border} bg-gray-900 hover:scale-105 transition-transform flex items-center justify-center group`}>
-                                    <div className={`w-16 h-16 rounded-full ${COLOR_CONFIG[c].text.replace('text', 'bg')} shadow-[0_0_20px_currentColor] group-hover:scale-110 transition-transform`}></div>
-                                </button>
-                            ))}
-                        </div>
-                        <p className="mt-6 text-gray-400 text-xs font-bold tracking-widest uppercase bg-black/50 px-3 py-1 rounded-full border border-white/10">Regardez votre jeu pour choisir stratégiquement</p>
+                <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-in fade-in">
+                    <h2 className="text-2xl font-bold text-white mb-8 animate-pulse">CHOISIR UNE COULEUR</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        {COLORS.map(c => (
+                            <button key={c} onClick={() => handleColorSelect(c)} className={`w-32 h-32 rounded-2xl border-4 ${COLOR_CONFIG[c].border} bg-gray-900 hover:scale-105 transition-transform flex items-center justify-center group`}>
+                                <div className={`w-16 h-16 rounded-full ${COLOR_CONFIG[c].text.replace('text', 'bg')} shadow-[0_0_20px_currentColor] group-hover:scale-110 transition-transform`}></div>
+                            </button>
+                        ))}
                     </div>
                 </div>
             )}
 
             {(gameState === 'gameover' || opponentLeft) && (
-                <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in zoom-in">
-                    <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_20px_gold]" />
-                    <h2 className="text-4xl font-black italic text-white mb-4">{winner === 'PLAYER' ? 'VICTOIRE !' : 'DÉFAITE...'}</h2>
-                    <button onClick={() => resetGame()} className="px-8 py-3 bg-white text-black font-black tracking-widest rounded-full hover:bg-gray-200 transition-colors shadow-lg">REJOUER</button>
-                    <button onClick={() => setGameState('menu')} className="mt-4 text-gray-500 hover:text-white underline text-sm">MENU</button>
+                <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-in zoom-in p-6">
+                    {opponentLeft ? (
+                        <>
+                            <LogOut size={64} className="text-red-500 mb-4" />
+                            <h2 className="text-3xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
+                            <button onClick={backToMenu} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 mt-4"><Home size={18} /> RETOUR AU MENU</button>
+                        </>
+                    ) : (
+                        <>
+                            {winner === 'PLAYER' ? (
+                                <>
+                                    <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
+                                    <h2 className="text-5xl font-black text-white italic mb-2">VICTOIRE !</h2>
+                                    <div className="flex flex-col items-center gap-2 mb-8"><span className="text-gray-400 font-bold tracking-widest text-sm">SCORE FINAL</span><span className="text-4xl font-mono text-neon-blue">{score}</span></div>
+                                    {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
+                                </>
+                            ) : (
+                                <>
+                                    <Ban size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
+                                    <h2 className="text-5xl font-black text-white italic mb-4">DÉFAITE...</h2>
+                                </>
+                            )}
+                            <div className="flex gap-4">
+                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : () => startNewGame(gameMode)} className="px-8 py-4 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                                <button onClick={backToMenu} className="px-8 py-4 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
         </div>
