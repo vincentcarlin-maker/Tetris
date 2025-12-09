@@ -287,7 +287,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
         handleDataRef.current = (data: any) => {
             if (data.type === 'UNO_INIT') {
                 setPlayerHand(data.hand);
-                setCpuHand(Array(data.oppHandCount).fill({ id: 'opp', color: 'black', value: '0', score: 0 }));
+                const dummies = Array.from({ length: data.oppHandCount }).map((_, i) => ({ id: `opp_init_${i}`, color: 'black' as Color, value: '0' as Value, score: 0 }));
+                setCpuHand(dummies);
                 setDiscardPile([data.topCard]);
                 setActiveColor(data.topCard.color === 'black' ? 'red' : data.topCard.color);
                 setTurn(data.startTurn === mp.peerId ? 'PLAYER' : 'CPU');
@@ -309,7 +310,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             }
             if (data.type === 'UNO_DRAW_NOTIFY') {
                 const count = data.count;
-                const dummies = Array(count).fill({ id: `opp_draw_${Date.now()}`, color: 'black', value: '0', score: 0 });
+                // Generate unique IDs for dummies to avoid key collision
+                const dummies = Array.from({ length: count }).map((_, i) => ({ 
+                    id: `opp_draw_${Date.now()}_${i}`, 
+                    color: 'black' as Color, 
+                    value: '0' as Value, 
+                    score: 0 
+                }));
                 setCpuHand(prev => [...prev, ...dummies]);
                 setMessage("L'adversaire pioche...");
                 setOpponentCalledUno(false);
@@ -392,7 +399,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 }
                 setDeck(newDeck);
                 setPlayerHand(pHand);
-                setCpuHand(Array(7).fill({ id: 'opp', color: 'black', value: '0', score: 0 }));
+                const dummies = Array.from({ length: 7 }).map((_, i) => ({ id: `opp_init_${i}`, color: 'black' as Color, value: '0' as Value, score: 0 }));
+                setCpuHand(dummies);
                 setDiscardPile([firstCard]);
                 setActiveColor(firstCard.color);
                 setTurn('PLAYER');
@@ -473,8 +481,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 // If CPU drew, reset their call state
                 setOpponentCalledUno(false);
             } else {
-                // Online Host logic for Opponent
-                const dummies = Array(drawnCards.length).fill({id:'opp',color:'black', value:'0', score:0});
+                // Online Host logic for Opponent - Add visual dummies with unique IDs
+                const dummies = Array.from({ length: drawnCards.length }).map((_, i) => ({ 
+                    id: `opp_draw_${Date.now()}_${i}`, 
+                    color: 'black' as Color, 
+                    value: '0' as Value, 
+                    score: 0 
+                }));
                 setCpuHand(prev => [...prev, ...dummies]);
                 setOpponentCalledUno(false);
                 mp.sendData({ type: 'UNO_DRAW_RESP', cards: drawnCards });
@@ -1019,7 +1032,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 {/* CPU Hand */}
                 <div ref={cpuHandRef} className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-32 sm:h-48 items-start pt-4">
                     {cpuHand.map((card, i) => (
-                        <div key={i} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
+                        <div key={card.id || i} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
                             <CardView card={card} faceUp={false} />
                         </div>
                     ))}
