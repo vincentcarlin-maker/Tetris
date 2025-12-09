@@ -273,9 +273,14 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             setOpponentLeft(false);
             if (phase === 'MENU') {
                 initGame('ONLINE');
+            } else if (phase === 'GAME') {
+                const isGameRunning = playerHand.length > 0 || cpuHand.length > 0 || isWaitingForHost;
+                if (!isGameRunning) {
+                    startNewGame('ONLINE');
+                }
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, playerHand.length, cpuHand.length, winner, clearTable]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, playerHand.length, cpuHand.length, winner, clearTable, isWaitingForHost]);
 
     // --- EFFECT: ONLINE DATA HANDLER (STABLE) ---
     useEffect(() => {
