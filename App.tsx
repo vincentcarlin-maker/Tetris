@@ -42,9 +42,10 @@ const App: React.FC = () => {
         todaysReward, 
         claimDailyBonus, 
         quests, 
-        checkGameQuest, 
-        checkCoinQuest, 
-        claimQuestReward 
+        reportQuestProgress,
+        claimQuestReward,
+        claimAllBonus,
+        allCompletedBonusClaimed
     } = useDailySystem(currency.addCoins);
 
     const { 
@@ -165,7 +166,7 @@ const App: React.FC = () => {
         if (amount > 0) {
             currency.addCoins(amount);
             audio.playCoin();
-            checkCoinQuest(amount); 
+            reportQuestProgress('any', 'coins', amount);
         }
     };
 
@@ -175,7 +176,7 @@ const App: React.FC = () => {
             return;
         }
 
-        checkGameQuest(game);
+        reportQuestProgress(game, 'play', 1);
 
         if (game === 'tetris') setCurrentView('tetris');
         else if (game === 'connect4') setCurrentView('connect4');
@@ -225,6 +226,11 @@ const App: React.FC = () => {
         mp.disconnect();
     };
 
+    // Generic Event Handler for Games to report progress
+    const handleGameEvent = (gameId: string, eventType: 'score' | 'win' | 'action', value: number) => {
+        reportQuestProgress(gameId, eventType, value);
+    };
+
     return (
         <>
             {showLoginModal && (
@@ -251,7 +257,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'tetris' && isAuthenticated && (
-                <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('tetris', metric, val)} />
             )}
 
             {currentView === 'connect4' && isAuthenticated && (
@@ -263,7 +269,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'breaker' && isAuthenticated && (
-                <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('breaker', metric, val)} />
             )}
             
             {currentView === 'pacman' && isAuthenticated && (
@@ -279,7 +285,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'snake' && isAuthenticated && (
-                <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('snake', metric, val)} />
             )}
 
             {currentView === 'invaders' && isAuthenticated && (
@@ -313,7 +319,9 @@ const App: React.FC = () => {
                         todaysReward,
                         claimDailyBonus,
                         quests,
-                        claimQuestReward
+                        claimQuestReward,
+                        claimAllBonus,
+                        allCompletedBonusClaimed
                     }}
                     onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers} 
                 />
