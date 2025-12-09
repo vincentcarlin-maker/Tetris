@@ -345,6 +345,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 setTimeout(() => setUnoShout(null), 1500);
             }
             if (data.type === 'UNO_GAME_OVER') {
+                // IMPORTANT FIX: Check current state to prevent overriding local win
+                // If I already won locally (gameover), ignore incoming defeat signals
+                if (gameState === 'gameover') return;
+                
                 handleGameOver(data.winner === mp.peerId ? 'PLAYER' : 'CPU');
             }
             if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
@@ -677,7 +681,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
         // Check Win
         if (hand.length === 0) {
             handleGameOver(actor);
-            if (gameMode === 'ONLINE') mp.sendData({ type: 'UNO_GAME_OVER', winner: actor === 'PLAYER' ? mp.peerId : 'OPPONENT' });
+            
+            // IMPORTANT FIX: Only the actual winner (local player) sends the GAME_OVER signal
+            // This prevents the opponent (who is executing this as a remote move) from sending a signal 
+            // saying "The OPPONENT won", which creates an echo where both players think they lost.
+            if (gameMode === 'ONLINE' && !isRemote) {
+                mp.sendData({ type: 'UNO_GAME_OVER', winner: mp.peerId });
+            }
             return;
         }
 
