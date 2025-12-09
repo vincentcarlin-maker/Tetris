@@ -155,6 +155,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
     const [playerCalledUno, setPlayerCalledUno] = useState(false);
     const [showContestButton, setShowContestButton] = useState(false);
+    const [opponentCalledUno, setOpponentCalledUno] = useState(false);
 
     // Animation States
     const [flyingCard, setFlyingCard] = useState<FlyingCardData | null>(null);
@@ -174,7 +175,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const handleDataRef = useRef<(data: any) => void>(null);
 
     // --- HELPER: CONSISTENT COMPATIBILITY CHECK ---
-    // This is the single source of truth for whether a card can be played
     const checkCompatibility = useCallback((card: Card) => {
         const topCard = discardPile[discardPile.length - 1];
         if (!topCard) return false;
@@ -192,7 +192,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setOnlineStep('connecting');
             mp.connect();
         } else {
-            // DO NOT DISCONNECT GLOBALLY (PRESERVES LOBBY CONNECTION)
             // Only leave specific game context
             if (mp.mode === 'in_game' || mp.isHost) {
                 mp.leaveGame();
@@ -201,7 +200,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     }, [gameMode]);
 
-    // --- HELPER: RESET TABLE (Does NOT change phase to MENU) ---
+    // --- HELPER: RESET TABLE ---
     const clearTable = useCallback(() => {
         setPlayerHand([]);
         setCpuHand([]);
@@ -215,6 +214,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setPlayDirection(1);
         setPlayerCalledUno(false);
         setShowContestButton(false);
+        setOpponentCalledUno(false);
         setChatHistory([]);
         setOpponentLeft(false);
         setGameState('playing');
@@ -226,15 +226,18 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const backToMenu = () => {
         setPhase('MENU');
         if (gameMode === 'ONLINE') {
-            // Keep connection but reset UI
             if (mp.mode === 'in_game' || mp.isHost) mp.leaveGame();
         }
     };
 
-    // --- EFFECT: TURN CHANGE RESET ---
+    // --- EFFECT: TURN CHANGE LOGIC ---
     useEffect(() => {
         if (turn === 'PLAYER') {
             setHasDrawnThisTurn(false);
+        } else {
+            // When turn goes to CPU, reset player flags
+            setPlayerCalledUno(false);
+            setShowContestButton(false);
         }
     }, [turn]);
 
@@ -245,7 +248,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
             
-            // If in lobby but have game data, just clear the table, don't kick to menu
             if (phase === 'GAME' && (playerHand.length > 0 || cpuHand.length > 0 || winner)) {
                 clearTable();
             }
@@ -253,7 +255,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setOnlineStep('game');
             setOpponentLeft(false);
             if (phase === 'MENU') {
-                // If we get thrown into a game from menu, init online game
                 initGame('ONLINE');
             }
         }
@@ -262,76 +263,51 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     // --- EFFECT: ONLINE DATA HANDLER (STABLE) ---
     useEffect(() => {
         handleDataRef.current = (data: any) => {
-            // UNO_INIT: Host -> Client
             if (data.type === 'UNO_INIT') {
                 setPlayerHand(data.hand);
-                setCpuHand(Array(data.oppHandCount).fill({ id: 'opp', color: 'black', value: '0', score: 0 })); // Dummy cards
+                setCpuHand(Array(data.oppHandCount).fill({ id: 'opp', color: 'black', value: '0', score: 0 }));
                 setDiscardPile([data.topCard]);
-                setActiveColor(data.topCard.color === 'black' ? 'red' : data.topCard.color); // Default if black
+                setActiveColor(data.topCard.color === 'black' ? 'red' : data.topCard.color);
                 setTurn(data.startTurn === mp.peerId ? 'PLAYER' : 'CPU');
-                setDeck(Array(20).fill(null) as any); // Dummy deck for visuals
+                setDeck(Array(20).fill(null) as any);
                 setGameState('playing');
                 setMessage("La partie commence !");
                 setIsWaitingForHost(false);
                 setPlayDirection(1);
             }
-            
-            // UNO_PLAY: Opponent Played a Card
             if (data.type === 'UNO_PLAY') {
                 const card = data.card;
-                // Animate from opponent hand, mark as Remote
                 animateCardPlay(card, 0, 'CPU', undefined, true);
                 if (data.nextColor) setActiveColor(data.nextColor);
             }
-
-            // UNO_DRAW_NOTIFY: Opponent Drew Cards
             if (data.type === 'UNO_DRAW_NOTIFY') {
                 const count = data.count;
-                // Add dummy cards to opponent hand
                 const dummies = Array(count).fill({ id: `opp_draw_${Date.now()}`, color: 'black', value: '0', score: 0 });
                 setCpuHand(prev => [...prev, ...dummies]);
                 setMessage("L'adversaire pioche...");
+                setOpponentCalledUno(false);
             }
-
-            // UNO_DRAW_RESP: Host -> Client (You requested a card, here it is)
             if (data.type === 'UNO_DRAW_RESP') {
                 const newCards = data.cards;
                 setPlayerHand(prev => [...prev, ...newCards]);
                 setHasDrawnThisTurn(true);
-                // Check playability of last drawn card
                 const last = newCards[newCards.length-1];
-                
-                // --- FIX: USE SHARED CHECK ---
-                if (last && checkCompatibility(last)) {
-                    setMessage("Carte jouable !");
-                } else {
-                    setMessage("Pas de chance...");
-                    // We don't auto-pass in online for drawn card logic here as per manual draw logic fix
-                    // But we could auto pass to speed up? No, manual pass is better for consistency.
-                    // Actually, if it's not playable, we used to auto-pass.
-                    // Now we will let user click "Passer" (Deck) if they want.
-                }
+                if (last && checkCompatibility(last)) setMessage("Carte jouable !");
+                else setMessage("Pas de chance...");
             }
-
-            // UNO_PASS: Opponent Passed Turn
             if (data.type === 'UNO_PASS') {
                 setTurn('PLAYER');
                 setMessage("À toi de jouer !");
             }
-
-            // UNO_SHOUT: Opponent shouted UNO
             if (data.type === 'UNO_SHOUT') {
                 setUnoShout('CPU');
+                setOpponentCalledUno(true);
                 playPaddleHit();
                 setTimeout(() => setUnoShout(null), 1500);
             }
-
-            // UNO_GAME_OVER
             if (data.type === 'UNO_GAME_OVER') {
                 handleGameOver(data.winner === mp.peerId ? 'PLAYER' : 'CPU');
             }
-
-            // CHAT / REACTION
             if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
             if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
             if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); handleGameOver('PLAYER'); }
@@ -353,7 +329,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     // --- GAME ACTIONS ---
 
     const startNewGame = (modeOverride?: 'SOLO' | 'ONLINE' | any) => {
-        // Handle explicit mode override or fallback to current state (careful with Event objects)
         const targetMode = (typeof modeOverride === 'string' && (modeOverride === 'SOLO' || modeOverride === 'ONLINE')) 
                            ? modeOverride 
                            : gameMode;
@@ -379,11 +354,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setTurn('PLAYER');
             setMessage("C'est parti !");
         } else {
-            // ONLINE HOST LOGIC
             if (mp.isHost) {
                 const newDeck = generateDeck();
-                const pHand = newDeck.splice(0, 7); // Host Hand
-                const cHand = newDeck.splice(0, 7); // Client Hand
+                const pHand = newDeck.splice(0, 7);
+                const cHand = newDeck.splice(0, 7);
                 let firstCard = newDeck.pop()!;
                 while (firstCard.color === 'black') {
                     newDeck.unshift(firstCard);
@@ -391,17 +365,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 }
                 setDeck(newDeck);
                 setPlayerHand(pHand);
-                
-                // For Host, 'cpuHand' represents Client Hand visually
-                // We store dummies
                 setCpuHand(Array(7).fill({ id: 'opp', color: 'black', value: '0', score: 0 }));
-                
                 setDiscardPile([firstCard]);
                 setActiveColor(firstCard.color);
-                setTurn('PLAYER'); // Host starts? or random? Let's say Host starts
+                setTurn('PLAYER');
                 
-                // Send Init to Client
-                // Wait small delay to ensure client ready
                 setTimeout(() => {
                     mp.sendData({
                         type: 'UNO_INIT',
@@ -412,7 +380,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     });
                 }, 1000);
             } else {
-                // Client waits
                 setIsWaitingForHost(true);
                 setPlayerHand([]);
                 setCpuHand([]);
@@ -424,29 +391,23 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const initGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
         setPhase('GAME');
-        // Explicitly pass the mode to ensure logic runs correctly immediately
-        // (React state update is async, so gameMode might be stale inside startNewGame otherwise)
         if (mode === 'SOLO') startNewGame('SOLO');
         else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame('ONLINE');
     };
 
     const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[], isRemoteEffect: boolean = false) => {
-        // Client Side Logic (Not Host)
         if (gameMode === 'ONLINE' && !mp.isHost) {
             if (target === 'PLAYER') {
-                if (isRemoteEffect) return []; // Prevent automatic draw on effect if we handle it otherwise?
-                
+                if (isRemoteEffect) return [];
                 mp.sendData({ type: 'UNO_DRAW_REQ', amount });
                 return [];
             } else {
-                // CPU (Host) needs to draw (Visually).
                 const dummies = Array(amount).fill({ id: `opp_draw_${Date.now()}_${Math.random()}`, color: 'black', value: '0', score: 0 });
                 setCpuHand(prev => [...prev, ...dummies]);
                 return []; 
             }
         }
 
-        // Host / Solo Logic (Deck Manager)
         playLand();
         let currentDeck = [...deck];
         let currentDiscard = manualDiscardPile ? [...manualDiscardPile] : [...discardPile];
@@ -473,19 +434,21 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
         if (target === 'PLAYER') {
             setPlayerHand(prev => [...prev, ...drawnCards]);
+            // If player drew, they lose the right to contest previously
+            setShowContestButton(false);
+            
             if (gameMode === 'ONLINE' && mp.isHost) {
                 mp.sendData({ type: 'UNO_DRAW_NOTIFY', count: drawnCards.length });
             }
         } else {
-            // Target CPU (Client)
             if (gameMode === 'SOLO') {
                 setCpuHand(prev => [...prev, ...drawnCards]);
+                // If CPU drew, reset their call state
+                setOpponentCalledUno(false);
             } else {
-                // Host dealing to Client
-                // Visually add dummies to cpuHand (Host's view of Opponent)
                 const dummies = Array(drawnCards.length).fill({id:'opp',color:'black', value:'0', score:0});
                 setCpuHand(prev => [...prev, ...dummies]);
-                // Send Real Cards to Client
+                setOpponentCalledUno(false);
                 mp.sendData({ type: 'UNO_DRAW_RESP', cards: drawnCards });
             }
         }
@@ -502,12 +465,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     };
 
-    // --- MANUAL DRAW ACTION ---
     const handleDrawPileClick = (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
         if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
 
-        // If player already drew a card, clicking again means "Pass"
+        setShowContestButton(false); // Player interacting clears contest opportunity
+
         if (hasDrawnThisTurn) {
             handlePassTurn();
             return;
@@ -518,7 +481,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setHasDrawnThisTurn(true);
             const newCard = drawn[0];
             
-            // --- FIX: USE SHARED CHECK ---
             if (newCard && checkCompatibility(newCard)) {
                 setMessage("Carte jouable !");
             } else {
@@ -526,15 +488,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 setTimeout(() => setTurn('CPU'), 1000);
             }
         } else {
-            // Online: Request draw
             if (mp.isHost) {
-                // Host acts like Solo but notifies
                 const drawn = drawCard('PLAYER', 1);
                 setHasDrawnThisTurn(true);
-                // Check playability (Same logic)
                 const newCard = drawn[0];
                 
-                // --- FIX: USE SHARED CHECK ---
                 if (!newCard || !checkCompatibility(newCard)) {
                     setTimeout(() => {
                         setTurn('CPU');
@@ -544,9 +502,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                     setMessage("Carte jouable !");
                 }
             } else {
-                // Client requests
                 mp.sendData({ type: 'UNO_DRAW_REQ', amount: 1 });
-                // We wait for 'UNO_DRAW_RESP' to update UI
             }
         }
     };
@@ -567,6 +523,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setMessage("CONTRE-UNO ! +2 pour ADV");
             playPaddleHit();
             setShowContestButton(false);
+            // Opponent draws 2 cards
             drawCard('CPU', 2);
         }
     };
@@ -623,7 +580,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         
         const cardInHandIndex = hand.findIndex(c => c.id === card.id);
         if (cardInHandIndex !== -1) hand.splice(cardInHandIndex, 1);
-        else hand.splice(index, 1); // Fallback for dummy hands
+        else hand.splice(index, 1);
         
         if (actor === 'PLAYER') setPlayerHand(hand);
         else setCpuHand(hand);
@@ -635,13 +592,40 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setActiveColor(card.color);
         }
 
-        // Check Uno Failure (Local logic only, Online needs explicit signals or trust)
-        // In Online, we trust the sender's state usually or validate on Host.
-        // Simplified: If Player plays and didn't call Uno, punish locally.
-        if (actor === 'PLAYER' && hand.length === 1 && !playerCalledUno) {
-             setMessage("OUBLI UNO ! +2");
-             playGameOver(); 
-             drawCard('PLAYER', 2, newDiscardPile);
+        // --- UNO CHECK LOGIC ---
+        if (actor === 'PLAYER') {
+            // Player Validation
+            if (hand.length === 1 && !playerCalledUno) {
+                 setMessage("OUBLI UNO ! +2");
+                 playGameOver(); 
+                 drawCard('PLAYER', 2, newDiscardPile);
+            }
+            setShowContestButton(false); // Player's turn effectively ends
+        } else {
+            // CPU/Opponent Validation
+            if (hand.length === 1) {
+                let forgot = false;
+                
+                if (gameMode === 'SOLO') {
+                    // CPU randomly forgets
+                    forgot = Math.random() > 0.8;
+                    if (!forgot) {
+                        setUnoShout('CPU');
+                        setTimeout(() => setUnoShout(null), 1500);
+                    }
+                } else {
+                    // Online: Check if they sent shout signal
+                    forgot = !opponentCalledUno;
+                }
+
+                if (forgot) {
+                    setShowContestButton(true);
+                    // Hide button after 3s if user is slow (or let it stay until player moves)
+                    // Better to let it stay until player interacts
+                }
+            } else {
+                setShowContestButton(false);
+            }
         }
         
         // Check Win
@@ -663,7 +647,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             nextTurn = actor; 
         } else if (card.value === 'draw2') {
             setMessage("+2 cartes !");
-            // If remote, assume cards are handled by separate message, do not request draw here
             if (!isRemote) {
                 drawCard(nextTurn, 2, newDiscardPile);
             }
@@ -672,26 +655,21 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
             setMessage("Joker !");
             if (actor === 'PLAYER') {
                 setGameState('color_select');
-                return; // Pause here
+                return;
             } else {
-                // Opponent AI or Remote Logic handled separately
                 if (gameMode === 'SOLO') {
-                    // CPU logic
                     const colorsCount: any = { red: 0, blue: 0, green: 0, yellow: 0 };
                     cpuHand.forEach(c => { if(c.color !== 'black') colorsCount[c.color]++; });
                     const bestColor = (Object.keys(colorsCount) as Color[]).reduce((a, b) => colorsCount[a] > colorsCount[b] ? a : b);
                     setActiveColor(bestColor);
                     setMessage(`CPU choisit : ${bestColor.toUpperCase()}`);
                 }
-                // Online: Color is sent in 'UNO_PLAY' data, set in handleDataRef
             }
         } else if (card.value === 'wild4') {
             setMessage("+4 cartes !");
-            // If remote, assume cards are handled by separate message
             if (!isRemote) {
                 drawCard(nextTurn, 4, newDiscardPile);
             }
-            
             if (actor === 'PLAYER') {
                 setGameState('color_select');
                 return; 
@@ -711,17 +689,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     };
 
     const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
-        // Adding stopPropagation to prevent double events if cards overlap or bubble
         e.stopPropagation();
-        
         if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
 
-        // --- FIX: USE SHARED CHECK ---
+        setShowContestButton(false); // Player action clears contest opportunity
+
         if (checkCompatibility(card)) {
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             animateCardPlay(card, index, 'PLAYER', rect);
             if (gameMode === 'ONLINE') {
-                // Send move - Color selection will be sent after selection if Wild
                 if (card.color !== 'black') {
                     mp.sendData({ type: 'UNO_PLAY', card });
                 }
@@ -733,17 +709,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setActiveColor(color);
         setGameState('playing');
         
-        // Correctly set turn based on card type just played
-        // If Wild+4 was played, it skips opponent, so it remains Player's turn (in 1v1 rules where skip = go again)
-        // Wait, standard Uno: Wild+4 skips next player.
-        // If 2 players: Player A plays Wild+4. Player B draws 4 and is skipped. Player A goes again.
-        // So turn should be PLAYER.
-        
         const topCard = discardPile[discardPile.length - 1];
         let nextTurn: Turn = 'CPU';
         
         if (topCard.value === 'wild4') {
-             // In 1v1, skipping opponent means Player goes again
              nextTurn = 'PLAYER';
              setMessage("L'adversaire passe son tour !");
         }
@@ -751,8 +720,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setTurn(nextTurn);
         
         if (gameMode === 'ONLINE') {
-            // Need to find the last played wild card to send it
-            // Or just send 'nextColor' in the packet
             const playedCard = discardPile[discardPile.length - 1];
             mp.sendData({ type: 'UNO_PLAY', card: playedCard, nextColor: color });
         }
@@ -763,8 +730,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         setGameState('gameover');
         if (winnerTurn === 'PLAYER') {
             playVictory();
-            // Score calc
-            const points = cpuHand.length * 10 + 50; // Simplified scoring
+            const points = cpuHand.length * 10 + 50; 
             setScore(points);
             const coins = Math.max(10, Math.floor(points / 2));
             addCoins(coins);
@@ -785,10 +751,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 );
 
                 if (validIndices.length > 0) {
-                    // Smart-ish AI
                     validIndices.sort((a, b) => {
-                        if (a.c.color === 'black') return 1; // Play wilds last
-                        if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1; // Play action cards
+                        if (a.c.color === 'black') return 1;
+                        if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1; 
                         return 0;
                     });
                     const move = validIndices[0];
@@ -802,8 +767,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating, gameMode]);
 
-    // --- RENDER HELPERS ---
-    
+    // ... (Chat and render helpers remain same) ...
     // Chat Handlers
     const sendChat = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -871,7 +835,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
          );
     };
 
-    // --- CARD VIEW COMPONENT ---
     const CardView = ({ card, onClick, faceUp = true, small = false, style }: { card: Card, onClick?: (e: React.MouseEvent) => void, faceUp?: boolean, small?: boolean, style?: React.CSSProperties }) => {
         if (!faceUp) {
             return (
@@ -902,7 +865,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         const isPlayerHand = onClick !== undefined;
         let isPlayable = true;
         if (isPlayerHand && turn === 'PLAYER') {
-             // --- FIX: USE SHARED CHECK ---
              isPlayable = checkCompatibility(card);
         }
 
@@ -1042,7 +1004,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
                 {/* Player Hand */}
                 <div className="w-full relative px-4 z-20 pb-20 min-h-[180px] flex flex-col justify-end">
-                    <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-30 h-16 items-end">
+                    <div className="absolute -top-20 left-0 right-0 flex justify-center pointer-events-none z-50 h-20 items-end gap-4">
                         {playerHand.length === 2 && turn === 'PLAYER' && !playerCalledUno && (
                             <button onClick={handleUnoClick} className="pointer-events-auto bg-red-600 hover:bg-red-500 text-white font-black text-xl px-8 py-3 rounded-full shadow-[0_0_20px_red] animate-bounce transition-all active:scale-95 flex items-center gap-2 border-4 border-yellow-400"><Megaphone size={24} fill="white" /> CRIER UNO !</button>
                         )}

@@ -47,6 +47,25 @@ const SnakeIcon = ({ size, className }: { size?: number | string, className?: st
     </svg>
 );
 
+// Custom Uno Icon
+const UnoIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+       <rect x="2" y="4" width="14" height="18" rx="2" transform="rotate(-15 9 13)" />
+       <rect x="8" y="2" width="14" height="18" rx="2" transform="rotate(10 15 11)" fill="currentColor" fillOpacity="0.2" />
+    </svg>
+);
+
 // Custom Connect 4 Icon
 const Connect4Icon = ({ size, className }: { size?: number | string, className?: string }) => (
     <svg 
@@ -100,7 +119,7 @@ const GAMES_CONFIG = [
     { 
         id: 'uno', 
         name: 'UNO', 
-        icon: Palette, 
+        icon: UnoIcon, 
         color: 'text-red-500', 
         bg: 'bg-red-900/20',
         border: 'border-red-500/30',
