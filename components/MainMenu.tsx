@@ -28,6 +28,29 @@ interface MainMenuProps {
     onlineUsers: OnlineUser[]; // Now represents Global History if available
 }
 
+// Custom Tetris Icon (T-Piece)
+const TetrisIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+        {/* Top Row */}
+        <rect x="2" y="6" width="6" height="6" rx="1.5" />
+        <rect x="9" y="6" width="6" height="6" rx="1.5" />
+        <rect x="16" y="6" width="6" height="6" rx="1.5" />
+        {/* Bottom Center */}
+        <rect x="9" y="13" width="6" height="6" rx="1.5" />
+    </svg>
+);
+
 // Custom Snake Icon
 const SnakeIcon = ({ size, className }: { size?: number | string, className?: string }) => (
     <svg 
@@ -146,7 +169,7 @@ const GAMES_CONFIG = [
     { 
         id: 'tetris', 
         name: 'TETRIS', 
-        icon: Grid3X3, 
+        icon: TetrisIcon, 
         color: 'text-cyan-400', 
         bg: 'bg-cyan-900/20',
         border: 'border-cyan-500/30',
