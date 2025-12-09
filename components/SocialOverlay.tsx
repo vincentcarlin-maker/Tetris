@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock, Inbox, User } from 'lucide-react';
+import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock, Inbox, User, ChevronRight } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -108,6 +108,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const isDraggingRef = useRef(false);
     const dragStartRef = useRef(0);
     const initialTopRef = useRef(0);
+
+    // New state for message preview bubble
+    const [notificationPreview, setNotificationPreview] = useState<{ senderId: string, senderName: string, text: string } | null>(null);
+    const notificationTimerRef = useRef<any>(null);
 
     const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -246,16 +250,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     // Find sender ID (PeerID) from Username (DB)
                     const senderUsername = newMsg.sender_id;
                     let chatKey = senderUsername; // Default to username if not found
-                    
+                    let senderDisplayName = senderUsername;
+
                     // Check friends list
                     const friend = stateRef.current.friends.find(f => f.name === senderUsername);
                     if (friend) {
                         chatKey = friend.id;
+                        senderDisplayName = friend.name;
                     } else {
                         // Check online users list
                         const onlineUser = stateRef.current.onlineUsers.find(u => u.name === senderUsername);
                         if (onlineUser) {
                             chatKey = onlineUser.id;
+                            senderDisplayName = onlineUser.name;
                         }
                     }
 
@@ -280,6 +287,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
                     if (currentActiveId !== chatKey || !isSocialOpen) {
                         setUnreadCount(prev => prev + 1);
+                        // Show Preview Bubble
+                        setNotificationPreview({ senderId: chatKey, senderName: senderDisplayName, text: newMsg.text });
+                        if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current);
+                        notificationTimerRef.current = setTimeout(() => setNotificationPreview(null), 5000);
                     } else {
                         // If chat is open, mark read immediately
                         DB.markMessagesAsRead(senderUsername, currentUsername);
@@ -430,6 +441,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 const reply = replies[Math.floor(Math.random() * replies.length)];
                 const botMsg: PrivateMessage = { id: Date.now().toString(), senderId: activeChatId, text: reply, timestamp: Date.now(), read: false };
                 setMessages(prev => ({ ...prev, [activeChatId]: [...(prev[activeChatId] || []), botMsg] }));
+                setUnreadCount(c => c + 1);
+                setNotificationPreview({ senderId: activeChatId, senderName: "Bot", text: reply }); // Preview for bot
+                setTimeout(() => setNotificationPreview(null), 5000);
                 playCoin();
             }, 2000);
         } else if (isConnectedToSupabase) {
@@ -465,6 +479,22 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         if (activeChatId === id) setActiveChatId(null);
     };
 
+    const handleOpenSocial = () => {
+        if (!isDraggingRef.current) {
+            setShowSocial(true);
+            setNotificationPreview(null);
+            
+            // Auto-navigate to chat if preview was clicked or pending notification exists
+            if (notificationPreview) {
+                setSocialTab('CHAT');
+                openChat(notificationPreview.senderId);
+            } else if (unreadCount > 0 && activeChatId) {
+                // If already tracking an active chat with unread messages
+                setSocialTab('CHAT');
+            }
+        }
+    };
+
     const displayedCommunity = [
         ...onlineUsers.filter(u => u.id !== mp.peerId),
         ...MOCK_COMMUNITY_PLAYERS
@@ -496,12 +526,26 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
 
     return (
         <>
-            <div style={{ top: `${btnTop}px` }} className="fixed right-0 z-[100] transition-none">
-                <div onMouseDown={(e) => handleDragStart(e.clientY)} onTouchStart={(e) => handleDragStart(e.touches[0].clientY)} onClick={() => { if (!isDraggingRef.current) setShowSocial(true); }} className="p-3 bg-gray-900/90 rounded-l-2xl text-blue-400 hover:text-white border-l border-y border-blue-500/30 backdrop-blur-md active:scale-95 shadow-[-5px_0_15px_rgba(0,0,0,0.5)] cursor-grab active:cursor-grabbing flex items-center justify-center relative touch-none" title="Amis & Social">
-                    <Users size={24} />
-                    <div className={`absolute top-2 right-3 w-3 h-3 rounded-full border-2 border-gray-900 ${hubStatusColor} pointer-events-none`}></div>
+            <div style={{ top: `${btnTop}px` }} className="fixed right-0 z-[100] transition-none flex items-center flex-row-reverse pointer-events-none">
+                <div onMouseDown={(e) => handleDragStart(e.clientY)} onTouchStart={(e) => handleDragStart(e.touches[0].clientY)} onClick={handleOpenSocial} className={`pointer-events-auto p-3 bg-gray-900/90 rounded-l-2xl ${notificationPreview ? 'text-purple-400 animate-pulse border-purple-500/50' : 'text-blue-400 hover:text-white border-blue-500/30'} border-l border-y backdrop-blur-md active:scale-95 shadow-[-5px_0_15px_rgba(0,0,0,0.5)] cursor-grab active:cursor-grabbing flex items-center justify-center relative touch-none transition-colors`} title="Amis & Social">
+                    {notificationPreview ? <MessageSquare size={24} /> : <Users size={24} />}
+                    <div className={`absolute top-2 right-3 w-3 h-3 rounded-full border-2 border-gray-900 ${notificationPreview ? 'bg-purple-500 shadow-[0_0_8px_#a855f7]' : hubStatusColor} pointer-events-none`}></div>
                     {unreadCount > 0 && <div className="absolute top-2 left-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-bounce border-2 border-black pointer-events-none">{unreadCount}</div>}
                 </div>
+
+                {/* NOTIFICATION PREVIEW BUBBLE */}
+                {notificationPreview && !showSocial && (
+                    <div onClick={handleOpenSocial} className="pointer-events-auto mr-2 bg-gray-900/90 backdrop-blur-md border border-purple-500/50 rounded-xl p-3 shadow-2xl animate-in slide-in-from-right-10 fade-in duration-300 max-w-[200px] cursor-pointer group hover:bg-gray-800 transition-colors flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-purple-400 truncate">{notificationPreview.senderName}</span>
+                            <span className="text-[10px] text-gray-500">À l'instant</span>
+                        </div>
+                        <p className="text-xs text-white truncate group-hover:text-purple-100">{notificationPreview.text}</p>
+                        <div className="text-[10px] text-purple-500 font-bold flex items-center gap-1 mt-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                            RÉPONDRE <ChevronRight size={12} />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {selectedPlayer && (
