@@ -326,8 +326,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 setPlayerHand(prev => [...prev, ...newCards]);
                 setHasDrawnThisTurn(true);
                 const last = newCards[newCards.length-1];
-                if (last && checkCompatibility(last)) setMessage("Carte jouable !");
-                else setMessage("Pas de chance...");
+                if (last && checkCompatibility(last)) {
+                    setMessage("Carte jouable !");
+                } else {
+                    setMessage("Pas de chance...");
+                    // Fix: Auto-pass for Guest if unplayable to match Host behavior
+                    setTimeout(() => handlePassTurn(), 1000);
+                }
             }
             if (data.type === 'UNO_PASS') {
                 setTurn('PLAYER');
