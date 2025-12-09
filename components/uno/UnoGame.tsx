@@ -173,6 +173,23 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     const cpuHandRef = useRef<HTMLDivElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const handleDataRef = useRef<(data: any) => void>(null);
+    const mainContainerRef = useRef<HTMLDivElement>(null);
+
+    // --- EFFECT: PREVENT OVERSCROLL ---
+    useEffect(() => {
+        const container = mainContainerRef.current;
+        if (!container) return;
+
+        const handleTouchMove = (e: TouchEvent) => {
+            const target = e.target as HTMLElement;
+            // Allow scrolling only in chat/lists marked with custom-scrollbar
+            if (target.closest('.custom-scrollbar')) return;
+            e.preventDefault();
+        };
+
+        container.addEventListener('touchmove', handleTouchMove, { passive: false });
+        return () => container.removeEventListener('touchmove', handleTouchMove);
+    }, []);
 
     // --- HELPER: CONSISTENT COMPATIBILITY CHECK ---
     const checkCompatibility = useCallback((card: Card) => {
@@ -767,7 +784,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
         }
     }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating, gameMode]);
 
-    // ... (Chat and render helpers remain same) ...
     // Chat Handlers
     const sendChat = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -933,7 +949,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
     else { spacingClass = '-space-x-16 sm:-space-x-24'; rotationFactor = 1.5; }
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-hidden text-white font-sans">
+        <div ref={mainContainerRef} className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-hidden text-white font-sans touch-none select-none">
             <div className={`absolute inset-0 transition-colors duration-1000 opacity-30 pointer-events-none ${COLOR_CONFIG[activeColor].bg}`}></div>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black/60 to-black pointer-events-none"></div>
 
@@ -1003,7 +1019,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
                 </div>
 
                 {/* Player Hand */}
-                <div className="w-full relative px-4 z-20 pb-20 min-h-[180px] flex flex-col justify-end">
+                <div className={`w-full relative px-4 z-20 ${gameMode === 'ONLINE' ? 'pb-24' : 'pb-4'} min-h-[180px] flex flex-col justify-end`}>
                     <div className="absolute -top-20 left-0 right-0 flex justify-center pointer-events-none z-50 h-20 items-end gap-4">
                         {playerHand.length === 2 && turn === 'PLAYER' && !playerCalledUno && (
                             <button onClick={handleUnoClick} className="pointer-events-auto bg-red-600 hover:bg-red-500 text-white font-black text-xl px-8 py-3 rounded-full shadow-[0_0_20px_red] animate-bounce transition-all active:scale-95 flex items-center gap-2 border-4 border-yellow-400"><Megaphone size={24} fill="white" /> CRIER UNO !</button>
