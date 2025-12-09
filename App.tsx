@@ -297,7 +297,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'mastermind' && isAuthenticated && (
-                <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
             )}
 
             {currentView === 'uno' && isAuthenticated && (

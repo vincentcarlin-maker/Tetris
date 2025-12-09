@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, BrainCircuit, Delete, Check, X } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, BrainCircuit, Delete, Check, X, User, Globe, Play, ArrowLeft, Loader2, LogOut, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
+import { useMultiplayer } from '../../hooks/useMultiplayer';
+import { useCurrency } from '../../hooks/useCurrency';
 
 interface MastermindGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    mp: ReturnType<typeof useMultiplayer>;
 }
 
 // --- CONSTANTS ---
@@ -23,7 +26,28 @@ const COLORS = [
 const CODE_LENGTH = 4;
 const MAX_ATTEMPTS = 10;
 
-export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, addCoins }) => {
+// Réactions Néon Animées
+const REACTIONS = [
+    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
+    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
+    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500', anim: 'animate-pulse' },
+    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500', anim: 'animate-ping' },
+    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
+    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
+];
+
+interface ChatMessage {
+    id: number;
+    text: string;
+    senderName: string;
+    isMe: boolean;
+    timestamp: number;
+}
+
+export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, addCoins, mp }) => {
+    // Identity
+    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
+
     // Game State
     const [secretCode, setSecretCode] = useState<number[]>([]);
     const [guesses, setGuesses] = useState<number[][]>([]);
@@ -32,74 +56,155 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [activeRow, setActiveRow] = useState(0);
+    
+    // Online State
+    const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
+    const [phase, setPhase] = useState<'MENU' | 'GAME'>('MENU');
+    const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
+    const [opponentProgress, setOpponentProgress] = useState(0); // Row index (0-10)
+    const [opponentStatus, setOpponentStatus] = useState<'PLAYING' | 'WON' | 'LOST'>('PLAYING');
+    const [isWaitingForCode, setIsWaitingForCode] = useState(false);
+    const [opponentLeft, setOpponentLeft] = useState(false);
+    const [resultMessage, setResultMessage] = useState<string | null>(null);
+
+    // Chat
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState('');
+    const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
+    const chatEndRef = useRef<HTMLDivElement>(null);
 
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
-    
-    // Le score pour le mastermind est le nombre de tours (plus bas est mieux), 0 = pas joué
     const bestScore = highScores.mastermind || 0; 
 
-    // Initialize Game
-    useEffect(() => {
-        startNewGame();
-    }, []);
+    // Refs
+    const handleDataRef = useRef<(data: any) => void>(null);
 
-    const startNewGame = () => {
-        // Generate Secret Code
-        const newCode = Array.from({ length: CODE_LENGTH }, () => Math.floor(Math.random() * COLORS.length));
-        setSecretCode(newCode);
-        
-        // Reset State
-        setGuesses(Array(MAX_ATTEMPTS).fill(null)); // Fill with null to render empty rows
+    // --- SETUP & EFFECTS ---
+
+    useEffect(() => {
+        mp.updateSelfInfo(username, currentAvatarId);
+    }, [username, currentAvatarId, mp]);
+
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatHistory]);
+
+    // Connect/Disconnect based on mode
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            if (mp.mode === 'in_game' || mp.isHost) mp.leaveGame();
+            setOpponentLeft(false);
+        }
+    }, [gameMode]);
+
+    // Handle Lobby/Game transition
+    useEffect(() => {
+        const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+            
+            // If returning to lobby from game
+            if (phase === 'GAME' && guesses.some(g => g !== null)) {
+                resetLocalGame();
+                setPhase('MENU');
+            }
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            if (phase === 'MENU') {
+                initGame('ONLINE'); // Auto-start game logic if matched while in menu
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase]);
+
+    // --- GAME LOGIC ---
+
+    const resetLocalGame = () => {
+        setSecretCode([]);
+        setGuesses(Array(MAX_ATTEMPTS).fill(null));
         setFeedback(Array(MAX_ATTEMPTS).fill(null));
         setCurrentGuess([]);
         setActiveRow(0);
         setGameState('playing');
         setEarnedCoins(0);
-        playLand(); // Start sound
+        setOpponentProgress(0);
+        setOpponentStatus('PLAYING');
+        setResultMessage(null);
+        setOpponentLeft(false);
+        setChatHistory([]);
+    };
+
+    const startNewGame = () => {
+        resetLocalGame();
         resumeAudio();
+
+        if (gameMode === 'SOLO') {
+            const newCode = Array.from({ length: CODE_LENGTH }, () => Math.floor(Math.random() * COLORS.length));
+            setSecretCode(newCode);
+            playLand();
+        } else {
+            // Online Race
+            if (mp.isHost) {
+                const newCode = Array.from({ length: CODE_LENGTH }, () => Math.floor(Math.random() * COLORS.length));
+                setSecretCode(newCode);
+                setIsWaitingForCode(false);
+                // Delay slightly to ensure client is ready
+                setTimeout(() => {
+                    mp.sendData({ type: 'MASTERMIND_INIT', code: newCode });
+                }, 500);
+            } else {
+                setIsWaitingForCode(true);
+            }
+        }
+    };
+
+    const initGame = (mode: 'SOLO' | 'ONLINE') => {
+        setGameMode(mode);
+        setPhase('GAME');
+        if (mode === 'SOLO') startNewGame();
+        else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame();
     };
 
     const handleColorClick = (colorIndex: number) => {
-        if (gameState !== 'playing' || currentGuess.length >= CODE_LENGTH) return;
-        
+        if (gameState !== 'playing' || currentGuess.length >= CODE_LENGTH || (gameMode === 'ONLINE' && isWaitingForCode)) return;
         playMove();
         setCurrentGuess(prev => [...prev, colorIndex]);
     };
 
     const handleDelete = () => {
         if (gameState !== 'playing' || currentGuess.length === 0) return;
-        playPaddleHit(); // Delete sound
+        playPaddleHit();
         setCurrentGuess(prev => prev.slice(0, -1));
     };
 
     const calculateFeedback = (guess: number[], secret: number[]) => {
         let exact = 0;
         let partial = 0;
-        
         const secretCopy = [...secret];
         const guessCopy = [...guess];
 
-        // 1. Check Exact Matches
         for (let i = 0; i < CODE_LENGTH; i++) {
             if (guess[i] === secret[i]) {
                 exact++;
-                secretCopy[i] = -1; // Mark as handled
-                guessCopy[i] = -2;  // Mark as handled
+                secretCopy[i] = -1; 
+                guessCopy[i] = -2;
             }
         }
 
-        // 2. Check Partial Matches
         for (let i = 0; i < CODE_LENGTH; i++) {
             if (guessCopy[i] !== -2) {
                 const foundIndex = secretCopy.indexOf(guessCopy[i]);
                 if (foundIndex !== -1) {
                     partial++;
-                    secretCopy[foundIndex] = -1; // Mark as handled
+                    secretCopy[foundIndex] = -1;
                 }
             }
         }
-
         return { exact, partial };
     };
 
@@ -108,7 +213,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
 
         const currentFeedback = calculateFeedback(currentGuess, secretCode);
         
-        // Update History
         const newGuesses = [...guesses];
         newGuesses[activeRow] = currentGuess;
         setGuesses(newGuesses);
@@ -117,15 +221,19 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
         newFeedback[activeRow] = currentFeedback;
         setFeedback(newFeedback);
 
-        // Check Win/Loss
+        const nextRow = activeRow + 1;
+
+        if (gameMode === 'ONLINE') {
+            mp.sendData({ type: 'MASTERMIND_PROGRESS', row: nextRow });
+        }
+
         if (currentFeedback.exact === CODE_LENGTH) {
-            handleWin(activeRow + 1);
-        } else if (activeRow >= MAX_ATTEMPTS - 1) {
+            handleWin(nextRow);
+        } else if (nextRow >= MAX_ATTEMPTS) {
             handleLoss();
         } else {
-            // Next Turn
-            playLand(); // Row complete sound
-            setActiveRow(prev => prev + 1);
+            playLand();
+            setActiveRow(nextRow);
             setCurrentGuess([]);
         }
     };
@@ -134,55 +242,224 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
         setGameState('won');
         playVictory();
         
-        // Calculate Score & Coins
-        // Max attempts = 10. Win at 1 = 100pts. Win at 10 = 10pts.
-        const scoreBase = (MAX_ATTEMPTS - attempts + 1) * 10;
-        // Coin reward
-        const coins = Math.floor(scoreBase / 2) + 10; 
+        let coins = 0;
+        if (gameMode === 'SOLO') {
+            const scoreBase = (MAX_ATTEMPTS - attempts + 1) * 10;
+            coins = Math.floor(scoreBase / 2) + 10;
+            if (bestScore === 0 || attempts < bestScore) {
+                updateHighScore('mastermind', attempts);
+            }
+        } else {
+            // Online Win
+            setResultMessage("VICTOIRE ! TU L'AS TROUVÉ EN PREMIER !");
+            coins = 50;
+            mp.sendData({ type: 'MASTERMIND_WIN' });
+        }
         
         addCoins(coins);
         setEarnedCoins(coins);
-
-        // Update High Score (Lower attempts is better for leaderboard usually, but here we might track points or min moves)
-        // Let's stick to the app convention: Some games are high score, logic games often min moves.
-        // For Mastermind, standard is "Fewest Moves".
-        if (bestScore === 0 || attempts < bestScore) {
-            updateHighScore('mastermind', attempts);
-        }
     };
 
     const handleLoss = () => {
         setGameState('lost');
         playGameOver();
+        if (gameMode === 'ONLINE') {
+            setResultMessage("ÉCHEC... TU N'AS PLUS D'ESSAIS.");
+            mp.sendData({ type: 'MASTERMIND_LOSS' });
+        }
     };
+
+    // --- MULTIPLAYER DATA HANDLER ---
+    useEffect(() => {
+        handleDataRef.current = (data: any) => {
+            if (data.type === 'MASTERMIND_INIT') {
+                setSecretCode(data.code);
+                setIsWaitingForCode(false);
+                setOpponentProgress(0);
+                setOpponentStatus('PLAYING');
+                playLand();
+            }
+            if (data.type === 'MASTERMIND_PROGRESS') {
+                setOpponentProgress(data.row);
+            }
+            if (data.type === 'MASTERMIND_WIN') {
+                setOpponentStatus('WON');
+                if (gameState === 'playing') {
+                    setGameState('lost'); // Opponent won first, so I lose the race
+                    setResultMessage("TROP TARD ! L'ADVERSAIRE A TROUVÉ LE CODE.");
+                    playGameOver();
+                }
+            }
+            if (data.type === 'MASTERMIND_LOSS') {
+                setOpponentStatus('LOST');
+                // Optional: If both lost? For now keep playing until I finish.
+            }
+            if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
+            if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
+            if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setGameState('won'); setResultMessage("ADVERSAIRE PARTI. VICTOIRE PAR FORFAIT."); }
+            if (data.type === 'REMATCH_START') startNewGame();
+        };
+    });
+
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (handleDataRef.current) handleDataRef.current(data);
+        });
+        return () => unsubscribe();
+    }, [mp]);
+
+    // --- CHAT & SOCIAL ---
+    const sendChat = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!chatInput.trim() || mp.mode !== 'in_game') return;
+        const msg: ChatMessage = { id: Date.now(), text: chatInput.trim(), senderName: username, isMe: true, timestamp: Date.now() };
+        setChatHistory(prev => [...prev, msg]);
+        mp.sendData({ type: 'CHAT', text: msg.text, senderName: username });
+        setChatInput('');
+    };
+
+    const sendReaction = (reactionId: string) => {
+        if (gameMode === 'ONLINE' && mp.mode === 'in_game') {
+            setActiveReaction({ id: reactionId, isMe: true });
+            mp.sendData({ type: 'REACTION', id: reactionId });
+            setTimeout(() => setActiveReaction(null), 3000);
+        }
+    };
+
+    const renderReactionVisual = (reactionId: string, color: string) => {
+      const reaction = REACTIONS.find(r => r.id === reactionId);
+      if (!reaction) return null;
+      const Icon = reaction.icon;
+      const anim = reaction.anim || 'animate-bounce';
+      return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
+    };
+
+    // --- NAVIGATION ---
+    const handleLocalBack = () => {
+        if (phase === 'GAME') {
+            if (gameMode === 'ONLINE') mp.leaveGame();
+            setPhase('MENU');
+        } else {
+            onBack();
+        }
+    };
+
+    const renderLobby = () => {
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-cyan-300 tracking-wider drop-shadow-md">LOBBY MASTERMIND</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 ? (
+                        hostingPlayers.map(player => {
+                            const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                            const AvatarIcon = avatar.icon;
+                            return (
+                                <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                        <span className="font-bold">{player.name}</span>
+                                    </div>
+                                    <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                </div>
+                            );
+                        })
+                    ) : <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie... Créez la vôtre !</p>}
+                </div>
+             </div>
+         );
+    };
+
+    // --- MENU VIEW ---
+    if (phase === 'MENU') {
+        return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+                <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee]">NEON MIND</h1>
+                <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
+                    <button onClick={() => initGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                        <User size={24} className="text-neon-blue"/> SOLO
+                    </button>
+                    <button onClick={() => initGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                        <Globe size={24} className="text-green-500"/> EN LIGNE
+                    </button>
+                </div>
+                <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
+            </div>
+        );
+    }
+
+    if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-300 pr-2 pb-1">NEON MIND</h1>
+                    <div className="w-10"></div>
+                </div>
+                {renderLobby()}
+            </div>
+        );
+    }
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
-            {/* Ambient Light */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/20 via-black to-transparent pointer-events-none"></div>
 
+            {activeReaction && (() => {
+                const reaction = REACTIONS.find(r => r.id === activeReaction.id);
+                if (!reaction) return null;
+                const positionClass = activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
+                return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${reaction.anim || 'animate-bounce'}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
+            })()}
+
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
-                    <Home size={20} />
-                </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)] pr-2 pb-1">
-                    NEON MIND
-                </h1>
-                <button onClick={startNewGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
-                    <RefreshCw size={20} />
-                </button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)] pr-2 pb-1">NEON MIND</h1>
+                <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startNewGame(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
+
+            {/* WAITING OVERLAY FOR GUEST */}
+            {gameMode === 'ONLINE' && !mp.isHost && isWaitingForCode && onlineStep === 'game' && (
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                    <Loader2 size={48} className="text-cyan-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-2">L'HÔTE GÉNÈRE LE CODE...</p>
+                </div>
+            )}
+
+            {/* WAITING FOR OPPONENT FOR HOST */}
+            {gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && onlineStep === 'game' && (
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                    <Loader2 size={48} className="text-cyan-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                    <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold mt-4">ANNULER</button>
+                </div>
+            )}
 
             {/* Stats */}
             <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10">
                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">ESSAIS</span><span className="text-xl font-mono font-bold text-white">{activeRow + 1}/{MAX_ATTEMPTS}</span></div>
-                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-xl font-mono font-bold text-yellow-400">{bestScore > 0 ? `${bestScore} cps` : '-'}</span></div>
+                {gameMode === 'ONLINE' ? (
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] text-gray-500 font-bold tracking-widest">ADV.</span>
+                        <span className={`text-sm font-bold ${opponentStatus === 'WON' ? 'text-green-400' : 'text-purple-400'}`}>
+                            {opponentStatus === 'WON' ? 'GAGNÉ' : opponentStatus === 'LOST' ? 'PERDU' : `LIGNE ${opponentProgress}`}
+                        </span>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-xl font-mono font-bold text-yellow-400">{bestScore > 0 ? `${bestScore} cps` : '-'}</span></div>
+                )}
             </div>
 
             {/* Game Board */}
-            <div className="flex-1 w-full max-w-md bg-gray-900/80 border-2 border-cyan-500/30 rounded-xl shadow-2xl relative overflow-y-auto custom-scrollbar p-2 mb-4 backdrop-blur-md z-10">
+            <div className="flex-1 w-full max-w-md bg-gray-900/80 border-2 border-cyan-500/30 rounded-xl shadow-2xl relative overflow-y-auto custom-scrollbar p-2 mb-2 backdrop-blur-md z-10">
                 
                 {/* Result Overlay */}
                 {(gameState !== 'playing') && (
@@ -190,17 +467,19 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                         {gameState === 'won' ? (
                             <>
                                 <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_15px_gold]" />
-                                <h2 className="text-4xl font-black italic text-white mb-2">CODE DÉCRYPTÉ !</h2>
-                                <div className="flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse mb-6">
-                                    <Coins className="text-yellow-400" size={24} />
-                                    <span className="text-yellow-100 font-bold text-xl">+{earnedCoins}</span>
-                                </div>
+                                <h2 className="text-4xl font-black italic text-white mb-2 text-center">{resultMessage || "CODE DÉCRYPTÉ !"}</h2>
+                                {earnedCoins > 0 && (
+                                    <div className="flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse mb-6">
+                                        <Coins className="text-yellow-400" size={24} />
+                                        <span className="text-yellow-100 font-bold text-xl">+{earnedCoins}</span>
+                                    </div>
+                                )}
                             </>
                         ) : (
                             <>
                                 <BrainCircuit size={64} className="text-red-500 mb-4 drop-shadow-[0_0_15px_red]" />
-                                <h2 className="text-4xl font-black italic text-red-500 mb-2">ÉCHEC...</h2>
-                                <p className="text-gray-400 mb-4">Le code était :</p>
+                                <h2 className="text-4xl font-black italic text-red-500 mb-2 text-center">{resultMessage || "ÉCHEC..."}</h2>
+                                {secretCode.length > 0 && <p className="text-gray-400 mb-4">Le code était :</p>}
                                 <div className="flex gap-2 mb-6">
                                     {secretCode.map((c, i) => (
                                         <div key={i} className={`w-8 h-8 rounded-full ${COLORS[c]} border-2 border-white/20`} />
@@ -208,18 +487,19 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                                 </div>
                             </>
                         )}
-                        <button onClick={startNewGame} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg active:scale-95 flex items-center gap-2">
-                            <RefreshCw size={20} /> REJOUER
-                        </button>
+                        <div className="flex gap-4">
+                            <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : startNewGame} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg active:scale-95 flex items-center gap-2">
+                                <RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}
+                            </button>
+                            {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                        </div>
                     </div>
                 )}
 
-                {/* Rows - INVERTED ORDER (Row 1 at bottom) */}
+                {/* Rows */}
                 <div className="flex flex-col gap-1.5 min-h-full justify-end">
                     {[...Array(MAX_ATTEMPTS)].map((_, i) => {
-                        // Invert index: Render last attempt at top (index 9), first attempt at bottom (index 0)
                         const rowIndex = MAX_ATTEMPTS - 1 - i; 
-                        
                         const isCurrent = rowIndex === activeRow;
                         const rowData = guesses[rowIndex];
                         const fb = feedback[rowIndex];
@@ -228,26 +508,18 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                         return (
                             <div key={rowIndex} className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${isCurrent ? 'bg-cyan-900/40 border-cyan-500/50 shadow-[inset_0_0_10px_rgba(34,211,238,0.2)]' : 'bg-black/40 border-white/5'}`}>
                                 <span className={`text-xs font-mono font-bold w-6 text-center ${isCurrent ? 'text-white' : 'text-gray-500'}`}>{rowIndex + 1}</span>
-                                
-                                {/* Pegs */}
                                 <div className="flex-1 flex justify-center gap-2 sm:gap-4">
                                     {[...Array(CODE_LENGTH)].map((_, slotIdx) => {
                                         let colorClass = 'bg-black/50 border border-white/10';
-                                        
                                         if (isCurrent) {
                                             if (slotIdx < currentGuess.length) colorClass = COLORS[currentGuess[slotIdx]];
-                                            else if (slotIdx === currentGuess.length) colorClass += ' ring-1 ring-white/50 animate-pulse'; // Cursor
+                                            else if (slotIdx === currentGuess.length) colorClass += ' ring-1 ring-white/50 animate-pulse';
                                         } else if (isPlayed) {
                                             colorClass = COLORS[rowData[slotIdx]];
                                         }
-
-                                        return (
-                                            <div key={slotIdx} className={`w-8 h-8 rounded-full shadow-inner ${colorClass} transition-all duration-200`}></div>
-                                        );
+                                        return <div key={slotIdx} className={`w-8 h-8 rounded-full shadow-inner ${colorClass} transition-all duration-200`}></div>;
                                     })}
                                 </div>
-
-                                {/* Feedback */}
                                 <div className="grid grid-cols-2 gap-1 w-8">
                                     {isPlayed ? (
                                         <>
@@ -272,13 +544,13 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                         <button
                             key={idx}
                             onClick={() => handleColorClick(idx)}
-                            disabled={gameState !== 'playing' || currentGuess.length >= CODE_LENGTH}
+                            disabled={gameState !== 'playing' || currentGuess.length >= CODE_LENGTH || isWaitingForCode}
                             className={`w-10 h-10 rounded-full ${color} border-2 border-white/20 active:scale-90 transition-transform shadow-lg ${gameState !== 'playing' ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
                         />
                     ))}
                 </div>
                 
-                <div className="flex gap-2 h-14">
+                <div className="flex gap-2 h-12">
                     <button 
                         onClick={handleDelete}
                         disabled={currentGuess.length === 0 || gameState !== 'playing'}
@@ -295,6 +567,22 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                     </button>
                 </div>
             </div>
+
+            {/* Online Chat */}
+            {gameMode === 'ONLINE' && mp.gameOpponent && (
+                <div className="w-full max-w-lg z-30 px-2 pb-4 mt-2">
+                    <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
+                        {REACTIONS.map(reaction => {
+                            const Icon = reaction.icon;
+                            return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
+                        })}
+                    </div>
+                    <form onSubmit={sendChat} className="flex gap-2">
+                        <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
+                        <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-cyan-500 text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
+                    </form>
+                </div>
+            )}
         </div>
     );
 };
