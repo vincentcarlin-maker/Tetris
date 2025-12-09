@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette, User, Globe, Users, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -888,12 +889,31 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins }) => 
 
         return (
             <div onClick={onClick} style={style} className={`${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} relative rounded-xl flex flex-col items-center justify-center overflow-hidden cursor-pointer hover:scale-105 transition-all duration-300 select-none shadow-xl border-2 ${config.border} ${liftClass} bg-gray-900`}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-80 z-0`}></div>
-                <div className={`absolute inset-2 sm:inset-3 rounded-[50%_/_40%] border border-white/20 bg-black/40 backdrop-blur-sm flex items-center justify-center z-10 shadow-inner ${isWild ? 'animate-pulse border-white/50' : ''}`}>
-                    <div className={`font-black italic drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isWild ? 'text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500 text-4xl sm:text-6xl' : 'text-white text-3xl sm:text-5xl'} flex items-center justify-center`}>{Icon ? <Icon size={small ? 20 : 40} strokeWidth={2.5}/> : displayValue}</div>
+                
+                {/* Dynamic Background */}
+                {isWild ? (
+                    <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ef4444,#eab308,#22c55e,#3b82f6,#ef4444)] animate-[spin_4s_linear_infinite] opacity-100 z-0"></div>
+                ) : (
+                    <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-80 z-0`}></div>
+                )}
+
+                {/* Glassmorphism Oval */}
+                <div className={`absolute inset-2 sm:inset-3 rounded-[50%_/_40%] border ${isWild ? 'border-white/40 bg-black/80' : 'border-white/20 bg-black/40'} backdrop-blur-sm flex items-center justify-center z-10 shadow-inner`}>
+                    <div className={`font-black italic drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isWild ? (Icon ? 'text-white' : 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400') : 'text-white'} text-3xl sm:text-5xl flex items-center justify-center`}>
+                        {Icon ? <Icon size={small ? 20 : 40} strokeWidth={2.5} className={isWild ? "drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : ""} /> : displayValue}
+                    </div>
                 </div>
-                <div className="absolute top-1 left-1.5 text-[10px] sm:text-sm font-bold leading-none text-white drop-shadow-md z-20">{Icon ? <Icon size={12}/> : displayValue}</div>
-                <div className="absolute bottom-1 right-1.5 text-[10px] sm:text-sm font-bold leading-none transform rotate-180 text-white drop-shadow-md z-20">{Icon ? <Icon size={12}/> : displayValue}</div>
+
+                {/* Corners */}
+                <div className="absolute top-1 left-1.5 text-[10px] sm:text-sm font-bold leading-none text-white drop-shadow-md z-20">
+                    {Icon ? <Icon size={12}/> : displayValue}
+                </div>
+                <div className="absolute bottom-1 right-1.5 text-[10px] sm:text-sm font-bold leading-none transform rotate-180 text-white drop-shadow-md z-20">
+                    {Icon ? <Icon size={12}/> : displayValue}
+                </div>
+                
+                {/* Gloss */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none z-20"></div>
             </div>
         );
     };
