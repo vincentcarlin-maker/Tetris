@@ -253,20 +253,21 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
 
     // Visuals
     const getTileClass = (val: number) => {
-        const base = "flex items-center justify-center font-black rounded-lg border-2 shadow-[0_0_10px_currentColor] transition-all duration-100 absolute w-20 h-20 sm:w-24 sm:h-24";
+        // Updated to use opaque bg-gray-900 to prevent overlapping artifacts
+        const base = "flex items-center justify-center font-black rounded-lg border-2 shadow-[0_0_10px_currentColor] transition-all duration-100 absolute w-20 h-20 sm:w-24 sm:h-24 bg-gray-900";
         switch (val) {
-            case 2: return `${base} border-cyan-500 text-cyan-500 bg-cyan-900/30`;
-            case 4: return `${base} border-blue-500 text-blue-500 bg-blue-900/30`;
-            case 8: return `${base} border-purple-500 text-purple-500 bg-purple-900/30`;
-            case 16: return `${base} border-pink-500 text-pink-500 bg-pink-900/30`;
-            case 32: return `${base} border-red-500 text-red-500 bg-red-900/30`;
-            case 64: return `${base} border-orange-500 text-orange-500 bg-orange-900/30`;
-            case 128: return `${base} border-yellow-500 text-yellow-500 bg-yellow-900/30`;
-            case 256: return `${base} border-green-500 text-green-500 bg-green-900/30`;
-            case 512: return `${base} border-teal-400 text-teal-400 bg-teal-900/30`;
-            case 1024: return `${base} border-indigo-400 text-indigo-400 bg-indigo-900/30`;
-            case 2048: return `${base} border-white text-white bg-white/20 animate-pulse shadow-[0_0_20px_white]`;
-            default: return `${base} border-white text-white bg-black`;
+            case 2: return `${base} border-cyan-500 text-cyan-500`;
+            case 4: return `${base} border-blue-500 text-blue-500`;
+            case 8: return `${base} border-purple-500 text-purple-500`;
+            case 16: return `${base} border-pink-500 text-pink-500`;
+            case 32: return `${base} border-red-500 text-red-500`;
+            case 64: return `${base} border-orange-500 text-orange-500`;
+            case 128: return `${base} border-yellow-500 text-yellow-500`;
+            case 256: return `${base} border-green-500 text-green-500`;
+            case 512: return `${base} border-teal-400 text-teal-400`;
+            case 1024: return `${base} border-indigo-400 text-indigo-400`;
+            case 2048: return `${base} border-white text-white shadow-[0_0_20px_white] animate-pulse`;
+            default: return `${base} border-white text-white`;
         }
     };
 
