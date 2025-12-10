@@ -92,7 +92,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
     const [lives, setLives] = useState(3);
     const [level, setLevel] = useState(1);
     const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
-    const [gameStep, setGameStep] = useState<'MENU' | 'DIFFICULTY' | 'PLAYING'>('MENU'); // New State Flow
+    const [gameStep, setGameStep] = useState<'MENU' | 'DIFFICULTY' | 'PLAYING'>('MENU'); 
     
     const [gameOver, setGameOver] = useState(false);
     const [gameWon, setGameWon] = useState(false); 
@@ -122,9 +122,17 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
     const fxCanvasRef = useRef<HTMLCanvasElement>(null);
     const trailsRef = useRef<TrailParticle[]>([]);
 
-    // Swipe Control Refs
+    // Control Refs
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
     
+    // State Refs & Locks
+    const scoreRef = useRef(0);
+    const livesRef = useRef(3);
+    const isDyingRef = useRef(false); // CRITICAL LOCK to prevent multi-death
+
+    useEffect(() => { scoreRef.current = score; }, [score]);
+    useEffect(() => { livesRef.current = lives; }, [lives]);
+
     const [, setTick] = useState(0);
 
     useEffect(() => {
@@ -149,7 +157,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
     // Gestion du clavier pour Desktop / Test
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (gameOver || gameWon || levelComplete || gameStep !== 'PLAYING') return;
+            if (gameOver || gameWon || levelComplete || gameStep !== 'PLAYING' || isDyingRef.current) return;
             const key = e.key;
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
                 e.preventDefault();
@@ -173,7 +181,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (!touchStartRef.current) return;
+        if (!touchStartRef.current || isDyingRef.current) return;
         
         const touch = e.touches[0];
         const diffX = touch.clientX - touchStartRef.current.x;
@@ -238,11 +246,12 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
         setIsPlaying(false);
         setEarnedCoins(0);
         setGameStep('PLAYING');
+        isDyingRef.current = false;
         
         if (onReportProgress) onReportProgress('play', 1);
     };
 
-    const resetLevel = () => {
+    const resetLevel = useCallback(() => {
         // Just reset positions, keep score/lives
         pacmanRef.current.pos = { ...PACMAN_START };
         pacmanRef.current.dir = 'LEFT';
@@ -256,7 +265,8 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
         gameTimerRef.current = 0;
         gameModeIndexRef.current = 0;
         setIsPlaying(true);
-    };
+        isDyingRef.current = false; // Release lock
+    }, [level, difficulty]);
 
     const startNextLevel = () => {
         const nextLevel = level + 1;
@@ -271,6 +281,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
             initLevel(nextLevel, difficulty);
             setLevelComplete(false);
             setIsPlaying(false);
+            isDyingRef.current = false;
             
             const currentMax = parseInt(localStorage.getItem('pacman-max-level') || '1', 10);
             if (nextLevel > currentMax) {
@@ -516,26 +527,36 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
         }
     }, []);
 
-    const handleDeath = () => {
+    const handleDeath = useCallback(() => {
+        // Prevent multi-triggering
+        if (isDyingRef.current) return;
+        isDyingRef.current = true;
+
         setIsPlaying(false);
-        if (lives > 1) {
+        
+        const currentLives = livesRef.current;
+        if (currentLives > 1) {
             setLives(l => l - 1);
+            // Manually update ref immediately to prevent race conditions during this tick
+            livesRef.current = currentLives - 1;
+            
             playGameOver();
             setTimeout(() => { 
                 resetLevel();
             }, 1500);
         } else {
             setLives(0);
+            livesRef.current = 0;
             setGameOver(true);
             playGameOver();
-            updateHighScore('pacman', score);
-            const coins = Math.floor(score / 100);
+            updateHighScore('pacman', scoreRef.current);
+            const coins = Math.floor(scoreRef.current / 100);
             if (coins > 0) {
                 addCoins(coins);
                 setEarnedCoins(coins);
             }
         }
-    };
+    }, [resetLevel, playGameOver, updateHighScore, addCoins]);
 
     const checkCollisions = useCallback(() => {
         const p = pacmanRef.current;
@@ -551,7 +572,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
                 }
             }
         });
-    }, [playPacmanEatGhost, difficulty]);
+    }, [playPacmanEatGhost, difficulty, handleDeath]);
     
     const updateGameTimers = useCallback(() => {
         gameTimerRef.current++;
