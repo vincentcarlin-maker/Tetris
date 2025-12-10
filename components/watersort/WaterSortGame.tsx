@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, FlaskConical, Undo2, Plus, Play, ArrowRight } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -12,7 +12,7 @@ interface WaterSortGameProps {
 }
 
 // 0: Empty
-// 1-8: Colors
+// 1-12: Colors
 type LiquidColor = number;
 type Tube = LiquidColor[];
 
@@ -27,6 +27,17 @@ const NEON_COLORS: Record<number, string> = {
     6: 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]',
     7: 'bg-orange-500 shadow-[0_0_10px_#f97316]',
     8: 'bg-pink-500 shadow-[0_0_10px_#ec4899]',
+    9: 'bg-teal-400 shadow-[0_0_10px_#2dd4bf]',
+    10: 'bg-indigo-500 shadow-[0_0_10px_#6366f1]',
+    11: 'bg-lime-400 shadow-[0_0_10px_#a3e635]',
+    12: 'bg-white shadow-[0_0_10px_#ffffff]',
+};
+
+// Hex codes for SVG rendering
+const NEON_HEX: Record<number, string> = {
+    1: '#ef4444', 2: '#3b82f6', 3: '#22c55e', 4: '#facc15',
+    5: '#a855f7', 6: '#22d3ee', 7: '#f97316', 8: '#ec4899',
+    9: '#2dd4bf', 10: '#6366f1', 11: '#a3e635', 12: '#ffffff',
 };
 
 // Helper to check if level is solved
@@ -53,6 +64,21 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [extraTubeUsed, setExtraTubeUsed] = useState(false);
 
+    // Animation State
+    const [pourData, setPourData] = useState<{
+        src: number, 
+        dst: number, 
+        color: number, 
+        streamStart: {x: number, y: number}, 
+        streamEnd: {x: number, y: number},
+        isPouring: boolean,
+        tiltDirection: 'left' | 'right',
+        transformStyle: React.CSSProperties
+    } | null>(null);
+    
+    const tubeRefs = useRef<(HTMLDivElement | null)[]>([]);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     // Initial Load
     useEffect(() => {
         generateLevel(level);
@@ -65,71 +91,42 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         setEarnedCoins(0);
         setExtraTubeUsed(false);
         setIsAnimating(false);
+        setPourData(null);
 
-        // Difficulty scaling
-        let colorCount = Math.min(3 + Math.floor(lvl / 2), 8); // Max 8 colors
+        // Difficulty scaling (More progressive)
+        let colorCount = Math.min(3 + Math.floor((lvl - 1) / 2), 12); 
         let emptyTubes = 2;
-        if (lvl > 10) emptyTubes = 1; // Harder later
 
-        const totalTubes = colorCount + emptyTubes;
-        
-        // 1. Create solved state
-        let newTubes: Tube[] = [];
-        for (let i = 1; i <= colorCount; i++) {
-            newTubes.push(Array(TUBE_CAPACITY).fill(i));
-        }
-        for (let i = 0; i < emptyTubes; i++) {
-            newTubes.push([]);
+        // 1. Create a pool of all liquid segments needed
+        let segments: number[] = [];
+        for (let c = 1; c <= colorCount; c++) {
+            for (let i = 0; i < TUBE_CAPACITY; i++) {
+                segments.push(c);
+            }
         }
 
-        // 2. Shuffle by simulating moves (guarantees solvability)
-        // We simulate backwards: take from top of random tube, put in random valid tube
-        // Actually easier: Perform valid moves randomly X times
-        const shuffleMoves = 100 + (lvl * 10);
-        
-        for (let i = 0; i < shuffleMoves; i++) {
-            const srcIdx = Math.floor(Math.random() * totalTubes);
-            const dstIdx = Math.floor(Math.random() * totalTubes);
-            
-            if (srcIdx === dstIdx) continue;
-            
-            const srcTube = newTubes[srcIdx];
-            const dstTube = newTubes[dstIdx];
+        // 2. Fisher-Yates Shuffle
+        for (let i = segments.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [segments[i], segments[j]] = [segments[j], segments[i]];
+        }
 
-            if (srcTube.length > 0 && dstTube.length < TUBE_CAPACITY) {
-                // Ensure we don't just undo the immediate previous move in a dumb way
-                // Logic: Just move top.
-                const color = srcTube[srcTube.length - 1];
-                
-                // Allow move to empty or matching color (standard rules applied during shuffle to keep it natural)
-                // BUT for shuffling generation, we can actually be more lenient to ensure mix, 
-                // as long as we don't exceed capacity.
-                // However, to ensure REVERSE is solvable with standard rules, we should adhere to standard rules?
-                // No, standard generation usually fills completely random then validates, or mixes.
-                // Let's stick to: Move top unit to another tube if space.
-                // We actually want to break clusters.
-                
-                // Better approach: Distribute all units into a flat list, shuffle list, fill tubes?
-                // That might create unsolvable states.
-                
-                // Robust approach: Valid moves simulation.
-                // Can move if: dst empty OR dst top == color.
-                
-                const validMove = dstTube.length === 0 || dstTube[dstTube.length - 1] === color;
-                // To force mixing, we sometimes allow "illegal" moves during generation? No, that breaks solvability.
-                
-                // Let's try: Distribute randomly, then check solvability? Too hard.
-                
-                // Let's stick to valid random moves from solved state.
-                if (validMove) {
-                     // Check if we are just moving a color to a tube full of same color (pointless)
-                     if (dstTube.length > 0 && dstTube.every(c => c === color) && srcTube.every(c => c === color)) {
-                         continue;
-                     }
-                     
-                     dstTube.push(srcTube.pop()!);
+        // 3. Fill the tubes
+        const newTubes: Tube[] = [];
+        let segmentIdx = 0;
+        
+        for (let i = 0; i < colorCount; i++) {
+            const tube: number[] = [];
+            for (let j = 0; j < TUBE_CAPACITY; j++) {
+                if (segmentIdx < segments.length) {
+                    tube.push(segments[segmentIdx++]);
                 }
             }
+            newTubes.push(tube);
+        }
+        
+        for (let i = 0; i < emptyTubes; i++) {
+            newTubes.push([]);
         }
 
         setTubes(newTubes);
@@ -170,45 +167,132 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         const colorToMove = srcTube[srcTube.length - 1];
 
         // Check Validity
-        // 1. Destination has space
-        // 2. Destination is empty OR Top color matches
         if (dstTube.length < TUBE_CAPACITY) {
             if (dstTube.length === 0 || dstTube[dstTube.length - 1] === colorToMove) {
-                // Valid!
                 
-                // Save History
-                setHistory(prev => [...prev, tubes]); // Save snapshot of current tubes
+                // --- REALISTIC ANIMATION LOGIC (V6 - Deep Inset) ---
+                const srcEl = tubeRefs.current[srcIdx];
+                const dstEl = tubeRefs.current[dstIdx];
+                const containerEl = containerRef.current;
 
-                // Move as many matching units as possible
-                let movedCount = 0;
-                while (
-                    srcTube.length > 0 && 
-                    srcTube[srcTube.length - 1] === colorToMove && 
-                    dstTube.length < TUBE_CAPACITY
-                ) {
-                    dstTube.push(srcTube.pop()!);
-                    movedCount++;
-                }
-
-                setIsAnimating(true);
-                playMove(); // Water sound effect
-                setTubes(newTubes);
-                setSelectedTube(null);
-
-                setTimeout(() => {
-                    setIsAnimating(false);
-                    playLand(); // Success thud
+                if (srcEl && dstEl && containerEl) {
+                    const cRect = containerEl.getBoundingClientRect();
+                    const sRect = srcEl.getBoundingClientRect();
+                    const dRect = dstEl.getBoundingClientRect();
                     
-                    if (isLevelSolved(newTubes)) {
-                        handleLevelComplete();
-                    }
-                }, 300);
-                return;
+                    setIsAnimating(true);
+                    setSelectedTube(null);
+
+                    // Center coordinates relative to container
+                    const srcCenterX = sRect.left - cRect.left + sRect.width / 2;
+                    const srcCenterY = sRect.top - cRect.top + sRect.height / 2;
+                    
+                    const dstCenterX = dRect.left - cRect.left + dRect.width / 2;
+                    const dstTopY = dRect.top - cRect.top;
+
+                    // Determine direction
+                    const isRight = dstCenterX > srcCenterX;
+                    const tiltDirection = isRight ? 'right' : 'left';
+                    const rotationAngle = isRight ? 50 : -50;
+                    
+                    // --- CALCUL DU POINT DE VERSEMENT EXACT (V6) ---
+                    const rad = (Math.abs(rotationAngle) * Math.PI) / 180;
+                    const h = sRect.height;
+                    const w = sRect.width;
+
+                    const insetX = 12; 
+                    const insetY = 20; 
+                    
+                    const ox = isRight ? (w/2 - insetX) : (-w/2 + insetX);
+                    const oy = -h/2 + insetY;
+
+                    // Rotation de ce point "bec"
+                    const angleRad = isRight ? rad : -rad;
+                    const cos = Math.cos(angleRad);
+                    const sin = Math.sin(angleRad);
+
+                    // Coordonnées du bec par rapport au centre du tube une fois tourné
+                    const rx = ox * cos - oy * sin;
+                    const ry = ox * sin + oy * cos;
+
+                    // Position cible du bec verseur
+                    const desiredSpoutX = dstCenterX; 
+                    const desiredSpoutY = dstTopY - 35; 
+
+                    // On calcule où doit se trouver le CENTRE du tube source pour que son bec soit à la bonne place
+                    const targetCenterX = desiredSpoutX - rx;
+                    const targetCenterY = desiredSpoutY - ry;
+
+                    // Translation CSS nécessaire
+                    const deltaX = targetCenterX - srcCenterX;
+                    const deltaY = targetCenterY - srcCenterY;
+
+                    // Le flux commence EXACTEMENT à la position du bec calculée (cachée derrière le tube)
+                    const streamStartX = desiredSpoutX;
+                    const streamStartY = desiredSpoutY; 
+
+                    // Le flux finit dans le tube cible
+                    const streamEndX = dstCenterX;
+                    const streamEndY = dstTopY + 45; 
+
+                    // Step 1: Initialize Move
+                    setPourData({ 
+                        src: srcIdx, 
+                        dst: dstIdx, 
+                        color: colorToMove, 
+                        streamStart: { x: streamStartX, y: streamStartY },
+                        streamEnd: { x: streamEndX, y: streamEndY },
+                        isPouring: false,
+                        tiltDirection,
+                        transformStyle: {
+                            transform: `translate(${deltaX}px, ${deltaY}px) rotate(${rotationAngle}deg)`,
+                            zIndex: 100, // IMPORTANT: Tube au-dessus du flux (z-50)
+                            transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)'
+                        }
+                    });
+
+                    // Step 2: Wait for Move, then Start Stream
+                    setTimeout(() => {
+                        setPourData(prev => prev ? { ...prev, isPouring: true } : null);
+                        playMove(); // Pouring sound
+
+                        // Step 3: Wait for Pour, then Logic Update + Stop Stream
+                        setTimeout(() => {
+                            setHistory(prev => [...prev, tubes]);
+                            while (
+                                srcTube.length > 0 && 
+                                srcTube[srcTube.length - 1] === colorToMove && 
+                                dstTube.length < TUBE_CAPACITY
+                            ) {
+                                dstTube.push(srcTube.pop()!);
+                            }
+                            setTubes(newTubes);
+                            
+                            setPourData(prev => prev ? { ...prev, isPouring: false } : null);
+
+                            // Step 4: Wait for Stream Fade, then Return Tube
+                            setTimeout(() => {
+                                setPourData(null); // Removes transform, CSS transition handles return
+                                
+                                // Step 5: Finish Animation
+                                setTimeout(() => {
+                                    setIsAnimating(false);
+                                    playLand();
+                                    if (isLevelSolved(newTubes)) {
+                                        handleLevelComplete();
+                                    }
+                                }, 400); // Return transition time
+                            }, 100); // Stream fade buffer
+                        }, 300); // Reduced pouring duration (was 600) for snappier feel without visual stream
+                    }, 500); // Move duration
+                    
+                    return;
+                }
             }
         }
 
         // Invalid move
-        playPaddleHit(); // Reuse for "cancel/error" feel (short tick)
+        playPaddleHit(); 
         setSelectedTube(null);
     };
 
@@ -225,7 +309,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         }
         
         if (onReportProgress) onReportProgress('win', 1);
-        if (onReportProgress) onReportProgress('action', 1); // Level clear
+        if (onReportProgress) onReportProgress('action', 1);
     };
 
     const handleNextLevel = () => {
@@ -234,7 +318,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     };
 
     const handleUndo = () => {
-        if (history.length === 0 || levelComplete) return;
+        if (history.length === 0 || levelComplete || isAnimating) return;
         const previousState = history[history.length - 1];
         setTubes(previousState);
         setHistory(prev => prev.slice(0, -1));
@@ -243,20 +327,14 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     };
 
     const handleAddTube = () => {
-        if (extraTubeUsed || levelComplete) return;
-        // Cost: 50 coins
-        // We need to check coins but we don't have direct read access here easily without currency hook again
-        // However, standard is usually free "ad" or cost. Let's make it cost 50 via callback if we had it.
-        // Since we can't verify balance easily in this component structure without refactoring `addCoins` to return success,
-        // we'll just implement it as a "once per level" free helper for now, or just assume player has coins visually.
-        // Better: Make it free once per level.
-        
+        if (extraTubeUsed || levelComplete || isAnimating) return;
         setTubes(prev => [...prev, []]); // Add empty tube
         setExtraTubeUsed(true);
-        playVictory(); // Positive feedback
+        playVictory(); 
     };
 
     const handleRestart = () => {
+        if (isAnimating) return;
         generateLevel(level);
     };
 
@@ -277,36 +355,64 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
             </div>
 
             {/* Game Area */}
-            <div className="flex-1 w-full max-w-lg flex items-center justify-center relative z-10 min-h-0">
-                <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full">
+            <div ref={containerRef} className="flex-1 w-full max-w-lg flex items-center justify-center relative z-10 min-h-0 overflow-visible">
+                
+                <div className="flex flex-wrap justify-center gap-x-8 gap-y-16 sm:gap-x-12 sm:gap-y-20 w-full px-2 pt-12">
                     {tubes.map((tube, i) => {
                         const isSelected = selectedTube === i;
+                        const isPourSource = pourData?.src === i;
+                        
+                        // Default Style
+                        let style: React.CSSProperties = {
+                            transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)', // Bouncy select
+                            transformOrigin: 'center'
+                        };
+
+                        // Animation Override
+                        if (isPourSource && pourData) {
+                            style = pourData.transformStyle;
+                        } else if (isSelected) {
+                            style = {
+                                transform: 'translate(0, -25px)',
+                                zIndex: 20
+                            };
+                        }
+
                         return (
                             <div 
-                                key={i} 
+                                key={i}
+                                ref={el => { tubeRefs.current[i] = el; }}
                                 onClick={() => handleTubeClick(i)}
+                                style={style}
                                 className={`
-                                    relative w-12 sm:w-14 h-40 sm:h-48 border-2 rounded-b-full rounded-t-lg transition-all duration-300 cursor-pointer
-                                    ${isSelected ? 'border-yellow-400 shadow-[0_0_15px_#facc15] -translate-y-4' : 'border-white/30 hover:border-white/60'}
+                                    relative w-12 sm:w-14 h-44 sm:h-52 border-2 rounded-b-full rounded-t-lg cursor-pointer
+                                    ${isSelected ? 'border-yellow-400 shadow-[0_0_20px_#facc15]' : 'border-white/30 hover:border-white/60'}
                                     bg-white/5 backdrop-blur-sm flex flex-col-reverse overflow-hidden
                                 `}
                             >
                                 {/* Tube Highlights */}
-                                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-white/10 to-transparent pointer-events-none z-20 rounded-b-full"></div>
-                                <div className="absolute top-1 left-1 w-1 h-full bg-white/20 blur-[1px] z-20 rounded-full opacity-50"></div>
+                                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-white/10 to-transparent pointer-events-none z-30 rounded-b-full"></div>
+                                <div className="absolute top-1 left-1.5 w-1 h-[90%] bg-white/20 blur-[1px] z-30 rounded-full opacity-50 pointer-events-none"></div>
+                                
+                                {/* Rim Highlight */}
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-white/40 z-30"></div>
 
                                 {/* Liquid Segments */}
-                                {tube.map((color, idx) => (
-                                    <div 
-                                        key={idx} 
-                                        className={`w-full h-[25%] ${NEON_COLORS[color]} transition-all duration-300 relative`}
-                                    >
-                                        {/* Surface tension effect */}
-                                        <div className="absolute top-0 left-0 w-full h-[4px] bg-white/30 rounded-[50%] -translate-y-1/2"></div>
-                                        {/* Bubbles effect (optional detail) */}
-                                        {Math.random() > 0.5 && <div className="absolute bottom-2 left-1/2 w-1 h-1 bg-white/40 rounded-full animate-pulse"></div>}
-                                    </div>
-                                ))}
+                                <div className="w-full h-full rounded-b-full flex flex-col-reverse relative z-10 transition-all">
+                                    {tube.map((color, idx) => (
+                                        <div 
+                                            key={idx} 
+                                            className={`w-full h-[23%] ${NEON_COLORS[color]} transition-all duration-300 relative mb-[1px]`}
+                                        >
+                                            {/* Surface Meniscus */}
+                                            <div className="absolute top-0 left-0 w-full h-[6px] bg-white/30 rounded-[50%] -translate-y-1/2 scale-x-90 blur-[1px]"></div>
+                                            {/* Bubbles */}
+                                            {idx === tube.length - 1 && Math.random() > 0.5 && (
+                                                <div className="absolute top-2 left-1/2 w-1 h-1 bg-white/60 rounded-full animate-pulse"></div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         );
                     })}
@@ -314,10 +420,10 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
             </div>
 
             {/* Controls */}
-            <div className="w-full max-w-lg flex justify-center gap-6 mt-6 z-10 pb-4">
+            <div className="w-full max-w-lg flex justify-center gap-6 mt-4 z-10 pb-4 shrink-0">
                 <button 
                     onClick={handleUndo} 
-                    disabled={history.length === 0}
+                    disabled={history.length === 0 || isAnimating}
                     className="flex flex-col items-center gap-1 text-gray-400 disabled:opacity-30 hover:text-white transition-colors group"
                 >
                     <div className="p-4 bg-gray-800 rounded-full border border-white/10 group-hover:border-white/50 shadow-lg active:scale-95 transition-all">
@@ -328,7 +434,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
                 <button 
                     onClick={handleAddTube} 
-                    disabled={extraTubeUsed}
+                    disabled={extraTubeUsed || isAnimating}
                     className="flex flex-col items-center gap-1 text-gray-400 disabled:opacity-30 hover:text-cyan-400 transition-colors group"
                 >
                     <div className="p-4 bg-gray-800 rounded-full border border-white/10 group-hover:border-cyan-500 shadow-lg active:scale-95 transition-all">
