@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Car } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -30,7 +30,6 @@ interface MainMenuProps {
     onlineUsers: OnlineUser[]; 
 }
 
-// ... (Existing Icons TetrisIcon, SnakeIcon, etc. kept same) ...
 // Custom Tetris Icon (T-Piece)
 const TetrisIcon = ({ size, className }: { size?: number | string, className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -68,8 +67,10 @@ const BreakerIcon = ({ size, className }: { size?: number | string, className?: 
 
 const GAMES_CONFIG = [
     { id: 'tetris', name: 'TETRIS', icon: TetrisIcon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
-    { id: 'uno', name: 'UNO', icon: UnoIcon, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-500', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: true }, reward: 'GAINS' },
+    { id: '2048', name: '2048', icon: Hash, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS' },
+    { id: 'uno', name: 'UNO', icon: UnoIcon, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-500', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS' },
     { id: 'snake', name: 'SNAKE', icon: SnakeIcon, color: 'text-green-500', bg: 'bg-green-900/20', border: 'border-green-500/30', hoverBorder: 'hover:border-green-500', shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', glow: 'rgba(34,197,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
+    { id: 'rush', name: 'RUSH', icon: Car, color: 'text-orange-500', bg: 'bg-orange-900/20', border: 'border-orange-500/30', hoverBorder: 'hover:border-orange-500', shadow: 'hover:shadow-[0_0_20px_rgba(249,115,22,0.3)]', glow: 'rgba(249,115,22,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'SOLUTIONS' },
     { id: 'invaders', name: 'INVADERS', icon: Rocket, color: 'text-rose-500', bg: 'bg-rose-900/20', border: 'border-rose-500/30', hoverBorder: 'hover:border-rose-500', shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', glow: 'rgba(244,63,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
     { id: 'breaker', name: 'BREAKER', icon: BreakerIcon, color: 'text-fuchsia-500', bg: 'bg-fuchsia-900/20', border: 'border-fuchsia-500/30', hoverBorder: 'hover:border-fuchsia-500', shadow: 'hover:shadow-[0_0_20px_rgba(217,70,239,0.3)]', glow: 'rgba(217,70,239,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
     { id: 'pacman', name: 'PACMAN', icon: Ghost, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
@@ -81,7 +82,6 @@ const GAMES_CONFIG = [
     { id: 'battleship', name: 'BATAILLE', icon: Ship, color: 'text-blue-500', bg: 'bg-blue-900/20', border: 'border-blue-500/30', hoverBorder: 'hover:border-blue-500', shadow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', glow: 'rgba(59,130,246,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS' },
 ];
 
-// ... (FlyingCoin and ArcadeLogo components remain the same) ...
 const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {
     const [style, setStyle] = useState<React.CSSProperties>({ position: 'fixed', top: startY, left: startX, opacity: 1, transform: 'scale(0.5)', zIndex: 100, pointerEvents: 'none', transition: 'none' });
     useEffect(() => {
@@ -130,7 +130,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [showScores, setShowScores] = useState(false);
     const [scoreTab, setScoreTab] = useState<'LOCAL' | 'GLOBAL'>('LOCAL');
     
-    // --- DAILY SYSTEM DATA ---
     const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, claimAllBonus, allCompletedBonusClaimed } = dailyData;
 
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
@@ -353,7 +352,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      {isAuthenticated ? (ownedBadges.length > 0 ? <div className="flex gap-3 overflow-x-auto w-full justify-start py-2 no-scrollbar z-10 mask-linear">{ownedBadges.slice().reverse().map(badge => { const Icon = badge.icon; return <div key={badge.id} className="relative shrink-0 animate-in fade-in zoom-in duration-300"><div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center shadow-lg" title={badge.name}><Icon size={20} className={badge.color} /></div></div>; })}</div> : <div className="text-xs text-gray-600 italic py-2 w-full text-center">Joue pour gagner des badges !</div>) : <div className="text-xs text-gray-600 italic py-2 w-full text-center flex items-center justify-center gap-2"><Lock size={12}/> Connecte-toi pour gagner des badges</div>}
                  </div>
 
-                 {/* --- DAILY QUESTS PANEL (REDESIGNED) --- */}
+                 {/* --- DAILY QUESTS PANEL --- */}
                  <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
                      {isAuthenticated && (<><div className="absolute -right-6 -top-6 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full pointer-events-none"></div><div className="absolute -left-6 -bottom-6 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full pointer-events-none"></div></>)}
                      <div onClick={() => isAuthenticated && setIsQuestsExpanded(!isQuestsExpanded)} className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}>
@@ -425,7 +424,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      )}
                  </div>
 
-                 {/* High Scores Panel (Keeping existing but optimized slightly) */}
+                 {/* High Scores Panel */}
                  <div {...bindGlow('rgba(250, 204, 21, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300 shadow-xl hover:shadow-[0_0_35px_rgba(250,204,21,0.5)] hover:border-yellow-400/50 hover:ring-1 hover:ring-yellow-400/30">
                     <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3"><Trophy size={20} className="text-yellow-400" /><h3 className="text-lg font-bold text-white italic">SCORES & CLASSEMENTS</h3></div>
@@ -441,7 +440,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 <div className="space-y-2">
                                     {highScores.tetris > 0 && <div className="py-2 border-t border-white/5 flex justify-between"><span className="text-xs font-bold text-neon-blue">TETRIS</span><span className="text-xs font-mono">{highScores.tetris.toLocaleString()}</span></div>}
                                     {highScores.snake > 0 && <div className="py-2 border-t border-white/5 flex justify-between"><span className="text-xs font-bold text-green-500">SNAKE</span><span className="text-xs font-mono">{highScores.snake.toLocaleString()}</span></div>}
-                                    {/* Add other games here as needed */}
+                                    {highScores.game2048 > 0 && <div className="py-2 border-t border-white/5 flex justify-between"><span className="text-xs font-bold text-yellow-400">2048</span><span className="text-xs font-mono">{highScores.game2048.toLocaleString()}</span></div>}
                                     <div className="text-center text-[10px] text-gray-500 pt-2">Jouez pour établir des records</div>
                                 </div>
                             ) : (
@@ -509,7 +508,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     })}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.2 • ADMIN UPDATE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.3 • UPDATE</div>
              </div>
         </div>
     );
