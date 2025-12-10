@@ -67,8 +67,11 @@ const Marker: React.FC<{ status: 2 | 3 }> = ({ status }) => {
     if (status === 2) { // MISS - WATER
         return (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-2 h-2 bg-blue-400 rounded-full z-10"></div>
-                <div className="absolute w-full h-full border-2 border-blue-400/50 rounded-full animate-ping opacity-75"></div>
+                {/* Vague bleue */}
+                <div className="absolute w-full h-full border-2 border-cyan-400 rounded-full animate-[ping_1s_ease-out_infinite] opacity-60"></div>
+                <div className="absolute w-2/3 h-2/3 border border-cyan-500/50 rounded-full animate-[ping_1.5s_ease-out_infinite] opacity-40"></div>
+                {/* Point central */}
+                <div className="w-1.5 h-1.5 bg-cyan-200 rounded-full shadow-[0_0_8px_cyan]"></div>
             </div>
         );
     }
@@ -592,25 +595,18 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       );
   }
 
-  if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+  if (gameMode === 'ONLINE' && onlineStep !== 'game') {
       return (
-        <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-4">
+        <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
              <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-300 pr-2 pb-1">BATAILLE</h1>
                 <div className="w-10"></div>
             </div>
-            {renderLobby()}
-        </div>
-      );
-  }
-  
-  if (gameMode === 'ONLINE' && onlineStep === 'connecting') {
-      return (
-        <div className="h-full w-full flex flex-col items-center justify-center bg-black/20 text-white p-4">
-             <Loader2 size={48} className="text-teal-400 animate-spin mb-4" />
-             <p className="text-teal-300 font-bold">CONNEXION...</p>
+            {onlineStep === 'connecting' ? (
+                <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-teal-400 animate-spin mb-4" /><p className="text-teal-300 font-bold">CONNEXION...</p></div>
+            ) : renderLobby()}
         </div>
       );
   }
@@ -623,8 +619,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
         
         {notification && (
-            <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-xl border-2 flex flex-col items-center animate-in zoom-in duration-200 ${notification.type === 'HIT' ? 'bg-red-900/90 border-red-500 shadow-[0_0_30px_red]' : 'bg-green-900/90 border-green-500 shadow-[0_0_30px_lime]'}`}>
-                <span className="text-2xl font-black italic tracking-widest text-white drop-shadow-md">{notification.text}</span>
+            <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs p-4 rounded-xl border-2 flex flex-col items-center text-center animate-in zoom-in duration-200 ${notification.type === 'HIT' ? 'bg-red-900/90 border-red-500 shadow-[0_0_30px_red]' : 'bg-green-900/90 border-green-500 shadow-[0_0_30px_lime]'}`}>
+                <span className="text-xl font-black italic tracking-widest text-white drop-shadow-md leading-tight break-words">{notification.text}</span>
             </div>
         )}
 
@@ -711,12 +707,12 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                         <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ</p>
                     </>
                 )}
-                <div className="flex flex-col gap-4">
-                    <div className="flex gap-4">
-                        <button onClick={resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
-                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                    <div className="flex gap-2 w-full">
+                        <button onClick={resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2"><RefreshCw size={18} /> REJOUER</button>
+                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 text-sm">QUITTER</button>}
                     </div>
-                    <button onClick={handleLocalBack} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">RETOUR AU MENU</button>
+                    <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>
                 </div>
             </div>
         )}
