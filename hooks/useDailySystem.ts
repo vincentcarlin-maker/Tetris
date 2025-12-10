@@ -26,6 +26,8 @@ const QUEST_TEMPLATES: { difficulty: QuestDifficulty, templates: Omit<DailyQuest
             { description: "Gagner 50 pièces", gameId: 'any', metric: 'coins', target: 50, reward: 50 },
             { description: "Jouer au Casse-Briques", gameId: 'breaker', metric: 'play', target: 1, reward: 50 },
             { description: "Faire 5 paires au Memory", gameId: 'memory', metric: 'action', target: 5, reward: 50 },
+            { description: "Finir 1 niveau Neon Mix", gameId: 'watersort', metric: 'win', target: 1, reward: 50 },
+            { description: "Jouer une partie de Dames", gameId: 'checkers', metric: 'play', target: 1, reward: 50 },
         ]
     },
     {
@@ -36,6 +38,8 @@ const QUEST_TEMPLATES: { difficulty: QuestDifficulty, templates: Omit<DailyQuest
             { description: "Gagner une partie de Uno", gameId: 'uno', metric: 'win', target: 1, reward: 100 },
             { description: "Couler 2 navires (Bataille)", gameId: 'battleship', metric: 'action', target: 2, reward: 100 },
             { description: "Gagner 150 pièces", gameId: 'any', metric: 'coins', target: 150, reward: 100 },
+            { description: "Gagner une partie de Dames", gameId: 'checkers', metric: 'win', target: 1, reward: 100 },
+            { description: "Gagner à l'Air Hockey", gameId: 'airhockey', metric: 'win', target: 1, reward: 100 },
         ]
     },
     {
@@ -46,6 +50,7 @@ const QUEST_TEMPLATES: { difficulty: QuestDifficulty, templates: Omit<DailyQuest
             { description: "Gagner 3 parties en ligne", gameId: 'any', metric: 'win', target: 3, reward: 300 },
             { description: "Finir un Sudoku (Moyen)", gameId: 'sudoku', metric: 'win', target: 1, reward: 250 },
             { description: "Score 500 points au Snake", gameId: 'snake', metric: 'score', target: 500, reward: 250 },
+            { description: "Finir 3 niveaux Neon Mix", gameId: 'watersort', metric: 'win', target: 3, reward: 250 },
         ]
     }
 ];
@@ -152,14 +157,6 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
                         shouldUpdate = true;
                         // Score is usually "Reach X", so we verify if value > target, or accumulate if it's actions
                         if (metric === 'score') {
-                            // For score, we usually check if the *current game score* beats the target
-                            // BUT simpler logic: if 'value' passed is the final score, we check against target.
-                            // If we want cumulative score, we add. Let's assume 'score' is "Achieve X in one game" usually.
-                            // However, to keep it simple and flexible:
-                            // If target is high (cumulative), we add. If target is high but metric is 'high_score', we replace.
-                            // Let's implement MAX logic for 'score' type quests to represent "Best Score Today"
-                            // OR Cumulative if explicitly designed.
-                            // For this implementation: Score quests are "Reach X in one game".
                             if (value >= q.target) newProgress = q.target;
                             else newProgress = Math.max(q.progress, value); 
                         } else {
@@ -215,9 +212,9 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         todaysReward,
         claimDailyBonus,
         quests,
-        checkGameQuest, // Deprecated but kept for old calls
-        checkCoinQuest, // Deprecated but kept for old calls
-        reportQuestProgress, // NEW MAIN FUNCTION
+        checkGameQuest, 
+        checkCoinQuest, 
+        reportQuestProgress, 
         claimQuestReward,
         claimAllBonus,
         allCompletedBonusClaimed

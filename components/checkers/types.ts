@@ -1,6 +1,8 @@
 
 export type PlayerColor = 'white' | 'red'; // White (Cyan - P1) moves UP, Red (Pink - P2) moves DOWN
 
+export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
+
 export interface Piece {
     id: string;
     player: PlayerColor;

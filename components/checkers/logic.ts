@@ -1,5 +1,5 @@
 
-import { BoardState, Piece, PlayerColor, Position, Move } from './types';
+import { BoardState, Piece, PlayerColor, Position, Move, Difficulty } from './types';
 
 export const BOARD_SIZE = 10;
 
@@ -42,10 +42,7 @@ const getCaptureChains = (
     c: number, 
     jumpedIds: Set<string> // To prevent jumping the same piece twice in one turn
 ): JumpPath[] => {
-    let maxDepth = 0;
     let paths: JumpPath[] = [];
-
-    const directions = [-1, 1];
 
     // Directions for the piece (Kings move differently)
     const checkDirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
@@ -83,37 +80,23 @@ const getCaptureChains = (
 
                     if (!isValidPos(landR, landC)) break;
                     
-                    // If landing spot is occupied, we can't land there (unless it's the start pos, which is handled by board logic usually, but here we assume 'r,c' is effectively empty during recursion)
+                    // If landing spot is occupied, we can't land there
                     if (board[landR][landC] !== null && (landR !== r || landC !== c)) break; 
 
                     // Valid Jump found! 
-                    // Recursively check for more jumps from this landing spot
                     const newJumpedIds = new Set(jumpedIds);
                     newJumpedIds.add(target.id);
                     
-                    // Recursive call
-                    // Temporarily simulate move? No, we just pass the new coordinate and the set of jumped IDs
-                    // Note: We don't modify board, just assume 'piece' is at landR, landC
                     const subPaths = getCaptureChains(board, piece, landR, landC, newJumpedIds);
 
                     if (subPaths.length > 0) {
-                        // Extend paths
                         subPaths.forEach(sp => {
                             paths.push({
-                                to: { r: landR, c: landC }, // This is the *immediate* next step? No, DFS returns full chains.
-                                // Actually for the game engine, we want immediate moves linked to a weight.
-                                // Let's simplify: We just want to know the MAX LENGTH achievable from here.
-                                // But to return valid Moves, we need the specific immediate landing.
-                                
-                                // Let's construct the chain:
-                                // If subpaths exist, we append current jump to them? 
-                                // Actually, standard checkers engine: move one step at a time.
-                                // So we need to report: "If I land at landR, landC, I have achieved X total captures"
+                                to: { r: landR, c: landC },
                                 jumped: [{r: enemyR, c: enemyC}, ...sp.jumped]
                             });
                         });
                     } else {
-                        // Terminal jump
                         paths.push({
                             to: { r: landR, c: landC },
                             jumped: [{r: enemyR, c: enemyC}]
@@ -132,47 +115,8 @@ const getCaptureChains = (
 
 export const getValidMoves = (board: BoardState, player: PlayerColor, mustMovePiece?: Position): Move[] => {
     let moves: Move[] = [];
-    let maxCaptureCount = 0;
-
-    // Iterate all pieces of player
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            const piece = board[r][c];
-            if (!piece || piece.player !== player) continue;
-
-            // If we are in a multi-jump sequence, we MUST move the specific piece
-            if (mustMovePiece && (r !== mustMovePiece.r || c !== mustMovePiece.c)) continue;
-
-            // 1. Calculate Jumps (Captures)
-            // Initial call: empty set of jumped IDs
-            const chains = getCaptureChains(board, piece, r, c, new Set());
-            
-            chains.forEach(chain => {
-                if (chain.jumped.length > maxCaptureCount) maxCaptureCount = chain.jumped.length;
-            });
-
-            chains.forEach(chain => {
-                // To allow step-by-step movement in UI, we only look at the *first* jump in the chain.
-                // However, we filter based on the *total* chain length (maxCaptureCount).
-                // Wait, if I have a chain of 3, the immediate move is just the first hop.
-                // But that immediate hop 'inherits' the weight of the full chain.
-                
-                // We need to identify the immediate landing spot associated with the start of this chain.
-                // The 'getCaptureChains' returns flat objects representing the END of chains.
-                // This is tricky for step-by-step UI. 
-                
-                // Refined Approach:
-                // Calculate immediate jumps. For each immediate jump, calculate max subsequent jumps.
-                // Total Weight = 1 + max_subsequent.
-            });
-        }
-    }
-
+    
     // --- REFINED ALGORITHM ---
-    // 1. Identify all possible IMMEDIATE moves (slides and jumps)
-    // 2. Assign a "weight" (total captures possible) to each move
-    // 3. Filter by max weight.
-
     const candidates: Move[] = [];
 
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -207,9 +151,6 @@ export const getValidMoves = (board: BoardState, player: PlayerColor, mustMovePi
                             if (!isValidPos(landR, landC)) break;
                             if (board[landR][landC] !== null) break; // Landing blocked
 
-                            // Check recursion max depth from this landing
-                            // Simulate board state? No, standard is: pieces removed at END of turn.
-                            // But we cannot jump 'target.id' again.
                             const jumpedSet = new Set<string>();
                             jumpedSet.add(target.id);
                             const subChains = getCaptureChains(board, piece, landR, landC, jumpedSet);
@@ -232,8 +173,8 @@ export const getValidMoves = (board: BoardState, player: PlayerColor, mustMovePi
                 }
             }
 
-            // -- SIMPLE MOVES (Only if no jumps found globally, but we calculate first) --
-            if (!mustMovePiece) { // Cannot slide if in middle of combo
+            // -- SIMPLE MOVES (Only if no jumps found globally) --
+            if (!mustMovePiece) { 
                 const moveDirs = [];
                 if (!piece.isKing) {
                     if (player === 'white') moveDirs.push([-1, -1], [-1, 1]);
@@ -266,66 +207,141 @@ export const getValidMoves = (board: BoardState, player: PlayerColor, mustMovePi
     }
 
     // --- FILTERING ---
-    // 1. Find max weight
     let globalMax = 0;
     candidates.forEach(m => { if(m.pathWeight > globalMax) globalMax = m.pathWeight; });
 
-    // 2. Return only moves matching max weight
-    return candidates.filter(m => m.pathWeight === globalMax);
+    // Force mandatory jumps if any exist (weight > 0)
+    if (globalMax > 0) {
+        return candidates.filter(m => m.pathWeight === globalMax);
+    }
+
+    return candidates;
 };
 
 export const executeMove = (board: BoardState, move: Move): { newBoard: BoardState, promoted: boolean } => {
-    // Deep copy
     const newBoard = board.map(row => row.map(p => p ? { ...p } : null));
     const piece = newBoard[move.from.r][move.from.c]!;
 
-    // Move piece
     newBoard[move.to.r][move.to.c] = piece;
     newBoard[move.from.r][move.from.c] = null;
 
-    // Handle captures
-    // Note: In visual UI, we remove immediately for simplicity, 
-    // though strict rules say "remove at end". Since we prevent re-jumping in logic, this is acceptable for UX.
     if (move.isJump && move.jumpedPieces) {
         move.jumpedPieces.forEach(p => {
             newBoard[p.r][p.c] = null;
         });
     }
 
-    // Promotion
-    // Rule: Promotes ONLY if the move *ends* on the line. 
-    // If pathWeight > 1 (meaning more jumps available from here), we do NOT promote and must continue as pawn.
-    // However, the `executeMove` is per step.
-    // If the valid moves from the new position have `isJump` and are continuations, we don't promote?
-    // Actually, simpler check: Did we land on promotion line?
-    // AND Is the turn over? (Turn is over if no more jumps possible from here matching weight).
-    
-    // For now, simple promotion check. The logic in component handles multi-turn.
-    // We flag 'promoted' only if it stops here.
-    
     let promoted = false;
     if (!piece.isKing) {
         const isPromoLine = (piece.player === 'white' && move.to.r === 0) || (piece.player === 'red' && move.to.r === BOARD_SIZE - 1);
         if (isPromoLine) {
-            // Check if we can continue jumping?
-            // Technically we need to check if there are valid jumps from the new position.
-            // If yes, and we are a pawn, we *must* continue jumping as a pawn (backwards maybe).
-            // But if we stop, we promote.
-            
-            // To simplify for this specific function:
-            // We just return the board. The Game Component checks for follow-up moves.
-            // If no follow-up moves, it promotes there.
-            // BUT, visual promotion should happen now? 
-            // International rules: "If a pawn reaches the king row during a capture sequence but has to jump backwards, it remains a pawn."
-            // So we delay promotion until turn end.
+            // Note: In real draughts, promotion stops the turn immediately. 
+            // We handle the king conversion in the main component `handleTurnEnd` for logic simplicity with multi-jumps.
+            promoted = true;
         }
     }
 
-    return { newBoard, promoted: false }; // Promotion handled in component
+    return { newBoard, promoted }; 
 };
 
-export const getBestMove = (board: BoardState, player: PlayerColor): Move | null => {
+// --- MINIMAX AI ---
+
+const evaluateBoard = (board: BoardState, player: PlayerColor): number => {
+    let score = 0;
+    const opponent = player === 'white' ? 'red' : 'white';
+
+    for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            const p = board[r][c];
+            if (!p) continue;
+
+            let value = 10; // Basic piece
+            if (p.isKing) value = 30; // King value
+
+            // Position bonus (center control)
+            if (c >= 3 && c <= 6 && r >= 3 && r <= 6) value += 2;
+            
+            // Back row protection bonus
+            if (!p.isKing) {
+                if (p.player === 'white' && r === BOARD_SIZE - 1) value += 3;
+                if (p.player === 'red' && r === 0) value += 3;
+            }
+
+            if (p.player === player) score += value;
+            else score -= value;
+        }
+    }
+    return score;
+};
+
+const minimax = (
+    board: BoardState, 
+    depth: number, 
+    alpha: number, 
+    beta: number, 
+    maximizing: boolean, 
+    player: PlayerColor
+): number => {
+    if (depth === 0) {
+        return evaluateBoard(board, player);
+    }
+
+    const currentPlayer = maximizing ? player : (player === 'white' ? 'red' : 'white');
+    const validMoves = getValidMoves(board, currentPlayer);
+
+    if (validMoves.length === 0) {
+        // No moves = loss
+        return maximizing ? -1000 : 1000;
+    }
+
+    if (maximizing) {
+        let maxEval = -Infinity;
+        for (const move of validMoves) {
+            const { newBoard } = executeMove(board, move);
+            // Handling multi-jumps in recursion is complex; simplifying by assuming turn ends or just evaluating state
+            // To be accurate, if it's a jump, we should check for follow-up. 
+            // For this implementation, we treat each atomic move as a state transition.
+            const ev = minimax(newBoard, depth - 1, alpha, beta, false, player);
+            maxEval = Math.max(maxEval, ev);
+            alpha = Math.max(alpha, ev);
+            if (beta <= alpha) break;
+        }
+        return maxEval;
+    } else {
+        let minEval = Infinity;
+        for (const move of validMoves) {
+            const { newBoard } = executeMove(board, move);
+            const ev = minimax(newBoard, depth - 1, alpha, beta, true, player);
+            minEval = Math.min(minEval, ev);
+            beta = Math.min(beta, ev);
+            if (beta <= alpha) break;
+        }
+        return minEval;
+    }
+};
+
+export const getBestMove = (board: BoardState, player: PlayerColor, difficulty: Difficulty): Move | null => {
     const moves = getValidMoves(board, player);
     if (moves.length === 0) return null;
-    return moves[Math.floor(Math.random() * moves.length)];
+
+    // 1. Easy: Random
+    if (difficulty === 'EASY') {
+        return moves[Math.floor(Math.random() * moves.length)];
+    }
+
+    // 2. Medium/Hard: Minimax
+    const depth = difficulty === 'MEDIUM' ? 2 : 4; 
+    let bestMove = moves[0];
+    let maxVal = -Infinity;
+
+    for (const move of moves) {
+        const { newBoard } = executeMove(board, move);
+        const val = minimax(newBoard, depth - 1, -Infinity, Infinity, false, player);
+        if (val > maxVal) {
+            maxVal = val;
+            bestMove = move;
+        }
+    }
+
+    return bestMove;
 };

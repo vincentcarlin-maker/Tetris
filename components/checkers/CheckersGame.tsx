@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
-import { BoardState, Move, PlayerColor, Position } from './types';
+import { BoardState, Move, PlayerColor, Position, Difficulty } from './types';
 import { createInitialBoard, getValidMoves, executeMove, getBestMove, BOARD_SIZE } from './logic';
 
 interface CheckersGameProps {
@@ -15,6 +15,12 @@ interface CheckersGameProps {
     mp: ReturnType<typeof useMultiplayer>;
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
+
+const DIFFICULTY_CONFIG: Record<Difficulty, { name: string, color: string, bonus: number }> = {
+    EASY: { name: 'FACILE', color: 'text-green-400 border-green-500', bonus: 20 },
+    MEDIUM: { name: 'NORMAL', color: 'text-yellow-400 border-yellow-500', bonus: 50 },
+    HARD: { name: 'DIFFICILE', color: 'text-red-500 border-red-500', bonus: 100 }
+};
 
 export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
@@ -28,7 +34,8 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     const [availableMoves, setAvailableMoves] = useState<Move[]>([]);
     const [winner, setWinner] = useState<PlayerColor | 'DRAW' | null>(null);
     const [gameMode, setGameMode] = useState<'SOLO' | 'LOCAL' | 'ONLINE'>('SOLO');
-    const [menuPhase, setMenuPhase] = useState<'MENU' | 'GAME'>('MENU');
+    const [menuPhase, setMenuPhase] = useState<'MENU' | 'DIFFICULTY' | 'GAME'>('MENU');
+    const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [whiteCount, setWhiteCount] = useState(20);
     const [redCount, setRedCount] = useState(20);
@@ -107,19 +114,30 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         if (onReportProgress) onReportProgress('play', 1);
     };
 
-    const initGame = (mode: 'SOLO' | 'LOCAL' | 'ONLINE') => {
+    const initGame = (mode: 'SOLO' | 'LOCAL' | 'ONLINE', diff?: Difficulty) => {
         setGameMode(mode);
-        setMenuPhase('GAME');
-        if (mode === 'SOLO' || mode === 'LOCAL') {
-            resetGame();
-        } else if (mode === 'ONLINE') {
-            if (mp.isHost) {
+        if (diff) setDifficulty(diff);
+        
+        if (mode === 'SOLO') {
+            setMenuPhase('DIFFICULTY');
+        } else {
+            setMenuPhase('GAME');
+            if (mode === 'LOCAL') {
                 resetGame();
-                setTimeout(() => mp.sendData({ type: 'CHECKERS_INIT' }), 500);
-            } else {
-                setIsWaitingForHost(true);
+            } else if (mode === 'ONLINE') {
+                if (mp.isHost) {
+                    resetGame();
+                    setTimeout(() => mp.sendData({ type: 'CHECKERS_INIT' }), 500);
+                } else {
+                    setIsWaitingForHost(true);
+                }
             }
         }
+    };
+
+    const startGame = () => {
+        setMenuPhase('GAME');
+        resetGame();
     };
 
     const checkWin = (b: BoardState, nextPlayer: PlayerColor) => {
@@ -137,8 +155,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const handleTurnEnd = (newBoard: BoardState, prevPlayer: PlayerColor, lastPiecePos?: Position) => {
-        // Promotion Check (End of full turn)
-        // If we have a lastPiecePos (piece that moved), check if it should promote
+        // Promotion Check
         if (lastPiecePos) {
             const piece = newBoard[lastPiecePos.r][lastPiecePos.c];
             if (piece && !piece.isKing) {
@@ -174,26 +191,17 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
         // Multi-jump logic
         if (move.isJump) {
-            // Check if same piece can jump again
-            // Important: Passed mustMovePiece to force this piece
             const followUpMoves = getValidMoves(newBoard, turn, move.to);
-            
-            // Only consider jumps for follow up
             const validContinuations = followUpMoves.filter(m => m.isJump);
 
             if (validContinuations.length > 0) {
-                // Must continue jumping
                 setMustJumpPos(move.to);
                 setAvailableMoves(validContinuations);
                 setSelectedPos(move.to); // Auto-select
-                
-                // If Playing Solo/Online against us, we might need a small delay for UI 
-                // but usually instant update is fine.
                 return; 
             }
         }
 
-        // Turn Ends
         handleTurnEnd(newBoard, turn, move.to);
     };
 
@@ -213,17 +221,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
         // 1. Select a piece
         if (isMyPiece) {
-            // If we are in a multi-jump sequence, can only select the active piece
             if (mustJumpPos) {
                 if (r !== mustJumpPos.r || c !== mustJumpPos.c) return;
             }
 
-            // Get valid moves for this turn state
-            // If mustJumpPos is null, getValidMoves calculates global max capture and filters.
-            // If mustJumpPos is set, it only checks that piece.
             const allMoves = getValidMoves(board, turn, mustJumpPos || undefined);
-            
-            // Filter moves for THIS piece
             const pieceMoves = allMoves.filter(m => m.from.r === r && m.from.c === c);
             
             if (pieceMoves.length > 0) {
@@ -250,11 +252,9 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     useEffect(() => {
         if (gameMode === 'SOLO' && turn === 'red' && !winner) {
             const timer = setTimeout(() => {
-                // Determine valid moves (respecting multi-jump state if CPU is mid-turn)
-                const moves = getValidMoves(board, 'red', mustJumpPos || undefined);
+                const move = getBestMove(board, 'red', difficulty);
                 
-                if (moves.length > 0) {
-                    const move = moves[Math.floor(Math.random() * moves.length)];
+                if (move) {
                     performMove(move);
                 } else {
                     setWinner('white');
@@ -263,13 +263,14 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [turn, gameMode, winner, board, mustJumpPos]);
+    }, [turn, gameMode, winner, board, mustJumpPos, difficulty]);
 
     const handleGameOver = (w: PlayerColor | 'DRAW') => {
         if (gameMode === 'SOLO' && w === 'white') {
             playVictory();
-            addCoins(50);
-            setEarnedCoins(50);
+            const reward = DIFFICULTY_CONFIG[difficulty].bonus;
+            addCoins(reward);
+            setEarnedCoins(reward);
             if (onReportProgress) onReportProgress('win', 1);
         } else if (gameMode === 'ONLINE') {
             const amIWinner = (mp.amIP1 && w === 'white') || (!mp.amIP1 && w === 'red');
@@ -281,7 +282,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             } else {
                 playGameOver();
             }
-        } else {
+        } else if (gameMode === 'LOCAL') {
             playVictory();
         }
     };
@@ -367,6 +368,9 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     const handleLocalBack = () => {
         if (menuPhase === 'GAME') {
             if (gameMode === 'ONLINE') { mp.leaveGame(); setOnlineStep('lobby'); }
+            else if (gameMode === 'SOLO') setMenuPhase('DIFFICULTY');
+            else setMenuPhase('MENU');
+        } else if (menuPhase === 'DIFFICULTY') {
             setMenuPhase('MENU');
         } else if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
             mp.disconnect();
@@ -374,6 +378,28 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         } else {
             onBack();
         }
+    };
+
+    const renderLobby = () => {
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-cyan-300 tracking-wider drop-shadow-md">LOBBY DAMES</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 ? hostingPlayers.map(p => (
+                        <div key={p.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                            <span className="font-bold text-white ml-2">{p.name}</span>
+                            <button onClick={() => mp.joinRoom(p.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                        </div>
+                    )) : <p className="text-center text-gray-500 text-sm py-4">Aucune partie disponible</p>}
+                </div>
+             </div>
+        );
     };
 
     // --- RENDER PHASES ---
@@ -398,29 +424,38 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         );
     }
 
-    if (gameMode === 'ONLINE' && onlineStep !== 'game') {
-        const renderLobby = () => {
-            const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
-            return (
-                 <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
-                     <div className="flex flex-col gap-3 mb-4">
-                         <h3 className="text-xl font-black text-center text-cyan-300 tracking-wider drop-shadow-md">LOBBY DAMES</h3>
-                         <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
-                            <Play size={18} fill="black"/> CRÉER UNE PARTIE
-                         </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                        {hostingPlayers.length > 0 ? hostingPlayers.map(p => (
-                            <div key={p.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
-                                <span className="font-bold text-white ml-2">{p.name}</span>
-                                <button onClick={() => mp.joinRoom(p.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
-                            </div>
-                        )) : <p className="text-center text-gray-500 text-sm py-4">Aucune partie disponible</p>}
-                    </div>
-                 </div>
-            );
-        };
+    if (menuPhase === 'DIFFICULTY') {
+        return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+                <h2 className="text-3xl font-black text-white mb-8">DIFFICULTÉ</h2>
+                <div className="flex flex-col gap-3 w-full max-w-[280px]">
+                    {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => {
+                        const s = DIFFICULTY_CONFIG[d];
+                        return (
+                            <button 
+                                key={d} 
+                                onClick={() => { setDifficulty(d); startGame(); }}
+                                className={`group flex items-center justify-between px-6 py-4 border-2 rounded-xl transition-all ${s.color} hover:bg-gray-800`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    {d === 'EASY' && <Shield size={24}/>}
+                                    {d === 'MEDIUM' && <Zap size={24}/>}
+                                    {d === 'HARD' && <Skull size={24}/>}
+                                    <span className="font-bold">{s.name}</span>
+                                </div>
+                                <div className="text-[10px] opacity-70 group-hover:opacity-100">
+                                    <span>GAIN: +{s.bonus}</span>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+                <button onClick={() => setMenuPhase('MENU')} className="mt-8 text-gray-500 text-sm hover:text-white">RETOUR</button>
+            </div>
+        );
+    }
 
+    if (gameMode === 'ONLINE' && onlineStep !== 'game') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
                 <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
@@ -440,10 +475,13 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             {/* Header */}
             <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
-                <div className="flex items-center gap-4 text-xl font-black">
-                    <span className="text-pink-500 drop-shadow-[0_0_5px_currentColor]">{redCount}</span>
-                    <span className="text-gray-600 text-sm">VS</span>
-                    <span className="text-cyan-400 drop-shadow-[0_0_5px_currentColor]">{whiteCount}</span>
+                <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-4 text-xl font-black">
+                        <span className="text-pink-500 drop-shadow-[0_0_5px_currentColor]">{redCount}</span>
+                        <span className="text-gray-600 text-sm">VS</span>
+                        <span className="text-cyan-400 drop-shadow-[0_0_5px_currentColor]">{whiteCount}</span>
+                    </div>
+                    {gameMode === 'SOLO' && <span className={`text-[9px] font-bold tracking-widest ${DIFFICULTY_CONFIG[difficulty].color.split(' ')[0]}`}>{DIFFICULTY_CONFIG[difficulty].name}</span>}
                 </div>
                 <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
