@@ -6,7 +6,7 @@ import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
 import { BoardState, Move, PlayerColor, Position } from './types';
-import { createInitialBoard, getValidMoves, executeMove, getBestMove } from './logic';
+import { createInitialBoard, getValidMoves, executeMove, getBestMove, BOARD_SIZE } from './logic';
 
 interface CheckersGameProps {
     onBack: () => void;
@@ -30,8 +30,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     const [gameMode, setGameMode] = useState<'SOLO' | 'LOCAL' | 'ONLINE'>('SOLO');
     const [menuPhase, setMenuPhase] = useState<'MENU' | 'GAME'>('MENU');
     const [earnedCoins, setEarnedCoins] = useState(0);
-    const [whiteCount, setWhiteCount] = useState(12);
-    const [redCount, setRedCount] = useState(12);
+    const [whiteCount, setWhiteCount] = useState(20);
+    const [redCount, setRedCount] = useState(20);
+    
+    // Multi-turn state
+    const [mustJumpPos, setMustJumpPos] = useState<Position | null>(null);
 
     // Online State
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
@@ -45,7 +48,6 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         mp.updateSelfInfo(username, currentAvatarId);
     }, [username, currentAvatarId, mp]);
 
-    // Connect/Disconnect based on mode
     useEffect(() => {
         if (gameMode === 'ONLINE') {
             setOnlineStep('connecting');
@@ -54,16 +56,16 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             if (mp.mode === 'in_game' || mp.isHost) mp.leaveGame();
             setOpponentLeft(false);
         }
+        return () => mp.disconnect();
     }, [gameMode]);
 
-    // Handle Lobby/Game transition
     useEffect(() => {
         const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
             
-            if (menuPhase === 'GAME' && (winner || whiteCount < 12 || redCount < 12)) {
+            if (menuPhase === 'GAME' && (winner || whiteCount < 20 || redCount < 20)) {
                 setMenuPhase('MENU');
             }
         } else if (mp.mode === 'in_game') {
@@ -95,16 +97,14 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         setWinner(null);
         setSelectedPos(null);
         setAvailableMoves([]);
-        setWhiteCount(12);
-        setRedCount(12);
+        setWhiteCount(20);
+        setRedCount(20);
         setEarnedCoins(0);
+        setMustJumpPos(null);
         setOpponentLeft(false);
         setIsWaitingForHost(false);
         
         if (onReportProgress) onReportProgress('play', 1);
-        
-        // Initial valid moves calc
-        const moves = getValidMoves(initial, 'white');
     };
 
     const initGame = (mode: 'SOLO' | 'LOCAL' | 'ONLINE') => {
@@ -124,15 +124,33 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
     const checkWin = (b: BoardState, nextPlayer: PlayerColor) => {
         const { w, r } = countPieces(b);
-        const moves = getValidMoves(b, nextPlayer);
         
+        // No pieces left
         if (r === 0) return 'white';
         if (w === 0) return 'red';
-        if (moves.length === 0) return nextPlayer === 'white' ? 'red' : 'white'; // No moves = loss
+        
+        // No moves left
+        const moves = getValidMoves(b, nextPlayer);
+        if (moves.length === 0) return nextPlayer === 'white' ? 'red' : 'white'; 
+        
         return null;
     };
 
-    const handleTurnEnd = (newBoard: BoardState, prevPlayer: PlayerColor) => {
+    const handleTurnEnd = (newBoard: BoardState, prevPlayer: PlayerColor, lastPiecePos?: Position) => {
+        // Promotion Check (End of full turn)
+        // If we have a lastPiecePos (piece that moved), check if it should promote
+        if (lastPiecePos) {
+            const piece = newBoard[lastPiecePos.r][lastPiecePos.c];
+            if (piece && !piece.isKing) {
+                const isPromoLine = (piece.player === 'white' && lastPiecePos.r === 0) || 
+                                    (piece.player === 'red' && lastPiecePos.r === BOARD_SIZE - 1);
+                if (isPromoLine) {
+                    piece.isKing = true;
+                    playVictory(); // Small sound
+                }
+            }
+        }
+
         const nextPlayer = prevPlayer === 'white' ? 'red' : 'white';
         const win = checkWin(newBoard, nextPlayer);
         
@@ -141,6 +159,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             handleGameOver(win);
         } else {
             setTurn(nextPlayer);
+            setMustJumpPos(null);
         }
     };
 
@@ -148,31 +167,34 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         playMove();
         if (move.isJump) playLand(); // Capture sound
 
-        const { newBoard, promoted } = executeMove(board, move);
-        if (promoted) playVictory(); // Small triumph sound
-
+        const { newBoard } = executeMove(board, move);
         setBoard(newBoard);
         setSelectedPos(null);
         setAvailableMoves([]);
 
-        // Multi-jump logic (Double jump)
+        // Multi-jump logic
         if (move.isJump) {
             // Check if same piece can jump again
-            // The piece is now at move.to
-            const followUpMoves = getValidMoves(newBoard, turn).filter(m => 
-                m.from.r === move.to.r && m.from.c === move.to.c && m.isJump
-            );
+            // Important: Passed mustMovePiece to force this piece
+            const followUpMoves = getValidMoves(newBoard, turn, move.to);
+            
+            // Only consider jumps for follow up
+            const validContinuations = followUpMoves.filter(m => m.isJump);
 
-            if (followUpMoves.length > 0) {
+            if (validContinuations.length > 0) {
                 // Must continue jumping
-                setAvailableMoves(followUpMoves);
-                setSelectedPos(move.to);
-                // Turn does NOT change
-                return;
+                setMustJumpPos(move.to);
+                setAvailableMoves(validContinuations);
+                setSelectedPos(move.to); // Auto-select
+                
+                // If Playing Solo/Online against us, we might need a small delay for UI 
+                // but usually instant update is fine.
+                return; 
             }
         }
 
-        handleTurnEnd(newBoard, turn);
+        // Turn Ends
+        handleTurnEnd(newBoard, turn, move.to);
     };
 
     const handleCellClick = (r: number, c: number) => {
@@ -191,9 +213,17 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
         // 1. Select a piece
         if (isMyPiece) {
-            // Check if this piece has valid moves in the GLOBAL valid moves list
-            // (If forced jumps exist globally, only those pieces are selectable)
-            const allMoves = getValidMoves(board, turn);
+            // If we are in a multi-jump sequence, can only select the active piece
+            if (mustJumpPos) {
+                if (r !== mustJumpPos.r || c !== mustJumpPos.c) return;
+            }
+
+            // Get valid moves for this turn state
+            // If mustJumpPos is null, getValidMoves calculates global max capture and filters.
+            // If mustJumpPos is set, it only checks that piece.
+            const allMoves = getValidMoves(board, turn, mustJumpPos || undefined);
+            
+            // Filter moves for THIS piece
             const pieceMoves = allMoves.filter(m => m.from.r === r && m.from.c === c);
             
             if (pieceMoves.length > 0) {
@@ -220,18 +250,20 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     useEffect(() => {
         if (gameMode === 'SOLO' && turn === 'red' && !winner) {
             const timer = setTimeout(() => {
-                const move = getBestMove(board, 'red');
-                if (move) {
+                // Determine valid moves (respecting multi-jump state if CPU is mid-turn)
+                const moves = getValidMoves(board, 'red', mustJumpPos || undefined);
+                
+                if (moves.length > 0) {
+                    const move = moves[Math.floor(Math.random() * moves.length)];
                     performMove(move);
                 } else {
-                    // Should be handled by checkWin but safe fallback
                     setWinner('white');
                     handleGameOver('white');
                 }
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [turn, gameMode, winner, board]);
+    }, [turn, gameMode, winner, board, mustJumpPos]);
 
     const handleGameOver = (w: PlayerColor | 'DRAW') => {
         if (gameMode === 'SOLO' && w === 'white') {
@@ -288,20 +320,15 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         
         return (
             <div className="relative w-full max-w-md aspect-square bg-gray-900 border-[6px] border-gray-700 rounded-lg shadow-2xl">
-                <div className={`grid grid-cols-8 grid-rows-8 w-full h-full ${isFlipped ? 'rotate-180' : ''}`}>
+                <div className={`grid grid-cols-10 grid-rows-10 w-full h-full ${isFlipped ? 'rotate-180' : ''}`}>
                     {board.map((row, r) => (
                         row.map((piece, c) => {
-                            // Plateau en damier classique
-                            // Les cases jouables sont les cases NOIRES (Cases impaires si (0,0) est blanc)
+                            // International 10x10: active squares are odd (r+c)
                             const isPlayableSquare = (r + c) % 2 === 1; 
                             const isSelected = selectedPos?.r === r && selectedPos?.c === c;
                             const isTarget = availableMoves.some(m => m.to.r === r && m.to.c === c);
 
-                            // Background des cases
-                            // Jouable (Noir) : Sombre/Transparent pour voir le fond noir
-                            // Non-Jouable (Blanc) : Clair/Gris
                             let bgClass = isPlayableSquare ? 'bg-black/40 shadow-inner' : 'bg-white/10';
-                            
                             if (isTarget) bgClass = 'bg-green-500/20 shadow-[inset_0_0_15px_#22c55e]';
 
                             return (
@@ -310,11 +337,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                                     onClick={() => handleCellClick(r, c)}
                                     className={`relative flex items-center justify-center ${bgClass} ${isTarget ? 'cursor-pointer' : ''}`}
                                 >
-                                    {isTarget && <div className="absolute w-3 h-3 bg-green-500 rounded-full animate-pulse" />}
+                                    {isTarget && <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
                                     
                                     {piece && (
                                         <div className={`
-                                            relative w-[75%] aspect-square rounded-full flex items-center justify-center
+                                            relative w-[80%] aspect-square rounded-full flex items-center justify-center
                                             transition-all duration-300
                                             ${piece.player === 'white' 
                                                 ? 'text-cyan-400 shadow-[0_0_10px_#22d3ee]' 
@@ -322,17 +349,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                                             ${isSelected ? 'scale-110 brightness-150 z-10' : ''}
                                             ${isFlipped ? 'rotate-180' : ''}
                                         `}>
-                                            {/* Corps du pion (Fond semi-transparent) */}
                                             <div className={`absolute inset-0 rounded-full opacity-20 ${piece.player === 'white' ? 'bg-cyan-400' : 'bg-pink-500'}`}></div>
-                                            
-                                            {/* Bordure Épaisse Néon */}
-                                            <div className={`absolute inset-0 rounded-full border-4 ${piece.player === 'white' ? 'border-cyan-400' : 'border-pink-500'}`}></div>
-                                            
-                                            {/* Cercle interne décoratif */}
-                                            <div className={`absolute inset-[25%] rounded-full border-2 opacity-50 ${piece.player === 'white' ? 'border-cyan-400' : 'border-pink-500'}`}></div>
-
-                                            {/* Couronne Dame */}
-                                            {piece.isKing && <Crown size={24} strokeWidth={2.5} className="relative z-10 drop-shadow-[0_0_5px_currentColor] animate-pulse" />}
+                                            <div className={`absolute inset-0 rounded-full border-2 sm:border-4 ${piece.player === 'white' ? 'border-cyan-400' : 'border-pink-500'}`}></div>
+                                            <div className={`absolute inset-[25%] rounded-full border opacity-50 ${piece.player === 'white' ? 'border-cyan-400' : 'border-pink-500'}`}></div>
+                                            {piece.isKing && <Crown size={16} strokeWidth={2.5} className="relative z-10 drop-shadow-[0_0_5px_currentColor] animate-pulse" />}
                                         </div>
                                     )}
                                 </div>
@@ -361,7 +381,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     if (menuPhase === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee]">NEON CHECKERS</h1>
+                <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee]">NEON DAMES</h1>
                 <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
                     <button onClick={() => initGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
                         <User size={24} className="text-neon-blue"/> 1 JOUEUR

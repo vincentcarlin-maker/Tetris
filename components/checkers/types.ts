@@ -18,7 +18,8 @@ export interface Move {
     from: Position;
     to: Position;
     isJump: boolean;
-    jumpedPiece?: Position; // Position of the captured piece
+    jumpedPieces: Position[]; // Array of captured positions for this specific step (usually 1, but tracked for chain)
+    pathWeight: number; // Total captures in the full chain this move belongs to
 }
 
 export interface GameState {
