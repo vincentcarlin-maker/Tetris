@@ -291,13 +291,17 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 <div className={`grid grid-cols-8 grid-rows-8 w-full h-full ${isFlipped ? 'rotate-180' : ''}`}>
                     {board.map((row, r) => (
                         row.map((piece, c) => {
-                            // Plateau en damier classique mais avec des couleurs néon/dark
-                            const isDark = (r + c) % 2 === 1; // Cases jouables
+                            // Plateau en damier classique
+                            // Les cases jouables sont les cases NOIRES (Cases impaires si (0,0) est blanc)
+                            const isPlayableSquare = (r + c) % 2 === 1; 
                             const isSelected = selectedPos?.r === r && selectedPos?.c === c;
                             const isTarget = availableMoves.some(m => m.to.r === r && m.to.c === c);
 
                             // Background des cases
-                            let bgClass = isDark ? 'bg-white/10' : 'bg-transparent';
+                            // Jouable (Noir) : Sombre/Transparent pour voir le fond noir
+                            // Non-Jouable (Blanc) : Clair/Gris
+                            let bgClass = isPlayableSquare ? 'bg-black/40 shadow-inner' : 'bg-white/10';
+                            
                             if (isTarget) bgClass = 'bg-green-500/20 shadow-[inset_0_0_15px_#22c55e]';
 
                             return (
@@ -324,7 +328,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                                             {/* Bordure Épaisse Néon */}
                                             <div className={`absolute inset-0 rounded-full border-4 ${piece.player === 'white' ? 'border-cyan-400' : 'border-pink-500'}`}></div>
                                             
-                                            {/* Cercle interne décoratif (Pas de 0) */}
+                                            {/* Cercle interne décoratif */}
                                             <div className={`absolute inset-[25%] rounded-full border-2 opacity-50 ${piece.player === 'white' ? 'border-cyan-400' : 'border-pink-500'}`}></div>
 
                                             {/* Couronne Dame */}
