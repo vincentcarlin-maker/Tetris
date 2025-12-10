@@ -12,6 +12,7 @@ export interface HighScores {
   mastermind?: number; // minAttempts (Lower is better)
   uno?: number; // Total Score (Accumulated)
   game2048?: number; // Highest Score
+  watersort?: number; // Max Level Reached
 }
 
 const initialHighScores: HighScores = {
@@ -24,7 +25,8 @@ const initialHighScores: HighScores = {
   memory: 0,
   mastermind: 0,
   uno: 0,
-  game2048: 0
+  game2048: 0,
+  watersort: 1
 };
 
 const HIGHSCORES_KEY = 'neon-highscores';
@@ -47,6 +49,7 @@ export const useHighScores = () => {
         if (!parsed.mastermind) parsed.mastermind = 0;
         if (!parsed.uno) parsed.uno = 0;
         if (!parsed.game2048) parsed.game2048 = 0;
+        if (!parsed.watersort) parsed.watersort = 1;
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -68,7 +71,7 @@ export const useHighScores = () => {
       const newScores = JSON.parse(JSON.stringify(prev)); // Deep copy
       let shouldUpdate = false;
 
-      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048') {
+      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort') {
         // Higher is better
         if (value > (prev[game] as number || 0)) {
           newScores[game] = value;
