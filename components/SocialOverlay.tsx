@@ -467,16 +467,53 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setChatInput('');
 
         if (activeChatId.startsWith('bot_')) {
+            // IA AMÉLIORÉE POUR LES BOTS
+            const delay = 1000 + Math.random() * 2000; // Délai variable pour réalisme (1-3s)
+            
             setTimeout(() => {
-                const replies = ["Haha", "Bien joué", "Ok", "On verra !", ":)", "Pas mal", "Trop fort"];
-                const reply = replies[Math.floor(Math.random() * replies.length)];
+                const lowerText = text.toLowerCase();
+                let reply = "";
+
+                // Salutations
+                if (lowerText.match(/\b(salut|bonjour|yo|hello|coucou|hey)\b/)) {
+                    const greetings = ["Yo !", `Salut ${username} !`, "Prêt à battre un record ?", "Hey ! Comment ça va ?"];
+                    reply = greetings[Math.floor(Math.random() * greetings.length)];
+                }
+                // Provocations / Compétition
+                else if (lowerText.match(/\b(nul|battu|faible|perdre|ez|facile|noob)\b/)) {
+                    const challenges = ["On verra ça sur le leaderboard !", "Parle pas trop vite...", "Dans tes rêves !", "Viens faire un 1v1", "Tu disais ?"];
+                    reply = challenges[Math.floor(Math.random() * challenges.length)];
+                }
+                // Félicitations / Positif
+                else if (lowerText.match(/\b(gg|bien jou|fort|champion|gagn|record|pro)\b/)) {
+                    const thanks = ["Merci !", "GG à toi aussi", "Le travail paie !", "Je suis imbattable", "C'est l'entraînement !"];
+                    reply = thanks[Math.floor(Math.random() * thanks.length)];
+                }
+                // Questions
+                else if (lowerText.includes('?')) {
+                    const answers = ["Je ne sais pas trop...", "C'est un secret de pro.", "Concentre-toi sur le jeu !", "Peut-être...", "Demande à l'admin !"];
+                    reply = answers[Math.floor(Math.random() * answers.length)];
+                }
+                // Jeux spécifiques
+                else if (lowerText.includes('tetris')) reply = "Tetris, c'est la vie. Les T-spins, tu connais ?";
+                else if (lowerText.includes('pacman')) reply = "Waka waka ! Ces fantômes sont tenaces.";
+                else if (lowerText.includes('snake')) reply = "J'ai failli me mordre la queue tout à l'heure !";
+                else if (lowerText.includes('uno')) reply = "Attention au +4, je te préviens !";
+                
+                // Fallback (Réponses génériques)
+                else {
+                    const defaults = ["Haha", "Bien joué", "Ok", "Intéressant...", ":)", "Pas mal", "Trop fort", "Game on!", "T'as vu mon score ?", "Cool !"];
+                    reply = defaults[Math.floor(Math.random() * defaults.length)];
+                }
+
                 const botMsg: PrivateMessage = { id: Date.now().toString(), senderId: activeChatId, text: reply, timestamp: Date.now(), read: false };
                 setMessages(prev => ({ ...prev, [activeChatId]: [...(prev[activeChatId] || []), botMsg] }));
                 setUnreadCount(c => c + 1);
-                setNotificationPreview({ senderId: activeChatId, senderName: "Bot", text: reply }); // Preview for bot
+                setNotificationPreview({ senderId: activeChatId, senderName: MOCK_COMMUNITY_PLAYERS.find(b => b.id === activeChatId)?.name || "Bot", text: reply });
                 setTimeout(() => setNotificationPreview(null), 5000);
                 playCoin();
-            }, 2000);
+            }, delay);
+
         } else if (isConnectedToSupabase) {
             // Resolve PeerID -> Username for DB
             const friend = friends.find(f => f.id === activeChatId);
