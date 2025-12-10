@@ -19,6 +19,7 @@ type Tile = {
     isNew?: boolean;
     isMerged?: boolean;
     isDeleted?: boolean;
+    mergedVal?: number; // Stores future value during animation
 };
 
 const GRID_SIZE = 4;
@@ -102,7 +103,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
 
         let moved = false;
         let mergedScore = 0;
-        let newTiles: Tile[] = tiles.map(t => ({ ...t, isMerged: false, isNew: false })); // Reset flags
+        let newTiles: Tile[] = tiles.map(t => ({ ...t, isMerged: false, isNew: false, mergedVal: undefined })); // Reset flags
 
         // Sort tiles based on direction to process correctly
         if (direction === 'UP') newTiles.sort((a, b) => a.y - b.y);
@@ -130,18 +131,20 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                 
                 if (obstacle) {
                     if (obstacle.val === tile.val && !mergedIds.has(obstacle.id) && !mergedIds.has(tile.id)) {
-                        // Merge
+                        // Merge logic
                         tile.x = nextX;
                         tile.y = nextY;
-                        tile.val *= 2;
-                        mergedScore += tile.val;
+                        
+                        // DEFER UPDATE: Store future value but don't apply yet
+                        tile.mergedVal = tile.val * 2;
+                        mergedScore += tile.mergedVal;
                         
                         mergedIds.add(tile.id);
                         
-                        // Mark obstacle for removal later (keep it for animation)
+                        // Mark obstacle for removal later (keep it visible for smooth overlap)
                         obstacle.isDeleted = true;
                         
-                        tile.isMerged = true; // Animation flag
+                        // Note: We don't set isMerged=true here to delay the pop animation
                         moved = true;
                     }
                     break; // Hit something (merge or not), stop moving
@@ -165,12 +168,25 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                 setScore(s => s + mergedScore);
             }
             
-            // Phase 1: Trigger Slide Animation
+            // Phase 1: Trigger Slide Animation (Old values slide)
             setTiles(newTiles);
             
-            // Phase 2: Cleanup and Spawn after animation
+            // Phase 2: Finalize State (Update values, remove deleted, spawn new)
             setTimeout(() => {
-                const cleanTiles = newTiles.filter(t => !t.isDeleted);
+                // Apply deferred values and trigger pop animation
+                const processedTiles = newTiles.map(t => {
+                    if (t.mergedVal) {
+                        return { 
+                            ...t, 
+                            val: t.mergedVal, 
+                            isMerged: true, // Trigger pop now
+                            mergedVal: undefined 
+                        };
+                    }
+                    return t;
+                });
+
+                const cleanTiles = processedTiles.filter(t => !t.isDeleted);
                 const afterSpawn = addRandomTile(cleanTiles);
                 setTiles(afterSpawn);
                 
@@ -197,7 +213,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                 }
                 
                 movingRef.current = false;
-            }, 150);
+            }, 150); // Match this delay with CSS transition duration
         } else {
             movingRef.current = false;
         }
@@ -285,7 +301,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                     {tiles.map(tile => (
                         <div 
                             key={tile.id}
-                            className={`${getTileClass(tile.val)} ${tile.isNew ? 'animate-pop' : ''} ${tile.isMerged ? 'z-20 animate-pop' : (tile.isDeleted ? 'z-0' : 'z-10')}`}
+                            className={`${getTileClass(tile.val)} ${tile.isNew ? 'animate-pop' : ''} ${tile.isMerged ? 'z-20 animate-pop' : (tile.mergedVal ? 'z-20' : (tile.isDeleted ? 'z-0' : 'z-10'))}`}
                             style={{ 
                                 transform: `translate(${tile.x * (window.innerWidth < 640 ? 88 : 108)}px, ${tile.y * (window.innerWidth < 640 ? 88 : 108)}px)`,
                                 fontSize: tile.val > 1000 ? '24px' : tile.val > 100 ? '32px' : '40px'
