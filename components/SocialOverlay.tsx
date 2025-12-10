@@ -34,6 +34,7 @@ interface Friend {
     status: 'online' | 'offline';
     lastSeen: number;
     stats?: PlayerStats;
+    gameActivity?: string; // New: What they are playing
 }
 
 interface PrivateMessage {
@@ -55,11 +56,28 @@ interface FriendRequest {
 }
 
 const MOCK_COMMUNITY_PLAYERS: Friend[] = [
-    { id: 'bot_1', name: 'NeonStriker', avatarId: 'av_rocket', status: 'online', lastSeen: Date.now(), stats: { tetris: 12000, breaker: 5000, pacman: 0, memory: 0, rush: 5, sudoku: 0 } },
-    { id: 'bot_2', name: 'PixelQueen', avatarId: 'av_cat', frameId: 'fr_neon_pink', status: 'online', lastSeen: Date.now(), stats: { tetris: 5000, breaker: 8000, pacman: 15000, memory: 12, rush: 10, sudoku: 0 } },
-    { id: 'bot_3', name: 'CyberWolf', avatarId: 'av_skull', frameId: 'fr_glitch', status: 'online', lastSeen: Date.now(), stats: { tetris: 25000, breaker: 2000, pacman: 5000, memory: 0, rush: 20, sudoku: 0 } },
+    { id: 'bot_1', name: 'NeonStriker', avatarId: 'av_rocket', status: 'online', lastSeen: Date.now(), stats: { tetris: 12000, breaker: 5000, pacman: 0, memory: 0, rush: 5, sudoku: 0 }, gameActivity: 'tetris' },
+    { id: 'bot_2', name: 'PixelQueen', avatarId: 'av_cat', frameId: 'fr_neon_pink', status: 'online', lastSeen: Date.now(), stats: { tetris: 5000, breaker: 8000, pacman: 15000, memory: 12, rush: 10, sudoku: 0 }, gameActivity: 'pacman' },
+    { id: 'bot_3', name: 'CyberWolf', avatarId: 'av_skull', frameId: 'fr_glitch', status: 'online', lastSeen: Date.now(), stats: { tetris: 25000, breaker: 2000, pacman: 5000, memory: 0, rush: 20, sudoku: 0 }, gameActivity: 'menu' },
     { id: 'bot_4', name: 'RetroMaster', avatarId: 'av_game', status: 'offline', lastSeen: Date.now() - 300000, stats: { tetris: 0, breaker: 0, pacman: 20000, memory: 0, rush: 0, sudoku: 0 } },
 ];
+
+const GAME_NAMES: Record<string, string> = {
+    'tetris': 'Tetris',
+    'connect4': 'Connect 4',
+    'sudoku': 'Sudoku',
+    'breaker': 'Breaker',
+    'pacman': 'Pacman',
+    'memory': 'Memory',
+    'battleship': 'Bataille',
+    'snake': 'Snake',
+    'invaders': 'Invaders',
+    'airhockey': 'Air Hockey',
+    'mastermind': 'Mastermind',
+    'uno': 'Uno',
+    'shop': 'Boutique',
+    'menu': 'Menu'
+};
 
 const ACTIVITY_TEMPLATES = [
     "{name} a lancé Tetris",
@@ -312,12 +330,25 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 const isBot = f.id.startsWith('bot_');
                 const newStatus = (isRealUserOnline || isBot) ? 'online' : 'offline';
                 const newStats = onlineUser?.stats || f.stats;
+                const newGameActivity = onlineUser?.gameActivity;
+                
                 let newLastSeen = f.lastSeen;
                 if (isBot && newStatus === 'online') newLastSeen = Date.now();
                 else if (onlineUser) newLastSeen = onlineUser.lastSeen;
 
-                if (f.status !== newStatus || JSON.stringify(f.stats) !== JSON.stringify(newStats) || f.lastSeen !== newLastSeen) {
-                    return { ...f, status: newStatus, lastSeen: newLastSeen, stats: newStats };
+                // Check for ANY change to avoid unnecessary re-renders
+                if (f.status !== newStatus || 
+                    JSON.stringify(f.stats) !== JSON.stringify(newStats) || 
+                    f.lastSeen !== newLastSeen || 
+                    f.gameActivity !== newGameActivity) {
+                    
+                    return { 
+                        ...f, 
+                        status: newStatus, 
+                        lastSeen: newLastSeen, 
+                        stats: newStats,
+                        gameActivity: newGameActivity 
+                    };
                 }
                 return f;
             });
@@ -524,6 +555,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         return `${Math.floor(hours / 24)} j`;
     };
 
+    const getGameName = (gameId?: string) => {
+        if (!gameId) return '';
+        return GAME_NAMES[gameId] || gameId.charAt(0).toUpperCase() + gameId.slice(1);
+    };
+
     return (
         <>
             <div style={{ top: `${btnTop}px` }} className="fixed right-0 z-[100] transition-none flex items-center flex-row-reverse pointer-events-none">
@@ -648,11 +684,21 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                         friends.map(friend => {
                                             const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
                                             const AvIcon = avatar.icon;
+                                            const isPlaying = friend.status === 'online' && friend.gameActivity && friend.gameActivity !== 'menu' && friend.gameActivity !== 'shop';
+                                            const gameName = getGameName(friend.gameActivity);
+
                                             return (
                                                 <div key={friend.id} onClick={() => setSelectedPlayer(friend)} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-xl border border-white/5 hover:bg-gray-800 transition-colors cursor-pointer group">
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative`}><AvIcon size={20} className={avatar.color} />{friend.status === 'online' && <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>}</div>
-                                                        <div className="flex flex-col"><span className="font-bold text-sm text-gray-200">{friend.name}</span><div className="flex items-center gap-2"><span className="text-[10px] text-gray-500">{friend.status === 'online' ? 'En ligne' : `Vu ${formatLastSeen(friend.lastSeen)}`}</span></div></div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-sm text-gray-200">{friend.name}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-[10px] ${isPlaying ? 'text-pink-400 font-bold animate-pulse flex items-center gap-1' : 'text-gray-500'}`}>
+                                                                    {isPlaying ? <><Gamepad2 size={10}/> Joue à {gameName}</> : friend.status === 'online' ? 'En ligne' : `Vu ${formatLastSeen(friend.lastSeen)}`}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <button onClick={(e) => { e.stopPropagation(); openChat(friend.id); }} className="p-2 bg-purple-600/20 text-purple-400 rounded-full hover:bg-purple-600 hover:text-white transition-colors relative"><MessageSquare size={16} /></button>
                                                 </div>

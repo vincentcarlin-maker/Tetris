@@ -64,14 +64,27 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
 };
 
 const Marker: React.FC<{ status: 2 | 3 }> = ({ status }) => {
+    const [showWave, setShowWave] = useState(true);
+
+    useEffect(() => {
+        if (status === 2) {
+            const timer = setTimeout(() => setShowWave(false), 2500);
+            return () => clearTimeout(timer);
+        }
+    }, [status]);
+
     if (status === 2) { // MISS - WATER
         return (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {/* Vague bleue */}
-                <div className="absolute w-full h-full border-2 border-cyan-400 rounded-full animate-[ping_1s_ease-out_infinite] opacity-60"></div>
-                <div className="absolute w-2/3 h-2/3 border border-cyan-500/50 rounded-full animate-[ping_1.5s_ease-out_infinite] opacity-40"></div>
-                {/* Point central */}
-                <div className="w-1.5 h-1.5 bg-cyan-200 rounded-full shadow-[0_0_8px_cyan]"></div>
+                {/* Vague bleue temporaire */}
+                {showWave && (
+                    <>
+                        <div className="absolute w-full h-full border-2 border-cyan-400 rounded-full animate-[ping_1s_ease-out_infinite] opacity-60"></div>
+                        <div className="absolute w-2/3 h-2/3 border border-cyan-500/50 rounded-full animate-[ping_1.5s_ease-out_infinite] opacity-40"></div>
+                    </>
+                )}
+                {/* Point central permanent */}
+                <div className="w-1.5 h-1.5 bg-cyan-200/50 rounded-full shadow-[0_0_8px_cyan]"></div>
             </div>
         );
     }

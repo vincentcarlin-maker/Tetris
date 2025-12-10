@@ -60,7 +60,8 @@ const App: React.FC = () => {
         currency.username, 
         currency.currentAvatarId, 
         currency.currentFrameId,
-        highScores
+        highScores,
+        currentView // Pass current activity to presence
     );
 
     const saveTimeoutRef = useRef<any>(null);

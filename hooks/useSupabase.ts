@@ -11,11 +11,12 @@ export interface OnlineUser {
     lastSeen: number;
     online_at: string;
     stats?: any; // High Scores object
+    gameActivity?: string; // Current game playing
 }
 
 const HISTORY_KEY = 'neon_global_history';
 
-export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: string, myFrame: string, myStats: any) => {
+export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: string, myFrame: string, myStats: any, currentGame: string) => {
     // --- PRESENCE STATE (Live Users) ---
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>(() => {
         try {
@@ -65,7 +66,8 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                             status: 'online',
                             lastSeen: Date.now(),
                             online_at: presence.online_at,
-                            stats: presence.stats || {}
+                            stats: presence.stats || {},
+                            gameActivity: presence.gameActivity
                         });
                     }
                 }
@@ -75,7 +77,7 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                     const mergedMap = new Map<string, OnlineUser>();
 
                     prev.forEach(u => {
-                        mergedMap.set(u.id, { ...u, status: 'offline' });
+                        mergedMap.set(u.id, { ...u, status: 'offline', gameActivity: undefined });
                     });
 
                     currentOnlineMap.forEach((u, key) => {
@@ -95,6 +97,7 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                         avatarId: myAvatar,
                         frameId: myFrame,
                         stats: myStats,
+                        gameActivity: currentGame,
                         online_at: new Date().toISOString(),
                     });
                 } else {
@@ -117,10 +120,11 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                 avatarId: myAvatar,
                 frameId: myFrame,
                 stats: myStats, // Broadcast updated scores
+                gameActivity: currentGame, // Broadcast current game
                 online_at: new Date().toISOString(),
             }).catch(console.error);
         }
-    }, [myName, myAvatar, myFrame, myStats, isConnectedToSupabase, myPeerId]);
+    }, [myName, myAvatar, myFrame, myStats, currentGame, isConnectedToSupabase, myPeerId]);
 
     // --- FEATURE 1: CLOUD SAVE & LOGIN ---
     const loginAndFetchProfile = useCallback(async (username: string) => {
