@@ -64,9 +64,12 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
 };
 
 const Marker: React.FC<{ status: 2 | 3 }> = ({ status }) => {
-    if (status === 2) { // MISS
+    if (status === 2) { // MISS - WATER
         return (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-gray-500 rounded-full opacity-50 animate-in zoom-in duration-200"></div>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-2 h-2 bg-blue-400 rounded-full z-10"></div>
+                <div className="absolute w-full h-full border-2 border-blue-400/50 rounded-full animate-ping opacity-75"></div>
+            </div>
         );
     }
     // HIT
@@ -121,7 +124,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
   
   // Audio Destructuring
-  const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit } = audio;
+  const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, playSplash } = audio;
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -223,14 +226,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
               handleGameOver('CPU'); // I lost
           }
       } else {
-          playWallHit();
+          playSplash();
           setTurn('PLAYER'); // My turn now
       }
 
       if (gameMode === 'ONLINE') {
           mp.sendData({ type: 'BATTLESHIP_RESULT', r, c, status: resultStatus, shipDetails: sunkShipDetails });
       }
-  }, [playerGrid, playerShips, gameMode, mp, handleGameOver, playBlockHit, playShipSink, playWallHit]);
+  }, [playerGrid, playerShips, gameMode, mp, handleGameOver, playBlockHit, playShipSink, playSplash]);
 
   // --- ONLINE DATA HANDLER ---
   useEffect(() => {
@@ -291,7 +294,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           }
           // Bonus Turn if hit
       } else {
-          playWallHit();
+          playSplash();
           setTurn('CPU');
       }
   };
@@ -708,9 +711,12 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                         <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ</p>
                     </>
                 )}
-                <div className="flex gap-4">
-                    <button onClick={resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
-                    {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                <div className="flex flex-col gap-4">
+                    <div className="flex gap-4">
+                        <button onClick={resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
+                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                    </div>
+                    <button onClick={handleLocalBack} className="text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">RETOUR AU MENU</button>
                 </div>
             </div>
         )}

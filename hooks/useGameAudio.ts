@@ -626,6 +626,31 @@ export const useGameAudio = () => {
 
     }, [isMuted, resume, vibrate]);
 
+    // BATTLESHIP: Water Splash Sound (Plouf)
+    const playSplash = useCallback(() => {
+        vibrate(30);
+        if (isMuted || !audioCtx.current) return;
+        resume();
+        const now = audioCtx.current.currentTime;
+
+        const osc = audioCtx.current.createOscillator();
+        const gain = audioCtx.current.createGain();
+        
+        // Sine wave dropping in pitch = liquid sound
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.current.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }, [isMuted, resume, vibrate]);
+
     const playExplosion = useCallback(() => {
         vibrate([80, 40, 80]);
         if (isMuted || !audioCtx.current) return;
@@ -711,6 +736,7 @@ export const useGameAudio = () => {
         playPacmanPower,
         playCoin,
         playShipSink,
+        playSplash,
         playExplosion,
         playGoalScore,
         isMuted, 
