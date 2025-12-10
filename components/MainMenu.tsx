@@ -163,7 +163,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     });
     
     const handleGameStart = (gameId: string) => { 
-        if (!disabledGames.includes(gameId)) {
+        if (!disabledGames.includes(gameId) || currency.adminModeActive) {
             onSelectGame(gameId); 
         }
     };
@@ -466,7 +466,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  {/* --- GAME GRID --- */}
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                     {GAMES_CONFIG.map((game) => {
-                        const isDisabled = disabledGames.includes(game.id);
+                        const isRestricted = disabledGames.includes(game.id);
+                        const isDisabled = isRestricted && !currency.adminModeActive;
                         return (
                             <button 
                                 key={game.id} 
@@ -490,11 +491,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 )}
 
                                 <div className="w-full flex justify-end gap-1 relative z-10">
+                                    {isRestricted && currency.adminModeActive && (
+                                        <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)]" title="Désactivé pour les joueurs">
+                                            OFF
+                                        </div>
+                                    )}
                                     {game.badges.new && !isDisabled && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse" title="Nouveau Jeu">NEW</div>}
                                     {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
                                     {game.badges.vs && <div className="p-1 rounded bg-black/40 text-pink-400 border border-pink-500/30" title="Versus"><Users size={10} /></div>}
                                 </div>
-                                <div className={`p-2 rounded-lg bg-gray-900/50 ${game.color} ${!isDisabled && 'group-hover:scale-110'} transition-transform relative z-10 shadow-lg border border-white/5`}>
+                                <div className={`p-2 rounded-lg bg-gray-900/50 ${!isDisabled ? game.color : 'text-gray-500'} ${!isDisabled && 'group-hover:scale-110'} transition-transform relative z-10 shadow-lg border border-white/5`}>
                                     <game.icon size={32} />
                                     {!isAuthenticated && !isDisabled && <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-white/30"><Lock size={10} className="text-white"/></div>}
                                 </div>
