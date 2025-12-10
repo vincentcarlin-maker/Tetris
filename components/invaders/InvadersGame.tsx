@@ -8,6 +8,7 @@ interface InvadersGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 // -- CONSTANTS --
@@ -107,7 +108,7 @@ interface Particle {
     size: number;
 }
 
-export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCoins }) => {
+export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [score, setScore] = useState(0);
     const [lives, setLives] = useState(3);
@@ -153,6 +154,8 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
         particlesRef.current = [];
         touchXRef.current = null;
         startWave(1);
+        
+        if (onReportProgress) onReportProgress('play', 1);
     };
 
     const startWave = (waveNum: number) => {
@@ -242,6 +245,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
                 addCoins(coins);
                 setEarnedCoins(coins);
             }
+            if (onReportProgress) onReportProgress('score', score);
         }
     };
 
@@ -379,6 +383,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
             playVictory();
             setWave(w => w + 1);
             startWave(wave + 1);
+            if (onReportProgress) onReportProgress('action', 1); // Action = Wave Cleared
         }
 
         // Particles

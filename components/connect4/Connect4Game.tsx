@@ -12,6 +12,7 @@ interface Connect4GameProps {
   audio: ReturnType<typeof useGameAudio>;
   addCoins: (amount: number) => void;
   mp: ReturnType<typeof useMultiplayer>;
+  onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 interface ChatMessage {
@@ -65,8 +66,8 @@ const checkWinFull = (board: BoardState): WinState => {
   }
   for (let r = 0; r < ROWS - 3; r++) {
     for (let c = 0; c < COLS - 3; c++) {
-      if (board[r][c] && board[r][c] === board[r+1][c+1] && board[r][c] === board[r+2][c+2] && board[r][c] === board[r+3][c+3]) {
-        return { winner: board[r][c] as Player, line: [[r,c], [r+1,c+1], [r+2,c+2], [r+3,c+3]] };
+      if (board[r][c] && board[r][c] === board[r+1][c] && board[r][c] === board[r+2][c] && board[r][c] === board[r+3][c]) {
+        return { winner: board[r][c] as Player, line: [[r,c], [r+1,c], [r+2,c], [r+3,c]] };
       }
     }
   }
@@ -80,7 +81,7 @@ const checkWinFull = (board: BoardState): WinState => {
 
 type GameStage = 'MENU' | 'DIFFICULTY' | 'GAME';
 
-export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins, mp }) => {
+export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
   const [board, setBoard] = useState<BoardState>(createBoard());
   const boardRef = useRef<BoardState>(createBoard());
   
@@ -173,7 +174,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     setEarnedCoins(0);
     setAnimatingCell(null);
     setOpponentLeft(false);
-  }, []);
+    
+    if (onReportProgress) onReportProgress('play', 1);
+  }, [onReportProgress]);
 
   // Main Game Action
   const handleColumnClick = useCallback((colIndex: number, isRemoteMove = false) => {
@@ -235,6 +238,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
               
               addCoins(reward);
               setEarnedCoins(reward);
+              if (onReportProgress) onReportProgress('win', 1);
           } else {
               if (gameMode === 'PVP') playVictory(); 
               else playGameOver(); 
@@ -247,7 +251,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         isAnimatingRef.current = false;
     }, 500); 
 
-  }, [currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft]);
+  }, [currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft, onReportProgress]);
 
   // STABLE SUBSCRIPTION REF
   const handleDataRef = useRef<(data: any) => void>(null);

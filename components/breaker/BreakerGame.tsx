@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Heart, Trophy, Play, Coins, ArrowLeft } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -12,13 +11,14 @@ interface BreakerGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 const GAME_WIDTH = 400;
 const GAME_HEIGHT = 600;
 const PADDLE_DEFAULT_WIDTH = 100;
 
-export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoins }) => {
+export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const gameLoopRef = useRef<number>(0);
     
@@ -116,6 +116,8 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         setEarnedCoins(0);
         powerUpsRef.current = [];
         setGameState('waitingToServe');
+        
+        if (onReportProgress) onReportProgress('play', 1);
     };
 
     const serveBall = () => {
@@ -357,6 +359,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                     setGameState('gameOver');
                     playGameOver();
                     updateHighScore('breaker', score);
+                    if (onReportProgress) onReportProgress('score', score);
                     const coins = Math.floor(score / 100);
                     if (coins > 0) {
                         addCoins(coins);
@@ -376,6 +379,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             // AJOUT: Gain d'argent à chaque niveau terminé
             addCoins(50);
             setEarnedCoins(50);
+            if (onReportProgress) onReportProgress('action', currentLevel);
             
             setGameState('levelComplete');
             setTimeout(() => {
@@ -395,7 +399,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             }, 3000); // Increased delay slightly to let user see reward
         }
 
-    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot]);
+    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, onReportProgress]);
 
     // Game Loop
     useEffect(() => {

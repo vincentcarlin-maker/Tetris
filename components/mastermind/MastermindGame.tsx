@@ -11,6 +11,7 @@ interface MastermindGameProps {
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
     mp: ReturnType<typeof useMultiplayer>;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 // --- CONSTANTS ---
@@ -44,7 +45,7 @@ interface ChatMessage {
     timestamp: number;
 }
 
-export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, addCoins, mp }) => {
+export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     // Identity
     const { username, currentAvatarId, avatarsCatalog } = useCurrency();
 
@@ -147,6 +148,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
             setSecretCode(newCode);
             setGameState('playing');
             playLand();
+            if (onReportProgress) onReportProgress('play', 1);
         } else {
             // Online: Asymmetric Roles
             if (mp.isHost) {
@@ -285,6 +287,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 updateHighScore('mastermind', attempts);
             }
             setResultMessage("CODE DÉCRYPTÉ !");
+            if (onReportProgress) onReportProgress('win', 1);
         } else {
             // Online Logic
             if (isCodemaker) {
@@ -299,6 +302,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 playVictory();
                 coins = 50;
                 mp.sendData({ type: 'MASTERMIND_GAME_OVER', result: 'BREAKER_WON' });
+                if (onReportProgress) onReportProgress('win', 1);
             }
         }
         
@@ -327,6 +331,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 const coins = 50;
                 addCoins(coins);
                 setEarnedCoins(coins);
+                if (onReportProgress) onReportProgress('win', 1);
             } else {
                 // I am Breaker, I lost
                 setGameState('lost');

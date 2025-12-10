@@ -12,6 +12,7 @@ interface BattleshipGameProps {
   audio: ReturnType<typeof useGameAudio>;
   addCoins: (amount: number) => void;
   mp: ReturnType<typeof useMultiplayer>; // Shared connection
+  onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 // Réactions Néon Animées
@@ -138,7 +139,7 @@ const ShipVisual: React.FC<{ type: ShipTypeName, size: number, orientation: 'hor
 };
 
 
-export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, addCoins, mp }) => {
+export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
   // --- Game State ---
   const [phase, setPhase] = useState<'MENU' | 'SETUP' | 'PLAYING' | 'GAMEOVER'>('MENU');
   const [turn, setTurn] = useState<'PLAYER' | 'CPU'>('PLAYER');
@@ -196,8 +197,9 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       const reward = 100;
       addCoins(reward);
       setEarnedCoins(reward);
+      if (onReportProgress) onReportProgress('win', 1);
     } else { playGameOver(); }
-  }, [addCoins, playGameOver, playVictory]);
+  }, [addCoins, playGameOver, playVictory, onReportProgress]);
   
   const resetGame = useCallback(() => {
     // Keep mode but reset to Setup
@@ -226,7 +228,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     setIsReady(false);
     setOpponentReady(false);
     setOpponentLeft(false);
-  }, []);
+    if (onReportProgress) onReportProgress('play', 1);
+  }, [onReportProgress]);
 
   useEffect(() => {
       if (notification) {
@@ -321,6 +324,8 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     if (shipDetails) setCpuShips(prev => [...prev, { ...shipDetails, id: `enemy-ship-${Date.now()}` }]);
                     else setCpuShips(prev => [...prev, { id: 'unknown', sunk: true } as ShipType]);
                     
+                    if (onReportProgress) onReportProgress('action', 1);
+
                     const newSunkCount = cpuShips.filter(s => s.sunk).length + 1;
                     if (newSunkCount >= SHIPS_CONFIG.length) {
                         handleGameOver('PLAYER');
@@ -584,6 +589,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     const sunkShip = cpuShips.find(s => s.id === shipUpdate.shipId);
                     const shipName = SHIPS_CONFIG.find(sc => sc.type === sunkShip?.type)?.label || sunkShip?.type;
                     setNotification({ text: "COULÉ !", subtext: shipName, type: 'SUNK' });
+                    if (onReportProgress) onReportProgress('action', 1);
                 } else { setNotification({ text: "TOUCHÉ !", type: 'HIT' }); }
                 if (cpuShips.every(s => s.sunk)) { handleGameOver('PLAYER'); return; }
             } else {
@@ -663,10 +669,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           <div className="absolute inset-0 w-full h-full pointer-events-none p-1">
               {ships.map((ship) => {
                   if (ship.row === undefined || ship.col === undefined) return null;
-                  if (!isPreview && phase === 'PLAYING' && !ship.sunk) return null;
+                  if (!isPreview && !ship.sunk) return null; 
                   return (
-                      <div key={ship.id} style={{ position: 'absolute', left: `${ship.col * 10}%`, top: `${ship.row * 10}%`, width: ship.orientation === 'horizontal' ? `${ship.size * 10}%` : '10%', height: ship.orientation === 'vertical' ? `${ship.size * 10}%` : '10%', zIndex: 5 }}>
-                          <ShipVisual type={ship.type} size={ship.size} orientation={ship.orientation} isSunk={ship.sunk} isSelected={selectedShipId === ship.id} />
+                      <div key={ship.id} style={{ position: 'absolute', left: `${ship.col * 10}%`, top: `${ship.row * 10}%`, width: ship.orientation === 'horizontal' ? `${ship.size * 10}%` : '10%', height: ship.orientation === 'vertical' ? `${ship.size * 10}%` : '10%' }}>
+                          <ShipVisual type={ship.type} size={ship.size} orientation={ship.orientation} isSunk={ship.sunk} isGhost={false} isValid={true} /> 
                       </div>
                   );
               })}
@@ -674,142 +680,16 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       );
   };
 
-  const renderGhostShip = () => {
-      if (phase !== 'SETUP' || currentShipIndex >= SHIPS_CONFIG.length || !hoverCell) return null;
-      const config = SHIPS_CONFIG[currentShipIndex];
-      const isValid = (hoverCell.r >= 0 && hoverCell.r < GRID_SIZE && hoverCell.c >= 0 && hoverCell.c < GRID_SIZE) && isValidPlacement(setupGrid, hoverCell.r, hoverCell.c, config.size, orientation);
-      return (
-          <div className="absolute inset-0 w-full h-full pointer-events-none p-1 z-30">
-              <div style={{ position: 'absolute', left: `${hoverCell.c * 10}%`, top: `${hoverCell.r * 10}%`, width: orientation === 'horizontal' ? `${config.size * 10}%` : '10%', height: orientation === 'vertical' ? `${config.size * 10}%` : '10%', transition: isDragging ? 'none' : 'all 0.1s ease-out' }}>
-                  <ShipVisual type={config.type} size={config.size} orientation={orientation} isSunk={false} isGhost={true} isValid={isValid} />
-              </div>
-          </div>
-      );
-  };
-
-  const renderMissile = () => {
-      if (!missile) return null;
-      const isPlayerTarget = missile.target === 'PLAYER';
-      return (
-          <div className="absolute inset-0 pointer-events-none z-[60] overflow-hidden rounded-lg">
-              <div className={`absolute w-[10%] h-[10%] flex items-center justify-center`} style={{ top: `${missile.r * 10}%`, left: `${missile.c * 10}%`, animation: 'drop-missile 0.5s ease-in forwards' }}>
-                  <div className={`w-4 h-16 rounded-full blur-[2px] ${isPlayerTarget ? 'bg-red-500 shadow-[0_0_25px_red]' : 'bg-cyan-400 shadow-[0_0_25px_cyan]'}`}></div>
-                  <div className={`absolute -top-24 w-1.5 h-24 ${isPlayerTarget ? 'bg-gradient-to-t from-red-500 to-transparent' : 'bg-gradient-to-t from-cyan-400 to-transparent'}`}></div>
-              </div>
-          </div>
-      );
-  };
-
-  const renderLobby = () => {
-        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
-        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
-         return (
-             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
-                 <div className="flex flex-col gap-3 mb-4">
-                     <h3 className="text-xl font-black text-center text-blue-300 tracking-wider drop-shadow-md">LOBBY BATAILLE NAVALE</h3>
-                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
-                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
-                     </button>
-                </div>
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {hostingPlayers.length > 0 && (
-                        <>
-                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
-                            {hostingPlayers.map(player => {
-                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
-                                const AvatarIcon = avatar.icon;
-                                return (
-                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
-                                            <span className="font-bold">{player.name}</span>
-                                        </div>
-                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
-                                    </div>
-                                );
-                            })}
-                        </>
-                    )}
-                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
-                    {otherPlayers.length > 0 && (
-                        <>
-                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
-                             {otherPlayers.map(player => {
-                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
-                                 const AvatarIcon = avatar.icon;
-                                 return (
-                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
-                                         <div className="flex items-center gap-3">
-                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
-                                             <span className="font-bold text-gray-400">{player.name}</span>
-                                         </div>
-                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
-                                     </div>
-                                 );
-                             })}
-                        </>
-                    )}
-                </div>
-             </div>
-         );
-  };
-
-  const renderReactionVisual = (reactionId: string, color: string) => {
-      const reaction = REACTIONS.find(r => r.id === reactionId);
-      if (!reaction) return null;
-      const Icon = reaction.icon;
-      const anim = reaction.anim || 'animate-bounce';
-      return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
-  };
-
-  // --- LOCAL BACK HANDLER ---
-  const handleLocalBack = () => {
-      if (phase === 'SETUP' && !gameMode) {
-          onBack(); // Already at start?
-      } else if (phase === 'SETUP' || (gameMode === 'ONLINE' && onlineStep === 'lobby')) {
-          setPhase('MENU');
-          if(gameMode === 'ONLINE') mp.disconnect();
-      } else if (phase === 'PLAYING') {
-          if (gameMode === 'ONLINE') mp.leaveGame();
-          setPhase('MENU');
-      } else if (phase === 'GAMEOVER') {
-          setPhase('MENU');
-      } else {
-          onBack();
-      }
-  };
-
-  const initGame = (mode: 'SOLO' | 'ONLINE') => {
-      setGameMode(mode);
-      setPhase('SETUP');
-      resetGame();
-      // Setup phase is needed for ships
-  };
-
-  if (gameMode === 'ONLINE' && onlineStep === 'lobby' && phase === 'SETUP') {
-      return (
-        <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
-            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 pr-2 pb-1">BATAILLE NAVALE</h1>
-                <div className="w-10"></div>
-            </div>
-            {renderLobby()}
-        </div>
-      );
-  }
-
   // --- MENU VIEW ---
   if (phase === 'MENU') {
       return (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-            <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee]">BATAILLE NAVALE</h1>
+            <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22c55e]">NEON FLEET</h1>
             <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
-                <button onClick={() => initGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                <button onClick={() => { setGameMode('SOLO'); setPhase('SETUP'); setSelectedShipId(null); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
                     <Cpu size={24} className="text-neon-blue"/> 1 JOUEUR
                 </button>
-                <button onClick={() => initGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
+                <button onClick={() => { setGameMode('ONLINE'); setPhase('SETUP'); setSelectedShipId(null); }} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
                     <Globe size={24} className="text-green-500"/> EN LIGNE
                 </button>
             </div>
@@ -818,170 +698,228 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       );
   }
 
+  if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+      const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+      return (
+        <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                <button onClick={() => { if(gameMode === 'ONLINE') mp.leaveGame(); setPhase('MENU'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300 pr-2 pb-1">NEON FLEET</h1>
+                <div className="w-10"></div>
+            </div>
+            <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-green-300 tracking-wider drop-shadow-md">LOBBY BATAILLE</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 ? (
+                        hostingPlayers.map(player => {
+                            const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                            const AvatarIcon = avatar.icon;
+                            return (
+                                <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                        <span className="font-bold">{player.name}</span>
+                                    </div>
+                                    <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                </div>
+                            );
+                        })
+                    ) : <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie... Créez la vôtre !</p>}
+                </div>
+             </div>
+        </div>
+      );
+  }
+
+  if (gameMode === 'ONLINE' && onlineStep === 'connecting') {
+      return (
+        <div className="h-full w-full flex flex-col items-center justify-center bg-black/90 text-white">
+            <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
+            <p className="text-green-300 font-bold">CONNEXION...</p>
+        </div>
+      );
+  }
+
+  // --- GAME VIEW ---
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center bg-black/20 relative overflow-hidden text-white font-sans p-2">
-      <style>{`@keyframes drop-missile { 0% { transform: translateY(-600px) scale(1.5); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }`}</style>
+    <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-2 select-none touch-none">
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-green-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-transparent pointer-events-none"></div>
 
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/20 via-black to-transparent pointer-events-none"></div>
+        {/* NOTIFICATION OVERLAY */}
+        {notification && (
+            <div className={`absolute top-1/4 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-xl border-2 flex flex-col items-center animate-in zoom-in duration-200 ${notification.type === 'HIT' ? 'bg-red-900/90 border-red-500 shadow-[0_0_30px_red]' : 'bg-green-900/90 border-green-500 shadow-[0_0_30px_lime]'}`}>
+                <span className="text-3xl font-black italic tracking-widest text-white drop-shadow-md">{notification.text}</span>
+                {notification.subtext && <span className="text-sm font-bold text-gray-200 mt-1 uppercase">{notification.subtext}</span>}
+            </div>
+        )}
 
-      {notification && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-              <div className="bg-black/80 backdrop-blur-sm px-8 py-6 rounded-2xl border-2 border-white/20 animate-in zoom-in fade-in duration-300 flex flex-col items-center shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-                  <h2 className={`text-5xl font-black italic tracking-tighter ${notification.type === 'SUNK' ? 'text-red-500 drop-shadow-[0_0_15px_red]' : 'text-yellow-400 drop-shadow-[0_0_15px_yellow]'}`}>{notification.text}</h2>
-                  {notification.subtext && <p className="text-white font-bold tracking-widest mt-2 bg-red-900/50 px-3 py-1 rounded text-sm uppercase border border-red-500/30">{notification.subtext}</p>}
-              </div>
-          </div>
-      )}
-
-      {activeReaction && (() => {
+        {/* Reaction Display */}
+        {activeReaction && (() => {
             const reaction = REACTIONS.find(r => r.id === activeReaction.id);
             if (!reaction) return null;
             const positionClass = activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
-            const anim = reaction.anim || 'animate-bounce';
-            return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
-      })()}
+            return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${reaction.anim || 'animate-bounce'}`}>{<reaction.icon size={48} className={`${reaction.color} drop-shadow-[0_0_20px_currentColor]`} />}</div></div>;
+        })()}
 
-      <div className="w-full max-w-2xl flex items-center justify-between z-10 mb-2 shrink-0 h-[50px]">
-        <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
-        <h1 className="text-xl sm:text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)] pr-2 pb-1">BATAILLE NAVALE</h1>
-        <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
-      </div>
+        {/* Header */}
+        <div className="w-full max-w-md flex items-center justify-between z-10 mb-2 shrink-0">
+            <button onClick={() => { if (phase === 'SETUP' && gameMode === 'ONLINE') { mp.leaveGame(); setPhase('MENU'); } else if (phase === 'SETUP') setPhase('MENU'); else { if(gameMode==='ONLINE') mp.leaveGame(); setPhase('MENU'); } }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
+            <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)] pr-2 pb-1">NEON FLEET</h1>
+            {phase === 'SETUP' ? (
+                <button onClick={clearSetup} className="p-2 bg-gray-800 rounded-lg text-red-400 hover:text-red-300 border border-white/10 active:scale-95 transition-transform"><Trash2 size={20} /></button>
+            ) : (
+                <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+            )}
+        </div>
 
-      {phase === 'SETUP' && (
-        <div className="flex flex-col items-center justify-center z-10 w-full h-full max-h-[80vh] overflow-hidden">
-            <div className="bg-gray-900/80 p-3 rounded-xl border border-blue-500/30 w-full max-w-[min(90vw,400px)] flex flex-col">
-                {gameMode === 'ONLINE' && !opponentReady && isReady ? (
-                    <div className="flex-1 flex flex-col items-center justify-center min-h-[300px]">
-                        <Loader2 size={48} className="text-blue-400 animate-spin mb-4" />
-                        <p className="text-blue-300 font-bold animate-pulse">EN ATTENTE DE L'ADVERSAIRE...</p>
+        {/* SETUP PHASE */}
+        {phase === 'SETUP' && (
+            <div className="flex-1 w-full max-w-md flex flex-col items-center relative z-20">
+                <div className="text-center mb-4">
+                    <h2 className="text-lg font-bold text-white mb-1">DÉPLOIEMENT</h2>
+                    <p className="text-xs text-gray-400">Glissez les navires sur la grille.<br/>Tapez pour pivoter.</p>
+                </div>
+
+                {/* Setup Grid */}
+                <div 
+                    ref={setupGridRef}
+                    className="relative w-full aspect-square bg-gray-900/80 border-2 border-green-500/30 rounded-lg shadow-2xl overflow-hidden touch-none"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    onContextMenu={handleSetupRightClick}
+                >
+                    <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 pointer-events-none">
+                        {Array.from({ length: 100 }).map((_, i) => (
+                            <div key={i} className={`border border-white/5 ${hoverCell && hoverCell.r * 10 + hoverCell.c === i ? 'bg-white/10' : ''}`}></div>
+                        ))}
                     </div>
-                ) : (
-                    <>
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-blue-300 font-bold flex items-center gap-2 text-sm"><Anchor size={16}/> DÉPLOIEMENT</h3>
-                            <div className="flex gap-2">
-                                <button onClick={handleOrientationToggle} className={`px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 hover:bg-gray-600 transition-colors ${selectedShipId ? 'bg-green-600 text-white animate-pulse' : 'bg-gray-700'}`}>
-                                    <RotateCw size={12} className={orientation === 'vertical' ? 'rotate-90 transition-transform' : 'transition-transform'}/> 
-                                    {selectedShipId ? 'PIVOTER' : (orientation === 'horizontal' ? 'HORIZ' : 'VERT')}
-                                </button>
-                                <button onClick={clearSetup} className="p-1.5 bg-red-900/50 border border-red-500/30 text-red-400 rounded hover:bg-red-900 hover:text-white transition-colors"><Trash2 size={14} /></button>
-                                <button onClick={randomizePlayerShips} className="px-2 py-1 bg-blue-600 rounded text-[10px] font-bold hover:bg-blue-500 transition-colors">AUTO</button>
-                            </div>
+                    {renderShipsLayer(playerShips, true)}
+                    {isDragging && currentShipIndex < SHIPS_CONFIG.length && hoverCell && (
+                        <div className="absolute pointer-events-none opacity-70" 
+                             style={{ 
+                                 left: `${(hoverCell.c * 10)}%`, 
+                                 top: `${(hoverCell.r * 10)}%`, 
+                                 width: orientation === 'horizontal' ? `${SHIPS_CONFIG[currentShipIndex].size * 10}%` : '10%', 
+                                 height: orientation === 'vertical' ? `${SHIPS_CONFIG[currentShipIndex].size * 10}%` : '10%' 
+                             }}>
+                            <ShipVisual type={SHIPS_CONFIG[currentShipIndex].type} size={SHIPS_CONFIG[currentShipIndex].size} orientation={orientation} isSunk={false} isGhost={true} isValid={isValidPlacement(setupGrid, hoverCell.r, hoverCell.c, SHIPS_CONFIG[currentShipIndex].size, orientation)} />
                         </div>
-                        {currentShipIndex < SHIPS_CONFIG.length ? (
-                            <div className="mb-1 text-center text-xs text-gray-400">Placez : <span className="text-white font-bold">{SHIPS_CONFIG[currentShipIndex].label}</span> ({SHIPS_CONFIG[currentShipIndex].size})</div>
-                        ) : (
-                            <div className="mb-1 text-center text-green-400 font-bold text-xs flex items-center justify-center gap-2"><Target size={14}/> FLOTTE PRÊTE</div>
-                        )}
-                        <div ref={setupGridRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} className="relative aspect-square w-full bg-blue-900/10 border-2 border-blue-500/50 rounded-lg overflow-hidden touch-none" onContextMenu={handleSetupRightClick}>
-                            <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-0.5 p-1 z-0 pointer-events-none">{setupGrid.map((row, r) => row.map((cell, c) => renderCell(cell, false, r, c)))}</div>
-                            {renderShipsLayer(playerShips, true)}
-                            {renderGhostShip()}
+                    )}
+                </div>
+
+                <div className="w-full flex items-center justify-between mt-6 px-2">
+                    <button onClick={randomizePlayerShips} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg border border-white/10 text-xs font-bold active:scale-95"><RefreshCw size={14}/> ALÉATOIRE</button>
+                    <button onClick={handleOrientationToggle} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg border border-white/10 text-xs font-bold active:scale-95"><RotateCw size={14}/> PIVOTER</button>
+                </div>
+
+                <button 
+                    onClick={startGame}
+                    disabled={playerShips.length < SHIPS_CONFIG.length || (gameMode === 'ONLINE' && isReady)}
+                    className={`mt-6 w-full py-3 rounded-xl font-black tracking-widest text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${playerShips.length === SHIPS_CONFIG.length ? (isReady ? 'bg-yellow-500 text-black' : 'bg-green-500 text-black hover:bg-white hover:scale-105 shadow-[0_0_15px_#22c55e]') : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                >
+                    {isReady ? <><Loader2 className="animate-spin" size={20}/> EN ATTENTE...</> : <><Play size={20} fill="black"/> COMBATTRE</>}
+                </button>
+            </div>
+        )}
+
+        {/* PLAYING PHASE */}
+        {phase === 'PLAYING' && (
+            <div className="flex-1 w-full max-w-md flex flex-col relative z-20">
+                {/* Status Bar */}
+                <div className={`mb-2 px-4 py-1.5 rounded-full border flex items-center justify-center gap-2 text-xs font-bold shadow-lg transition-colors self-center ${turn === 'PLAYER' ? 'bg-green-500/20 border-green-500 text-green-400 animate-pulse' : 'bg-red-500/10 border-red-500/50 text-red-400'}`}>
+                    {turn === 'PLAYER' ? <><Crosshair size={14}/> À VOUS DE TIRER</> : <><ShieldAlert size={14}/> L'ENNEMI VISE...</>}
+                </div>
+
+                {/* ENEMY GRID (Target) */}
+                <div className="relative w-full aspect-square bg-black/60 border-2 border-red-500/30 rounded-lg shadow-lg overflow-hidden mb-4">
+                    {/* Grid Overlay */}
+                    <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 z-10">
+                        {Array.from({ length: 100 }).map((_, i) => {
+                            const r = Math.floor(i / 10);
+                            const c = i % 10;
+                            return (
+                                <div key={i} onClick={() => handleCellClick(r, c)} className="pointer-events-auto">
+                                    {renderCell(cpuGrid[r][c], true, r, c)}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {/* CPU Ships (Hidden until Game Over) */}
+                    {renderShipsLayer(cpuShips, phase === 'GAMEOVER')}
+                    
+                    {/* Missile Animation */}
+                    {missile && missile.target === 'CPU' && (
+                        <div className="absolute z-30 w-2 h-2 bg-green-400 rounded-full shadow-[0_0_10px_#4ade80] transition-all duration-500" style={{ left: '50%', top: '100%', transform: `translate(${missile.c * 100 * 4 - 200}%, ${missile.r * 100 * 4 - 400}%)` }}></div>
+                    )}
+                </div>
+
+                {/* PLAYER GRID (Mini) */}
+                <div className="relative w-1/2 aspect-square self-center bg-gray-900/80 border border-green-500/30 rounded-lg shadow-md overflow-hidden">
+                     <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 z-10 pointer-events-none">
+                        {Array.from({ length: 100 }).map((_, i) => {
+                            const r = Math.floor(i / 10);
+                            const c = i % 10;
+                            return renderCell(playerGrid[r][c], false, r, c);
+                        })}
+                    </div>
+                    {renderShipsLayer(playerShips, true)}
+                    
+                    {/* Missile Animation (Incoming) */}
+                    {missile && missile.target === 'PLAYER' && (
+                        <div className="absolute z-30 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_10px_red] transition-all duration-500" style={{ left: '50%', top: '-20%', transform: `translate(${missile.c * 100 * 2 - 100}%, ${missile.r * 100 * 2}%)` }}></div>
+                    )}
+                </div>
+
+                {/* ONLINE CHAT */}
+                {gameMode === 'ONLINE' && mp.gameOpponent && (
+                    <div className="absolute bottom-0 w-full px-2 pb-2 z-30">
+                        <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
+                            {REACTIONS.map(reaction => {
+                                const Icon = reaction.icon;
+                                return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
+                            })}
                         </div>
-                        {currentShipIndex >= SHIPS_CONFIG.length && (
-                            <button onClick={startGame} className="w-full mt-3 py-2 bg-green-500 text-black font-black tracking-widest rounded hover:bg-green-400 shadow-[0_0_15px_#22c55e] transition-all flex items-center justify-center gap-2 animate-pulse text-sm">
-                                <Play size={16} /> {gameMode === 'ONLINE' ? (isReady ? 'EN ATTENTE...' : 'PRÊT AU COMBAT') : 'COMMENCER'}
-                            </button>
-                        )}
-                    </>
+                        <form onSubmit={sendChat} className="flex gap-2">
+                            <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
+                            <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-green-500 text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
+                        </form>
+                    </div>
                 )}
             </div>
-        </div>
-      )}
+        )}
 
-      {(phase === 'PLAYING' || phase === 'GAMEOVER') && (
-        <div className="flex flex-col gap-2 z-10 w-full max-w-4xl lg:flex-row items-center justify-center flex-1 min-h-0">
-            <div className={`flex flex-col gap-1 w-[85vw] max-w-[320px] lg:max-w-[380px] ${turn === 'PLAYER' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
-                <div className="flex justify-between items-center bg-red-900/30 px-3 py-1 rounded-t-lg border-t border-l border-r border-red-500/30">
-                    <span className="text-red-400 font-bold flex items-center gap-2 text-xs sm:text-sm"><Target size={14}/> {gameMode === 'ONLINE' ? 'ADVERSAIRE' : 'CPU'}</span>
-                    <div className="flex gap-0.5">{cpuShips.filter(s => s.id !== 'unknown').map((s, i) => <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-500 ${s.sunk ? 'bg-red-600 shadow-[0_0_5px_red]' : 'bg-gray-600'}`}/>)}</div>
-                </div>
-                <div className="relative aspect-square w-full bg-black/40 border-2 border-red-500/30 rounded-b-lg shadow-[0_0_20px_rgba(239,68,68,0.1)] overflow-hidden">
-                    {missile?.target === 'CPU' && renderMissile()}
-                    {turn === 'CPU' && phase === 'PLAYING' && !missile && <div className="absolute inset-0 z-30 bg-black/50 flex items-center justify-center backdrop-blur-[1px]"><span className="text-red-500 font-bold animate-pulse tracking-widest flex items-center gap-2 text-xs"><AlertCircle size={16}/> TOUR ADVERSE...</span></div>}
-                    {renderShipsLayer(cpuShips, phase === 'GAMEOVER')}
-                    <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-0.5 p-1 z-10">{cpuGrid.map((row, r) => row.map((cell, c) => <div key={`${r}-${c}`} className={`relative w-full h-full pointer-events-auto`} onClick={() => handleCellClick(r, c)}>{renderCell(cell, true, r, c)}</div>))}</div>
+        {/* GAME OVER */}
+        {phase === 'GAMEOVER' && (
+            <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6 text-center">
+                {winner === 'PLAYER' ? (
+                    <>
+                        <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
+                        <h2 className="text-5xl font-black italic text-white mb-2">VICTOIRE !</h2>
+                        <p className="text-green-400 font-bold mb-6">LA FLOTTE ENNEMIE EST DÉTRUITE</p>
+                        {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
+                    </>
+                ) : (
+                    <>
+                        <Anchor size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
+                        <h2 className="text-5xl font-black italic text-white mb-2">DÉFAITE...</h2>
+                        <p className="text-red-400 font-bold mb-6">{opponentLeft ? "ADVERSAIRE PARTI" : "VOTRE FLOTTE A COULÉ"}</p>
+                    </>
+                )}
+                <div className="flex gap-4">
+                    <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                    {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setPhase('MENU'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
                 </div>
             </div>
-
-            <div className={`flex flex-col gap-1 w-[85vw] max-w-[320px] lg:max-w-[380px] ${turn === 'CPU' && phase === 'PLAYING' ? 'opacity-100 scale-105 shadow-xl' : 'opacity-80 scale-95'} transition-all duration-300`}>
-                <div className="flex justify-between items-center bg-blue-900/30 px-3 py-1 rounded-t-lg border-t border-l border-r border-blue-500/30">
-                    <span className="text-blue-400 font-bold flex items-center gap-2 text-xs sm:text-sm"><ShieldAlert size={14}/> MA FLOTTE</span>
-                    <div className="flex gap-0.5">{playerShips.map((s, i) => <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-500 ${s.sunk ? 'bg-red-600' : 'bg-green-500 shadow-[0_0_5px_lime]'}`}/>)}</div>
-                </div>
-                <div className="relative aspect-square w-full bg-black/40 border-2 border-blue-500/30 rounded-b-lg overflow-hidden">
-                     {missile?.target === 'PLAYER' && renderMissile()}
-                     {turn === 'PLAYER' && phase === 'PLAYING' && !missile && <div className="absolute inset-0 z-30 bg-blue-500/5 flex items-center justify-center pointer-events-none"><Crosshair size={48} className="text-blue-400/20 animate-pulse" /></div>}
-                    {renderShipsLayer(playerShips, true)}
-                    <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-0.5 p-1 z-10 pointer-events-none">{playerGrid.map((row, r) => row.map((cell, c) => renderCell(cell, false, r, c)))}</div>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {gameMode === 'ONLINE' && phase !== 'SETUP' && !opponentLeft && (
-            <div className="w-full max-w-lg mt-2 flex flex-col gap-2 z-20 px-2 shrink-0">
-                <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
-                    {REACTIONS.map(reaction => {
-                        const Icon = reaction.icon;
-                        return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
-                    })}
-                </div>
-                <div className="flex flex-col gap-1 max-h-16 overflow-y-auto px-2 py-1 bg-black/40 rounded-xl border border-white/5 custom-scrollbar">
-                    {chatHistory.map((msg) => (
-                        <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${msg.isMe ? 'bg-purple-500/20 text-purple-100' : 'bg-gray-700/50 text-gray-300'}`}>{!msg.isMe && <span className="mr-1 opacity-50">{msg.senderName}:</span>}{msg.text}</div>
-                        </div>
-                    ))}
-                    <div ref={chatEndRef} />
-                </div>
-                <form onSubmit={sendChat} className="flex gap-2">
-                    <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
-                    <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-neon-blue text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
-                </form>
-            </div>
-      )}
-
-      {(phase === 'GAMEOVER' || opponentLeft) && (
-          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in p-6">
-              <div className="bg-gray-900 border-2 border-white/10 p-6 rounded-2xl flex flex-col items-center max-w-sm w-full shadow-2xl z-[100]">
-                  {opponentLeft ? (
-                      <>
-                        <LogOut size={48} className="text-red-500 mb-2" />
-                        <h2 className="text-3xl font-black italic text-white mb-2">ADVERSAIRE PARTI</h2>
-                      </>
-                  ) : winner === 'PLAYER' ? (
-                      <>
-                        <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_15px_#facc15]" />
-                        <h2 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2 text-center">VOUS AVEZ GAGNÉ !</h2>
-                        <p className="text-gray-400 mb-4 text-center">La flotte ennemie a été anéantie.</p>
-                        {earnedCoins > 0 && <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
-                      </>
-                  ) : (
-                      <>
-                        <Ship size={64} className="text-red-500 mb-4" />
-                        <h2 className="text-4xl font-black italic text-red-500 mb-2 text-center">VOUS AVEZ PERDU...</h2>
-                        <p className="text-gray-400 mb-4 text-center">Votre flotte a coulé.</p>
-                      </>
-                  )}
-                  
-                  <div className="flex flex-col gap-2 w-full">
-                      {gameMode === 'ONLINE' ? (
-                          <>
-                            <button onClick={() => mp.requestRematch()} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"><Play size={16}/> REVANCHE</button>
-                            <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> RETOUR AU LOBBY</button>
-                          </>
-                      ) : (
-                          <>
-                            <button onClick={resetGame} className="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors">REJOUER</button>
-                            <button onClick={handleLocalBack} className="w-full py-3 bg-transparent border border-white/20 text-white font-bold rounded hover:bg-white/10 transition-colors">RETOUR AU MENU</button>
-                          </>
-                      )}
-                  </div>
-              </div>
-          </div>
-      )}
+        )}
     </div>
   );
 };

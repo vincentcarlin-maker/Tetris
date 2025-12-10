@@ -11,6 +11,7 @@ interface UnoGameProps {
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
     mp: ReturnType<typeof useMultiplayer>;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 // --- TYPES ---
@@ -126,7 +127,7 @@ const generateDeck = (): Card[] => {
     return deck.sort(() => Math.random() - 0.5);
 };
 
-export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp }) => {
+export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     // --- HOOKS ---
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
@@ -307,6 +308,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
                 setMessage("La partie commence !");
                 setIsWaitingForHost(false);
                 setPlayDirection(1);
+                if (onReportProgress) onReportProgress('play', 1);
             }
             if (data.type === 'UNO_PLAY') {
                 const card = data.card;
@@ -406,6 +408,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             setActiveColor(firstCard.color);
             setTurn('PLAYER');
             setMessage("C'est parti !");
+            if (onReportProgress) onReportProgress('play', 1);
         } else {
             if (mp.isHost) {
                 const newDeck = generateDeck();
@@ -801,6 +804,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp })
             addCoins(coins);
             setEarnedCoins(coins);
             updateHighScore('uno', points);
+            if (onReportProgress) onReportProgress('win', 1);
         } else {
             playGameOver();
         }

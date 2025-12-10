@@ -10,6 +10,7 @@ interface PacmanGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 const GAME_SPEED_BASE = 0.11; // Vitesse de base
@@ -66,7 +67,7 @@ const createGhosts = (speedMultiplier: number = 1): GhostType[] => [
 ];
 
 
-export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins }) => {
+export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     // Game State
     const [score, setScore] = useState(0);
     const [lives, setLives] = useState(3);
@@ -93,6 +94,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     const gameTimerRef = useRef(0);
     const gameModeIndexRef = useRef(0);
     const gameModeRef = useRef<'CHASE' | 'SCATTER'>('SCATTER');
+    const survivalTimerRef = useRef<any>(null);
     
     // FX Refs
     const fxCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -112,8 +114,24 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
     useEffect(() => {
         // Start at level 1 by default, but we could add level select later
         resetGame(1);
-        return () => cancelAnimationFrame(animationFrameRef.current);
+        if (onReportProgress) onReportProgress('play', 1);
+        return () => {
+            cancelAnimationFrame(animationFrameRef.current);
+            if (survivalTimerRef.current) clearInterval(survivalTimerRef.current);
+        };
     }, []);
+
+    // Survival Quest Timer
+    useEffect(() => {
+        if (isPlaying && !gameOver && !gameWon && !levelComplete) {
+            survivalTimerRef.current = setInterval(() => {
+                if (onReportProgress) onReportProgress('action', 1); // 1 second survived
+            }, 1000);
+        } else {
+            if (survivalTimerRef.current) clearInterval(survivalTimerRef.current);
+        }
+        return () => { if (survivalTimerRef.current) clearInterval(survivalTimerRef.current); };
+    }, [isPlaying, gameOver, gameWon, levelComplete, onReportProgress]);
 
     // Gestion du clavier pour Desktop / Test
     useEffect(() => {
@@ -206,6 +224,8 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins 
         setIsPlaying(false);
         setEarnedCoins(0);
         trailsRef.current = [];
+        
+        if (onReportProgress) onReportProgress('play', 1);
     };
 
     const startNextLevel = () => {

@@ -206,10 +206,6 @@ const App: React.FC = () => {
             if (cloudData.highScores) {
                 importScores(cloudData.highScores);
             }
-            
-            // FORCE IMMEDIATE SAVE FOR NEW PROFILES
-            // If cloudData came from local scraping (LoginScreen), it needs to be pushed to Supabase immediately.
-            // We use the passed 'username' and 'cloudData' directly to avoid state race conditions.
             console.log("💾 Force Initial Save for", username);
             syncProfileToCloud(username, cloudData);
         } else {
@@ -227,7 +223,7 @@ const App: React.FC = () => {
     };
 
     // Generic Event Handler for Games to report progress
-    const handleGameEvent = (gameId: string, eventType: 'score' | 'win' | 'action', value: number) => {
+    const handleGameEvent = (gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
         reportQuestProgress(gameId, eventType, value);
     };
 
@@ -261,11 +257,11 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'connect4' && isAuthenticated && (
-                <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
+                <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('connect4', metric, val)} />
             )}
 
             {currentView === 'sudoku' && isAuthenticated && (
-                <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('sudoku', metric, val)} />
             )}
 
             {currentView === 'breaker' && isAuthenticated && (
@@ -273,15 +269,15 @@ const App: React.FC = () => {
             )}
             
             {currentView === 'pacman' && isAuthenticated && (
-                <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('pacman', metric, val)} />
             )}
             
             {currentView === 'memory' && isAuthenticated && (
-                <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
+                <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('memory', metric, val)} />
             )}
 
             {currentView === 'battleship' && isAuthenticated && (
-                <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
+                <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('battleship', metric, val)} />
             )}
 
             {currentView === 'snake' && isAuthenticated && (
@@ -289,19 +285,19 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'invaders' && isAuthenticated && (
-                <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} />
+                <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('invaders', metric, val)} />
             )}
             
             {currentView === 'airhockey' && isAuthenticated && (
-                <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
+                <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('airhockey', metric, val)} />
             )}
 
             {currentView === 'mastermind' && isAuthenticated && (
-                <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
+                <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('mastermind', metric, val)} />
             )}
 
             {currentView === 'uno' && isAuthenticated && (
-                <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} />
+                <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('uno', metric, val)} />
             )}
 
             {currentView === 'menu' && (

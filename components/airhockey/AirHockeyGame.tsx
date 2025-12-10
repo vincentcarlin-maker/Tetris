@@ -10,6 +10,7 @@ interface AirHockeyGameProps {
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
     mp: ReturnType<typeof useMultiplayer>;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 // --- TYPES ---
@@ -44,7 +45,7 @@ const lerp = (start: number, end: number, t: number) => {
     return start + (end - start) * t;
 };
 
-export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, addCoins, mp }) => {
+export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const { currentMalletId, malletsCatalog, username, currentAvatarId, avatarsCatalog } = useCurrency();
     const { subscribe, sendData, isHost, peerId, mode: mpMode } = mp; 
     
@@ -146,7 +147,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         resetRound(true, mode);
         setGameState('playing');
         resumeAudio();
-    }, [resetRound, resumeAudio]);
+        if (onReportProgress) onReportProgress('play', 1);
+    }, [resetRound, resumeAudio, onReportProgress]);
 
     // Handle Online Mode Transition
     useEffect(() => {
@@ -197,6 +199,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     const reward = 50 + (difficulty === 'MEDIUM' ? 25 : difficulty === 'HARD' ? 50 : 0);
                     addCoins(reward);
                     setEarnedCoins(reward);
+                    if (onReportProgress) onReportProgress('win', 1);
                 }
             } else {
                 playGameOver();

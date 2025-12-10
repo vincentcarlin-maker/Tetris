@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -9,9 +10,10 @@ interface SudokuGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
-export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins }) => {
+export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const [difficulty, setDifficulty] = useState<Difficulty>('EASY');
     const [initialGrid, setInitialGrid] = useState<Grid>([]);
     const [playerGrid, setPlayerGrid] = useState<Grid>([]);
@@ -35,13 +37,14 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
             setMistakes(0);
             setSelectedCell(null);
             setEarnedCoins(0);
+            if (onReportProgress) onReportProgress('play', 1);
         } catch (error) {
             console.error("Sudoku generation failed:", error);
             // Fallback to prevent crash loop
             setInitialGrid([]);
             setPlayerGrid([]);
         }
-    }, [difficulty]);
+    }, [difficulty, onReportProgress]);
 
     useEffect(() => {
         startNewGame();
@@ -91,6 +94,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins 
                 addCoins(reward);
                 setEarnedCoins(reward);
                 updateHighScore('sudoku', mistakes, difficulty);
+                if (onReportProgress) onReportProgress('win', 1);
             }
 
         } else {

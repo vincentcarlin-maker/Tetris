@@ -12,6 +12,7 @@ interface MemoryGameProps {
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
     mp: ReturnType<typeof useMultiplayer>; // Shared connection
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 // --- CONFIGURATION ---
@@ -55,7 +56,7 @@ const REACTIONS = [
 
 type MenuState = 'MENU' | 'DIFFICULTY' | 'GAME';
 
-export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins, mp }) => {
+export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const { playMove, playLand, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.memory || 0; 
@@ -140,6 +141,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
         setIsProcessing(false);
         setEarnedCoins(0);
         playLand(); 
+        
+        if (onReportProgress) onReportProgress('play', 1);
     };
 
     const startOnlineGame = () => {
@@ -333,6 +336,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
                     setCards(matchedCards);
                     setFlippedIndices([]);
                     
+                    if (onReportProgress) onReportProgress('action', 1);
+
                     if (gameMode === 'ONLINE') {
                         setScores(prev => ({
                             ...prev,
@@ -375,6 +380,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
             if (didIWin) {
                 addCoins(50);
                 setEarnedCoins(50);
+                if (onReportProgress) onReportProgress('win', 1);
             }
         }
     };
