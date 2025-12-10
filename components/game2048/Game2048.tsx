@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Hash } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -31,19 +31,26 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
     const [won, setWon] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
     
+    // Refs for logic stability (avoids closure staleness in event listeners)
+    const tilesRef = useRef<Tile[]>([]);
+    const movingRef = useRef(false);
     const tileIdCounter = useRef(0);
     const touchStartRef = useRef<{x: number, y: number} | null>(null);
-    const movingRef = useRef(false);
 
     const { playMove, playCoin, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const bestScore = highScores.game2048 || 0;
 
+    // Sync ref with state
+    useEffect(() => {
+        tilesRef.current = tiles;
+    }, [tiles]);
+
     const getEmptyCells = (currentTiles: Tile[]) => {
         const cells = [];
         for (let x = 0; x < GRID_SIZE; x++) {
             for (let y = 0; y < GRID_SIZE; y++) {
-                if (!currentTiles.find(t => t.x === x && t.y === y)) {
+                if (!currentTiles.find(t => t.x === x && t.y === y && !t.isDeleted)) {
                     cells.push({ x, y });
                 }
             }
@@ -66,7 +73,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
         return [...currentTiles, newTile];
     };
 
-    const initGame = () => {
+    const initGame = useCallback(() => {
         setScore(0);
         setGameOver(false);
         setWon(false);
@@ -76,153 +83,165 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
         newTiles = addRandomTile(newTiles);
         newTiles = addRandomTile(newTiles);
         setTiles(newTiles);
+        movingRef.current = false;
         if (onReportProgress) onReportProgress('play', 1);
-    };
+    }, [onReportProgress]);
 
+    // Initial load
     useEffect(() => {
         initGame();
     }, []);
 
     const checkGameOver = (currentTiles: Tile[]) => {
-        if (getEmptyCells(currentTiles).length > 0) return false;
+        const activeTiles = currentTiles.filter(t => !t.isDeleted);
+        if (getEmptyCells(activeTiles).length > 0) return false;
         
-        // Check merge possibilities
-        for (let t of currentTiles) {
-            const right = currentTiles.find(o => o.x === t.x + 1 && o.y === t.y);
-            const down = currentTiles.find(o => o.x === t.x && o.y === t.y + 1);
+        for (let t of activeTiles) {
+            // Check right
+            const right = activeTiles.find(o => o.x === t.x + 1 && o.y === t.y);
             if (right && right.val === t.val) return false;
+            // Check down
+            const down = activeTiles.find(o => o.x === t.x && o.y === t.y + 1);
             if (down && down.val === t.val) return false;
         }
         return true;
     };
 
-    const move = (direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
+    const move = useCallback((dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
         if (movingRef.current || gameOver) return;
-        movingRef.current = true;
-        resumeAudio();
-
-        let moved = false;
-        let mergedScore = 0;
-        let newTiles: Tile[] = tiles.map(t => ({ ...t, isMerged: false, isNew: false, mergedVal: undefined })); // Reset flags
-
-        // Sort tiles based on direction to process correctly
-        if (direction === 'UP') newTiles.sort((a, b) => a.y - b.y);
-        if (direction === 'DOWN') newTiles.sort((a, b) => b.y - a.y);
-        if (direction === 'LEFT') newTiles.sort((a, b) => a.x - b.x);
-        if (direction === 'RIGHT') newTiles.sort((a, b) => b.x - a.x);
-
-        const vector = { x: 0, y: 0 };
-        if (direction === 'UP') vector.y = -1;
-        if (direction === 'DOWN') vector.y = 1;
-        if (direction === 'LEFT') vector.x = -1;
-        if (direction === 'RIGHT') vector.x = 1;
-
+        
+        const currentTiles = tilesRef.current;
         const mergedIds = new Set<number>();
+        
+        // Prepare working copy
+        let nextTiles = currentTiles.map(t => ({ ...t, isMerged: false, isNew: false }));
+        let hasChanged = false;
+        let totalMergedScore = 0;
 
-        for (let i = 0; i < newTiles.length; i++) {
-            let tile = newTiles[i];
-            let { x, y } = tile;
-            let nextX = x + vector.x;
-            let nextY = y + vector.y;
+        // Helper to find tile in the working set
+        const getTileAt = (x: number, y: number) => nextTiles.find(t => t.x === x && t.y === y && !t.isDeleted);
 
-            while (nextX >= 0 && nextX < GRID_SIZE && nextY >= 0 && nextY < GRID_SIZE) {
-                // Find obstacle, ignoring deleted ones
-                const obstacle = newTiles.find(t => t.x === nextX && t.y === nextY && !t.isDeleted);
-                
-                if (obstacle) {
-                    if (obstacle.val === tile.val && !mergedIds.has(obstacle.id) && !mergedIds.has(tile.id)) {
-                        // Merge logic
-                        tile.x = nextX;
-                        tile.y = nextY;
+        // Sorting functions to process tiles in the correct order
+        const sortOrder = (a: Tile, b: Tile) => {
+            if (dir === 'LEFT') return a.x - b.x;
+            if (dir === 'RIGHT') return b.x - a.x;
+            if (dir === 'UP') return a.y - b.y;
+            if (dir === 'DOWN') return b.y - a.y;
+            return 0;
+        };
+
+        // We process line by line
+        const lines = [0, 1, 2, 3];
+        
+        lines.forEach(lineIndex => {
+            // Get tiles for this row/col
+            let lineTiles = nextTiles.filter(t => 
+                !t.isDeleted && (dir === 'LEFT' || dir === 'RIGHT' ? t.y === lineIndex : t.x === lineIndex)
+            ).sort(sortOrder);
+
+            // Target position pointer
+            let target = (dir === 'LEFT' || dir === 'UP') ? 0 : 3;
+            const inc = (dir === 'LEFT' || dir === 'UP') ? 1 : -1;
+
+            for (let i = 0; i < lineTiles.length; i++) {
+                const tile = lineTiles[i];
+                let placed = false;
+
+                // Check merge with previous tile in target direction
+                if ((dir === 'LEFT' || dir === 'UP') ? target > 0 : target < 3) {
+                    const checkX = (dir === 'LEFT' || dir === 'RIGHT') ? target - inc : lineIndex;
+                    const checkY = (dir === 'LEFT' || dir === 'RIGHT') ? lineIndex : target - inc;
+                    
+                    const prevTile = getTileAt(checkX, checkY);
+                    
+                    if (prevTile && prevTile.val === tile.val && !mergedIds.has(prevTile.id)) {
+                        // MERGE
+                        prevTile.mergedVal = prevTile.val * 2;
+                        prevTile.isMerged = true;
+                        mergedIds.add(prevTile.id);
                         
-                        // DEFER UPDATE: Store future value but don't apply yet
-                        tile.mergedVal = tile.val * 2;
-                        mergedScore += tile.mergedVal;
+                        // Slide current into prev
+                        tile.x = prevTile.x;
+                        tile.y = prevTile.y;
+                        tile.isDeleted = true;
                         
-                        mergedIds.add(tile.id);
-                        
-                        // Mark obstacle for removal later (keep it visible for smooth overlap)
-                        obstacle.isDeleted = true;
-                        
-                        // Note: We don't set isMerged=true here to delay the pop animation
-                        moved = true;
+                        totalMergedScore += prevTile.mergedVal;
+                        hasChanged = true;
+                        placed = true;
                     }
-                    break; // Hit something (merge or not), stop moving
                 }
-                
-                x = nextX;
-                y = nextY;
-                tile.x = x;
-                tile.y = y;
-                moved = true;
-                
-                nextX += vector.x;
-                nextY += vector.y;
-            }
-        }
 
-        if (moved) {
-            playMove();
-            if (mergedScore > 0) {
-                if (mergedScore >= 512) playCoin(); 
-                setScore(s => s + mergedScore);
+                if (!placed) {
+                    const targetX = (dir === 'LEFT' || dir === 'RIGHT') ? target : lineIndex;
+                    const targetY = (dir === 'LEFT' || dir === 'RIGHT') ? lineIndex : target;
+
+                    if (tile.x !== targetX || tile.y !== targetY) {
+                        tile.x = targetX;
+                        tile.y = targetY;
+                        hasChanged = true;
+                    }
+                    target += inc;
+                }
             }
+        });
+
+        if (hasChanged) {
+            movingRef.current = true;
+            resumeAudio();
+            playMove();
             
-            // Phase 1: Trigger Slide Animation (Old values slide)
-            setTiles(newTiles);
+            // Phase 1: Animate slide
+            setTiles(nextTiles);
             
-            // Phase 2: Finalize State (Update values, remove deleted, spawn new)
+            if (totalMergedScore > 0) {
+                setScore(s => s + totalMergedScore);
+                if (totalMergedScore >= 128) playCoin(); 
+            }
+
+            // Phase 2: Finalize (after transition)
             setTimeout(() => {
-                // Apply deferred values and trigger pop animation
-                const processedTiles = newTiles.map(t => {
+                const finalTiles = nextTiles.map(t => {
                     if (t.mergedVal) {
-                        return { 
-                            ...t, 
-                            val: t.mergedVal, 
-                            isMerged: true, // Trigger pop now
-                            mergedVal: undefined 
-                        };
+                        return { ...t, val: t.mergedVal, isMerged: true, mergedVal: undefined };
                     }
                     return t;
-                });
-
-                const cleanTiles = processedTiles.filter(t => !t.isDeleted);
-                const afterSpawn = addRandomTile(cleanTiles);
-                setTiles(afterSpawn);
+                }).filter(t => !t.isDeleted);
                 
-                if (mergedScore > 0) {
-                    if (afterSpawn.some(t => t.val === 2048) && !won) {
-                        setWon(true);
-                        playVictory();
-                        addCoins(200);
-                        setEarnedCoins(prev => prev + 200);
-                        if (onReportProgress) onReportProgress('win', 1);
-                    }
+                const withNew = addRandomTile(finalTiles);
+                setTiles(withNew);
+                
+                // Win Check
+                if (totalMergedScore > 0 && withNew.some(t => t.val === 2048) && !won) {
+                    setWon(true);
+                    playVictory();
+                    addCoins(200);
+                    setEarnedCoins(prev => prev + 200);
+                    if (onReportProgress) onReportProgress('win', 1);
                 }
 
-                if (checkGameOver(afterSpawn)) {
+                // Loss Check
+                if (checkGameOver(withNew)) {
                     setGameOver(true);
                     playGameOver();
-                    updateHighScore('game2048', score + mergedScore); 
-                    const coins = Math.floor((score + mergedScore) / 500) * 10;
+                    const finalScore = score + totalMergedScore; // Approximate
+                    updateHighScore('game2048', finalScore); 
+                    const coins = Math.floor(finalScore / 500) * 10;
                     if (coins > 0) {
                         addCoins(coins);
                         setEarnedCoins(prev => prev + coins);
                     }
-                    if (onReportProgress) onReportProgress('score', score + mergedScore);
+                    if (onReportProgress) onReportProgress('score', finalScore);
                 }
                 
                 movingRef.current = false;
-            }, 150); // Match this delay with CSS transition duration
-        } else {
-            movingRef.current = false;
+            }, 100); // 100ms matches CSS transition duration
         }
-    };
+    }, [gameOver, won, score, audio, addCoins, updateHighScore, onReportProgress]);
 
-    // Controls
+    // Keyboard Controls
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (gameOver) return;
+            if (gameOver || movingRef.current) return;
             switch(e.key) {
                 case 'ArrowUp': e.preventDefault(); move('UP'); break;
                 case 'ArrowDown': e.preventDefault(); move('DOWN'); break;
@@ -232,14 +251,16 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [tiles, gameOver]);
+    }, [move, gameOver]);
 
+    // Touch Controls
     const handleTouchStart = (e: React.TouchEvent) => {
+        if (gameOver || movingRef.current) return;
         touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
-        if (!touchStartRef.current) return;
+        if (!touchStartRef.current || movingRef.current) return;
         const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
         const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
         
@@ -251,9 +272,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
         touchStartRef.current = null;
     };
 
-    // Visuals
     const getTileClass = (val: number) => {
-        // Updated to use opaque bg-gray-900 to prevent overlapping artifacts
         const base = "flex items-center justify-center font-black rounded-lg border-2 shadow-[0_0_10px_currentColor] transition-all duration-100 absolute w-20 h-20 sm:w-24 sm:h-24 bg-gray-900";
         switch (val) {
             case 2: return `${base} border-cyan-500 text-cyan-500`;
