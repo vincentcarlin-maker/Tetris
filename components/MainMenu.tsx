@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -143,6 +143,20 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [flyingCoins, setFlyingCoins] = useState<{id: number, startX: number, startY: number, targetX: number, targetY: number, delay: number}[]>([]);
     const coinBalanceRef = useRef<HTMLDivElement>(null);
 
+    // --- ADMIN GAMES MANAGEMENT ---
+    const [disabledGames, setDisabledGames] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
+    });
+    const [showAdminGamePanel, setShowAdminGamePanel] = useState(false);
+
+    const toggleGameAvailability = (gameId: string) => {
+        setDisabledGames(prev => {
+            const newArr = prev.includes(gameId) ? prev.filter(id => id !== gameId) : [...prev, gameId];
+            localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
+            return newArr;
+        });
+    };
+
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
         onMouseLeave: () => setActiveGlow(null),
@@ -150,7 +164,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         onTouchEnd: () => setActiveGlow(null)
     });
     
-    const handleGameStart = (gameId: string) => { onSelectGame(gameId); };
+    const handleGameStart = (gameId: string) => { 
+        if (!disabledGames.includes(gameId)) {
+            onSelectGame(gameId); 
+        }
+    };
 
     const spawnCoins = (startX: number, startY: number, amount: number) => {
         const targetRect = coinBalanceRef.current?.getBoundingClientRect();
@@ -249,6 +267,35 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             {showDailyModal && isAuthenticated && <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />}
             <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
 
+            {/* ADMIN GAME CONFIG MODAL */}
+            {showAdminGamePanel && isAuthenticated && currency.adminModeActive && (
+                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/20 p-6 shadow-2xl relative">
+                        <button onClick={() => setShowAdminGamePanel(false)} className="absolute top-2 right-2 text-gray-400 hover:text-white"><Edit2 size={20}/></button>
+                        <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2"><Settings className="text-neon-blue"/> GESTION DES JEUX</h3>
+                        <div className="space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                            {GAMES_CONFIG.map(game => {
+                                const isDisabled = disabledGames.includes(game.id);
+                                return (
+                                    <div key={game.id} className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <game.icon size={20} className={isDisabled ? "text-gray-500" : game.color}/>
+                                            <span className={`font-bold text-sm ${isDisabled ? "text-gray-500" : "text-white"}`}>{game.name}</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => toggleGameAvailability(game.id)}
+                                            className={`w-12 h-6 rounded-full p-1 transition-colors ${isDisabled ? 'bg-red-900/50' : 'bg-green-600'}`}
+                                        >
+                                            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isDisabled ? 'translate-x-0' : 'translate-x-6'}`} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
                 {isAuthenticated ? (
                     <div ref={coinBalanceRef} className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
@@ -290,7 +337,18 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             ) : <div className="flex flex-col gap-2 items-start"><h2 className="text-xl font-bold text-gray-400 italic">Mode Visiteur</h2><button onClick={onLoginRequest} className="text-xs bg-neon-blue text-black px-3 py-1 rounded font-bold hover:bg-white transition-colors">CRÉER UN PROFIL</button></div>}
                         </div>
                      </div>
-                     {isAuthenticated && currency.isSuperUser && <button onClick={currency.toggleAdminMode} className={`w-full py-2 mt-2 rounded-lg font-black text-xs tracking-widest flex items-center justify-center gap-2 transition-all border ${currency.adminModeActive ? 'bg-red-900/50 text-red-400 border-red-500/50 hover:bg-red-900/80 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-900/80'}`}>{currency.adminModeActive ? <><ShieldAlert size={16}/> GOD MODE : ACTIVÉ</> : <><Shield size={16}/> GOD MODE : DÉSACTIVÉ</>}</button>}
+                     
+                     {isAuthenticated && currency.isSuperUser && (
+                         <div className="w-full flex gap-2 mt-2">
+                             <button onClick={currency.toggleAdminMode} className={`flex-1 py-2 rounded-lg font-black text-[10px] tracking-widest flex items-center justify-center gap-1 transition-all border ${currency.adminModeActive ? 'bg-red-900/50 text-red-400 border-red-500/50 hover:bg-red-900/80 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-900/80'}`}>{currency.adminModeActive ? <><ShieldAlert size={12}/> GOD MODE : ON</> : <><Shield size={12}/> GOD MODE : OFF</>}</button>
+                             {currency.adminModeActive && (
+                                <button onClick={() => setShowAdminGamePanel(true)} className="flex-1 py-2 bg-blue-900/50 text-blue-400 border border-blue-500/50 hover:bg-blue-900/80 rounded-lg font-black text-[10px] tracking-widest flex items-center justify-center gap-1 transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                    <Settings size={12}/> CONFIGURER JEUX
+                                </button>
+                             )}
+                         </div>
+                     )}
+
                      <div className="w-full h-px bg-white/10" />
                      {isAuthenticated ? (ownedBadges.length > 0 ? <div className="flex gap-3 overflow-x-auto w-full justify-start py-2 no-scrollbar z-10 mask-linear">{ownedBadges.slice().reverse().map(badge => { const Icon = badge.icon; return <div key={badge.id} className="relative shrink-0 animate-in fade-in zoom-in duration-300"><div className="w-10 h-10 bg-black/60 rounded-lg border border-white/10 flex items-center justify-center shadow-lg" title={badge.name}><Icon size={20} className={badge.color} /></div></div>; })}</div> : <div className="text-xs text-gray-600 italic py-2 w-full text-center">Joue pour gagner des badges !</div>) : <div className="text-xs text-gray-600 italic py-2 w-full text-center flex items-center justify-center gap-2"><Lock size={12}/> Connecte-toi pour gagner des badges</div>}
                  </div>
@@ -409,27 +467,49 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
                  {/* --- GAME GRID --- */}
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                    {GAMES_CONFIG.map((game) => (
-                        <button key={game.id} onClick={() => handleGameStart(game.id)} {...bindGlow(game.glow)} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border ${game.border} rounded-xl overflow-hidden transition-all duration-300 ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95 backdrop-blur-md`}>
-                            <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>
-                            <div className="w-full flex justify-end gap-1 relative z-10">
-                                {game.badges.new && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse" title="Nouveau Jeu">NEW</div>}
-                                {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
-                                {game.badges.vs && <div className="p-1 rounded bg-black/40 text-pink-400 border border-pink-500/30" title="Versus"><Users size={10} /></div>}
-                            </div>
-                            <div className={`p-2 rounded-lg bg-gray-900/50 ${game.color} group-hover:scale-110 transition-transform relative z-10 shadow-lg border border-white/5`}>
-                                <game.icon size={32} />
-                                {!isAuthenticated && <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-white/30"><Lock size={10} className="text-white"/></div>}
-                            </div>
-                            <div className="text-center relative z-10 w-full">
-                                <h3 className={`font-black italic text-sm tracking-wider text-white group-hover:${game.color} transition-colors uppercase`}>{game.name}</h3>
-                                {game.reward && <div className="flex items-center justify-center gap-1 mt-0.5 opacity-60 text-[8px] font-mono text-gray-300"><Coins size={8} className="text-yellow-500" /><span>{game.reward}</span></div>}
-                            </div>
-                        </button>
-                    ))}
+                    {GAMES_CONFIG.map((game) => {
+                        const isDisabled = disabledGames.includes(game.id);
+                        return (
+                            <button 
+                                key={game.id} 
+                                onClick={() => handleGameStart(game.id)} 
+                                disabled={isDisabled}
+                                {...(!isDisabled ? bindGlow(game.glow) : {})} 
+                                className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md
+                                    ${isDisabled 
+                                        ? 'border-gray-800 opacity-60 grayscale cursor-not-allowed' 
+                                        : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`
+                                    }`}
+                            >
+                                {!isDisabled && <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>}
+                                
+                                {isDisabled && (
+                                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/70">
+                                        <div className="bg-yellow-500/90 text-black font-black text-[9px] px-2 py-1 rounded border border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.5)] transform -rotate-12 animate-pulse flex items-center gap-1">
+                                            <Hourglass size={10} /> BIENTÔT DISPONIBLE
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="w-full flex justify-end gap-1 relative z-10">
+                                    {game.badges.new && !isDisabled && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse" title="Nouveau Jeu">NEW</div>}
+                                    {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
+                                    {game.badges.vs && <div className="p-1 rounded bg-black/40 text-pink-400 border border-pink-500/30" title="Versus"><Users size={10} /></div>}
+                                </div>
+                                <div className={`p-2 rounded-lg bg-gray-900/50 ${game.color} ${!isDisabled && 'group-hover:scale-110'} transition-transform relative z-10 shadow-lg border border-white/5`}>
+                                    <game.icon size={32} />
+                                    {!isAuthenticated && !isDisabled && <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-white/30"><Lock size={10} className="text-white"/></div>}
+                                </div>
+                                <div className="text-center relative z-10 w-full">
+                                    <h3 className={`font-black italic text-sm tracking-wider text-white ${!isDisabled && `group-hover:${game.color}`} transition-colors uppercase`}>{game.name}</h3>
+                                    {game.reward && !isDisabled && <div className="flex items-center justify-center gap-1 mt-0.5 opacity-60 text-[8px] font-mono text-gray-300"><Coins size={8} className="text-yellow-500" /><span>{game.reward}</span></div>}
+                                </div>
+                            </button>
+                        );
+                    })}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.1 • QUESTS UPDATE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.2 • ADMIN UPDATE</div>
              </div>
         </div>
     );
