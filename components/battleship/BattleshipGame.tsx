@@ -118,7 +118,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const handleDataRef = useRef<any>(null);
 
   // Identity
-  const { username, currentAvatarId } = useCurrency();
+  const { username, currentAvatarId, avatarsCatalog } = useCurrency();
   
   // Audio Destructuring
   const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit } = audio;
@@ -417,13 +417,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
               if (playerGrid[move.r][move.c] === 1) { 
                   lastCpuHitRef.current = move; 
               } else {
-                  // If we missed, we don't necessarily clear the target if we were hunting a ship. 
-                  // But for simple "Hunt/Target" mode, usually we only track the last hit.
-                  // Improvements would need state stack of potential targets.
-                  // For now, simple logic: if miss, forget last hit (back to random hunt next time unless valid targets exist in getCpuMove logic)
-                  // Actually, getCpuMove checks validity. If we pass null, it hunts random.
-                  // Ideally we should remember the first hit of a ship until sunk.
-                  // Keeping simple logic for now but ensuring effect runs.
                   lastCpuHitRef.current = null;
               }
           }, 1000);
@@ -508,6 +501,75 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       );
   };
 
+  const handleLocalBack = () => {
+      if (phase === 'SETUP' || phase === 'PLAYING' || phase === 'GAMEOVER') {
+          if (gameMode === 'ONLINE') {
+              mp.leaveGame();
+              setOnlineStep('lobby');
+          }
+          setPhase('MENU');
+      } else if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
+          mp.disconnect();
+          setPhase('MENU');
+      } else {
+          onBack();
+      }
+  };
+
+  const renderLobby = () => {
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+         return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-teal-300 tracking-wider drop-shadow-md">LOBBY BATAILLE</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
+                </div>
+             </div>
+         );
+    };
+
   // --- VIEWS ---
 
   if (phase === 'MENU') {
@@ -527,25 +589,25 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       );
   }
 
-  if (gameMode === 'ONLINE' && onlineStep !== 'game') {
+  if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
       return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-4">
-             <div className="flex-1 flex flex-col items-center justify-center">
-                 {onlineStep === 'connecting' ? <Loader2 className="animate-spin text-cyan-400" size={48} /> : (
-                     <div className="w-full max-w-md bg-gray-900/80 rounded-xl p-6 border border-white/10">
-                         <h2 className="text-xl font-bold mb-4 text-center">LOBBY BATAILLE</h2>
-                         <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-bold rounded-lg mb-4">CRÉER</button>
-                         <div className="space-y-2">
-                             {mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId).map(p => (
-                                 <button key={p.id} onClick={() => mp.joinRoom(p.id)} className="w-full py-2 bg-gray-800 border border-white/20 rounded-lg hover:bg-gray-700 flex justify-between px-4">
-                                     <span>{p.name}</span> <span className="text-green-400">REJOINDRE</span>
-                                 </button>
-                             ))}
-                         </div>
-                         <button onClick={() => { mp.disconnect(); setPhase('MENU'); }} className="mt-4 w-full py-2 text-gray-400 text-sm">RETOUR</button>
-                     </div>
-                 )}
-             </div>
+             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-300 pr-2 pb-1">BATAILLE</h1>
+                <div className="w-10"></div>
+            </div>
+            {renderLobby()}
+        </div>
+      );
+  }
+  
+  if (gameMode === 'ONLINE' && onlineStep === 'connecting') {
+      return (
+        <div className="h-full w-full flex flex-col items-center justify-center bg-black/20 text-white p-4">
+             <Loader2 size={48} className="text-teal-400 animate-spin mb-4" />
+             <p className="text-teal-300 font-bold">CONNEXION...</p>
         </div>
       );
   }
@@ -565,7 +627,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
         {/* Header */}
         <div className="w-full max-w-md flex items-center justify-between z-10 mb-2 shrink-0">
-            <button onClick={() => setPhase('MENU')} className="p-2 bg-gray-800 rounded-lg text-gray-400"><ArrowLeft size={20} /></button>
+            <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
             <div className="flex flex-col items-center">
                 <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-500 pr-2">NEON FLEET</h1>
                 {phase === 'PLAYING' && (
@@ -575,7 +637,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     </div>
                 )}
             </div>
-            <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400"><RefreshCw size={20} /></button>
+            <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
         </div>
 
         {phase === 'SETUP' && (
@@ -648,7 +710,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 )}
                 <div className="flex gap-4">
                     <button onClick={resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
-                    {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setPhase('MENU'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                    {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
                 </div>
             </div>
         )}
