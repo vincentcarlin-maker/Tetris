@@ -18,6 +18,7 @@ type Tile = {
     y: number;
     isNew?: boolean;
     isMerged?: boolean;
+    isDeleted?: boolean;
 };
 
 const GRID_SIZE = 4;
@@ -101,7 +102,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
 
         let moved = false;
         let mergedScore = 0;
-        let newTiles = tiles.map(t => ({ ...t, isMerged: false, isNew: false })); // Reset flags
+        let newTiles: Tile[] = tiles.map(t => ({ ...t, isMerged: false, isNew: false })); // Reset flags
 
         // Sort tiles based on direction to process correctly
         if (direction === 'UP') newTiles.sort((a, b) => a.y - b.y);
@@ -124,7 +125,8 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
             let nextY = y + vector.y;
 
             while (nextX >= 0 && nextX < GRID_SIZE && nextY >= 0 && nextY < GRID_SIZE) {
-                const obstacle = newTiles.find(t => t.x === nextX && t.y === nextY);
+                // Find obstacle, ignoring deleted ones
+                const obstacle = newTiles.find(t => t.x === nextX && t.y === nextY && !t.isDeleted);
                 
                 if (obstacle) {
                     if (obstacle.val === tile.val && !mergedIds.has(obstacle.id) && !mergedIds.has(tile.id)) {
@@ -134,22 +136,10 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                         tile.val *= 2;
                         mergedScore += tile.val;
                         
-                        // Mark obstacle for removal (we keep 'tile' as the merged result)
-                        mergedIds.add(tile.id); // This tile just merged, can't merge again this move
-                        // Remove obstacle
-                        const obsIndex = newTiles.findIndex(t => t.id === obstacle.id);
-                        if (obsIndex > -1) newTiles.splice(obsIndex, 1);
+                        mergedIds.add(tile.id);
                         
-                        // Since we removed an element, adjust loop index if needed (though we iterate a copy conceptually sorted, mutation needs care)
-                        // Actually easier to rebuild list or use flags. 
-                        // Let's use a simpler approach:
-                        // Just flag obstacle as dead and update tile.
-                        // But React state needs clean array.
-                        
-                        // Correct logic: The 'obstacle' is absorbed. 'tile' takes its place with double value.
-                        // We need to ensure we don't process the absorbed tile again in the outer loop if it was ahead.
-                        // But we sorted, so obstacle is already processed or we are moving towards it.
-                        // With the sort order, we always process tiles closest to the wall first.
+                        // Mark obstacle for removal later (keep it for animation)
+                        obstacle.isDeleted = true;
                         
                         tile.isMerged = true; // Animation flag
                         moved = true;
@@ -175,9 +165,13 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                 setScore(s => s + mergedScore);
             }
             
-            // Wait for slide animation (100ms) then spawn
+            // Phase 1: Trigger Slide Animation
+            setTiles(newTiles);
+            
+            // Phase 2: Cleanup and Spawn after animation
             setTimeout(() => {
-                const afterSpawn = addRandomTile(newTiles);
+                const cleanTiles = newTiles.filter(t => !t.isDeleted);
+                const afterSpawn = addRandomTile(cleanTiles);
                 setTiles(afterSpawn);
                 
                 if (mergedScore > 0) {
@@ -193,7 +187,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                 if (checkGameOver(afterSpawn)) {
                     setGameOver(true);
                     playGameOver();
-                    updateHighScore('game2048', score + mergedScore); // Update with new score
+                    updateHighScore('game2048', score + mergedScore); 
                     const coins = Math.floor((score + mergedScore) / 500) * 10;
                     if (coins > 0) {
                         addCoins(coins);
@@ -291,7 +285,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                     {tiles.map(tile => (
                         <div 
                             key={tile.id}
-                            className={`${getTileClass(tile.val)} ${tile.isNew ? 'animate-pop' : ''} ${tile.isMerged ? 'z-20 animate-pop' : 'z-10'}`}
+                            className={`${getTileClass(tile.val)} ${tile.isNew ? 'animate-pop' : ''} ${tile.isMerged ? 'z-20 animate-pop' : (tile.isDeleted ? 'z-0' : 'z-10')}`}
                             style={{ 
                                 transform: `translate(${tile.x * (window.innerWidth < 640 ? 88 : 108)}px, ${tile.y * (window.innerWidth < 640 ? 88 : 108)}px)`,
                                 fontSize: tile.val > 1000 ? '24px' : tile.val > 100 ? '32px' : '40px'
