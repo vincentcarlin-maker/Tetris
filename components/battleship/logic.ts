@@ -93,39 +93,89 @@ export const checkHit = (r: number, c: number, ships: Ship[]): { hit: boolean, s
   return { hit: false };
 };
 
-// --- AI LOGIC (Simple Hunt & Target) ---
-export const getCpuMove = (grid: Grid, lastHit: { r: number, c: number } | null): { r: number, c: number } => {
-  const availableMoves: { r: number, c: number }[] = [];
-  
-  // Lister tous les coups possibles
-  for (let r = 0; r < GRID_SIZE; r++) {
-    for (let c = 0; c < GRID_SIZE; c++) {
-      if (grid[r][c] === 0 || grid[r][c] === 1) { // 0=Empty, 1=Ship (Hidden to AI logic, but targetable)
-        availableMoves.push({ r, c });
+// --- SMART AI LOGIC (Hunter-Target with Parity) ---
+// 0: Empty/Unknown (or Ship hidden), 2: Miss, 3: Hit
+export const getCpuMove = (grid: Grid): { r: number, c: number } => {
+  const size = grid.length;
+  const hits: {r: number, c: number}[] = [];
+  const availableMoves: {r: number, c: number}[] = [];
+
+  // 1. Analyze Board State
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const cell = grid[r][c];
+      // Note: 1 represents a ship, but for the AI logic it counts as Unknown/Targetable just like 0
+      if (cell === 3) hits.push({ r, c }); 
+      if (cell === 0 || cell === 1) availableMoves.push({ r, c });
+    }
+  }
+
+  // Helper to check cell status safely
+  const getCell = (r: number, c: number) => {
+      if (r < 0 || r >= size || c < 0 || c >= size) return 2; // Treat out of bounds as miss/blocked
+      return grid[r][c];
+  };
+
+  const isUnknown = (r: number, c: number) => {
+      if (r < 0 || r >= size || c < 0 || c >= size) return false;
+      const cell = grid[r][c];
+      return cell === 0 || cell === 1;
+  };
+
+  // 2. TARGET MODE: Find unfinished hits
+  // We look for hits that have adjacent unknown squares
+  let bestTarget: {r: number, c: number} | null = null;
+  let maxPriority = -1;
+
+  for (const hit of hits) {
+      const neighbors = [
+          { r: hit.r - 1, c: hit.c }, // Up
+          { r: hit.r + 1, c: hit.c }, // Down
+          { r: hit.r, c: hit.c - 1 }, // Left
+          { r: hit.r, c: hit.c + 1 }  // Right
+      ];
+
+      // Check context to detect ship orientation
+      // Is this hit part of a vertical line of hits?
+      const up = getCell(hit.r - 1, hit.c);
+      const down = getCell(hit.r + 1, hit.c);
+      const isVerticalChain = up === 3 || down === 3;
+
+      // Is this hit part of a horizontal line of hits?
+      const left = getCell(hit.r, hit.c - 1);
+      const right = getCell(hit.r, hit.c + 1);
+      const isHorizontalChain = left === 3 || right === 3;
+
+      for (const n of neighbors) {
+          if (isUnknown(n.r, n.c)) {
+              let priority = 1; // Standard neighbor
+
+              // INTELLIGENCE: 
+              // If we found a vertical chain, prioritize Up/Down neighbors heavily
+              if (isVerticalChain && n.c === hit.c) priority = 10;
+              // If we found a horizontal chain, prioritize Left/Right neighbors heavily
+              if (isHorizontalChain && n.r === hit.r) priority = 10;
+
+              // If we found a better target based on logic, save it
+              if (priority > maxPriority) {
+                  maxPriority = priority;
+                  bestTarget = n;
+              }
+          }
       }
-    }
   }
 
-  // MODE "TARGET": Si on a touché au coup précédent, on essaie les cases adjacentes
-  if (lastHit) {
-    const adjacents = [
-      { r: lastHit.r - 1, c: lastHit.c }, // Up
-      { r: lastHit.r + 1, c: lastHit.c }, // Down
-      { r: lastHit.r, c: lastHit.c - 1 }, // Left
-      { r: lastHit.r, c: lastHit.c + 1 }, // Right
-    ];
+  if (bestTarget) return bestTarget;
 
-    const validTargets = adjacents.filter(pos => 
-      pos.r >= 0 && pos.r < GRID_SIZE && 
-      pos.c >= 0 && pos.c < GRID_SIZE && 
-      (grid[pos.r][pos.c] === 0 || grid[pos.r][pos.c] === 1)
-    );
-
-    if (validTargets.length > 0) {
-      return validTargets[Math.floor(Math.random() * validTargets.length)];
-    }
+  // 3. HUNT MODE (Parity Optimization)
+  // Only target "even" squares (checkerboard pattern) to find ships faster
+  // Smallest ship is 2, so checkerboard guarantees a hit eventually.
+  const parityMoves = availableMoves.filter(m => (m.r + m.c) % 2 === 0);
+  
+  if (parityMoves.length > 0) {
+      return parityMoves[Math.floor(Math.random() * parityMoves.length)];
   }
 
-  // MODE "HUNT": Tir aléatoire
+  // Fallback: Random available
   return availableMoves[Math.floor(Math.random() * availableMoves.length)];
 };

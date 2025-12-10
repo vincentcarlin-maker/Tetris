@@ -132,7 +132,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const [winner, setWinner] = useState<'PLAYER' | 'CPU' | null>(null);
 
   // Refs
-  const lastCpuHitRef = useRef<{ r: number, c: number } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const handleDataRef = useRef<any>(null);
 
@@ -192,7 +191,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
     setSelectedShipType(null);
     
     setEarnedCoins(0);
-    lastCpuHitRef.current = null;
     setNotification(null);
     setIsReady(false);
     setOpponentReady(false);
@@ -429,19 +427,13 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   useEffect(() => {
       if (gameMode === 'SOLO' && phase === 'PLAYING' && turn === 'CPU') {
           const timer = setTimeout(() => {
-              const move = getCpuMove(playerGrid, lastCpuHitRef.current);
+              // New AI logic analyzes the whole board state, no need for refs
+              const move = getCpuMove(playerGrid);
               handleIncomingShot(move.r, move.c);
-              
-              // Refined logic: If hit, keep target. If missed but had a target, maybe try another around it next time (getCpuMove handles this if ref persists, but we update ref here based on result)
-              if (playerGrid[move.r][move.c] === 1) { 
-                  lastCpuHitRef.current = move; 
-              } else {
-                  lastCpuHitRef.current = null;
-              }
           }, 1000);
           return () => clearTimeout(timer);
       }
-  }, [turn, phase, gameMode, playerGrid, playerShips, handleIncomingShot]); // Added playerShips and handleIncomingShot
+  }, [turn, phase, gameMode, playerGrid, playerShips, handleIncomingShot]);
 
   // Sync Start for Online
   useEffect(() => {
