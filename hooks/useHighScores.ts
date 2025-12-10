@@ -9,7 +9,6 @@ export interface HighScores {
   invaders: number;
   sudoku: { [difficulty: string]: number }; // difficulty: minMistakes
   memory: number; // minMoves (Lower is better)
-  rush?: { [level: string]: number };
   mastermind?: number; // minAttempts (Lower is better)
   uno?: number; // Total Score (Accumulated)
   game2048?: number; // Highest Score
@@ -23,7 +22,6 @@ const initialHighScores: HighScores = {
   invaders: 0,
   sudoku: {},
   memory: 0,
-  rush: {},
   mastermind: 0,
   uno: 0,
   game2048: 0
@@ -46,7 +44,6 @@ export const useHighScores = () => {
         if (!parsed.snake) parsed.snake = 0;
         if (!parsed.invaders) parsed.invaders = 0;
         if (!parsed.memory) parsed.memory = 0;
-        if (!parsed.rush) parsed.rush = {};
         if (!parsed.mastermind) parsed.mastermind = 0;
         if (!parsed.uno) parsed.uno = 0;
         if (!parsed.game2048) parsed.game2048 = 0;
@@ -99,14 +96,6 @@ export const useHighScores = () => {
             newScores.mastermind = value;
             shouldUpdate = true;
         }
-      } else if (game === 'rush' && subkey !== undefined) {
-          // Assuming rush stores moves per level, lower is better
-          const key = String(subkey);
-          if (value < (prev.rush?.[key] || Infinity)) {
-              if (!newScores.rush) newScores.rush = {};
-              newScores.rush[key] = value;
-              shouldUpdate = true;
-          }
       } else if (game === 'uno') {
           // Accumulate Score
           newScores.uno = (prev.uno || 0) + value;

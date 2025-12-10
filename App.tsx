@@ -13,7 +13,6 @@ import { InvadersGame } from './components/invaders/InvadersGame';
 import { AirHockeyGame } from './components/airhockey/AirHockeyGame';
 import { MastermindGame } from './components/mastermind/MastermindGame';
 import { UnoGame } from './components/uno/UnoGame';
-import { RushGame } from './components/rush/RushGame';
 import { Game2048 } from './components/game2048/Game2048';
 import { Shop } from './components/Shop';
 import { SocialOverlay } from './components/SocialOverlay';
@@ -26,7 +25,7 @@ import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
 
 
-type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'rush' | '2048' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | '2048' | 'shop';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -148,7 +147,7 @@ const App: React.FC = () => {
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'rush', '2048'];
+        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', '2048'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -193,7 +192,6 @@ const App: React.FC = () => {
         else if (game === 'airhockey') setCurrentView('airhockey');
         else if (game === 'mastermind') setCurrentView('mastermind');
         else if (game === 'uno') setCurrentView('uno');
-        else if (game === 'rush') setCurrentView('rush');
         else if (game === '2048') setCurrentView('2048');
         else if (game === 'shop') setCurrentView('shop');
     };
@@ -303,10 +301,6 @@ const App: React.FC = () => {
 
             {currentView === 'uno' && isAuthenticated && (
                 <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('uno', metric, val)} />
-            )}
-
-            {currentView === 'rush' && isAuthenticated && (
-                <RushGame onBack={handleBackToMenu} audio={audio} currency={currency} />
             )}
 
             {currentView === '2048' && isAuthenticated && (
