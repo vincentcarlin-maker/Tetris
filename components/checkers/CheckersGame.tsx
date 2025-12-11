@@ -78,7 +78,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         if (mp.mode === 'lobby') {
             if (isHosting) {
                 setOnlineStep('game');
-                // FIX: Force Host to transition to game setup immediately to see waiting screen
+                // Force Host to transition to game setup immediately to see waiting screen
                 if (menuPhase === 'MENU') {
                     initGame('ONLINE');
                 }
@@ -315,7 +315,8 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         handleDataRef.current = (data: any) => {
             // Handshake Logic
             if (data.type === 'CHECKERS_READY') {
-                if (mp.isHost) {
+                // Improved: Check explicit waiting state
+                if (isWaitingForGuest) {
                     setIsWaitingForGuest(false);
                     mp.sendData({ type: 'CHECKERS_INIT' }); // Unlock guest
                 }
@@ -589,6 +590,9 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                     <Loader2 size={48} className="text-cyan-400 animate-spin mb-4"/>
                     <p className="font-bold">EN ATTENTE D'UN JOUEUR...</p>
                     <button onClick={mp.cancelHosting} className="mt-4 px-4 py-2 bg-red-600 rounded text-sm font-bold">ANNULER</button>
+                    {isWaitingForGuest && (
+                         <button onClick={() => { setIsWaitingForGuest(false); mp.sendData({ type: 'CHECKERS_INIT' }); }} className="mt-2 text-xs text-gray-400 hover:text-white underline">Forcer le démarrage</button>
+                    )}
                 </div>
             )}
 
