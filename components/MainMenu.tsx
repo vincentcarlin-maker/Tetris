@@ -121,6 +121,7 @@ const GAMES_CONFIG = [
 
 const CATEGORIES = [
     { id: 'ALL', label: 'TOUT', icon: LayoutGrid },
+    { id: 'ONLINE', label: 'EN LIGNE', icon: Globe },
     { id: 'ARCADE', label: 'ARCADE', icon: Gamepad2 },
     { id: 'PUZZLE', label: 'RÉFLEXION', icon: Puzzle },
     { id: 'STRATEGY', label: 'STRATÉGIE', icon: Trophy },
@@ -623,7 +624,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
                  {/* --- GAME GRID --- */}
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                    {GAMES_CONFIG.filter(g => activeCategory === 'ALL' || g.category === activeCategory).map((game) => {
+                    {GAMES_CONFIG.filter(g => {
+                        if (activeCategory === 'ALL') return true;
+                        if (activeCategory === 'ONLINE') return g.badges.online;
+                        return g.category === activeCategory;
+                    }).map((game) => {
                         const isRestricted = disabledGames.includes(game.id);
                         const isDisabled = isRestricted && !currency.adminModeActive;
                         return (
