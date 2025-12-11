@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight, ChevronLeft, ChevronRight, Lock, Play } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -47,7 +47,10 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const { playMove, playLand, playVictory, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     
-    // Fix: Initialize maxUnlockedLevel synchronously from localStorage to ensure navigation works immediately
+    // View State
+    const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
+
+    // Initialize maxUnlockedLevel synchronously from localStorage to ensure navigation works immediately
     const [maxUnlockedLevel, setMaxUnlockedLevel] = useState<number>(() => {
         try {
             const stored = localStorage.getItem('neon-highscores');
@@ -62,19 +65,15 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         return 1;
     });
 
-    // Sync with hook updates (e.g. from cloud or other tabs)
+    // Sync with hook updates
     useEffect(() => {
         if (highScores.watersort > maxUnlockedLevel) {
             setMaxUnlockedLevel(highScores.watersort);
         }
-    }, [highScores.watersort]);
+    }, [highScores.watersort, maxUnlockedLevel]);
 
-    // Current level being played (defaults to max unlocked)
+    // Current level being played
     const [currentLevel, setCurrentLevel] = useState<number>(maxUnlockedLevel);
-
-    // Update current level if maxUnlockedLevel updates (e.g. on first load if state was 1 but localStorage was 5)
-    // Actually, we don't want to force jump to max if user navigated back. 
-    // We only init currentLevel once.
 
     // State
     const [tubes, setTubes] = useState<Tube[]>([]);
@@ -100,11 +99,6 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const tubeRefs = useRef<(HTMLDivElement | null)[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Initial Load
-    useEffect(() => {
-        generateLevel(currentLevel);
-    }, []);
-
     const generateLevel = (lvl: number) => {
         setHistory([]);
         setSelectedTube(null);
@@ -114,7 +108,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         setIsAnimating(false);
         setPourData(null);
 
-        // Difficulty scaling (More progressive)
+        // Difficulty scaling
         let colorCount = Math.min(3 + Math.floor((lvl - 1) / 2), 12); 
         let emptyTubes = 2;
 
@@ -154,6 +148,23 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         if (onReportProgress) onReportProgress('play', 1);
     };
 
+    const handleLevelSelect = (lvl: number) => {
+        if (lvl > maxUnlockedLevel) return;
+        setCurrentLevel(lvl);
+        generateLevel(lvl);
+        setView('GAME');
+        resumeAudio();
+        playLand();
+    };
+
+    const handleLocalBack = () => {
+        if (view === 'GAME') {
+            setView('LEVEL_SELECT');
+        } else {
+            onBack();
+        }
+    };
+
     const handleTubeClick = (index: number) => {
         if (isAnimating || levelComplete) return;
         resumeAudio();
@@ -191,7 +202,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         if (dstTube.length < TUBE_CAPACITY) {
             if (dstTube.length === 0 || dstTube[dstTube.length - 1] === colorToMove) {
                 
-                // --- REALISTIC ANIMATION LOGIC (V6 - Deep Inset) ---
+                // --- ANIMATION LOGIC ---
                 const srcEl = tubeRefs.current[srcIdx];
                 const dstEl = tubeRefs.current[dstIdx];
                 const containerEl = containerRef.current;
@@ -216,7 +227,6 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                     const tiltDirection = isRight ? 'right' : 'left';
                     const rotationAngle = isRight ? 50 : -50;
                     
-                    // --- CALCUL DU POINT DE VERSEMENT EXACT (V6) ---
                     const rad = (Math.abs(rotationAngle) * Math.PI) / 180;
                     const h = sRect.height;
                     const w = sRect.width;
@@ -227,57 +237,41 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                     const ox = isRight ? (w/2 - insetX) : (-w/2 + insetX);
                     const oy = -h/2 + insetY;
 
-                    // Rotation de ce point "bec"
                     const angleRad = isRight ? rad : -rad;
                     const cos = Math.cos(angleRad);
                     const sin = Math.sin(angleRad);
 
-                    // Coordonnées du bec par rapport au centre du tube une fois tourné
                     const rx = ox * cos - oy * sin;
                     const ry = ox * sin + oy * cos;
 
-                    // Position cible du bec verseur
                     const desiredSpoutX = dstCenterX; 
                     const desiredSpoutY = dstTopY - 35; 
 
-                    // On calcule où doit se trouver le CENTRE du tube source pour que son bec soit à la bonne place
                     const targetCenterX = desiredSpoutX - rx;
                     const targetCenterY = desiredSpoutY - ry;
 
-                    // Translation CSS nécessaire
                     const deltaX = targetCenterX - srcCenterX;
                     const deltaY = targetCenterY - srcCenterY;
 
-                    // Le flux commence EXACTEMENT à la position du bec calculée (cachée derrière le tube)
-                    const streamStartX = desiredSpoutX;
-                    const streamStartY = desiredSpoutY; 
-
-                    // Le flux finit dans le tube cible
-                    const streamEndX = dstCenterX;
-                    const streamEndY = dstTopY + 45; 
-
-                    // Step 1: Initialize Move
                     setPourData({ 
                         src: srcIdx, 
                         dst: dstIdx, 
                         color: colorToMove, 
-                        streamStart: { x: streamStartX, y: streamStartY },
-                        streamEnd: { x: streamEndX, y: streamEndY },
+                        streamStart: { x: desiredSpoutX, y: desiredSpoutY },
+                        streamEnd: { x: dstCenterX, y: dstTopY + 45 },
                         isPouring: false,
                         tiltDirection,
                         transformStyle: {
                             transform: `translate(${deltaX}px, ${deltaY}px) rotate(${rotationAngle}deg)`,
-                            zIndex: 100, // IMPORTANT: Tube au-dessus du flux (z-50)
+                            zIndex: 100,
                             transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)'
                         }
                     });
 
-                    // Step 2: Wait for Move, then Start Stream
                     setTimeout(() => {
                         setPourData(prev => prev ? { ...prev, isPouring: true } : null);
-                        playMove(); // Pouring sound
+                        playMove(); 
 
-                        // Step 3: Wait for Pour, then Logic Update + Stop Stream
                         setTimeout(() => {
                             setHistory(prev => [...prev, tubes]);
                             while (
@@ -291,28 +285,24 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                             
                             setPourData(prev => prev ? { ...prev, isPouring: false } : null);
 
-                            // Step 4: Wait for Stream Fade, then Return Tube
                             setTimeout(() => {
-                                setPourData(null); // Removes transform, CSS transition handles return
-                                
-                                // Step 5: Finish Animation
+                                setPourData(null); 
                                 setTimeout(() => {
                                     setIsAnimating(false);
                                     playLand();
                                     if (isLevelSolved(newTubes)) {
                                         handleLevelComplete();
                                     }
-                                }, 400); // Return transition time
-                            }, 100); // Stream fade buffer
-                        }, 300); // Reduced pouring duration (was 600) for snappier feel without visual stream
-                    }, 500); // Move duration
+                                }, 400); 
+                            }, 100); 
+                        }, 300); 
+                    }, 500); 
                     
                     return;
                 }
             }
         }
 
-        // Invalid move
         playPaddleHit(); 
         setSelectedTube(null);
     };
@@ -325,7 +315,6 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         addCoins(coins);
         setEarnedCoins(coins);
         
-        // Unlock next level if we are at the edge
         if (currentLevel === maxUnlockedLevel) {
             const nextMax = maxUnlockedLevel + 1;
             setMaxUnlockedLevel(nextMax);
@@ -345,7 +334,6 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const handleChangeLevel = (delta: number) => {
         if (isAnimating) return;
         const newLevel = currentLevel + delta;
-        // Navigation validation against maxUnlockedLevel
         if (newLevel < 1 || newLevel > maxUnlockedLevel) return;
         
         setCurrentLevel(newLevel);
@@ -364,7 +352,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
     const handleAddTube = () => {
         if (extraTubeUsed || levelComplete || isAnimating) return;
-        setTubes(prev => [...prev, []]); // Add empty tube
+        setTubes(prev => [...prev, []]); 
         setExtraTubeUsed(true);
         playVictory(); 
     };
@@ -374,6 +362,65 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         generateLevel(currentLevel);
     };
 
+    // --- LEVEL SELECT VIEW ---
+    if (view === 'LEVEL_SELECT') {
+        const gridItems = Array.from({ length: Math.max(maxUnlockedLevel + 4, 20) });
+        
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
+
+                {/* Header */}
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-6 shrink-0">
+                    <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] pr-2 pb-1">CHOIX NIVEAU</h1>
+                    <div className="w-10"></div>
+                </div>
+
+                {/* Grid */}
+                <div className="flex-1 w-full max-w-lg overflow-y-auto custom-scrollbar z-10 pb-4">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 p-2">
+                        {gridItems.map((_, i) => {
+                            const lvl = i + 1;
+                            const isUnlocked = lvl <= maxUnlockedLevel;
+                            const isNext = lvl === maxUnlockedLevel + 1;
+                            
+                            if (isUnlocked) {
+                                return (
+                                    <button 
+                                        key={lvl} 
+                                        onClick={() => handleLevelSelect(lvl)}
+                                        className={`
+                                            aspect-square rounded-xl border-2 flex flex-col items-center justify-center font-black text-lg transition-all shadow-lg active:scale-95
+                                            bg-cyan-900/40 border-cyan-500/50 text-cyan-400 hover:bg-cyan-800/60
+                                        `}
+                                    >
+                                        {lvl}
+                                        <div className="mt-1 w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_5px_cyan]"></div>
+                                    </button>
+                                );
+                            } else {
+                                return (
+                                    <div key={lvl} className={`aspect-square rounded-xl border-2 flex items-center justify-center text-gray-600 ${isNext ? 'bg-gray-800 border-gray-600 border-dashed animate-pulse' : 'bg-gray-900/30 border-gray-800'}`}>
+                                        <Lock size={isNext ? 20 : 16} className={isNext ? "text-gray-400" : "text-gray-700"} />
+                                    </div>
+                                );
+                            }
+                        })}
+                    </div>
+                </div>
+                
+                <div className="mt-4 z-10 w-full max-w-lg">
+                    <button onClick={() => handleLevelSelect(maxUnlockedLevel)} className="w-full py-4 bg-cyan-500 text-black font-black tracking-widest text-lg rounded-xl shadow-[0_0_20px_#22d3ee] flex items-center justify-center gap-2 hover:scale-105 transition-transform">
+                        <Play size={24} fill="black"/> CONTINUER (NIV {maxUnlockedLevel})
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- GAME VIEW ---
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
             {/* Ambient FX */}
@@ -382,7 +429,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-6 shrink-0">
-                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] pr-2 pb-1">NEON MIX</h1>
                     <div className="flex items-center gap-3">
@@ -486,7 +533,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
                 <button 
                     onClick={handleAddTube} 
-                    disabled={extraTubeUsed || isAnimating}
+                    disabled={extraTubeUsed || levelComplete || isAnimating}
                     className="flex flex-col items-center gap-1 text-gray-400 disabled:opacity-30 hover:text-cyan-400 transition-colors group"
                 >
                     <div className="p-4 bg-gray-800 rounded-full border border-white/10 group-hover:border-cyan-500 shadow-lg active:scale-95 transition-all">
