@@ -91,11 +91,33 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            if (menuPhase === 'MENU') {
-                initGame('ONLINE'); 
+            
+            // --- FIX FOR GUEST SYNC ---
+            // If Guest joins, force reset and start handshake sequence
+            if (!mp.isHost) {
+                // Ensure we are in GAME phase
+                if (menuPhase === 'MENU') {
+                    setMenuPhase('GAME');
+                }
+                
+                // If not already waiting (or to ensure fresh start), trigger handshake
+                // We use a small timeout to let the connection settle
+                if (!isWaitingForHost) {
+                    resetGame(); // Ensure board is clean
+                    setIsWaitingForHost(true);
+                    
+                    if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+                    
+                    // Start spamming READY until ACK
+                    handshakeIntervalRef.current = setInterval(() => {
+                        mp.sendData({ type: 'CHECKERS_READY' });
+                    }, 1000);
+                    // Send one immediately
+                    setTimeout(() => mp.sendData({ type: 'CHECKERS_READY' }), 200);
+                }
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, menuPhase]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, menuPhase, isWaitingForHost]);
 
     // --- LOGIC ---
 
@@ -146,13 +168,9 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 if (mp.isHost) {
                     setIsWaitingForGuest(true);
                 } else {
+                    // Guest logic is handled in useEffect when mode switches to in_game
+                    // But if we are re-initializing manually:
                     setIsWaitingForHost(true);
-                    // Tell host we are here and ready to receive state
-                    // Use Interval to ensure message delivery if Host loads slower
-                    mp.sendData({ type: 'CHECKERS_READY' });
-                    handshakeIntervalRef.current = setInterval(() => {
-                        mp.sendData({ type: 'CHECKERS_READY' });
-                    }, 1000);
                 }
             }
         }
@@ -315,16 +333,16 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         handleDataRef.current = (data: any) => {
             // Handshake Logic
             if (data.type === 'CHECKERS_READY') {
-                // Improved: Check explicit waiting state
                 if (isWaitingForGuest) {
                     setIsWaitingForGuest(false);
                     mp.sendData({ type: 'CHECKERS_INIT' }); // Unlock guest
                 }
             }
             if (data.type === 'CHECKERS_INIT') {
-                // Fix: Only reset if waiting to avoid loops
+                // Unlock Guest
                 if (isWaitingForHost) {
-                    resetGame(); 
+                    setIsWaitingForHost(false);
+                    if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
                 }
             }
             // Game Logic
