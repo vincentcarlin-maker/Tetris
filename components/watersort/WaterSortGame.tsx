@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -47,13 +47,15 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const { playMove, playLand, playVictory, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     
-    // Direct read for init to avoid hook delay causing reset to level 1
-    const [level, setLevel] = useState<number>(() => {
+    // Max level unlocked based on high scores
+    const maxLevel = highScores.watersort || 1;
+
+    // Current level being played
+    const [currentLevel, setCurrentLevel] = useState<number>(() => {
         try {
             const stored = localStorage.getItem('neon-highscores');
             if (stored) {
                 const parsed = JSON.parse(stored);
-                // Ensure we return a valid number greater than 0
                 const saved = parseInt(parsed.watersort, 10);
                 return (!isNaN(saved) && saved > 0) ? saved : 1;
             }
@@ -89,7 +91,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
     // Initial Load
     useEffect(() => {
-        generateLevel(level);
+        generateLevel(currentLevel);
     }, []);
 
     const generateLevel = (lvl: number) => {
@@ -308,20 +310,33 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         setLevelComplete(true);
         playVictory();
         
-        const coins = 20 + Math.floor(level / 2);
+        const coins = 20 + Math.floor(currentLevel / 2);
         addCoins(coins);
         setEarnedCoins(coins);
         
-        const nextLevel = level + 1;
-        updateHighScore('watersort', nextLevel);
+        // Update high score only if we just beat the max level
+        if (currentLevel === maxLevel) {
+            updateHighScore('watersort', maxLevel + 1);
+        }
         
         if (onReportProgress) onReportProgress('win', 1);
         if (onReportProgress) onReportProgress('action', 1);
     };
 
     const handleNextLevel = () => {
-        setLevel(l => l + 1);
-        generateLevel(level + 1);
+        const nextLevel = currentLevel + 1;
+        setCurrentLevel(nextLevel);
+        generateLevel(nextLevel);
+    };
+
+    const handleChangeLevel = (delta: number) => {
+        if (isAnimating) return;
+        const newLevel = currentLevel + delta;
+        if (newLevel < 1 || newLevel > maxLevel) return;
+        
+        setCurrentLevel(newLevel);
+        generateLevel(newLevel);
+        playPaddleHit();
     };
 
     const handleUndo = () => {
@@ -342,7 +357,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
     const handleRestart = () => {
         if (isAnimating) return;
-        generateLevel(level);
+        generateLevel(currentLevel);
     };
 
     return (
@@ -356,7 +371,23 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] pr-2 pb-1">NEON MIX</h1>
-                    <span className="text-xs font-bold text-cyan-300 tracking-widest">NIVEAU {level}</span>
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => handleChangeLevel(-1)} 
+                            disabled={currentLevel <= 1 || isAnimating}
+                            className="p-1 rounded-full text-cyan-300 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-xs font-bold text-cyan-300 tracking-widest min-w-[70px] text-center">NIVEAU {currentLevel}</span>
+                        <button 
+                            onClick={() => handleChangeLevel(1)} 
+                            disabled={currentLevel >= maxLevel || isAnimating}
+                            className="p-1 rounded-full text-cyan-300 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
                 <button onClick={handleRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
@@ -456,7 +487,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in zoom-in">
                     <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold] animate-bounce" />
                     <h2 className="text-5xl font-black italic text-white mb-2">BRAVO !</h2>
-                    <p className="text-cyan-400 font-bold mb-6 tracking-widest">NIVEAU {level} TERMINÉ</p>
+                    <p className="text-cyan-400 font-bold mb-6 tracking-widest">NIVEAU {currentLevel} TERMINÉ</p>
                     
                     {earnedCoins > 0 && (
                         <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse">
