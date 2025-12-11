@@ -54,8 +54,20 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const { playMove, playLand, playVictory, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     
+    // Direct read for init to avoid hook delay causing reset to level 1
+    const getSavedLevel = () => {
+        try {
+            const stored = localStorage.getItem('neon-highscores');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                return parsed.watersort || 1;
+            }
+        } catch {}
+        return 1;
+    };
+
     // State
-    const [level, setLevel] = useState(highScores.watersort || 1);
+    const [level, setLevel] = useState(getSavedLevel);
     const [tubes, setTubes] = useState<Tube[]>([]);
     const [selectedTube, setSelectedTube] = useState<number | null>(null);
     const [history, setHistory] = useState<Tube[][]>([]);
@@ -304,9 +316,10 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         addCoins(coins);
         setEarnedCoins(coins);
         
-        if (level >= (highScores.watersort || 0)) {
-            updateHighScore('watersort', level + 1);
-        }
+        // Use functional state to ensure we have the latest level
+        // We read the current level from state directly here
+        const nextLevel = level + 1;
+        updateHighScore('watersort', nextLevel);
         
         if (onReportProgress) onReportProgress('win', 1);
         if (onReportProgress) onReportProgress('action', 1);
