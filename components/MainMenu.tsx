@@ -54,8 +54,29 @@ const UnoIcon = ({ size, className }: { size?: number | string, className?: stri
 );
 // Custom Connect 4 Icon
 const Connect4Icon = ({ size, className }: { size?: number | string, className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-       <path d="M4 19v2" /><path d="M20 19v2" /><rect x="2" y="3" width="20" height="16" rx="2" /><circle cx="7" cy="7" r="1.5" /><circle cx="12" cy="7" r="1.5" /><circle cx="17" cy="7" r="1.5" /><circle cx="7" cy="11" r="1.5" /><circle cx="12" cy="11" r="1.5" fill="currentColor" /><circle cx="17" cy="11" r="1.5" /><circle cx="7" cy="15" r="1.5" fill="currentColor"/><circle cx="12" cy="15" r="1.5" fill="currentColor"/><circle cx="17" cy="15" r="1.5" />
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+       {/* Pieds */}
+       <path d="M4 21v-2" stroke="#6b7280" />
+       <path d="M20 21v-2" stroke="#6b7280" />
+       
+       {/* Plateau Neutre (Gris foncé/Bleuté) */}
+       <rect x="2" y="3" width="20" height="17" rx="2" stroke="#4b5563" fill="#1f2937" />
+       
+       {/* Jetons */}
+       {/* Ligne 1 (Haut - Vide) */}
+       <circle cx="7" cy="8" r="1.5" fill="#374151" stroke="none" />
+       <circle cx="12" cy="8" r="1.5" fill="#374151" stroke="none" />
+       <circle cx="17" cy="8" r="1.5" fill="#374151" stroke="none" />
+
+       {/* Ligne 2 (Milieu) */}
+       <circle cx="7" cy="13" r="1.5" fill="#ec4899" stroke="none" /> {/* Rose */}
+       <circle cx="12" cy="13" r="1.5" fill="#374151" stroke="none" />
+       <circle cx="17" cy="13" r="1.5" fill="#06b6d4" stroke="none" /> {/* Cyan */}
+
+       {/* Ligne 3 (Bas) */}
+       <circle cx="7" cy="17.5" r="1.5" fill="#06b6d4" stroke="none" /> {/* Cyan */}
+       <circle cx="12" cy="17.5" r="1.5" fill="#ec4899" stroke="none" /> {/* Rose */}
+       <circle cx="17" cy="17.5" r="1.5" fill="#ec4899" stroke="none" /> {/* Rose */}
     </svg>
 );
 // Custom Breaker Icon
