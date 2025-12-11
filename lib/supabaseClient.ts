@@ -144,6 +144,22 @@ export const DB = {
         }
     },
 
+    // NEW: Fetch ALL raw data for Admin Dashboard
+    getFullAdminExport: async () => {
+        if (!supabase) return [];
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('updated_at', { ascending: false });
+
+            if (error || !data) return [];
+            return data;
+        } catch (e) {
+            return [];
+        }
+    },
+
     getMessages: async (user1: string, user2: string) => {
         if (!supabase) return [];
         try {

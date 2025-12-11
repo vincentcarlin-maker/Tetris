@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2 } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -452,9 +452,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 {currency.adminModeActive ? <><ShieldAlert size={10}/> GOD: ON</> : <><Shield size={10}/> GOD: OFF</>}
             </button>
             {currency.adminModeActive && (
-                <button onClick={() => setShowAdminGamePanel(true)} className="flex-1 py-1.5 bg-blue-900/50 text-blue-400 border border-blue-500/50 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1">
-                    <Settings size={10}/> JEUX
-                </button>
+                <>
+                    <button onClick={() => setShowAdminGamePanel(true)} className="flex-1 py-1.5 bg-blue-900/50 text-blue-400 border border-blue-500/50 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1">
+                        <Settings size={10}/> JEUX
+                    </button>
+                    <button onClick={() => onSelectGame('admin_dashboard')} className="flex-1 py-1.5 bg-purple-900/50 text-purple-400 border border-purple-500/50 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1">
+                        <BarChart2 size={10}/> DASHBOARD
+                    </button>
+                </>
             )}
         </div>
     )}

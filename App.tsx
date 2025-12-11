@@ -16,6 +16,7 @@ import { UnoGame } from './components/uno/UnoGame';
 import { WaterSortGame } from './components/watersort/WaterSortGame';
 import { CheckersGame } from './components/checkers/CheckersGame';
 import { Shop } from './components/Shop';
+import { AdminDashboard } from './components/AdminDashboard'; // Import
 import { SocialOverlay } from './components/SocialOverlay';
 import { LoginScreen } from './components/LoginScreen';
 import { useGameAudio } from './hooks/useGameAudio';
@@ -26,7 +27,7 @@ import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
 
 
-type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'shop';
+type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'shop' | 'admin_dashboard';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -179,6 +180,11 @@ const App: React.FC = () => {
             return;
         }
 
+        if (game === 'admin_dashboard') {
+            setCurrentView('admin_dashboard');
+            return;
+        }
+
         reportQuestProgress(game, 'play', 1);
 
         if (game === 'tetris') setCurrentView('tetris');
@@ -255,6 +261,10 @@ const App: React.FC = () => {
             
             {currentView === 'shop' && isAuthenticated && (
                 <Shop onBack={handleBackToMenu} currency={currency} />
+            )}
+
+            {currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser && (
+                <AdminDashboard onBack={handleBackToMenu} />
             )}
 
             {currentView === 'tetris' && isAuthenticated && (
