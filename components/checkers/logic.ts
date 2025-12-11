@@ -114,7 +114,6 @@ const getCaptureChains = (
 };
 
 export const getValidMoves = (board: BoardState, player: PlayerColor, mustMovePiece?: Position): Move[] => {
-    let moves: Move[] = [];
     
     // --- REFINED ALGORITHM ---
     const candidates: Move[] = [];
@@ -237,6 +236,7 @@ export const executeMove = (board: BoardState, move: Move): { newBoard: BoardSta
         if (isPromoLine) {
             // Note: In real draughts, promotion stops the turn immediately. 
             // We handle the king conversion in the main component `handleTurnEnd` for logic simplicity with multi-jumps.
+            piece.isKing = true; // AI logic assumes instant promo for eval
             promoted = true;
         }
     }
@@ -248,23 +248,52 @@ export const executeMove = (board: BoardState, move: Move): { newBoard: BoardSta
 
 const evaluateBoard = (board: BoardState, player: PlayerColor): number => {
     let score = 0;
-    const opponent = player === 'white' ? 'red' : 'white';
+    
+    // Heuristic Weights
+    const MATERIAL_PAWN = 100;
+    const MATERIAL_KING = 300; 
+    const POS_CENTER = 15;     
+    const POS_OUTER_CENTER = 5;
+    const POS_EDGE = 5;        
+    const POS_ADVANCE = 6;     
+    const POS_DEFENSE = 25;    
 
     for (let r = 0; r < BOARD_SIZE; r++) {
         for (let c = 0; c < BOARD_SIZE; c++) {
             const p = board[r][c];
             if (!p) continue;
 
-            let value = 10; // Basic piece
-            if (p.isKing) value = 30; // King value
-
-            // Position bonus (center control)
-            if (c >= 3 && c <= 6 && r >= 3 && r <= 6) value += 2;
+            let value = 0;
             
-            // Back row protection bonus
+            // 1. Material
+            value += p.isKing ? MATERIAL_KING : MATERIAL_PAWN;
+
+            // 2. Center Control
+            if (r >= 3 && r <= 6 && c >= 2 && c <= 7) {
+                value += POS_CENTER; // High value for center
+            } else if (r >= 2 && r <= 7 && c >= 1 && c <= 8) {
+                value += POS_OUTER_CENTER;
+            }
+
+            // 3. Edge Safety
+            if (c === 0 || c === BOARD_SIZE - 1) {
+                value += POS_EDGE;
+            }
+
+            // 4. Advancement & Defense
             if (!p.isKing) {
-                if (p.player === 'white' && r === BOARD_SIZE - 1) value += 3;
-                if (p.player === 'red' && r === 0) value += 3;
+                if (p.player === 'white') {
+                    // White moves UP (Row index decreases)
+                    value += (9 - r) * POS_ADVANCE;
+                    if (r === 9) value += POS_DEFENSE; 
+                } else { // red
+                    // Red moves DOWN (Row index increases)
+                    value += r * POS_ADVANCE;
+                    if (r === 0) value += POS_DEFENSE;
+                }
+            } else {
+                // Keep kings active/central-ish
+                if (r >= 2 && r <= 7 && c >= 2 && c <= 7) value += 10;
             }
 
             if (p.player === player) score += value;
@@ -290,17 +319,14 @@ const minimax = (
     const validMoves = getValidMoves(board, currentPlayer);
 
     if (validMoves.length === 0) {
-        // No moves = loss
-        return maximizing ? -1000 : 1000;
+        // No moves = loss. Scores must be larger than any board eval.
+        return maximizing ? -100000 + depth : 100000 - depth;
     }
 
     if (maximizing) {
         let maxEval = -Infinity;
         for (const move of validMoves) {
             const { newBoard } = executeMove(board, move);
-            // Handling multi-jumps in recursion is complex; simplifying by assuming turn ends or just evaluating state
-            // To be accurate, if it's a jump, we should check for follow-up. 
-            // For this implementation, we treat each atomic move as a state transition.
             const ev = minimax(newBoard, depth - 1, alpha, beta, false, player);
             maxEval = Math.max(maxEval, ev);
             alpha = Math.max(alpha, ev);
@@ -330,18 +356,28 @@ export const getBestMove = (board: BoardState, player: PlayerColor, difficulty: 
     }
 
     // 2. Medium/Hard: Minimax
+    // Medium: Depth 2, Hard: Depth 4
     const depth = difficulty === 'MEDIUM' ? 2 : 4; 
-    let bestMove = moves[0];
+    let bestMoves: Move[] = [];
     let maxVal = -Infinity;
+
+    // Shuffle moves to add variety
+    for (let i = moves.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [moves[i], moves[j]] = [moves[j], moves[i]];
+    }
 
     for (const move of moves) {
         const { newBoard } = executeMove(board, move);
         const val = minimax(newBoard, depth - 1, -Infinity, Infinity, false, player);
+        
         if (val > maxVal) {
             maxVal = val;
-            bestMove = move;
+            bestMoves = [move];
+        } else if (val === maxVal) {
+            bestMoves.push(move);
         }
     }
 
-    return bestMove;
+    return bestMoves.length > 0 ? bestMoves[Math.floor(Math.random() * bestMoves.length)] : null;
 };
