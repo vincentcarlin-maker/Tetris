@@ -47,11 +47,8 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const { playMove, playLand, playVictory, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     
-    // Max level unlocked based on high scores
-    const maxLevel = highScores.watersort || 1;
-
-    // Current level being played
-    const [currentLevel, setCurrentLevel] = useState<number>(() => {
+    // Fix: Initialize maxUnlockedLevel synchronously from localStorage to ensure navigation works immediately
+    const [maxUnlockedLevel, setMaxUnlockedLevel] = useState<number>(() => {
         try {
             const stored = localStorage.getItem('neon-highscores');
             if (stored) {
@@ -60,10 +57,24 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                 return (!isNaN(saved) && saved > 0) ? saved : 1;
             }
         } catch (e) {
-            console.warn("Error loading level:", e);
+            console.warn("Error loading max level:", e);
         }
         return 1;
     });
+
+    // Sync with hook updates (e.g. from cloud or other tabs)
+    useEffect(() => {
+        if (highScores.watersort > maxUnlockedLevel) {
+            setMaxUnlockedLevel(highScores.watersort);
+        }
+    }, [highScores.watersort]);
+
+    // Current level being played (defaults to max unlocked)
+    const [currentLevel, setCurrentLevel] = useState<number>(maxUnlockedLevel);
+
+    // Update current level if maxUnlockedLevel updates (e.g. on first load if state was 1 but localStorage was 5)
+    // Actually, we don't want to force jump to max if user navigated back. 
+    // We only init currentLevel once.
 
     // State
     const [tubes, setTubes] = useState<Tube[]>([]);
@@ -314,9 +325,11 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         addCoins(coins);
         setEarnedCoins(coins);
         
-        // Update high score only if we just beat the max level
-        if (currentLevel === maxLevel) {
-            updateHighScore('watersort', maxLevel + 1);
+        // Unlock next level if we are at the edge
+        if (currentLevel === maxUnlockedLevel) {
+            const nextMax = maxUnlockedLevel + 1;
+            setMaxUnlockedLevel(nextMax);
+            updateHighScore('watersort', nextMax);
         }
         
         if (onReportProgress) onReportProgress('win', 1);
@@ -332,7 +345,8 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const handleChangeLevel = (delta: number) => {
         if (isAnimating) return;
         const newLevel = currentLevel + delta;
-        if (newLevel < 1 || newLevel > maxLevel) return;
+        // Navigation validation against maxUnlockedLevel
+        if (newLevel < 1 || newLevel > maxUnlockedLevel) return;
         
         setCurrentLevel(newLevel);
         generateLevel(newLevel);
@@ -382,7 +396,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                         <span className="text-xs font-bold text-cyan-300 tracking-widest min-w-[70px] text-center">NIVEAU {currentLevel}</span>
                         <button 
                             onClick={() => handleChangeLevel(1)} 
-                            disabled={currentLevel >= maxLevel || isAnimating}
+                            disabled={currentLevel >= maxUnlockedLevel || isAnimating}
                             className="p-1 rounded-full text-cyan-300 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                         >
                             <ChevronRight size={16} />
