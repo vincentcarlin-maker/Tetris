@@ -82,6 +82,18 @@ const GAMES_CONFIG = [
     { id: 'battleship', name: 'BATAILLE', icon: Ship, color: 'text-blue-500', bg: 'bg-blue-900/20', border: 'border-blue-500/30', hoverBorder: 'hover:border-blue-500', shadow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', glow: 'rgba(59,130,246,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS' },
 ];
 
+const LEADERBOARD_GAMES = [
+    { id: 'tetris', label: 'TETRIS', unit: '', type: 'high', color: 'text-neon-blue' },
+    { id: 'snake', label: 'SNAKE', unit: '', type: 'high', color: 'text-green-500' },
+    { id: 'pacman', label: 'PACMAN', unit: '', type: 'high', color: 'text-yellow-400' },
+    { id: 'breaker', label: 'BREAKER', unit: '', type: 'high', color: 'text-fuchsia-500' },
+    { id: 'invaders', label: 'INVADERS', unit: '', type: 'high', color: 'text-rose-500' },
+    { id: 'uno', label: 'UNO', unit: 'pts', type: 'high', color: 'text-red-500' },
+    { id: 'watersort', label: 'NEON MIX', unit: 'Niv', type: 'high', color: 'text-pink-400' },
+    { id: 'memory', label: 'MEMORY', unit: 'cps', type: 'low', color: 'text-violet-400' },
+    { id: 'mastermind', label: 'NEON MIND', unit: 'cps', type: 'low', color: 'text-indigo-400' },
+];
+
 const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {
     const [style, setStyle] = useState<React.CSSProperties>({ position: 'fixed', top: startY, left: startX, opacity: 1, transform: 'scale(0.5)', zIndex: 100, pointerEvents: 'none', transition: 'none' });
     useEffect(() => {
@@ -226,12 +238,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const AvatarIcon = currentAvatar.icon;
 
     // Leaderboard Helper
-    const getTopScoreForGame = (game: string) => {
+    const getTopScoreForGame = (game: { id: string, type: string }) => {
         if (onlineUsers.length === 0) return { name: '-', score: 0 };
         const sorted = [...onlineUsers].sort((a, b) => {
-            const scoreA = a.stats?.[game] || 0;
-            const scoreB = b.stats?.[game] || 0;
-            if (game === 'memory' || game === 'sudoku' || game === 'mastermind') {
+            const scoreA = a.stats?.[game.id] || 0;
+            const scoreB = b.stats?.[game.id] || 0;
+            if (game.type === 'low') {
                 const realA = scoreA === 0 ? Infinity : scoreA;
                 const realB = scoreB === 0 ? Infinity : scoreB;
                 return realA - realB;
@@ -239,7 +251,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             return scoreB - scoreA;
         });
         const top = sorted[0];
-        const topScore = top.stats?.[game] || 0;
+        const topScore = top.stats?.[game.id] || 0;
         if (!topScore) return { name: '-', score: 0 };
         return { name: top.name, score: topScore };
     };
@@ -438,23 +450,33 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             </div>
                             {scoreTab === 'LOCAL' ? (
                                 <div className="space-y-2">
-                                    {highScores.tetris > 0 && <div className="py-2 border-t border-white/5 flex justify-between"><span className="text-xs font-bold text-neon-blue">TETRIS</span><span className="text-xs font-mono">{highScores.tetris.toLocaleString()}</span></div>}
-                                    {highScores.watersort > 1 && <div className="py-2 border-t border-white/5 flex justify-between"><span className="text-xs font-bold text-pink-400">NEON MIX</span><span className="text-xs font-mono">Niv {highScores.watersort}</span></div>}
-                                    {highScores.snake > 0 && <div className="py-2 border-t border-white/5 flex justify-between"><span className="text-xs font-bold text-green-500">SNAKE</span><span className="text-xs font-mono">{highScores.snake.toLocaleString()}</span></div>}
+                                    {LEADERBOARD_GAMES.map(game => {
+                                        // @ts-ignore
+                                        const score = highScores[game.id];
+                                        // Handle specific cases like Sudoku (object)
+                                        const displayScore = game.id === 'sudoku' && typeof score === 'object' ? score?.medium : score;
+                                        
+                                        if (displayScore && displayScore > 0) {
+                                            return (
+                                                <div key={game.id} className="py-2 border-t border-white/5 flex justify-between">
+                                                    <span className={`text-xs font-bold ${game.color}`}>{game.label}</span>
+                                                    <span className="text-xs font-mono">{game.unit} {displayScore.toLocaleString()}</span>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })}
                                     <div className="text-center text-[10px] text-gray-500 pt-2">Jouez pour établir des records</div>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
                                     <p className="text-[10px] text-gray-500 text-center italic mb-2 flex items-center justify-center gap-1"><Cloud size={10}/> Classement historique Cloud</p>
-                                    {[
-                                        { id: 'tetris', name: 'TETRIS', color: 'text-neon-blue' },
-                                        { id: 'snake', name: 'SNAKE', color: 'text-green-500' },
-                                    ].map(game => {
-                                        const top = getTopScoreForGame(game.id);
+                                    {LEADERBOARD_GAMES.map(game => {
+                                        const top = getTopScoreForGame(game);
                                         return (
                                             <div key={game.id} className="py-2 border-t border-white/5 flex justify-between items-center">
-                                                <h4 className={`font-bold text-sm ${game.color}`}>{game.name}</h4>
-                                                <div className="text-right"><p className="text-xs text-gray-400 font-bold">{top.name}</p><p className="font-mono text-lg">{top.score > 0 ? top.score.toLocaleString() : '-'}</p></div>
+                                                <h4 className={`font-bold text-sm ${game.color}`}>{game.label}</h4>
+                                                <div className="text-right"><p className="text-xs text-gray-400 font-bold">{top.name}</p><p className="font-mono text-lg">{top.score > 0 ? `${game.unit} ${top.score.toLocaleString()}` : '-'}</p></div>
                                             </div>
                                         );
                                     })}
