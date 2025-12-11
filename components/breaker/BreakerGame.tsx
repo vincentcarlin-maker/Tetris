@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, Heart, Trophy, Play, Coins, ArrowLeft } from 'lucide-react';
+import { Home, Heart, Trophy, Play, Coins, ArrowLeft, Lock, RefreshCw } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType, Laser } from './types';
@@ -22,7 +22,15 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const gameLoopRef = useRef<number>(0);
     
-    const [gameState, setGameState] = useState<GameState>('start');
+    // View State
+    const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
+    
+    // Progression State
+    const [maxUnlockedLevel, setMaxUnlockedLevel] = useState<number>(() => {
+        return parseInt(localStorage.getItem('breaker-max-level') || '1', 10);
+    });
+
+    const [gameState, setGameState] = useState<GameState>('waitingToServe');
     const [score, setScore] = useState(0);
     const [lives, setLives] = useState(3);
     const [currentLevel, setCurrentLevel] = useState(1);
@@ -31,7 +39,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.breaker || 0;
     
-    const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver, playPowerUpSpawn, playPowerUpCollect, playLaserShoot } = audio;
+    const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, playMove, playLand, resumeAudio } = audio;
     
     // Game objects refs
     const paddleRef = useRef<Paddle>({ x: (GAME_WIDTH / 2) - PADDLE_DEFAULT_WIDTH / 2, width: PADDLE_DEFAULT_WIDTH, height: 15, hasLasers: false });
@@ -47,12 +55,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const laserEffectTimeoutRef = useRef<any>(null);
     
     const lastLaserShotTime = useRef<number>(0);
-
-    // Initialisation du niveau sauvegardé au montage (juste pour l'affichage initial si besoin)
-    useEffect(() => {
-        const savedLevel = parseInt(localStorage.getItem('breaker-max-level') || '1', 10);
-        setCurrentLevel(savedLevel);
-    }, []);
 
     const resetBallAndPaddle = useCallback(() => {
         // Clear any active power-up timers
@@ -103,21 +105,37 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         blocksRef.current = newBlocks;
     }, []);
 
-    const startGame = () => {
+    const startLevel = (lvl: number) => {
+        setCurrentLevel(lvl);
         setScore(0);
         setLives(3);
-        
-        // CHARGEMENT DU NIVEAU SAUVEGARDÉ
-        const savedLevel = parseInt(localStorage.getItem('breaker-max-level') || '1', 10);
-        setCurrentLevel(savedLevel);
-        loadLevel(savedLevel);
-        
+        loadLevel(lvl);
         resetBallAndPaddle();
         setEarnedCoins(0);
         powerUpsRef.current = [];
         setGameState('waitingToServe');
+        setView('GAME');
+        resumeAudio();
         
         if (onReportProgress) onReportProgress('play', 1);
+    };
+
+    const handleLevelSelect = (lvl: number) => {
+        if (lvl > maxUnlockedLevel) return;
+        playLand();
+        startLevel(lvl);
+    };
+
+    const handleRestart = () => {
+        startLevel(currentLevel);
+    };
+
+    const handleLocalBack = () => {
+        if (view === 'GAME') {
+            setView('LEVEL_SELECT');
+        } else {
+            onBack();
+        }
     };
 
     const serveBall = () => {
@@ -376,7 +394,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         // Level complete
         if (blocks.filter(b => !b.isIndestructible).length === 0) {
             playVictory();
-            // AJOUT: Gain d'argent à chaque niveau terminé
             addCoins(50);
             setEarnedCoins(50);
             if (onReportProgress) onReportProgress('action', currentLevel);
@@ -384,25 +401,27 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             setGameState('levelComplete');
             setTimeout(() => {
                 const nextLevel = currentLevel + 1;
-                setCurrentLevel(nextLevel);
                 
-                // Sauvegarde du niveau atteint
-                const savedMax = parseInt(localStorage.getItem('breaker-max-level') || '1', 10);
-                if (nextLevel > savedMax) {
+                // Unlock logic
+                if (nextLevel > maxUnlockedLevel) {
+                    setMaxUnlockedLevel(nextLevel);
                     localStorage.setItem('breaker-max-level', nextLevel.toString());
                 }
 
+                setCurrentLevel(nextLevel);
                 loadLevel(nextLevel);
                 resetBallAndPaddle();
-                setEarnedCoins(0); // Reset for next game
+                setEarnedCoins(0);
                 setGameState('waitingToServe');
-            }, 3000); // Increased delay slightly to let user see reward
+            }, 3000); 
         }
 
-    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, onReportProgress]);
+    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, onReportProgress, maxUnlockedLevel]);
 
     // Game Loop
     useEffect(() => {
+        if (view !== 'GAME') return;
+
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -411,7 +430,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         const render = () => {
             ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
             
-            ctx.strokeStyle = 'rgba(0, 243, 255, 0.07)';
+            ctx.strokeStyle = 'rgba(236, 72, 153, 0.07)';
             for(let i=0; i<GAME_WIDTH; i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke(); }
             for(let i=0; i<GAME_HEIGHT; i+=20) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
 
@@ -434,10 +453,12 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         return () => {
             if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
         };
-    }, [gameTick]);
+    }, [gameTick, view]);
 
     // Controls
     useEffect(() => {
+        if (view !== 'GAME') return;
+
         const canvas = canvasRef.current;
         if (!canvas) return;
         const handleMouseMove = (e: MouseEvent) => {
@@ -464,34 +485,10 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             canvas.removeEventListener('touchmove', handleTouchMove);
             canvas.removeEventListener('click', handleClick);
         };
-    }, [serveBall]);
+    }, [serveBall, view]);
 
 
     const renderOverlay = () => {
-        if (gameState === 'start') {
-            return (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
-                    <div className="absolute top-4 left-4">
-                        <button onClick={onBack} className="text-gray-500 hover:text-white transition-colors flex items-center gap-1 text-xs">
-                            <ArrowLeft size={14} /> MENU
-                        </button>
-                    </div>
-                    <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#ff00ff]">
-                        NEON<br/><span className="text-neon-pink">BREAKER</span>
-                    </h1>
-                    <p className="text-gray-400 mb-8 text-xs tracking-widest">RECORD : {highScore}</p>
-                    <div className="text-neon-pink font-bold mb-4 tracking-widest animate-pulse border border-neon-pink/50 px-4 py-1 rounded bg-neon-pink/10">
-                        NIVEAU {currentLevel}
-                    </div>
-                    <button
-                        onClick={startGame}
-                        className="animate-pulse px-8 py-4 bg-transparent border-2 border-neon-pink text-neon-pink font-bold rounded-full shadow-[0_0_20px_rgba(255,0,255,0.4)] hover:bg-neon-pink hover:text-white transition-all touch-manipulation"
-                    >
-                        {currentLevel > 1 ? "CONTINUER" : "JOUER"}
-                    </button>
-                </div>
-            );
-        }
         if (gameState === 'gameOver') {
             return (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in">
@@ -506,14 +503,14 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                             <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
                         </div>
                     )}
-                    <button onClick={startGame} className="px-8 py-3 bg-neon-pink text-black font-black tracking-widest text-xl skew-x-[-10deg] hover:bg-white transition-colors">
-                        <span className="block skew-x-[10deg]">REJOUER (NIV {currentLevel})</span>
+                    <button onClick={handleRestart} className="px-8 py-3 bg-neon-pink text-black font-black tracking-widest text-xl skew-x-[-10deg] hover:bg-white transition-colors">
+                        <span className="block skew-x-[10deg]">REJOUER</span>
                     </button>
                     <button
-                        onClick={onBack}
+                        onClick={handleLocalBack}
                         className="mt-4 text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all"
                     >
-                        RETOUR AU MENU
+                        CHOIX NIVEAU
                     </button>
                 </div>
             );
@@ -531,7 +528,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         }
         if (gameState === 'waitingToServe') {
              return (
-                <div className="absolute bottom-20 left-0 right-0 z-50 flex flex-col items-center justify-center text-white text-lg font-bold animate-pulse">
+                <div className="absolute bottom-20 left-0 right-0 z-50 flex flex-col items-center justify-center text-white text-lg font-bold animate-pulse pointer-events-none">
                    <p>TOUCHEZ POUR SERVIR</p>
                 </div>
             );
@@ -539,6 +536,63 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         return null;
     };
 
+    // --- LEVEL SELECT VIEW ---
+    if (view === 'LEVEL_SELECT') {
+        const gridItems = Array.from({ length: Math.max(maxUnlockedLevel + 4, 20) });
+        
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-pink-900/10 via-black to-transparent pointer-events-none"></div>
+
+                {/* Header */}
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-6 shrink-0">
+                    <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-purple-500 drop-shadow-[0_0_10px_rgba(236,72,153,0.5)] pr-2 pb-1">CHOIX NIVEAU</h1>
+                    <div className="w-10"></div>
+                </div>
+
+                {/* Grid */}
+                <div className="flex-1 w-full max-w-lg overflow-y-auto custom-scrollbar z-10 pb-4">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 p-2">
+                        {gridItems.map((_, i) => {
+                            const lvl = i + 1;
+                            const isUnlocked = lvl <= maxUnlockedLevel;
+                            const isNext = lvl === maxUnlockedLevel + 1;
+                            
+                            if (isUnlocked) {
+                                return (
+                                    <button 
+                                        key={lvl} 
+                                        onClick={() => handleLevelSelect(lvl)}
+                                        className={`
+                                            aspect-square rounded-xl border-2 flex flex-col items-center justify-center font-black text-lg transition-all shadow-lg active:scale-95
+                                            bg-pink-900/40 border-pink-500/50 text-neon-pink hover:bg-pink-800/60
+                                        `}
+                                    >
+                                        {lvl}
+                                        <div className="mt-1 w-1.5 h-1.5 bg-neon-pink rounded-full shadow-[0_0_5px_#ff00ff]"></div>
+                                    </button>
+                                );
+                            } else {
+                                return (
+                                    <div key={lvl} className={`aspect-square rounded-xl border-2 flex items-center justify-center text-gray-600 ${isNext ? 'bg-gray-800 border-gray-600 border-dashed animate-pulse' : 'bg-gray-900/30 border-gray-800'}`}>
+                                        <Lock size={isNext ? 20 : 16} className={isNext ? "text-gray-400" : "text-gray-700"} />
+                                    </div>
+                                );
+                            }
+                        })}
+                    </div>
+                </div>
+                
+                <div className="mt-4 z-10 w-full max-w-lg">
+                    <button onClick={() => handleLevelSelect(maxUnlockedLevel)} className="w-full py-4 bg-neon-pink text-black font-black tracking-widest text-lg rounded-xl shadow-[0_0_20px_#ec4899] flex items-center justify-center gap-2 hover:scale-105 transition-transform">
+                        <Play size={24} fill="black"/> CONTINUER (NIV {maxUnlockedLevel})
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
@@ -549,7 +603,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative">
                 {/* Left: Back Btn + Score */}
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
                         <Home size={20} />
                     </button>
                     <div className="flex flex-col">
@@ -563,9 +617,12 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                     <div className="text-lg font-bold text-neon-pink drop-shadow-[0_0_8px_#ff00ff]">NIVEAU {currentLevel}</div>
                 </div>
 
-                {/* Right: Lives */}
-                <div className="flex items-center gap-1 text-red-400 font-bold">
-                    {Array.from({ length: lives }).map((_, i) => <Heart key={i} size={16} fill="currentColor"/>)}
+                {/* Right: Lives & Restart */}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 text-red-400 font-bold">
+                        {Array.from({ length: lives }).map((_, i) => <Heart key={i} size={16} fill="currentColor"/>)}
+                    </div>
+                    <button onClick={handleRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
                 </div>
             </div>
 
