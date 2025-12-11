@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -23,9 +23,9 @@ const DIFFICULTY_CONFIG: Record<Difficulty, { name: string, color: string, bonus
 };
 
 export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
-    const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio, playWallHit } = audio;
+    const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
-    const { username, currentAvatarId } = useCurrency();
+    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
 
     // Game State
     const [board, setBoard] = useState<BoardState>(createInitialBoard());
@@ -46,14 +46,21 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     // Online State
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
     const [isWaitingForHost, setIsWaitingForHost] = useState(false);
+    const [isWaitingForGuest, setIsWaitingForGuest] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
 
     const handleDataRef = useRef<(data: any) => void>(null);
+    const handshakeIntervalRef = useRef<any>(null);
 
     // --- SETUP ---
     useEffect(() => {
-        mp.updateSelfInfo(username, currentAvatarId);
-    }, [username, currentAvatarId, mp]);
+        // Tag user as playing "Checkers" for the lobby filter
+        mp.updateSelfInfo(username, currentAvatarId, undefined, 'Checkers');
+        
+        return () => {
+            if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+        };
+    }, [username, currentAvatarId, mp.updateSelfInfo]);
 
     useEffect(() => {
         if (gameMode === 'ONLINE') {
@@ -98,6 +105,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const resetGame = () => {
+        if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
         const initial = createInitialBoard();
         setBoard(initial);
         setTurn('white');
@@ -109,7 +117,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         setEarnedCoins(0);
         setMustJumpPos(null);
         setOpponentLeft(false);
+        
+        // Reset waiting states
         setIsWaitingForHost(false);
+        setIsWaitingForGuest(false);
         
         if (onReportProgress) onReportProgress('play', 1);
     };
@@ -125,11 +136,17 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             if (mode === 'LOCAL') {
                 resetGame();
             } else if (mode === 'ONLINE') {
+                resetGame();
                 if (mp.isHost) {
-                    resetGame();
-                    setTimeout(() => mp.sendData({ type: 'CHECKERS_INIT' }), 500);
+                    setIsWaitingForGuest(true);
                 } else {
                     setIsWaitingForHost(true);
+                    // Tell host we are here and ready to receive state
+                    // Use Interval to ensure message delivery if Host loads slower
+                    mp.sendData({ type: 'CHECKERS_READY' });
+                    handshakeIntervalRef.current = setInterval(() => {
+                        mp.sendData({ type: 'CHECKERS_READY' });
+                    }, 1000);
                 }
             }
         }
@@ -206,7 +223,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const handleCellClick = (r: number, c: number) => {
-        if (winner || isWaitingForHost) return;
+        if (winner || isWaitingForHost || isWaitingForGuest) return;
         
         // Online Turn Check
         if (gameMode === 'ONLINE') {
@@ -222,10 +239,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         // 1. Select a piece
         if (isMyPiece) {
             if (mustJumpPos) {
-                if (r !== mustJumpPos.r || c !== mustJumpPos.c) {
-                    playWallHit(); // Audio feedback for invalid select during chain
-                    return;
-                }
+                if (r !== mustJumpPos.r || c !== mustJumpPos.c) return;
             }
 
             const allMoves = getValidMoves(board, turn, mustJumpPos || undefined);
@@ -235,10 +249,6 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 playPaddleHit();
                 setSelectedPos({ r, c });
                 setAvailableMoves(pieceMoves);
-            } else {
-                // Feedback: Piece cannot move (maybe blocked or forced capture elsewhere)
-                // Only play sound if this was an explicit user interaction that failed
-                playWallHit();
             }
             return;
         }
@@ -297,9 +307,17 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     // --- ONLINE HANDLER ---
     useEffect(() => {
         handleDataRef.current = (data: any) => {
-            if (data.type === 'CHECKERS_INIT') {
-                resetGame();
+            // Handshake Logic
+            if (data.type === 'CHECKERS_READY') {
+                if (mp.isHost) {
+                    setIsWaitingForGuest(false);
+                    mp.sendData({ type: 'CHECKERS_INIT' }); // Unlock guest
+                }
             }
+            if (data.type === 'CHECKERS_INIT') {
+                resetGame(); // Sets waiting false and resets board, clears interval
+            }
+            // Game Logic
             if (data.type === 'CHECKERS_MOVE') {
                 performMove(data.move);
             }
@@ -308,17 +326,28 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 setWinner(mp.amIP1 ? 'white' : 'red');
             }
             if (data.type === 'REMATCH_START') {
-                resetGame();
+                if (mp.isHost) {
+                    resetGame();
+                    setIsWaitingForGuest(true);
+                } else {
+                    resetGame();
+                    setIsWaitingForHost(true);
+                    mp.sendData({ type: 'CHECKERS_READY' });
+                    handshakeIntervalRef.current = setInterval(() => {
+                        mp.sendData({ type: 'CHECKERS_READY' });
+                    }, 1000);
+                }
             }
         };
     });
 
+    // Fix: Depend on mp.subscribe to avoid race conditions during state updates
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (handleDataRef.current) handleDataRef.current(data);
         });
         return () => unsubscribe();
-    }, [mp]);
+    }, [mp.subscribe]);
 
     // --- RENDER ---
 
@@ -335,6 +364,9 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                             const isPlayableSquare = (r + c) % 2 === 1; 
                             const isSelected = selectedPos?.r === r && selectedPos?.c === c;
                             const isTarget = availableMoves.some(m => m.to.r === r && m.to.c === c);
+                            
+                            // Highlight forced piece
+                            const isForced = mustJumpPos && mustJumpPos.r === r && mustJumpPos.c === c;
 
                             let bgClass = isPlayableSquare ? 'bg-black/40 shadow-inner' : 'bg-white/10';
                             if (isTarget) bgClass = 'bg-green-500/20 shadow-[inset_0_0_15px_#22c55e]';
@@ -345,16 +377,17 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                                     onClick={() => handleCellClick(r, c)}
                                     className={`relative flex items-center justify-center ${bgClass} ${isTarget ? 'cursor-pointer' : ''}`}
                                 >
-                                    {isTarget && <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse pointer-events-none" />}
+                                    {isTarget && <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
                                     
                                     {piece && (
                                         <div className={`
                                             relative w-[80%] aspect-square rounded-full flex items-center justify-center
-                                            transition-all duration-300 pointer-events-none
+                                            transition-all duration-300
                                             ${piece.player === 'white' 
                                                 ? 'text-cyan-400 shadow-[0_0_10px_#22d3ee]' 
                                                 : 'text-pink-500 shadow-[0_0_10px_#ec4899]'}
                                             ${isSelected ? 'scale-110 brightness-150 z-10' : ''}
+                                            ${isForced ? 'ring-2 ring-yellow-400 animate-pulse' : ''}
                                             ${isFlipped ? 'rotate-180' : ''}
                                         `}>
                                             <div className={`absolute inset-0 rounded-full opacity-20 ${piece.player === 'white' ? 'bg-cyan-400' : 'bg-pink-500'}`}></div>
@@ -396,7 +429,9 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
     const renderLobby = () => {
         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
-        return (
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+
+         return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
                  <div className="flex flex-col gap-3 mb-4">
                      <h3 className="text-xl font-black text-center text-cyan-300 tracking-wider drop-shadow-md">LOBBY DAMES</h3>
@@ -405,15 +440,46 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                      </button>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {hostingPlayers.length > 0 ? hostingPlayers.map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
-                            <span className="font-bold text-white ml-2">{p.name}</span>
-                            <button onClick={() => mp.joinRoom(p.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
-                        </div>
-                    )) : <p className="text-center text-gray-500 text-sm py-4">Aucune partie disponible</p>}
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
                 </div>
              </div>
-        );
+         );
     };
 
     // --- RENDER PHASES ---
@@ -509,20 +575,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 </div>
             )}
 
-            {/* HOST WAITING FOR PLAYER */}
-            {gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && (
+            {(isWaitingForHost || isWaitingForGuest) && gameMode === 'ONLINE' && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
                     <Loader2 size={48} className="text-cyan-400 animate-spin mb-4"/>
                     <p className="font-bold">EN ATTENTE D'UN JOUEUR...</p>
                     <button onClick={mp.cancelHosting} className="mt-4 px-4 py-2 bg-red-600 rounded text-sm font-bold">ANNULER</button>
-                </div>
-            )}
-
-            {/* GUEST WAITING FOR HOST INIT */}
-            {gameMode === 'ONLINE' && !mp.isHost && isWaitingForHost && (
-                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
-                    <Loader2 size={48} className="text-cyan-400 animate-spin mb-4"/>
-                    <p className="font-bold">SYNCHRONISATION...</p>
                 </div>
             )}
 
