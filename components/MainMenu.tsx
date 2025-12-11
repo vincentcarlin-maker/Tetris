@@ -576,7 +576,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                             return (
                                                 <div key={game.id} className="py-2 border-t border-white/5 flex justify-between">
                                                     <span className={`text-xs font-bold ${game.color}`}>{game.label}</span>
-                                                    <span className="text-xs font-mono">{game.unit} {displayScore.toLocaleString()}</span>
+                                                    <span className="text-xs font-mono">{displayScore.toLocaleString()} {game.unit}</span>
                                                 </div>
                                             );
                                         }
@@ -592,7 +592,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                         return (
                                             <div key={game.id} className="py-2 border-t border-white/5 flex justify-between items-center">
                                                 <h4 className={`font-bold text-sm ${game.color}`}>{game.label}</h4>
-                                                <div className="text-right"><p className="text-xs text-gray-400 font-bold">{top.name}</p><p className="font-mono text-lg">{top.score > 0 ? `${game.unit} ${top.score.toLocaleString()}` : '-'}</p></div>
+                                                <div className="text-right"><p className="text-xs text-gray-400 font-bold">{top.name}</p><p className="font-mono text-lg">{top.score > 0 ? `${top.score.toLocaleString()} ${game.unit}` : '-'}</p></div>
                                             </div>
                                         );
                                     })}
