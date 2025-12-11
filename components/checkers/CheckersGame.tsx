@@ -509,11 +509,20 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 </div>
             )}
 
-            {isWaitingForHost && gameMode === 'ONLINE' && !mp.gameOpponent && (
+            {/* HOST WAITING FOR PLAYER */}
+            {gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
                     <Loader2 size={48} className="text-cyan-400 animate-spin mb-4"/>
                     <p className="font-bold">EN ATTENTE D'UN JOUEUR...</p>
                     <button onClick={mp.cancelHosting} className="mt-4 px-4 py-2 bg-red-600 rounded text-sm font-bold">ANNULER</button>
+                </div>
+            )}
+
+            {/* GUEST WAITING FOR HOST INIT */}
+            {gameMode === 'ONLINE' && !mp.isHost && isWaitingForHost && (
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                    <Loader2 size={48} className="text-cyan-400 animate-spin mb-4"/>
+                    <p className="font-bold">SYNCHRONISATION...</p>
                 </div>
             )}
 
