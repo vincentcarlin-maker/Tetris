@@ -74,9 +74,15 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     }, [gameMode]);
 
     useEffect(() => {
-        const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        const isHosting = mp.isHost || mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
-            if (isHosting) setOnlineStep('game');
+            if (isHosting) {
+                setOnlineStep('game');
+                // FIX: Force Host to transition to game setup immediately to see waiting screen
+                if (menuPhase === 'MENU') {
+                    initGame('ONLINE');
+                }
+            }
             else setOnlineStep('lobby');
             
             if (menuPhase === 'GAME' && (winner || whiteCount < 20 || redCount < 20)) {
@@ -315,7 +321,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 }
             }
             if (data.type === 'CHECKERS_INIT') {
-                resetGame(); // Sets waiting false and resets board, clears interval
+                // Fix: Only reset if waiting to avoid loops
+                if (isWaitingForHost) {
+                    resetGame(); 
+                }
             }
             // Game Logic
             if (data.type === 'CHECKERS_MOVE') {
