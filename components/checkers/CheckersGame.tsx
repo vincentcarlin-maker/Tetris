@@ -23,7 +23,7 @@ const DIFFICULTY_CONFIG: Record<Difficulty, { name: string, color: string, bonus
 };
 
 export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
-    const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
+    const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio, playWallHit } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const { username, currentAvatarId } = useCurrency();
 
@@ -222,7 +222,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         // 1. Select a piece
         if (isMyPiece) {
             if (mustJumpPos) {
-                if (r !== mustJumpPos.r || c !== mustJumpPos.c) return;
+                if (r !== mustJumpPos.r || c !== mustJumpPos.c) {
+                    playWallHit(); // Audio feedback for invalid select during chain
+                    return;
+                }
             }
 
             const allMoves = getValidMoves(board, turn, mustJumpPos || undefined);
@@ -232,6 +235,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 playPaddleHit();
                 setSelectedPos({ r, c });
                 setAvailableMoves(pieceMoves);
+            } else {
+                // Feedback: Piece cannot move (maybe blocked or forced capture elsewhere)
+                // Only play sound if this was an explicit user interaction that failed
+                playWallHit();
             }
             return;
         }
@@ -338,12 +345,12 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                                     onClick={() => handleCellClick(r, c)}
                                     className={`relative flex items-center justify-center ${bgClass} ${isTarget ? 'cursor-pointer' : ''}`}
                                 >
-                                    {isTarget && <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
+                                    {isTarget && <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse pointer-events-none" />}
                                     
                                     {piece && (
                                         <div className={`
                                             relative w-[80%] aspect-square rounded-full flex items-center justify-center
-                                            transition-all duration-300
+                                            transition-all duration-300 pointer-events-none
                                             ${piece.player === 'white' 
                                                 ? 'text-cyan-400 shadow-[0_0_10px_#22d3ee]' 
                                                 : 'text-pink-500 shadow-[0_0_10px_#ec4899]'}
