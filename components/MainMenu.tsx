@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, FlaskConical, Crown } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -64,10 +64,26 @@ const BreakerIcon = ({ size, className }: { size?: number | string, className?: 
        <rect x="2" y="3" width="6" height="4" rx="1" /><rect x="9" y="3" width="6" height="4" rx="1" /><rect x="16" y="3" width="6" height="4" rx="1" /><rect x="2" y="8" width="6" height="4" rx="1" /><rect x="16" y="8" width="6" height="4" rx="1" /><circle cx="12" cy="15" r="2" fill="currentColor" /><path d="M4 20h16" strokeWidth="2.5" />
     </svg>
 );
+// Custom Neon Mix Icon (3 tubes multicolores)
+const NeonMixIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {/* Tube 1 (Left) - Yellow */}
+        <path d="M3 11v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-6" fill="#facc15" stroke="none" />
+        <path d="M3 2v15a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2" stroke="#ffffff" strokeOpacity="0.9" />
+        
+        {/* Tube 2 (Center) - Cyan */}
+        <path d="M10 6v11a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-11" fill="#22d3ee" stroke="none" />
+        <path d="M10 2v15a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2" stroke="#ffffff" strokeOpacity="0.9" />
+
+        {/* Tube 3 (Right) - Pink */}
+        <path d="M17 14v3a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-3" fill="#e879f9" stroke="none" />
+        <path d="M17 2v15a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2" stroke="#ffffff" strokeOpacity="0.9" />
+    </svg>
+);
 
 const GAMES_CONFIG = [
     { id: 'tetris', name: 'TETRIS', icon: TetrisIcon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
-    { id: 'watersort', name: 'NEON MIX', icon: FlaskConical, color: 'text-pink-400', bg: 'bg-pink-900/20', border: 'border-pink-500/30', hoverBorder: 'hover:border-pink-400', shadow: 'hover:shadow-[0_0_20px_rgba(244,114,182,0.3)]', glow: 'rgba(244,114,182,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS' },
+    { id: 'watersort', name: 'NEON MIX', icon: NeonMixIcon, color: 'text-pink-400', bg: 'bg-pink-900/20', border: 'border-pink-500/30', hoverBorder: 'hover:border-pink-400', shadow: 'hover:shadow-[0_0_20px_rgba(244,114,182,0.3)]', glow: 'rgba(244,114,182,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS' },
     { id: 'checkers', name: 'DAMES', icon: Crown, color: 'text-teal-400', bg: 'bg-teal-900/20', border: 'border-teal-500/30', hoverBorder: 'hover:border-teal-400', shadow: 'hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]', glow: 'rgba(45,212,191,0.8)', badges: { solo: true, online: true, vs: true, new: true }, reward: 'GAINS' },
     { id: 'uno', name: 'UNO', icon: UnoIcon, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-500', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS' },
     { id: 'snake', name: 'SNAKE', icon: SnakeIcon, color: 'text-green-500', bg: 'bg-green-900/20', border: 'border-green-500/30', hoverBorder: 'hover:border-green-500', shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', glow: 'rgba(34,197,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
