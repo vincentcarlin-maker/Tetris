@@ -33,13 +33,6 @@ const NEON_COLORS: Record<number, string> = {
     12: 'bg-white shadow-[0_0_10px_#ffffff]',
 };
 
-// Hex codes for SVG rendering
-const NEON_HEX: Record<number, string> = {
-    1: '#ef4444', 2: '#3b82f6', 3: '#22c55e', 4: '#facc15',
-    5: '#a855f7', 6: '#22d3ee', 7: '#f97316', 8: '#ec4899',
-    9: '#2dd4bf', 10: '#6366f1', 11: '#a3e635', 12: '#ffffff',
-};
-
 // Helper to check if level is solved
 const isLevelSolved = (tubes: Tube[]) => {
     return tubes.every(tube => {
@@ -55,19 +48,22 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     const { highScores, updateHighScore } = useHighScores();
     
     // Direct read for init to avoid hook delay causing reset to level 1
-    const getSavedLevel = () => {
+    const [level, setLevel] = useState<number>(() => {
         try {
             const stored = localStorage.getItem('neon-highscores');
             if (stored) {
                 const parsed = JSON.parse(stored);
-                return parsed.watersort || 1;
+                // Ensure we return a valid number greater than 0
+                const saved = parseInt(parsed.watersort, 10);
+                return (!isNaN(saved) && saved > 0) ? saved : 1;
             }
-        } catch {}
+        } catch (e) {
+            console.warn("Error loading level:", e);
+        }
         return 1;
-    };
+    });
 
     // State
-    const [level, setLevel] = useState(getSavedLevel);
     const [tubes, setTubes] = useState<Tube[]>([]);
     const [selectedTube, setSelectedTube] = useState<number | null>(null);
     const [history, setHistory] = useState<Tube[][]>([]);
@@ -316,8 +312,6 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         addCoins(coins);
         setEarnedCoins(coins);
         
-        // Use functional state to ensure we have the latest level
-        // We read the current level from state directly here
         const nextLevel = level + 1;
         updateHighScore('watersort', nextLevel);
         
