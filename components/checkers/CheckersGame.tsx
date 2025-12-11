@@ -50,11 +50,16 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     const [opponentLeft, setOpponentLeft] = useState(false);
 
     const handleDataRef = useRef<(data: any) => void>(null);
+    const handshakeIntervalRef = useRef<any>(null);
 
     // --- SETUP ---
     useEffect(() => {
         // Tag user as playing "Checkers" for the lobby filter
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Checkers');
+        
+        return () => {
+            if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+        };
     }, [username, currentAvatarId, mp]);
 
     useEffect(() => {
@@ -100,6 +105,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const resetGame = () => {
+        if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
         const initial = createInitialBoard();
         setBoard(initial);
         setTurn('white');
@@ -136,7 +142,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 } else {
                     setIsWaitingForHost(true);
                     // Tell host we are here and ready to receive state
-                    setTimeout(() => mp.sendData({ type: 'CHECKERS_READY' }), 500);
+                    // Use Interval to ensure message delivery if Host loads slower
+                    mp.sendData({ type: 'CHECKERS_READY' });
+                    handshakeIntervalRef.current = setInterval(() => {
+                        mp.sendData({ type: 'CHECKERS_READY' });
+                    }, 1000);
                 }
             }
         }
@@ -305,7 +315,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 }
             }
             if (data.type === 'CHECKERS_INIT') {
-                resetGame(); // Sets waiting false and resets board
+                resetGame(); // Sets waiting false and resets board, clears interval
             }
             // Game Logic
             if (data.type === 'CHECKERS_MOVE') {
@@ -322,7 +332,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 } else {
                     resetGame();
                     setIsWaitingForHost(true);
-                    setTimeout(() => mp.sendData({ type: 'CHECKERS_READY' }), 500);
+                    mp.sendData({ type: 'CHECKERS_READY' });
+                    handshakeIntervalRef.current = setInterval(() => {
+                        mp.sendData({ type: 'CHECKERS_READY' });
+                    }, 1000);
                 }
             }
         };
