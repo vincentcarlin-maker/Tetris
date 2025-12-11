@@ -366,14 +366,21 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const handleLocalBack = () => {
+        if (gameMode === 'ONLINE') {
+            if (onlineStep === 'game') {
+                mp.leaveGame();
+                setOnlineStep('lobby');
+            } else {
+                mp.disconnect();
+                setMenuPhase('MENU');
+            }
+            return;
+        }
+
         if (menuPhase === 'GAME') {
-            if (gameMode === 'ONLINE') { mp.leaveGame(); setOnlineStep('lobby'); }
-            else if (gameMode === 'SOLO') setMenuPhase('DIFFICULTY');
+            if (gameMode === 'SOLO') setMenuPhase('DIFFICULTY');
             else setMenuPhase('MENU');
         } else if (menuPhase === 'DIFFICULTY') {
-            setMenuPhase('MENU');
-        } else if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
-            mp.disconnect();
             setMenuPhase('MENU');
         } else {
             onBack();
