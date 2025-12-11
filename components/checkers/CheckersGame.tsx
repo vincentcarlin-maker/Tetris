@@ -89,6 +89,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 setMenuPhase('MENU');
             }
         } else if (mp.mode === 'in_game') {
+            const isFreshTransition = onlineStep !== 'game';
             setOnlineStep('game');
             setOpponentLeft(false);
             
@@ -102,7 +103,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 
                 // If not already waiting (or to ensure fresh start), trigger handshake
                 // We use a small timeout to let the connection settle
-                if (!isWaitingForHost) {
+                if (isFreshTransition || !isWaitingForHost) {
                     resetGame(); // Ensure board is clean
                     setIsWaitingForHost(true);
                     
@@ -117,7 +118,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 }
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, menuPhase, isWaitingForHost]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, menuPhase, isWaitingForHost, onlineStep]);
 
     // --- LOGIC ---
 
