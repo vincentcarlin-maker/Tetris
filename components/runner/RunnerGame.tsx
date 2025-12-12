@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward, Palette, Lock, Check, CloudRain, Snowflake, Sun, TreeDeciduous, Moon, AlertTriangle, Gift, Target } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -1090,31 +1089,6 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                         <p className="text-orange-400 font-bold tracking-widest animate-pulse">APPUYEZ POUR SAUTER</p>
                     </div>
                 )}
-
-                {gameOver && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md z-30 animate-in zoom-in fade-in p-6">
-                        <h2 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-orange-600 mb-6 italic drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]">CRASH !</h2>
-                        
-                        <div className="bg-gray-900/50 p-4 rounded-xl border border-white/10 mb-6 w-full max-w-[200px] text-center backdrop-blur-sm">
-                            <p className="text-gray-400 text-xs font-bold tracking-widest mb-1">DISTANCE FINALE</p>
-                            <p className="text-4xl font-mono text-white drop-shadow-md">{Math.floor(distance)} m</p>
-                        </div>
-
-                        {earnedCoins > 0 && (
-                            <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
-                                <Coins className="text-yellow-400" size={20} />
-                                <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
-                            </div>
-                        )}
-                        
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); resetGame(); }} 
-                            className="px-8 py-3 bg-orange-500 text-black font-black tracking-widest text-lg rounded-full hover:bg-white hover:scale-105 transition-all shadow-[0_0_20px_rgba(249,115,22,0.4)] flex items-center gap-2 pointer-events-auto"
-                        >
-                            <RefreshCw size={20} /> REJOUER
-                        </button>
-                    </div>
-                )}
             </div>
             
             <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Courez le plus loin possible.</p>
@@ -1168,6 +1142,31 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                         
                         <button onClick={() => setShowSkinShop(false)} className="mt-6 w-full py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-700">RETOUR AU JEU</button>
                     </div>
+                </div>
+            )}
+
+            {gameOver && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md z-50 animate-in zoom-in fade-in p-6">
+                    <h2 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-orange-600 mb-6 italic drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]">CRASH !</h2>
+                    
+                    <div className="bg-gray-900/50 p-4 rounded-xl border border-white/10 mb-6 w-full max-w-[200px] text-center backdrop-blur-sm">
+                        <p className="text-gray-400 text-xs font-bold tracking-widest mb-1">DISTANCE FINALE</p>
+                        <p className="text-4xl font-mono text-white drop-shadow-md">{Math.floor(distance)} m</p>
+                    </div>
+
+                    {earnedCoins > 0 && (
+                        <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                            <Coins className="text-yellow-400" size={20} />
+                            <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
+                        </div>
+                    )}
+                    
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); resetGame(); }} 
+                        className="px-8 py-3 bg-orange-500 text-black font-black tracking-widest text-lg rounded-full hover:bg-white hover:scale-105 transition-all shadow-[0_0_20px_rgba(249,115,22,0.4)] flex items-center gap-2 pointer-events-auto"
+                    >
+                        <RefreshCw size={20} /> REJOUER
+                    </button>
                 </div>
             )}
         </div>
