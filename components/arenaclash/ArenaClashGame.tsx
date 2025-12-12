@@ -1,14 +1,17 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Crosshair, Play, HelpCircle, Skull, Zap, Clock, Shield, Activity, Target } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Crosshair, Play, HelpCircle, Skull, Zap, Clock, Shield, Activity, Target, User, Globe, Users, Loader2, ArrowLeft, LogOut } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
+import { useMultiplayer } from '../../hooks/useMultiplayer';
+import { useCurrency } from '../../hooks/useCurrency';
 import { TutorialOverlay } from '../Tutorials';
 
 interface ArenaClashGameProps {
     onBack: () => void;
     audio: ReturnType<typeof useGameAudio>;
     addCoins: (amount: number) => void;
+    mp: ReturnType<typeof useMultiplayer>;
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
@@ -118,8 +121,9 @@ const OBSTACLES: Obstacle[] = [
     { x: 1050, y: 500, w: 50, h: 200 },
 ];
 
-export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
+export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
     
     // Joystick Refs (DOM Elements)
     const leftZoneRef = useRef<HTMLDivElement>(null);
@@ -140,11 +144,17 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     // UI State
     const [timeLeft, setTimeLeft] = useState(MATCH_DURATION);
     const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'RESPAWNING' | 'GAMEOVER'>('MENU');
+    const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
     const [killFeed, setKillFeed] = useState<KillEvent[]>([]);
     const [leaderboard, setLeaderboard] = useState<{name: string, score: number, isMe: boolean}[]>([]);
     const [showTutorial, setShowTutorial] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
     
+    // Online State
+    const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
+    const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(false);
+    const [opponentLeft, setOpponentLeft] = useState(false);
+
     // Game Loop Refs
     const playerRef = useRef<Character | null>(null);
     const botsRef = useRef<Character[]>([]);
@@ -175,8 +185,43 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             setShowTutorial(true);
             localStorage.setItem('neon_arena_tutorial_seen', 'true');
         }
+        
+        // Sync Identity
+        mp.updateSelfInfo(username, currentAvatarId);
+
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, []);
+    }, [username, currentAvatarId, mp]);
+
+    // --- ONLINE HANDLERS ---
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            mp.disconnect();
+            setOpponentLeft(false);
+        }
+        return () => mp.disconnect();
+    }, [gameMode]);
+
+    useEffect(() => {
+        const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+            
+            // If we were playing and got kicked to lobby
+            if (gameState === 'PLAYING') setGameState('MENU');
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            
+            // Auto start if matched while in menu
+            if (gameState === 'MENU' && gameMode === 'ONLINE') {
+                startGame();
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameState, gameMode]);
 
     // --- JOYSTICK LOGIC ---
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
@@ -323,7 +368,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const startGame = () => {
         if (showTutorial) return;
         playerRef.current = spawnCharacter('player', 'VOUS', true);
+        
+        // Spawn Bots (In Online mode we might replace one bot with a player later, for now simply co-op against bots or PvP if fully implemented)
+        // Since we are doing a lobby-based "game start", we stick to local simulation for this iteration unless full netcode is added.
         botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
+        
         bulletsRef.current = [];
         powerUpsRef.current = [];
         particlesRef.current = [];
@@ -443,7 +492,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
 
             } else {
-                // ... BOT AI CODE (Same as before) ...
+                // ... BOT AI CODE ...
                 let target: {x: number, y: number} | null = null;
                 let minDist = 600;
                 powerUpsRef.current.forEach(pu => {
@@ -695,6 +744,118 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         setShowTutorial(prev => !prev);
     };
 
+    // --- LOBBY LOGIC ---
+    const handleLocalBack = () => {
+        if (gameMode === 'ONLINE') {
+            if (onlineStep === 'game') {
+                mp.leaveGame();
+                setOnlineStep('lobby');
+            } else {
+                mp.disconnect();
+                setGameState('MENU');
+            }
+            return;
+        }
+        
+        if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
+            setGameState('MENU');
+        } else {
+            onBack();
+        }
+    };
+
+    const renderLobby = () => {
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+
+         return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-purple-300 tracking-wider drop-shadow-md">LOBBY ARENA</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-purple-600 text-white font-black tracking-widest rounded-xl text-sm hover:bg-purple-500 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.4)] active:scale-95">
+                        <Play size={18} fill="white"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
+                </div>
+             </div>
+         );
+    };
+
+    // --- MENU VIEW ---
+    if (gameState === 'MENU') {
+        return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+                <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
+                <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
+                
+                <div className="flex flex-col gap-4 w-full max-w-[260px]">
+                    <button onClick={() => { setGameMode('SOLO'); startGame(); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                        <User size={24} className="text-neon-blue"/> SOLO (BOTS)
+                    </button>
+                    <button onClick={() => setGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                        <Globe size={24} className="text-purple-500"/> EN LIGNE
+                    </button>
+                </div>
+                <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
+            </div>
+        );
+    }
+
+    // --- LOBBY VIEW ---
+    if (gameMode === 'ONLINE' && onlineStep !== 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><ArrowLeft size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-300 pr-2 pb-1">ARENA CLASH</h1>
+                    <div className="w-10"></div>
+                </div>
+                {onlineStep === 'connecting' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-purple-400 animate-spin mb-4" /><p className="text-purple-300 font-bold">CONNEXION...</p></div>
+                ) : renderLobby()}
+            </div>
+        );
+    }
+
     return (
         <div id="arena-container" className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden select-none">
             {/* Background */}
@@ -704,7 +865,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
             {/* HEADER */}
             <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0 pointer-events-none">
-                <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
+                <button onClick={(e) => { e.stopPropagation(); handleLocalBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
                     <Home size={20} />
                 </button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,217,255,0.5)] tracking-widest">NEON ARENA</h1>
@@ -759,7 +920,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         height={VIEWPORT_HEIGHT}
                         className="bg-black/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-xl w-full h-full object-contain cursor-crosshair"
                         onMouseDown={(e) => { 
-                            if(!showTutorial) { 
+                            if(!showTutorial && gameState === 'PLAYING') { 
                                 mouseRef.current.down = true; 
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 const scaleX = VIEWPORT_WIDTH / rect.width;
@@ -772,14 +933,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         onMouseMove={handleMouseMove}
                     />
 
-                    {/* MENUS */}
-                    {gameState === 'MENU' && !showTutorial && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 pointer-events-auto">
-                            <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
-                            <h2 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-2">NEON ARENA</h2>
-                            <button onClick={startGame} className="mt-8 px-10 py-4 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-black tracking-widest rounded-full hover:scale-105 transition-transform shadow-[0_0_30px_rgba(0,217,255,0.6)] border border-white/20 flex items-center gap-2">
-                                <Play fill="white"/> JOUER
-                            </button>
+                    {/* WAITING FOR OPPONENT */}
+                    {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
+                        <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto">
+                            <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
+                            <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                            <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
                         </div>
                     )}
 
@@ -788,7 +947,10 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                             <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce"/>
                             <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-400 to-orange-500 italic mb-4">MATCH TERMINÉ</h2>
                             {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
-                            <button onClick={startGame} className="px-10 py-4 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={24} /> REJOUER</button>
+                            <div className="flex gap-4">
+                                <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startGame(); }} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                                {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                            </div>
                         </div>
                     )}
                 </div>
