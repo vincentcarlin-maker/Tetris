@@ -18,8 +18,8 @@ const BLOCK_HEIGHT = 30;
 const INITIAL_SIZE = 180;
 const MOVE_SPEED = 3.5;
 const COLORS_START = 180;
-const MOVEMENT_RANGE = 330; // Increased range to accommodate spawn position
-const SPAWN_POS = -300;
+const MOVEMENT_RANGE = 360; // Wide range to safely spawn blocks
+const SPAWN_POS = -320;
 
 // --- TYPES ---
 interface Block {
@@ -44,11 +44,12 @@ interface Debris {
     scale: number;
 }
 
+type GamePhase = 'IDLE' | 'PLAYING' | 'GAMEOVER';
+
 export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [score, setScore] = useState(0);
-    const [gameOver, setGameOver] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
+    const [gamePhase, setGamePhase] = useState<GamePhase>('IDLE');
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [perfectCount, setPerfectCount] = useState(0);
 
@@ -56,7 +57,6 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const { highScores, updateHighScore } = useHighScores();
     const bestScore = highScores.stack || 0;
 
-    // Stable refs for props/state to avoid dependency cycles in effects
     const onReportProgressRef = useRef(onReportProgress);
     useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
 
@@ -66,7 +66,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const currentBlockRef = useRef<{ x: number, z: number, dir: 1 | -1, axis: 'x' | 'z' }>({ x: 0, z: 0, dir: 1, axis: 'x' });
     const cameraYRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
-    const isStartingRef = useRef(false); // Lock input during start transition
+    const isActionLockedRef = useRef(false); // Prevents accidental double taps
     
     const limitRef = useRef({ width: INITIAL_SIZE, depth: INITIAL_SIZE });
 
@@ -159,7 +159,11 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         // Moving Block
         const curr = currentBlockRef.current;
         const topBlock = stackRef.current[stackRef.current.length - 1];
-        if (topBlock && !gameOver) {
+        
+        // Draw moving block only if playing
+        // Note: checking ref directly inside loop logic usually, but here relying on React state for the "game over" status is risky in loop
+        // We assume valid state if stack has items.
+        if (topBlock) {
              drawBlock(ctx, {
                 x: curr.x,
                 z: curr.z,
@@ -169,7 +173,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                 color: getHSL(stackRef.current.length)
             });
         }
-    }, [gameOver]);
+    }, []);
 
     const update = () => {
         const curr = currentBlockRef.current;
@@ -219,16 +223,15 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         
         setScore(0);
         setPerfectCount(0);
-        setGameOver(false);
-        setIsPlaying(false);
+        setGamePhase('IDLE');
         setEarnedCoins(0);
-        isStartingRef.current = false;
+        isActionLockedRef.current = false;
         
         if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
         
+        // Initial Render Tick
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
-            // Simple clear on reset
             ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         }
     }, []);
@@ -255,8 +258,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const handleGameOver = () => {
-        setGameOver(true);
-        setIsPlaying(false);
+        setGamePhase('GAMEOVER');
         playGameOver();
         updateHighScore('stack', score);
         if (onReportProgressRef.current) onReportProgressRef.current('score', score);
@@ -283,12 +285,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const placeBlock = () => {
-        if (gameOver) {
-            resetGame();
-            return;
-        }
-        
-        if (!isPlaying || isStartingRef.current) return;
+        if (gamePhase !== 'PLAYING' || isActionLockedRef.current) return;
 
         const current = currentBlockRef.current;
         const topBlock = stackRef.current[stackRef.current.length - 1];
@@ -303,7 +300,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         
         if (axis === 'x') {
             diff = current.x - topBlock.x;
-            if (Math.abs(diff) < 5) { // Increased tolerance
+            if (Math.abs(diff) < 5) {
                 diff = 0;
                 current.x = topBlock.x;
                 setPerfectCount(p => p + 1);
@@ -395,7 +392,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         let animationId: number;
         
         const run = () => {
-            if (isPlaying && !gameOver) {
+            if (gamePhase === 'PLAYING') {
                 update();
             }
             const ctx = canvasRef.current?.getContext('2d');
@@ -405,30 +402,32 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         run();
         
         return () => cancelAnimationFrame(animationId);
-    }, [isPlaying, gameOver, draw]);
+    }, [gamePhase, draw]);
 
     // --- INPUT HANDLERS ---
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        if (!isPlaying && !gameOver) {
-            setIsPlaying(true);
-            isStartingRef.current = true; // Block placement for a moment
+        e.preventDefault(); // Critical for mobile to prevent double firing
+        
+        if (gamePhase === 'IDLE') {
+            setGamePhase('PLAYING');
+            isActionLockedRef.current = true; // Lock action processing
             spawnNextBlock();
             resumeAudio();
             
-            // Release lock after delay to prevent instant placement
+            // Release lock after delay to prevent instant placement from the same tap
             setTimeout(() => {
-                isStartingRef.current = false;
+                isActionLockedRef.current = false;
             }, 300);
         }
     };
 
     const handleAction = (e: React.MouseEvent | React.TouchEvent) => {
-        if (gameOver) {
+        if (gamePhase === 'GAMEOVER') {
             resetGame();
             return;
         }
-        if (isPlaying) {
+        if (gamePhase === 'PLAYING') {
             placeBlock();
         }
     };
@@ -460,9 +459,9 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
             <div className="relative w-full max-w-lg h-full max-h-[600px] bg-black/80 border-2 border-cyan-500/30 rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.2)] overflow-hidden backdrop-blur-md z-10 cursor-pointer">
                 <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="w-full h-full object-contain" />
                 
-                {!isPlaying && !gameOver && (
+                {gamePhase === 'IDLE' && (
                     <div 
-                        className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20 cursor-pointer hover:bg-black/50 transition-colors"
+                        className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30 cursor-pointer hover:bg-black/50 transition-colors"
                         onClick={handleStart}
                         onTouchStart={handleStart}
                     >
@@ -471,7 +470,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                     </div>
                 )}
 
-                {gameOver && (
+                {gamePhase === 'GAMEOVER' && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in pointer-events-none">
                         <h2 className="text-5xl font-black text-red-500 italic mb-2 drop-shadow-[0_0_10px_red]">PERDU</h2>
                         <div className="text-center mb-6">
