@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Ghost, ArrowRight, Star, Zap, Skull, Shield, Play } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Ghost, ArrowRight, Star, Zap, Skull, Shield, Play, HelpCircle, MousePointer2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { Direction, Position, Pacman, Ghost as GhostType, Grid, TileType, GhostMode } from './types';
@@ -99,6 +99,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
     const [levelComplete, setLevelComplete] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     // Audio
     const { playPacmanWaka, playPacmanEatGhost, playPacmanPower, playGameOver, playVictory, resumeAudio } = audio;
@@ -135,6 +136,15 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
 
     const [, setTick] = useState(0);
 
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_pacman_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_pacman_tutorial_seen', 'true');
+        }
+    }, []);
+
     useEffect(() => {
         return () => {
             cancelAnimationFrame(animationFrameRef.current);
@@ -144,7 +154,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
 
     // Survival Quest Timer
     useEffect(() => {
-        if (isPlaying && !gameOver && !gameWon && !levelComplete) {
+        if (isPlaying && !gameOver && !gameWon && !levelComplete && !showTutorial) {
             survivalTimerRef.current = setInterval(() => {
                 if (onReportProgress) onReportProgress('action', 1); // 1 second survived
             }, 1000);
@@ -152,12 +162,12 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
             if (survivalTimerRef.current) clearInterval(survivalTimerRef.current);
         }
         return () => { if (survivalTimerRef.current) clearInterval(survivalTimerRef.current); };
-    }, [isPlaying, gameOver, gameWon, levelComplete, onReportProgress]);
+    }, [isPlaying, gameOver, gameWon, levelComplete, onReportProgress, showTutorial]);
 
     // Gestion du clavier pour Desktop / Test
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (gameOver || gameWon || levelComplete || gameStep !== 'PLAYING' || isDyingRef.current) return;
+            if (gameOver || gameWon || levelComplete || gameStep !== 'PLAYING' || isDyingRef.current || showTutorial) return;
             const key = e.key;
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
                 e.preventDefault();
@@ -172,7 +182,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [gameOver, gameWon, levelComplete, isPlaying, resumeAudio, gameStep]);
+    }, [gameOver, gameWon, levelComplete, isPlaying, resumeAudio, gameStep, showTutorial]);
 
     // --- SWIPE CONTROLS LOGIC ---
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -181,7 +191,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (!touchStartRef.current || isDyingRef.current) return;
+        if (!touchStartRef.current || isDyingRef.current || showTutorial) return;
         
         const touch = e.touches[0];
         const diffX = touch.clientX - touchStartRef.current.x;
@@ -234,6 +244,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
     };
 
     const startGame = (selectedDiff: Difficulty) => {
+        if (showTutorial) return;
         setDifficulty(selectedDiff);
         setLevel(1);
         setLives(DIFFICULTY_SETTINGS[selectedDiff].lives);
@@ -601,7 +612,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
 
     useEffect(() => {
         const update = () => {
-            if (isPlaying && !gameOver && !gameWon && !levelComplete && gameStep === 'PLAYING') {
+            if (isPlaying && !gameOver && !gameWon && !levelComplete && gameStep === 'PLAYING' && !showTutorial) {
                 updateGameTimers();
                 movePacman();
                 moveGhosts();
@@ -613,7 +624,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
         };
         animationFrameRef.current = requestAnimationFrame(update);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [isPlaying, gameOver, gameWon, levelComplete, movePacman, moveGhosts, checkCollisions, updateGameTimers, updateTrails, gameStep]);
+    }, [isPlaying, gameOver, gameWon, levelComplete, movePacman, moveGhosts, checkCollisions, updateGameTimers, updateTrails, gameStep, showTutorial]);
 
     const getStyle = (x: number, y: number) => ({
         left: `${(x / COLS) * 100}%`,
@@ -699,6 +710,49 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-yellow-400/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
+            
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-yellow-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">GLISSER</p>
+                                    <p className="text-xs text-gray-400">Glissez vers le haut, bas, gauche ou droite pour diriger Pacman.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Zap className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">SUPER PAC</p>
+                                    <p className="text-xs text-gray-400">Mangez les gros points jaunes pour rendre les fantômes vulnérables.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Ghost className="text-pink-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">FANTÔMES</p>
+                                    <p className="text-xs text-gray-400">Évitez-les en mode normal. Mangez-les quand ils sont bleus !</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-yellow-400 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowRight className="rotate-180" size={20} /></button>
                 <div className="flex flex-col items-center">
@@ -708,7 +762,10 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
                         <span className={`text-[10px] font-bold tracking-widest bg-gray-900/50 px-2 rounded border ${DIFFICULTY_SETTINGS[difficulty].color}`}>{DIFFICULTY_SETTINGS[difficulty].name}</span>
                     </div>
                 </div>
-                <button onClick={() => startGame(difficulty)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-yellow-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={() => startGame(difficulty)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
             <div className="w-full max-w-lg flex justify-between items-center px-6 mb-2 z-10">
                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-xl font-mono font-bold text-white">{score}</span></div>
@@ -763,7 +820,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
                         </div>
                     </div>
 
-                    {!isPlaying && !gameOver && !gameWon && !levelComplete && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-30 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
+                    {!isPlaying && !gameOver && !gameWon && !levelComplete && !showTutorial && (<div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-30 backdrop-blur-sm pointer-events-none"><p className="text-white font-bold animate-pulse tracking-widest">GLISSEZ POUR JOUER</p></div>)}
                     
                     {levelComplete && (
                         <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in">
