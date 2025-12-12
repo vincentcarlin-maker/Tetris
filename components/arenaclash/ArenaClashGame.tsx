@@ -121,6 +121,7 @@ const OBSTACLES: Obstacle[] = [
 
 export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const inputLayerRef = useRef<HTMLDivElement>(null);
     
     // UI State
     const [timeLeft, setTimeLeft] = useState(MATCH_DURATION);
@@ -141,10 +142,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const gameStateRef = useRef(gameState);
     const timeLeftRef = useRef(timeLeft);
     const onReportProgressRef = useRef(onReportProgress);
+    const showTutorialRef = useRef(showTutorial);
 
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
     useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
     useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
+    useEffect(() => { showTutorialRef.current = showTutorial; }, [showTutorial]);
 
     // Input Refs
     const keysRef = useRef<{ [key: string]: boolean }>({});
@@ -174,6 +177,109 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             localStorage.setItem('neon_arena_tutorial_seen', 'true');
         }
         return () => cancelAnimationFrame(animationFrameRef.current);
+    }, []);
+
+    // --- NATIVE EVENT LISTENERS FOR TOUCH (FULL SCREEN) ---
+    useEffect(() => {
+        const inputLayer = inputLayerRef.current;
+        const canvas = canvasRef.current;
+        if (!inputLayer || !canvas) return;
+
+        const getGameCoords = (clientX: number, clientY: number) => {
+            const rect = canvas.getBoundingClientRect();
+            // Scaling logic: Map viewport touch to game resolution (800x600)
+            // Note: rect might be smaller/larger than VIEWPORT_* due to CSS object-contain
+            const scaleX = VIEWPORT_WIDTH / rect.width;
+            const scaleY = VIEWPORT_HEIGHT / rect.height;
+            
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        };
+
+        const handleTouchStart = (e: TouchEvent) => {
+            e.preventDefault(); 
+            if (showTutorialRef.current) return;
+            
+            // To detect left/right side of screen, we use window width
+            const windowWidth = window.innerWidth;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                const { x: gameX, y: gameY } = getGameCoords(t.clientX, t.clientY);
+
+                // Split screen logic based on Screen Coordinates, not Game Coordinates
+                if (t.clientX < windowWidth / 2) {
+                    // Joystick (Left)
+                    if (!joystickRef.current || !joystickRef.current.active) {
+                        joystickRef.current = { 
+                            active: true, 
+                            identifier: t.identifier, 
+                            originX: gameX, 
+                            originY: gameY, 
+                            x: gameX, 
+                            y: gameY 
+                        };
+                    }
+                } else {
+                    // Shoot (Right)
+                    mouseRef.current.down = true;
+                    mouseRef.current.x = gameX;
+                    mouseRef.current.y = gameY;
+                }
+            }
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            e.preventDefault();
+            if (showTutorialRef.current) return;
+            
+            const windowWidth = window.innerWidth;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                const { x: gameX, y: gameY } = getGameCoords(t.clientX, t.clientY);
+
+                // Is this the joystick finger?
+                if (joystickRef.current && joystickRef.current.active && t.identifier === joystickRef.current.identifier) {
+                    joystickRef.current.x = gameX;
+                    joystickRef.current.y = gameY;
+                } 
+                // Else is it aiming?
+                else {
+                    if (t.clientX >= windowWidth / 2) {
+                        mouseRef.current.x = gameX;
+                        mouseRef.current.y = gameY;
+                    }
+                }
+            }
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (joystickRef.current && joystickRef.current.identifier === t.identifier) {
+                    joystickRef.current.active = false;
+                    joystickRef.current.identifier = null;
+                } else {
+                    mouseRef.current.down = false;
+                }
+            }
+        };
+
+        inputLayer.addEventListener('touchstart', handleTouchStart, { passive: false });
+        inputLayer.addEventListener('touchmove', handleTouchMove, { passive: false });
+        inputLayer.addEventListener('touchend', handleTouchEnd, { passive: false });
+        inputLayer.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+        return () => {
+            inputLayer.removeEventListener('touchstart', handleTouchStart);
+            inputLayer.removeEventListener('touchmove', handleTouchMove);
+            inputLayer.removeEventListener('touchend', handleTouchEnd);
+            inputLayer.removeEventListener('touchcancel', handleTouchEnd);
+        };
     }, []);
 
     const spawnCharacter = (id: string, name: string, isPlayer: boolean): Character => {
@@ -752,18 +858,41 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         if (joystickRef.current && joystickRef.current.active) {
             const { originX, originY, x, y } = joystickRef.current;
             
-            // Base
+            // Outer Ring (Glow)
+            ctx.save();
             ctx.beginPath();
-            ctx.arc(originX, originY, 40, 0, Math.PI * 2);
+            ctx.arc(originX, originY, 50, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.5)';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#00f3ff';
+            ctx.shadowBlur = 20;
+            ctx.stroke();
+            
+            // Inner Base
+            ctx.beginPath();
+            ctx.arc(originX, originY, 15, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.3)';
+            ctx.fill();
+
+            // Stick Line
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(x, y);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.lineWidth = 2;
             ctx.stroke();
             
-            // Stick
+            // Stick Knob
             ctx.beginPath();
-            ctx.arc(x, y, 20, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 243, 255, 0.5)';
+            ctx.arc(x, y, 25, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.8)';
+            ctx.shadowColor = '#00f3ff';
+            ctx.shadowBlur = 15;
             ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
         }
     };
 
@@ -795,94 +924,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
     }, []);
 
-    const getScale = () => {
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return { x: 1, y: 1, rect: null };
-        return { 
-            x: VIEWPORT_WIDTH / rect.width, 
-            y: VIEWPORT_HEIGHT / rect.height,
-            rect 
-        };
-    };
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (showTutorial) return;
-        const { x: scaleX, y: scaleY, rect } = getScale();
-        if (!rect) return;
-
-        for (let i = 0; i < e.touches.length; i++) {
-            const t = e.touches[i];
-            const touchX = (t.clientX - rect.left);
-            const touchY = (t.clientY - rect.top);
-            
-            const gameX = touchX * scaleX;
-            const gameY = touchY * scaleY;
-
-            // Logic split based on visual center (rect.width / 2)
-            if (touchX < rect.width / 2) {
-                // Joystick (Left)
-                joystickRef.current = { 
-                    active: true, 
-                    identifier: t.identifier, // Track specific touch ID
-                    originX: gameX, 
-                    originY: gameY, 
-                    x: gameX, 
-                    y: gameY 
-                };
-            } else {
-                // Shoot (Right)
-                mouseRef.current.down = true;
-                mouseRef.current.x = gameX;
-                mouseRef.current.y = gameY;
-            }
-        }
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (showTutorial) return;
-        e.preventDefault(); // Prevent scroll
-        const { x: scaleX, y: scaleY, rect } = getScale();
-        if (!rect) return;
-
-        for (let i = 0; i < e.touches.length; i++) {
-            const t = e.touches[i];
-            const touchX = (t.clientX - rect.left);
-            const touchY = (t.clientY - rect.top);
-            
-            const gameX = touchX * scaleX;
-            const gameY = touchY * scaleY;
-
-            // Update Joystick if ID matches
-            if (joystickRef.current && joystickRef.current.active && t.identifier === joystickRef.current.identifier) {
-                joystickRef.current.x = gameX;
-                joystickRef.current.y = gameY;
-            } else if (touchX >= rect.width / 2) {
-                // Right side aiming (any touch not claimed by joystick)
-                mouseRef.current.x = gameX;
-                mouseRef.current.y = gameY;
-                mouseRef.current.down = true;
-            }
-        }
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        // We iterate changedTouches to see if our joystick touch ended
-        for (let i = 0; i < e.changedTouches.length; i++) {
-            const t = e.changedTouches[i];
-            if (joystickRef.current && joystickRef.current.identifier === t.identifier) {
-                joystickRef.current.active = false;
-                joystickRef.current.identifier = null;
-            } else {
-                // Assume right side touch ended (rough approximation for simple multi-touch)
-                // Ideally track aim touch ID too, but releasing fire on any non-joystick lift is acceptable
-                mouseRef.current.down = false;
-            }
-        }
-    };
-
     const handleMouseMove = (e: React.MouseEvent) => {
-        const { x: scaleX, y: scaleY, rect } = getScale();
+        const rect = canvasRef.current?.getBoundingClientRect();
         if(!rect) return;
+        const scaleX = VIEWPORT_WIDTH / rect.width;
+        const scaleY = VIEWPORT_HEIGHT / rect.height;
         mouseRef.current.x = (e.clientX - rect.left) * scaleX;
         mouseRef.current.y = (e.clientY - rect.top) * scaleY;
     };
@@ -893,7 +939,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     };
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4 select-none">
+        <div ref={inputLayerRef} className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4 select-none pointer-events-auto">
             {/* Background */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none -z-10" />
             
@@ -912,7 +958,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             </div>
 
             {/* HUD */}
-            <div className="w-full max-w-4xl flex gap-4 z-20 h-full relative">
+            <div className="w-full max-w-4xl flex gap-4 z-20 h-full relative pointer-events-none">
                 
                 {/* Left: Killfeed */}
                 <div className="absolute top-0 left-0 w-48 flex flex-col gap-1 pointer-events-none">
@@ -962,7 +1008,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     onMouseDown={(e) => { 
                         if(!showTutorial) { 
                             mouseRef.current.down = true; 
-                            const { x: scaleX, y: scaleY, rect } = getScale();
+                            const { x: scaleX, y: scaleY, rect } = { 
+                                x: VIEWPORT_WIDTH / e.currentTarget.getBoundingClientRect().width, 
+                                y: VIEWPORT_HEIGHT / e.currentTarget.getBoundingClientRect().height, 
+                                rect: e.currentTarget.getBoundingClientRect() 
+                            };
                             if(rect) {
                                 mouseRef.current.x = (e.clientX - rect.left) * scaleX;
                                 mouseRef.current.y = (e.clientY - rect.top) * scaleY;
@@ -971,9 +1021,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     }}
                     onMouseUp={() => mouseRef.current.down = false}
                     onMouseMove={handleMouseMove}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
                 />
             </div>
 
