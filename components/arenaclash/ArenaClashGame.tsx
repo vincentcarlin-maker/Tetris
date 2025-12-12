@@ -199,6 +199,13 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         };
 
         const handleTouchStart = (e: TouchEvent) => {
+            // 1. Allow normal click if interacting with UI buttons
+            if ((e.target as HTMLElement).closest('button')) return;
+
+            // 2. Allow normal behavior if not in game (MENU, GAMEOVER)
+            if (gameStateRef.current !== 'PLAYING' && gameStateRef.current !== 'RESPAWNING') return;
+
+            // 3. Otherwise, prevent scrolling/zooming and handle game input
             e.preventDefault(); 
             if (showTutorialRef.current) return;
             
@@ -232,6 +239,9 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         };
 
         const handleTouchMove = (e: TouchEvent) => {
+            // Check state first
+            if (gameStateRef.current !== 'PLAYING' && gameStateRef.current !== 'RESPAWNING') return;
+            
             e.preventDefault();
             if (showTutorialRef.current) return;
             
@@ -257,6 +267,9 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         };
 
         const handleTouchEnd = (e: TouchEvent) => {
+            // Check state first
+            if (gameStateRef.current !== 'PLAYING' && gameStateRef.current !== 'RESPAWNING') return;
+
             e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
@@ -441,9 +454,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
                 // Mouse Aim
                 const rect = canvasRef.current?.getBoundingClientRect();
-                if (rect && !joystickRef.current?.active) {
-                    // Only use mouse aim if joystick is NOT active to prevent conflict on touch? 
-                    // No, allow right stick/mouse aim.
+                if (rect) {
                     // WorldMouse = ScreenMouse + Camera
                     const worldMouseX = mouseRef.current.x + cameraRef.current.x;
                     const worldMouseY = mouseRef.current.y + cameraRef.current.y;
@@ -858,41 +869,18 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         if (joystickRef.current && joystickRef.current.active) {
             const { originX, originY, x, y } = joystickRef.current;
             
-            // Outer Ring (Glow)
-            ctx.save();
+            // Base
             ctx.beginPath();
-            ctx.arc(originX, originY, 50, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(0, 243, 255, 0.5)';
+            ctx.arc(originX, originY, 40, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.lineWidth = 4;
-            ctx.shadowColor = '#00f3ff';
-            ctx.shadowBlur = 20;
             ctx.stroke();
             
-            // Inner Base
+            // Stick
             ctx.beginPath();
-            ctx.arc(originX, originY, 15, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 243, 255, 0.3)';
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.7)';
             ctx.fill();
-
-            // Stick Line
-            ctx.beginPath();
-            ctx.moveTo(originX, originY);
-            ctx.lineTo(x, y);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Stick Knob
-            ctx.beginPath();
-            ctx.arc(x, y, 25, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 243, 255, 0.8)';
-            ctx.shadowColor = '#00f3ff';
-            ctx.shadowBlur = 15;
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.restore();
         }
     };
 
