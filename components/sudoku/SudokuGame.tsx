@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins, HelpCircle, MousePointer2, Hash, Brain } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { generateSudoku } from './logic';
@@ -28,6 +28,12 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
     const { playMove, playClear, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
 
+    // Use a ref for the callback to prevent the effect from re-running when the parent rerenders
+    const onReportProgressRef = useRef(onReportProgress);
+    useEffect(() => {
+        onReportProgressRef.current = onReportProgress;
+    }, [onReportProgress]);
+
     // Check localStorage for tutorial seen
     useEffect(() => {
         const hasSeen = localStorage.getItem('neon_sudoku_tutorial_seen');
@@ -48,14 +54,17 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
             setMistakes(0);
             setSelectedCell(null);
             setEarnedCoins(0);
-            if (onReportProgress) onReportProgress('play', 1);
+            
+            if (onReportProgressRef.current) {
+                onReportProgressRef.current('play', 1);
+            }
         } catch (error) {
             console.error("Sudoku generation failed:", error);
             // Fallback to prevent crash loop
             setInitialGrid([]);
             setPlayerGrid([]);
         }
-    }, [difficulty, onReportProgress]);
+    }, [difficulty]); // Dependency removed: onReportProgress
 
     useEffect(() => {
         startNewGame();
@@ -106,7 +115,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
                 addCoins(reward);
                 setEarnedCoins(reward);
                 updateHighScore('sudoku', mistakes, difficulty);
-                if (onReportProgress) onReportProgress('win', 1);
+                if (onReportProgressRef.current) onReportProgressRef.current('win', 1);
             }
 
         } else {
