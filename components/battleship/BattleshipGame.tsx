@@ -729,4 +729,18 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     <>
                         <Anchor size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
                         <h2 className="text-5xl font-black italic text-white mb-2">DÉFAITE...</h2>
-                        <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ
+                        <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ</p>
+                    </>
+                )}
+                <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                    <div className="flex gap-2 w-full">
+                        <button onClick={resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2"><RefreshCw size={18} /> REJOUER</button>
+                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 text-sm">QUITTER</button>}
+                    </div>
+                    <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>
+                </div>
+            </div>
+        )}
+    </div>
+  );
+};
