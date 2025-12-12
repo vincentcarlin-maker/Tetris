@@ -137,10 +137,26 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const powerUpsRef = useRef<PowerUp[]>([]);
     const particlesRef = useRef<Particle[]>([]);
     
+    // State Refs (For Loop Closure)
+    const gameStateRef = useRef(gameState);
+    const timeLeftRef = useRef(timeLeft);
+    const onReportProgressRef = useRef(onReportProgress);
+
+    useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+    useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+    useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
+
     // Input Refs
     const keysRef = useRef<{ [key: string]: boolean }>({});
     const mouseRef = useRef({ x: 0, y: 0, down: false });
-    const joystickRef = useRef<{ active: boolean, x: number, y: number, originX: number, originY: number } | null>(null);
+    // Improved Joystick Ref with Identifier
+    const joystickRef = useRef<{ 
+        active: boolean, 
+        identifier: number | null, 
+        x: number, y: number, 
+        originX: number, originY: number 
+    } | null>(null);
+    
     const cameraRef = useRef({ x: 0, y: 0 });
     
     const animationFrameRef = useRef<number>(0);
@@ -200,12 +216,17 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         particlesRef.current = [];
         
         setTimeLeft(MATCH_DURATION);
+        timeLeftRef.current = MATCH_DURATION;
+        
         setKillFeed([]);
+        
         setGameState('PLAYING');
+        gameStateRef.current = 'PLAYING';
+        
         setEarnedCoins(0);
         resumeAudio();
         
-        if (onReportProgress) onReportProgress('play', 1);
+        if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
         
         lastTimeRef.current = Date.now();
         loop();
@@ -238,11 +259,16 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const player = playerRef.current;
         if (!player) return;
 
+        const currentGameState = gameStateRef.current;
+
         // Match Timer
-        if (gameState === 'PLAYING' || gameState === 'RESPAWNING') {
-            const newTime = Math.max(0, timeLeft - dt / 1000);
-            // Only update state every second to avoid re-renders
-            if (Math.floor(newTime) !== Math.floor(timeLeft)) {
+        if (currentGameState === 'PLAYING' || currentGameState === 'RESPAWNING') {
+            const currentTimeLeft = timeLeftRef.current;
+            const newTime = Math.max(0, currentTimeLeft - dt / 1000);
+            timeLeftRef.current = newTime;
+
+            // Only update UI state every second to avoid re-renders
+            if (Math.floor(newTime) !== Math.floor(currentTimeLeft)) {
                 setTimeLeft(newTime);
                 // Spawn Powerup occasionally
                 if (Math.random() < 0.3) spawnPowerUp();
@@ -264,7 +290,10 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         // Respawn
                         const spawn = spawnCharacter(char.id, char.name, char.id === 'player');
                         Object.assign(char, spawn);
-                        if (char.id === 'player') setGameState('PLAYING');
+                        if (char.id === 'player') {
+                            setGameState('PLAYING');
+                            gameStateRef.current = 'PLAYING';
+                        }
                     }
                 }
                 return;
@@ -280,6 +309,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             // --- MOVEMENT ---
             if (char.id === 'player') {
                 let dx = 0, dy = 0;
+                // Case insensitive check
                 if (keysRef.current['w'] || keysRef.current['ArrowUp']) dy -= 1;
                 if (keysRef.current['s'] || keysRef.current['ArrowDown']) dy += 1;
                 if (keysRef.current['a'] || keysRef.current['ArrowLeft']) dx -= 1;
@@ -290,7 +320,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     const jx = joystickRef.current.x - joystickRef.current.originX;
                     const jy = joystickRef.current.y - joystickRef.current.originY;
                     const dist = Math.sqrt(jx*jx + jy*jy);
-                    if (dist > 10) {
+                    if (dist > 10) { // Deadzone
                         dx = jx / dist;
                         dy = jy / dist;
                     }
@@ -305,8 +335,9 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
                 // Mouse Aim
                 const rect = canvasRef.current?.getBoundingClientRect();
-                if (rect) {
-                    // Mouse pos is screen relative, need world relative
+                if (rect && !joystickRef.current?.active) {
+                    // Only use mouse aim if joystick is NOT active to prevent conflict on touch? 
+                    // No, allow right stick/mouse aim.
                     // WorldMouse = ScreenMouse + Camera
                     const worldMouseX = mouseRef.current.x + cameraRef.current.x;
                     const worldMouseY = mouseRef.current.y + cameraRef.current.y;
@@ -545,6 +576,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
             if (char.id === 'player') {
                 setGameState('RESPAWNING');
+                gameStateRef.current = 'RESPAWNING';
                 playGameOver();
             }
         }
@@ -580,13 +612,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     const endGame = () => {
         setGameState('GAMEOVER');
+        gameStateRef.current = 'GAMEOVER';
         playVictory();
         
         const player = playerRef.current;
         if (player) {
             const finalScore = player.score;
             updateHighScore('arenaclash', finalScore);
-            if (onReportProgress) onReportProgress('score', finalScore);
+            if (onReportProgressRef.current) onReportProgressRef.current('score', finalScore);
             
             const coins = finalScore * 10 + 50; // Bonus for playing
             addCoins(coins);
@@ -714,6 +747,24 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         });
 
         ctx.restore();
+
+        // DRAW JOYSTICK HUD (Visual Feedback)
+        if (joystickRef.current && joystickRef.current.active) {
+            const { originX, originY, x, y } = joystickRef.current;
+            
+            // Base
+            ctx.beginPath();
+            ctx.arc(originX, originY, 40, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Stick
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.5)';
+            ctx.fill();
+        }
     };
 
     const loop = () => {
@@ -731,8 +782,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     // --- CONTROLS ---
     useEffect(() => {
-        const kd = (e: KeyboardEvent) => { keysRef.current[e.key] = true; };
-        const ku = (e: KeyboardEvent) => { keysRef.current[e.key] = false; };
+        const kd = (e: KeyboardEvent) => { 
+            keysRef.current[e.key.toLowerCase()] = true; 
+            keysRef.current[e.code] = true;
+        };
+        const ku = (e: KeyboardEvent) => { 
+            keysRef.current[e.key.toLowerCase()] = false; 
+            keysRef.current[e.code] = false;
+        };
         window.addEventListener('keydown', kd);
         window.addEventListener('keyup', ku);
         return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
@@ -758,14 +815,15 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             const touchX = (t.clientX - rect.left);
             const touchY = (t.clientY - rect.top);
             
+            const gameX = touchX * scaleX;
+            const gameY = touchY * scaleY;
+
             // Logic split based on visual center (rect.width / 2)
             if (touchX < rect.width / 2) {
                 // Joystick (Left)
-                const gameX = touchX * scaleX;
-                const gameY = touchY * scaleY;
-                
                 joystickRef.current = { 
                     active: true, 
+                    identifier: t.identifier, // Track specific touch ID
                     originX: gameX, 
                     originY: gameY, 
                     x: gameX, 
@@ -774,8 +832,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             } else {
                 // Shoot (Right)
                 mouseRef.current.down = true;
-                mouseRef.current.x = touchX * scaleX;
-                mouseRef.current.y = touchY * scaleY;
+                mouseRef.current.x = gameX;
+                mouseRef.current.y = gameY;
             }
         }
     };
@@ -794,35 +852,32 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             const gameX = touchX * scaleX;
             const gameY = touchY * scaleY;
 
-            if (touchX < rect.width / 2) {
-                if (joystickRef.current && joystickRef.current.active) {
-                    joystickRef.current.x = gameX;
-                    joystickRef.current.y = gameY;
-                }
-            } else {
+            // Update Joystick if ID matches
+            if (joystickRef.current && joystickRef.current.active && t.identifier === joystickRef.current.identifier) {
+                joystickRef.current.x = gameX;
+                joystickRef.current.y = gameY;
+            } else if (touchX >= rect.width / 2) {
+                // Right side aiming (any touch not claimed by joystick)
                 mouseRef.current.x = gameX;
                 mouseRef.current.y = gameY;
-                mouseRef.current.down = true; // Ensure firing if dragged into area
+                mouseRef.current.down = true;
             }
         }
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-
-        let leftActive = false;
-        let rightActive = false;
-
-        for (let i = 0; i < e.touches.length; i++) {
-            const t = e.touches[i];
-            const x = t.clientX - rect.left;
-            if (x < rect.width / 2) leftActive = true;
-            else rightActive = true;
+        // We iterate changedTouches to see if our joystick touch ended
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            if (joystickRef.current && joystickRef.current.identifier === t.identifier) {
+                joystickRef.current.active = false;
+                joystickRef.current.identifier = null;
+            } else {
+                // Assume right side touch ended (rough approximation for simple multi-touch)
+                // Ideally track aim touch ID too, but releasing fire on any non-joystick lift is acceptable
+                mouseRef.current.down = false;
+            }
         }
-
-        if (!leftActive && joystickRef.current) joystickRef.current.active = false;
-        if (!rightActive) mouseRef.current.down = false;
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
@@ -903,7 +958,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     ref={canvasRef}
                     width={VIEWPORT_WIDTH}
                     height={VIEWPORT_HEIGHT}
-                    className="bg-black/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-xl pointer-events-auto cursor-crosshair"
+                    className="bg-black/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-xl pointer-events-auto cursor-crosshair max-w-full max-h-full object-contain"
                     onMouseDown={(e) => { 
                         if(!showTutorial) { 
                             mouseRef.current.down = true; 
@@ -970,8 +1025,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             {/* Mobile Controls Hint */}
             <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none sm:hidden">
                 <div className="flex gap-8 text-white/50 text-[10px] font-bold uppercase tracking-widest">
-                    <span className="flex items-center gap-1"><div className="w-8 h-8 rounded-full border border-cyan-500/50"></div> BOUGER</span>
-                    <span className="flex items-center gap-1"><div className="w-8 h-8 rounded-full bg-red-500/30"></div> VISER/TIRER</span>
+                    <span className="flex items-center gap-1"><div className="w-8 h-8 rounded-full border border-cyan-500/50"></div> BOUGER (GAUCHE)</span>
+                    <span className="flex items-center gap-1"><div className="w-8 h-8 rounded-full bg-red-500/30"></div> VISER (DROITE)</span>
                 </div>
             </div>
         </div>
