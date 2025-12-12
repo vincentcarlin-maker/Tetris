@@ -66,7 +66,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const currentBlockRef = useRef<{ x: number, z: number, dir: 1 | -1, axis: 'x' | 'z' }>({ x: 0, z: 0, dir: 1, axis: 'x' });
     const cameraYRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
-    const isActionLockedRef = useRef(false); // Prevents accidental double taps
+    const gameStartTimeRef = useRef(0); // Timestamp when game started
     
     const limitRef = useRef({ width: INITIAL_SIZE, depth: INITIAL_SIZE });
 
@@ -222,7 +222,6 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         setPerfectCount(0);
         setGamePhase('IDLE');
         setEarnedCoins(0);
-        isActionLockedRef.current = false;
         
         if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
         
@@ -282,7 +281,8 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const placeBlock = () => {
-        if (gamePhase !== 'PLAYING' || isActionLockedRef.current) return;
+        // Prevent actions during IDLE, GAMEOVER, or within 500ms of starting (prevents instant loss on spawn)
+        if (gamePhase !== 'PLAYING' || Date.now() - gameStartTimeRef.current < 500) return;
 
         const current = currentBlockRef.current;
         const topBlock = stackRef.current[stackRef.current.length - 1];
@@ -345,11 +345,6 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         const newZ = axis === 'z' ? current.z - correction : current.z;
         
         // Debris Logic
-        // Debris center is offset from the original edge
-        // If moved Positive: Debris is on the Positive side (Right/Front)
-        // Debris Center = topBlock Edge + DebrisWidth/2
-        // Edge = topBlock.center + size/2
-        
         let debrisX = current.x;
         let debrisZ = current.z;
         
@@ -425,14 +420,9 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         
         if (gamePhase === 'IDLE') {
             setGamePhase('PLAYING');
-            isActionLockedRef.current = true; // Lock action processing
+            gameStartTimeRef.current = Date.now(); // Mark start time
             spawnNextBlock();
             resumeAudio();
-            
-            // Release lock after delay to prevent instant placement from the same tap
-            setTimeout(() => {
-                isActionLockedRef.current = false;
-            }, 300);
         }
     };
 
@@ -476,7 +466,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                 {gamePhase === 'IDLE' && (
                     <div 
                         className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30 cursor-pointer hover:bg-black/50 transition-colors"
-                        onClick={handleStart}
+                        onMouseDown={handleStart} // Changed from onClick to match phase
                         onTouchStart={handleStart}
                     >
                         <Layers size={48} className="text-cyan-400 animate-pulse mb-2"/>
