@@ -74,7 +74,7 @@ interface Particle {
 
 export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [score, setScore] = useState(0);
+    const [distance, setDistance] = useState(0);
     const [gameOver, setGameOver] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
@@ -94,7 +94,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const particlesRef = useRef<Particle[]>([]);
     const speedRef = useRef(BASE_SPEED);
     const frameRef = useRef(0);
-    const scoreRef = useRef(0);
+    const distanceRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
     
     // PowerUp Logic Refs (avoid react state in loop)
@@ -125,13 +125,13 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         powerUpsRef.current = [];
         particlesRef.current = [];
         speedRef.current = BASE_SPEED;
-        scoreRef.current = 0;
+        distanceRef.current = 0;
         frameRef.current = 0;
         
         activeEffectsRef.current = { magnet: false, shield: false, boost: false, boostEndTime: 0, magnetEndTime: 0 };
         setActivePowerUps({});
 
-        setScore(0);
+        setDistance(0);
         setGameOver(false);
         setIsPlaying(false);
         setEarnedCoins(0);
@@ -245,6 +245,11 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             speedRef.current = Math.min(MAX_SPEED, speedRef.current + 0.2);
         }
 
+        // --- DISTANCE UPDATE ---
+        // Increment distance based on speed. Approx 20 pixels = 1 meter for game scale.
+        distanceRef.current += currentSpeed / 20;
+        setDistance(Math.floor(distanceRef.current));
+
         // --- SPAWN LOGIC ---
         const minGap = (currentSpeed * 40); 
         const lastObstacleX = obstaclesRef.current.length > 0 ? obstaclesRef.current[obstaclesRef.current.length - 1].x : 0;
@@ -328,12 +333,6 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 continue;
             }
 
-            if (!obs.passed && obs.x + obs.width < p.x) {
-                obs.passed = true;
-                scoreRef.current += 10 * (activeEffectsRef.current.boost ? 2 : 1); // Double points if boosted
-                setScore(scoreRef.current);
-            }
-
             const padding = 6;
             // Collision Check
             if (
@@ -347,8 +346,9 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                     obstaclesRef.current.splice(i, 1);
                     playExplosion();
                     spawnParticles(obs.x + obs.width/2, obs.y + obs.height/2, '#fff', 10);
-                    scoreRef.current += 20; // Bonus for destruction
-                    setScore(scoreRef.current);
+                    // Bonus distance for destruction
+                    distanceRef.current += 10;
+                    setDistance(Math.floor(distanceRef.current));
                 } else if (activeEffectsRef.current.shield) {
                     // Shield Mode: Absorb hit
                     obstaclesRef.current.splice(i, 1);
@@ -363,13 +363,15 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                     playGameOver();
                     spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 30);
                     
-                    updateHighScore('runner', scoreRef.current);
-                    const bonusCoins = Math.floor(scoreRef.current / 50);
+                    const finalDistance = Math.floor(distanceRef.current);
+                    updateHighScore('runner', finalDistance);
+                    
+                    const bonusCoins = Math.floor(finalDistance / 100); // 1 coin per 100m
                     if (bonusCoins > 0) {
                         addCoinsRef.current(bonusCoins);
                         setEarnedCoins(prev => prev + bonusCoins);
                     }
-                    if (onReportProgressRef.current) onReportProgressRef.current('score', scoreRef.current);
+                    if (onReportProgressRef.current) onReportProgressRef.current('score', finalDistance);
                 }
             }
         }
@@ -660,13 +662,13 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
             {/* Stats */}
             <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10">
-                <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-2xl font-mono font-bold text-white">{Math.floor(score)}</span></div>
+                <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">DISTANCE</span><span className="text-2xl font-mono font-bold text-white">{Math.floor(distance)} m</span></div>
                 {/* Coin Counter */}
                 <div className="flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full border border-yellow-500/30">
                     <Coins className="text-yellow-400" size={16} />
                     <span className="text-yellow-100 font-bold font-mono">{earnedCoins}</span>
                 </div>
-                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-2xl font-mono font-bold text-yellow-400">{Math.max(Math.floor(score), highScore)}</span></div>
+                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-2xl font-mono font-bold text-yellow-400">{Math.max(Math.floor(distance), highScore)} m</span></div>
             </div>
 
             {/* Active PowerUps UI */}
@@ -709,8 +711,8 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                         <h2 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-orange-600 mb-6 italic drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]">CRASH !</h2>
                         
                         <div className="bg-gray-900/50 p-4 rounded-xl border border-white/10 mb-6 w-full max-w-[200px] text-center backdrop-blur-sm">
-                            <p className="text-gray-400 text-xs font-bold tracking-widest mb-1">SCORE FINAL</p>
-                            <p className="text-4xl font-mono text-white drop-shadow-md">{Math.floor(score)}</p>
+                            <p className="text-gray-400 text-xs font-bold tracking-widest mb-1">DISTANCE FINALE</p>
+                            <p className="text-4xl font-mono text-white drop-shadow-md">{Math.floor(distance)} m</p>
                         </div>
 
                         {earnedCoins > 0 && (
@@ -730,7 +732,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 )}
             </div>
             
-            <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Collectez des pièces et bonus.</p>
+            <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Courez le plus loin possible.</p>
         </div>
     );
 };
