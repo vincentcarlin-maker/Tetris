@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, HelpCircle, MousePointer2, Target, Shield } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -116,7 +116,6 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     const [isPlaying, setIsPlaying] = useState(false);
     const [wave, setWave] = useState(1);
     const [earnedCoins, setEarnedCoins] = useState(0);
-    const [showTutorial, setShowTutorial] = useState(false);
 
     const { playLaserShoot, playExplosion, playGameOver, playVictory, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
@@ -139,15 +138,6 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     useEffect(() => {
         resetGame();
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, []);
-
-    // Check localStorage for tutorial seen
-    useEffect(() => {
-        const hasSeen = localStorage.getItem('neon_invaders_tutorial_seen');
-        if (!hasSeen) {
-            setShowTutorial(true);
-            localStorage.setItem('neon_invaders_tutorial_seen', 'true');
-        }
     }, []);
 
     const resetGame = () => {
@@ -260,7 +250,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     };
 
     const update = () => {
-        if (!isPlaying || gameOver || showTutorial) return;
+        if (!isPlaying || gameOver) return;
 
         const now = Date.now();
         const player = playerRef.current;
@@ -468,9 +458,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     };
 
     const loop = () => {
-        if (!showTutorial) {
-            update();
-        }
+        update();
         if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             if (ctx) draw(ctx);
@@ -481,11 +469,10 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [isPlaying, gameOver, wave, showTutorial]);
+    }, [isPlaying, gameOver, wave]);
 
     // Input Handling
     const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-        if (showTutorial) return;
         resumeAudio();
         if (!isPlaying && !gameOver) setIsPlaying(true);
         isTouchingRef.current = true;
@@ -493,7 +480,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     };
 
     const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-        if (!isTouchingRef.current || showTutorial) return;
+        if (!isTouchingRef.current) return;
         updateTouchPos(e);
     };
 
@@ -525,10 +512,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-600 drop-shadow-[0_0_10px_rgba(244,63,94,0.5)] pr-2 pb-1">NEON INVADERS</h1>
-                <div className="flex gap-2">
-                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
-                    <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
-                </div>
+                <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
 
             {/* Stats */}
@@ -556,7 +540,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
                     className="w-full h-full"
                 />
 
-                {!isPlaying && !gameOver && !showTutorial && (
+                {!isPlaying && !gameOver && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20 pointer-events-none">
                         <p className="text-rose-400 font-bold tracking-widest animate-pulse mb-2">GLISSEZ POUR TIRER</p>
                     </div>
@@ -588,48 +572,6 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
                     <div key={i} className={`w-8 h-2 rounded-full ${i < lives ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-gray-800'}`} />
                 ))}
             </div>
-
-            {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-rose-400"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-4 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
-                                <MousePointer2 className="text-rose-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">PILOTER</p>
-                                    <p className="text-xs text-gray-400">Glissez le doigt horizontalement pour déplacer votre vaisseau.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
-                                <Target className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">TIRER</p>
-                                    <p className="text-xs text-gray-400">Le tir est automatique tant que vous maintenez l'écran.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
-                                <Shield className="text-blue-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">ESQUIVER</p>
-                                    <p className="text-xs text-gray-400">Évitez les tirs ennemis et les kamikazes !</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => setShowTutorial(false)}
-                            className="mt-8 w-full py-3 bg-rose-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
