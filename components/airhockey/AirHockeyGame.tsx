@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause, Loader2 } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause, Loader2, HelpCircle, MousePointer2, Target, Shield } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency, Mallet } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -58,6 +58,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
     const [winner, setWinner] = useState<string | null>(null);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Online specific state
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
@@ -91,6 +92,15 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         mp.updateSelfInfo(username, currentAvatarId, currentMalletId);
     }, [username, currentAvatarId, currentMalletId, mp]);
 
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_airhockey_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_airhockey_tutorial_seen', 'true');
+        }
+    }, []);
+
     // Handle Online Connection
     useEffect(() => {
         if (gameMode === 'ONLINE') {
@@ -104,7 +114,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     }, [gameMode]);
 
     const togglePause = () => {
-        if (gameState !== 'playing') return;
+        if (gameState !== 'playing' || showTutorial) return;
         if (gameMode === 'ONLINE') return; // No pause online
         setIsPaused(prev => !prev);
     };
@@ -137,6 +147,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     }, [gameMode, isHost, sendData]);
 
     const startGame = useCallback((diff: Difficulty, mode: GameMode = 'SINGLE') => {
+        if (showTutorial) return;
         setDifficulty(diff);
         setGameMode(mode);
         setScore({ p1: 0, p2: 0 });
@@ -148,7 +159,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         setGameState('playing');
         resumeAudio();
         if (onReportProgress) onReportProgress('play', 1);
-    }, [resetRound, resumeAudio, onReportProgress]);
+    }, [resetRound, resumeAudio, onReportProgress, showTutorial]);
 
     // Handle Online Mode Transition
     useEffect(() => {
@@ -249,6 +260,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     }, [subscribe, startGame]); 
 
     const selectMode = (mode: GameMode) => {
+        if (showTutorial) return;
         setGameMode(mode);
         if (mode === 'SINGLE') {
             setGameState('difficulty_select');
@@ -429,7 +441,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     };
 
     const gameLoop = useCallback(() => {
-        if (gameState !== 'playing') {
+        if (gameState !== 'playing' || showTutorial) {
             animationFrameRef.current = requestAnimationFrame(gameLoop);
             return;
         }
@@ -576,7 +588,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         }
 
         animationFrameRef.current = requestAnimationFrame(gameLoop);
-    }, [gameState, difficulty, currentMalletId, malletsCatalog, gameMode, isHost, sendData, isPaused]);
+    }, [gameState, difficulty, currentMalletId, malletsCatalog, gameMode, isHost, sendData, isPaused, showTutorial]);
 
     const runPhysics = (puck: Entity, player: Entity, opponent: Entity) => {
         puck.x += puck.vx;
@@ -637,7 +649,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     // ... (Input handling same as before)
     const updateTargets = (clientX: number, clientY: number) => {
-        if (!canvasRef.current || isPaused) return;
+        if (!canvasRef.current || isPaused || showTutorial) return;
         const rect = canvasRef.current.getBoundingClientRect();
         const scaleX = TABLE_WIDTH / rect.width;
         const scaleY = TABLE_HEIGHT / rect.height;
@@ -660,12 +672,12 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     const handleMouseMove = (e: React.MouseEvent) => updateTargets(e.clientX, e.clientY);
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (isPaused) return;
+        if (isPaused || showTutorial) return;
         e.preventDefault();
         for (let i = 0; i < e.touches.length; i++) updateTargets(e.touches[i].clientX, e.touches[i].clientY);
     };
     const handleTouchStart = (e: React.TouchEvent) => {
-        if (isPaused) return;
+        if (isPaused || showTutorial) return;
         resumeAudio();
         handleTouchMove(e);
     };
@@ -748,6 +760,48 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">GLISSER</p>
+                                    <p className="text-xs text-gray-400">Utilisez votre doigt ou la souris pour déplacer votre palet.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Target className="text-pink-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">FRAPPER</p>
+                                    <p className="text-xs text-gray-400">Frappez le disque vers le but adverse pour marquer.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Shield className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">DÉFENDRE</p>
+                                    <p className="text-xs text-gray-400">Protégez votre but des tirs adverses !</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-md flex items-center justify-between z-20 mb-4 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <div className="flex items-center gap-4 font-black text-2xl">
@@ -756,6 +810,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     <span className="text-pink-500">{(gameMode === 'ONLINE' && !isHost) ? score.p1 : score.p2}</span>
                 </div>
                 <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
                     {gameMode !== 'ONLINE' && gameState === 'playing' && (
                         <button onClick={togglePause} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
                             {isPaused ? <Play size={20} /> : <Pause size={20} />}
@@ -773,7 +828,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             >
                 <canvas ref={canvasRef} width={TABLE_WIDTH} height={TABLE_HEIGHT} className="w-full h-full" />
                 
-                {gameState === 'menu' && (
+                {gameState === 'menu' && !showTutorial && (
                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
                         <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#00f3ff]">AIR HOCKEY</h1>
                         <div className="flex flex-col gap-4 w-full max-w-[240px] mt-8">
