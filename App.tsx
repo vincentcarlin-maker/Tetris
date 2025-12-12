@@ -16,7 +16,8 @@ import { UnoGame } from './components/uno/UnoGame';
 import { WaterSortGame } from './components/watersort/WaterSortGame';
 import { CheckersGame } from './components/checkers/CheckersGame';
 import { RunnerGame } from './components/runner/RunnerGame';
-import { StackGame } from './components/stack/StackGame'; // Added StackGame
+import { StackGame } from './components/stack/StackGame'; 
+import { ArenaClashGame } from './components/arenaclash/ArenaClashGame'; // Added Arena Clash
 import { Shop } from './components/Shop';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SocialOverlay } from './components/SocialOverlay';
@@ -29,7 +30,7 @@ import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
 
 
-type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'shop' | 'admin_dashboard';
+type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'shop' | 'admin_dashboard';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -151,7 +152,7 @@ const App: React.FC = () => {
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers', 'runner', 'stack'];
+        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers', 'runner', 'stack', 'arenaclash'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -205,6 +206,7 @@ const App: React.FC = () => {
         else if (game === 'checkers') setCurrentView('checkers');
         else if (game === 'runner') setCurrentView('runner');
         else if (game === 'stack') setCurrentView('stack');
+        else if (game === 'arenaclash') setCurrentView('arenaclash');
         else if (game === 'shop') setCurrentView('shop');
     };
 
@@ -333,6 +335,10 @@ const App: React.FC = () => {
 
             {currentView === 'stack' && isAuthenticated && (
                 <StackGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('stack', metric, val)} />
+            )}
+
+            {currentView === 'arenaclash' && isAuthenticated && (
+                <ArenaClashGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('arenaclash', metric, val)} />
             )}
 
             {currentView === 'menu' && (

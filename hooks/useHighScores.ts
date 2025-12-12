@@ -8,7 +8,8 @@ export interface HighScores {
   snake: number;
   invaders: number;
   runner: number; 
-  stack: number; // Added Stack
+  stack: number;
+  arenaclash: number; // Added Arena Clash
   sudoku: { [difficulty: string]: number }; 
   memory: number; 
   mastermind?: number; 
@@ -25,6 +26,7 @@ const initialHighScores: HighScores = {
   invaders: 0,
   runner: 0,
   stack: 0,
+  arenaclash: 0,
   sudoku: {},
   memory: 0,
   mastermind: 0,
@@ -51,6 +53,7 @@ export const useHighScores = () => {
         if (!parsed.invaders) parsed.invaders = 0;
         if (!parsed.runner) parsed.runner = 0;
         if (!parsed.stack) parsed.stack = 0;
+        if (!parsed.arenaclash) parsed.arenaclash = 0;
         if (!parsed.memory) parsed.memory = 0;
         if (!parsed.mastermind) parsed.mastermind = 0;
         if (!parsed.uno) parsed.uno = 0;
@@ -59,11 +62,6 @@ export const useHighScores = () => {
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
-        // Migration from old system
-        const oldTetrisScore = localStorage.getItem('tetris-high-score');
-        if (oldTetrisScore) {
-          newScores.tetris = parseInt(oldTetrisScore, 10) || 0;
-        }
         setHighScores(newScores);
         localStorage.setItem(HIGHSCORES_KEY, JSON.stringify(newScores));
       }
@@ -77,7 +75,7 @@ export const useHighScores = () => {
       const newScores = JSON.parse(JSON.stringify(prev)); // Deep copy
       let shouldUpdate = false;
 
-      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort' || game === 'runner' || game === 'stack') {
+      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort' || game === 'runner' || game === 'stack' || game === 'arenaclash') {
         // Higher is better
         if (value > (prev[game] as number || 0)) {
           newScores[game] = value;
