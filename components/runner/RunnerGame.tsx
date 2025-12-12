@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward, Palette, Lock, Check, CloudRain, Snowflake, Sun, TreeDeciduous, Moon, AlertTriangle } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward, Palette, Lock, Check, CloudRain, Snowflake, Sun, TreeDeciduous, Moon, AlertTriangle, Gift, Target } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -69,6 +69,16 @@ interface CoinEntity {
     offsetY: number;
 }
 
+interface TreasureEntity {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    type: 'CHEST' | 'GOLD_DRONE';
+    collected: boolean;
+    val: number;
+}
+
 type PowerUpType = 'magnet' | 'shield' | 'boost';
 
 interface PowerUpEntity {
@@ -89,7 +99,7 @@ interface Particle {
     life: number;
     color: string;
     size: number;
-    type?: 'spark' | 'normal'; // New particle types
+    type?: 'spark' | 'normal';
 }
 
 interface WeatherParticle {
@@ -99,7 +109,6 @@ interface WeatherParticle {
     size: number;
 }
 
-// Speed Lines for high speed effect
 interface SpeedLine {
     x: number;
     y: number;
@@ -107,11 +116,20 @@ interface SpeedLine {
     speed: number;
 }
 
+interface Mission {
+    id: number;
+    type: 'DISTANCE' | 'COINS';
+    target: number;
+    current: number; // Snapshot at start of mission
+    reward: number;
+    description: string;
+}
+
 type EventType = 'NONE' | 'GOLD_RUSH' | 'NIGHT_TERROR' | 'HYPER_SPEED';
 
 export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null); // For Screen Shake
+    const containerRef = useRef<HTMLDivElement>(null);
     
     const [distance, setDistance] = useState(0);
     const [gameOver, setGameOver] = useState(false);
@@ -121,6 +139,10 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const [activeEvent, setActiveEvent] = useState<{ type: EventType, label: string } | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
     
+    // Mission State
+    const [currentMission, setCurrentMission] = useState<Mission | null>(null);
+    const [missionProgress, setMissionProgress] = useState(0);
+
     // Skins State
     const [showSkinShop, setShowSkinShop] = useState(false);
     const [currentSkinId, setCurrentSkinId] = useState<string>(() => localStorage.getItem('runner_skin_id') || 'default');
@@ -132,7 +154,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     // UI State for Active PowerUps
     const [activePowerUps, setActivePowerUps] = useState<{ [key in PowerUpType]?: number }>({}); 
 
-    const { playMove, playGameOver, playCoin, playExplosion, playPowerUpCollect, playPowerUpSpawn, resumeAudio } = audio;
+    const { playMove, playGameOver, playCoin, playExplosion, playPowerUpCollect, playPowerUpSpawn, playVictory, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.runner || 0;
 
@@ -140,21 +162,24 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const playerRef = useRef<Player>({ x: 100, y: GROUND_HEIGHT - 40, width: 30, height: 30, dy: 0, grounded: true, color: '#00f3ff', rotation: 0 });
     const obstaclesRef = useRef<Obstacle[]>([]);
     const coinsRef = useRef<CoinEntity[]>([]);
+    const treasuresRef = useRef<TreasureEntity[]>([]);
     const powerUpsRef = useRef<PowerUpEntity[]>([]);
     const particlesRef = useRef<Particle[]>([]);
     const weatherRef = useRef<WeatherParticle[]>([]);
-    const speedLinesRef = useRef<SpeedLine[]>([]); // New Speed Lines
+    const speedLinesRef = useRef<SpeedLine[]>([]);
     
     const speedRef = useRef(BASE_SPEED);
     const frameRef = useRef(0);
     const distanceRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
-    const shakeRef = useRef(0); // Screen Shake Intensity
+    const shakeRef = useRef(0);
     
     // Logic Refs
     const biomeRef = useRef(BIOMES[0]);
     const eventRef = useRef<EventType>('NONE');
     const nextBiomeThresholdRef = useRef(BIOME_SWITCH_DISTANCE);
+    const missionRef = useRef<Mission | null>(null);
+    const missionLevelRef = useRef(1);
 
     const activeEffectsRef = useRef<{ 
         magnet: boolean; 
@@ -183,11 +208,39 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         localStorage.setItem('runner_skin_id', currentSkinId);
     }, [currentSkinId]);
 
+    const generateMission = (level: number, currentDist: number, currentCoins: number): Mission => {
+        const type = Math.random() > 0.5 ? 'DISTANCE' : 'COINS';
+        const multiplier = 1 + (level * 0.2);
+        
+        if (type === 'DISTANCE') {
+            const target = Math.floor(500 * multiplier);
+            return {
+                id: Date.now(),
+                type,
+                target: target,
+                current: currentDist, // Store start point
+                reward: Math.floor(50 * multiplier),
+                description: `COURIR ${target}m`
+            };
+        } else {
+            const target = Math.floor(20 * multiplier);
+            return {
+                id: Date.now(),
+                type,
+                target: target,
+                current: currentCoins, // Store start point
+                reward: Math.floor(50 * multiplier),
+                description: `COLLECTER ${target} PIÈCES`
+            };
+        }
+    };
+
     const resetGame = useCallback(() => {
         const skin = SKINS.find(s => s.id === currentSkinId) || SKINS[0];
         playerRef.current = { x: 100, y: GROUND_HEIGHT - 40, width: 30, height: 30, dy: 0, grounded: true, color: skin.color, rotation: 0 };
         obstaclesRef.current = [];
         coinsRef.current = [];
+        treasuresRef.current = [];
         powerUpsRef.current = [];
         particlesRef.current = [];
         weatherRef.current = [];
@@ -213,6 +266,13 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         setEarnedCoins(0);
         setLocalBalance(parseInt(localStorage.getItem('neon-coins') || '0', 10));
         setNotification(null);
+        
+        // Init Mission
+        missionLevelRef.current = 1;
+        const newMission = generateMission(1, 0, 0);
+        missionRef.current = newMission;
+        setCurrentMission(newMission);
+        setMissionProgress(0);
         
         if (containerRef.current) containerRef.current.style.transform = 'none';
 
@@ -423,7 +483,22 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
         if (obstaclesRef.current.length === 0 || distToLast > minGap + Math.random() * 200) {
             const rand = Math.random();
-            if (rand < 0.05) {
+            
+            // 1. Treasure Chance (Very Rare: 1%)
+            if (Math.random() < 0.01) {
+                const isDrone = Math.random() > 0.5;
+                treasuresRef.current.push({
+                    x: CANVAS_WIDTH,
+                    y: isDrone ? GROUND_HEIGHT - 120 : GROUND_HEIGHT - 35,
+                    width: 30,
+                    height: 30,
+                    type: isDrone ? 'GOLD_DRONE' : 'CHEST',
+                    collected: false,
+                    val: isDrone ? 20 : 50
+                });
+            }
+            // 2. PowerUp Chance
+            else if (rand < 0.05) {
                 const puTypeRand = Math.random();
                 let type: PowerUpType = 'magnet';
                 if (puTypeRand > 0.66) type = 'boost';
@@ -440,6 +515,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 });
                 if (playPowerUpSpawn) playPowerUpSpawn();
             } 
+            // 3. Obstacle Chance
             else if (rand < 0.55) {
                 const typeRand = Math.random();
                 let type: 'block' | 'spike' | 'drone' = 'block';
@@ -470,6 +546,43 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 if (safe) {
                     coinsRef.current.push({ x: CANVAS_WIDTH, y, width: 24, height: 24, collected: false, offsetY: Math.random() * Math.PI });
                 }
+            }
+        }
+
+        // --- MISSION CHECK ---
+        if (missionRef.current && !missionRef.current.completed) {
+            let progress = 0;
+            if (missionRef.current.type === 'DISTANCE') {
+                progress = Math.floor(distanceRef.current) - missionRef.current.current;
+            } else {
+                // For coin missions, we track earnedCoins in this run
+                progress = earnedCoins - missionRef.current.current; 
+            }
+            
+            const pct = Math.min(100, (progress / missionRef.current.target) * 100);
+            setMissionProgress(pct);
+
+            if (progress >= missionRef.current.target) {
+                // Mission Complete!
+                if (playVictory) playVictory();
+                addCoinsRef.current(missionRef.current.reward);
+                setEarnedCoins(prev => prev + missionRef.current!.reward);
+                setNotification(`MISSION RÉUSSIE ! +${missionRef.current.reward} PIÈCES`);
+                
+                setTimeout(() => setNotification(null), 3000);
+                
+                // Next Mission
+                missionLevelRef.current++;
+                // Note: For coin missions, we reset current reference to 0 relative to new start, but here simplified:
+                // We just pass current earnedCoins as baseline for next one if type is coins
+                const newMission = generateMission(
+                    missionLevelRef.current, 
+                    Math.floor(distanceRef.current),
+                    earnedCoins + missionRef.current.reward // Include reward in total for stability
+                );
+                missionRef.current = newMission;
+                setCurrentMission(newMission);
+                setMissionProgress(0);
             }
         }
 
@@ -521,6 +634,33 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                     }
                     if (onReportProgressRef.current) onReportProgressRef.current('score', finalDistance);
                 }
+            }
+        }
+
+        // Treasures
+        for (let i = treasuresRef.current.length - 1; i >= 0; i--) {
+            const t = treasuresRef.current[i];
+            t.x -= currentSpeed;
+            
+            // Movement for Drone
+            if (t.type === 'GOLD_DRONE') {
+                t.y += Math.sin(frameRef.current * 0.1) * 2;
+            }
+
+            if (t.x + t.width < 0) {
+                treasuresRef.current.splice(i, 1);
+                continue;
+            }
+
+            if (!t.collected && p.x < t.x + t.width && p.x + p.width > t.x && p.y < t.y + t.height && p.y + p.height > t.y) {
+                t.collected = true;
+                playVictory(); // Jackpot sound
+                addCoinsRef.current(t.val);
+                setEarnedCoins(prev => prev + t.val);
+                setNotification(t.type === 'CHEST' ? "COFFRE TROUVÉ !" : "DRONE DORÉ !");
+                setTimeout(() => setNotification(null), 2000);
+                spawnParticles(t.x + t.width/2, t.y + t.height/2, '#ffd700', 20, 'spark');
+                treasuresRef.current.splice(i, 1);
             }
         }
 
@@ -686,6 +826,35 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             ctx.shadowBlur = 0;
         });
 
+        // TREASURES
+        treasuresRef.current.forEach(t => {
+            if (t.collected) return;
+            const cx = t.x + t.width/2;
+            const cy = t.y + t.height/2;
+            
+            if (t.type === 'CHEST') {
+                ctx.fillStyle = '#d97706'; // amber-600
+                ctx.fillRect(t.x, t.y, t.width, t.height);
+                ctx.strokeStyle = '#fcd34d'; // amber-300
+                ctx.lineWidth = 2;
+                ctx.strokeRect(t.x, t.y, t.width, t.height);
+                // Lid line
+                ctx.beginPath(); ctx.moveTo(t.x, t.y + 10); ctx.lineTo(t.x + t.width, t.y + 10); ctx.stroke();
+            } else {
+                // Gold Drone
+                ctx.fillStyle = '#ffd700';
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // Wings
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(t.x - 5, t.y + 10, 40, 4);
+            }
+        });
+
         // PowerUps & Coins (Same as before)
         powerUpsRef.current.forEach(pu => {
             if (pu.collected) return;
@@ -825,6 +994,22 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         >
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orange-600/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-transparent pointer-events-none"></div>
+
+            {/* MISSION HUD */}
+            {currentMission && !gameOver && (
+                <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 w-full max-w-xs flex flex-col items-center animate-in slide-in-from-top-4 duration-500 pointer-events-none">
+                    <div className="bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 flex items-center gap-2 mb-1 shadow-lg">
+                        <Target size={14} className="text-yellow-400" />
+                        <span className="text-[10px] font-bold text-white tracking-widest">{currentMission.description}</span>
+                    </div>
+                    <div className="w-40 h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/10">
+                        <div 
+                            className="h-full bg-yellow-400 transition-all duration-300"
+                            style={{ width: `${missionProgress}%` }}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* NOTIFICATION OVERLAY */}
             {notification && (
