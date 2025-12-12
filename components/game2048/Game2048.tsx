@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, HelpCircle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
+import { TutorialOverlay } from '../Tutorials';
 
 interface Game2048Props {
     onBack: () => void;
@@ -30,6 +31,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
     const [gameOver, setGameOver] = useState(false);
     const [won, setWon] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Refs for logic stability (avoids closure staleness in event listeners)
     const tilesRef = useRef<Tile[]>([]);
@@ -40,6 +42,15 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
     const { playMove, playCoin, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const bestScore = highScores.game2048 || 0;
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_2048_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_2048_tutorial_seen', 'true');
+        }
+    }, []);
 
     // Sync ref with state
     useEffect(() => {
@@ -74,6 +85,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
     };
 
     const initGame = useCallback(() => {
+        if (showTutorial) return;
         setScore(0);
         setGameOver(false);
         setWon(false);
@@ -85,12 +97,12 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
         setTiles(newTiles);
         movingRef.current = false;
         if (onReportProgress) onReportProgress('play', 1);
-    }, [onReportProgress]);
+    }, [onReportProgress, showTutorial]);
 
     // Initial load
     useEffect(() => {
         initGame();
-    }, []);
+    }, []); // Only on mount
 
     const checkGameOver = (currentTiles: Tile[]) => {
         const activeTiles = currentTiles.filter(t => !t.isDeleted);
@@ -108,7 +120,7 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
     };
 
     const move = useCallback((dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-        if (movingRef.current || gameOver) return;
+        if (movingRef.current || gameOver || showTutorial) return;
         
         const currentTiles = tilesRef.current;
         const mergedIds = new Set<number>();
@@ -236,12 +248,12 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
                 movingRef.current = false;
             }, 100); // 100ms matches CSS transition duration
         }
-    }, [gameOver, won, score, audio, addCoins, updateHighScore, onReportProgress]);
+    }, [gameOver, won, score, audio, addCoins, updateHighScore, onReportProgress, showTutorial]);
 
     // Keyboard Controls
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (gameOver || movingRef.current) return;
+            if (gameOver || movingRef.current || showTutorial) return;
             switch(e.key) {
                 case 'ArrowUp': e.preventDefault(); move('UP'); break;
                 case 'ArrowDown': e.preventDefault(); move('DOWN'); break;
@@ -251,16 +263,16 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [move, gameOver]);
+    }, [move, gameOver, showTutorial]);
 
     // Touch Controls
     const handleTouchStart = (e: React.TouchEvent) => {
-        if (gameOver || movingRef.current) return;
+        if (gameOver || movingRef.current || showTutorial) return;
         touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
-        if (!touchStartRef.current || movingRef.current) return;
+        if (!touchStartRef.current || movingRef.current || showTutorial) return;
         const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
         const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
         
@@ -290,17 +302,28 @@ export const Game2048: React.FC<Game2048Props> = ({ onBack, audio, addCoins, onR
         }
     };
 
+    const toggleTutorial = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowTutorial(prev => !prev);
+    };
+
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans touch-none select-none p-4"
              onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && <TutorialOverlay gameId="game2048" onClose={() => setShowTutorial(false)} />}
+
             {/* Header */}
             <div className="w-full max-w-md flex items-center justify-between z-10 mb-6 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] pr-2 pb-1">NEON 2048</h1>
-                <button onClick={initGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2">
+                    <button onClick={toggleTutorial} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={initGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
 
             {/* Stats */}

@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb, PlayCircle, Loader2 } from 'lucide-react';
+import { Home, RefreshCw, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Lock, Unlock, Coins, Lightbulb, PlayCircle, Loader2, HelpCircle } from 'lucide-react';
 import { CarData, LevelData } from './types';
 import { getLevel, TOTAL_LEVELS } from './levels';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useCurrency } from '../../hooks/useCurrency';
 import { solveLevel } from './solver';
+import { TutorialOverlay } from '../Tutorials';
 
 interface RushGameProps {
   onBack: () => void;
@@ -249,6 +251,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
   const [difficulty, setDifficulty] = useState('FACILE');
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [earnedCoins, setEarnedCoins] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
   
   // Solver State
   const [isSolving, setIsSolving] = useState(false);
@@ -264,6 +267,15 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
   useEffect(() => {
     loadLevel(currentLevelId);
   }, [currentLevelId]);
+
+  // Check localStorage for tutorial seen
+  useEffect(() => {
+      const hasSeen = localStorage.getItem('neon_rush_tutorial_seen');
+      if (!hasSeen) {
+          setShowTutorial(true);
+          localStorage.setItem('neon_rush_tutorial_seen', 'true');
+      }
+  }, []);
 
   const saveProgress = (levelId: number) => {
       const nextLevel = levelId + 1;
@@ -297,7 +309,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
 
   // --- AUTOMATIC SOLVER ---
   const useSolution = async () => {
-    if (isWon || isExiting || isSolving) return;
+    if (isWon || isExiting || isSolving || showTutorial) return;
     
     setIsSolving(true);
     setSolverStatus('calculating');
@@ -369,7 +381,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
   };
 
   const moveCar = useCallback((dir: -1 | 1) => {
-    if (isSolving) return; // Block manual moves during solution
+    if (isSolving || showTutorial) return; // Block manual moves during solution or tutorial
 
     // 1. Force Audio Unlock agressif à chaque interaction
     resumeAudio();
@@ -423,7 +435,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
       });
       return newCars;
     });
-  }, [selectedCarId, isWon, isExiting, currentLevelId, maxUnlockedLevel, playCarExit, playCarMove, resumeAudio, isSolving]);
+  }, [selectedCarId, isWon, isExiting, currentLevelId, maxUnlockedLevel, playCarExit, playCarMove, resumeAudio, isSolving, showTutorial]);
 
   // Give reward and update high score on win
   useEffect(() => {
@@ -452,7 +464,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
   // Gestion clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!selectedCarId || isSolving) return;
+      if (!selectedCarId || isSolving || showTutorial) return;
       resumeAudio(); // Ensure audio is unlocked on keypress too
       const car = cars.find(c => c.id === selectedCarId);
       if (!car) return;
@@ -467,7 +479,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCarId, cars, moveCar, resumeAudio, isSolving]);
+  }, [selectedCarId, cars, moveCar, resumeAudio, isSolving, showTutorial]);
 
   const selectedCar = cars.find(c => c.id === selectedCarId);
   const bestScore = highScores.rush?.[currentLevelId];
@@ -484,6 +496,9 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
 
       {/* Background Decor */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
+
+      {/* TUTORIAL OVERLAY */}
+      {showTutorial && <TutorialOverlay gameId="rush" onClose={() => setShowTutorial(false)} />}
 
       {/* Header */}
       <div className="w-full max-w-lg flex items-center justify-between z-10 shrink-0">
@@ -508,9 +523,14 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
             )}
           </div>
         </div>
-        <button onClick={() => loadLevel(currentLevelId)} disabled={isSolving} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform disabled:opacity-50">
-          <RefreshCw size={20} />
-        </button>
+        <div className="flex gap-2">
+            <button onClick={() => setShowTutorial(true)} disabled={isSolving} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform disabled:opacity-50">
+                <HelpCircle size={20} />
+            </button>
+            <button onClick={() => loadLevel(currentLevelId)} disabled={isSolving} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform disabled:opacity-50">
+                <RefreshCw size={20} />
+            </button>
+        </div>
       </div>
 
       {/* Game Board */}
@@ -533,8 +553,8 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
             return (
               <div
                 key={car.id}
-                onClick={() => !isSolving && setSelectedCarId(car.id)}
-                className={`absolute ${isSolving ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                onClick={() => !isSolving && !showTutorial && setSelectedCarId(car.id)}
+                className={`absolute ${isSolving || showTutorial ? 'cursor-default' : 'cursor-pointer'}`}
                 style={{
                   left: `${car.x * CELL_SIZE}%`,
                   top: `${car.y * CELL_SIZE}%`,
@@ -611,7 +631,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
       <div className="w-full max-w-lg z-10 flex flex-col gap-4 shrink-0 pb-6">
 
         {/* --- MOVEMENT CONTROLS (Only visible if car selected) --- */}
-        {selectedCar && !isWon && !isSolving && (
+        {selectedCar && !isWon && !isSolving && !showTutorial && (
             <div className="flex items-center justify-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {selectedCar.orientation === 'h' ? (
                     <>
