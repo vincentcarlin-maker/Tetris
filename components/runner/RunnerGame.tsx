@@ -1,5 +1,6 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward, Palette, Lock, Check, CloudRain, Snowflake, Sun, TreeDeciduous, Moon, AlertTriangle, Gift, Target } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward, Palette, Lock, Check, CloudRain, Snowflake, Sun, TreeDeciduous, Moon, AlertTriangle, Gift, Target, HelpCircle, MousePointer2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -138,6 +139,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const [currentBiome, setCurrentBiome] = useState(BIOMES[0]);
     const [activeEvent, setActiveEvent] = useState<{ type: EventType, label: string } | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Mission State
     const [currentMission, setCurrentMission] = useState<Mission | null>(null);
@@ -200,6 +202,15 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     
     useEffect(() => { addCoinsRef.current = addCoins; }, [addCoins]);
     useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_runner_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_runner_tutorial_seen', 'true');
+        }
+    }, []);
 
     // Update player color when skin changes
     useEffect(() => {
@@ -375,7 +386,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             // e.stopPropagation(); 
         }
 
-        if (showSkinShop) return; 
+        if (showSkinShop || showTutorial) return; 
         if (gameOver) return;
         
         if (!isPlaying) {
@@ -393,10 +404,10 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 spawnParticles(p.x + p.width/2, p.y + p.height, '#fff', 5);
             }
         }
-    }, [gameOver, isPlaying, playMove, resumeAudio, showSkinShop]);
+    }, [gameOver, isPlaying, playMove, resumeAudio, showSkinShop, showTutorial]);
 
     const update = () => {
-        if (!isPlaying || gameOver || showSkinShop) return;
+        if (!isPlaying || gameOver || showSkinShop || showTutorial) return;
 
         frameRef.current++;
         const p = playerRef.current;
@@ -960,13 +971,15 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     };
 
     const loop = useCallback(() => {
-        update();
+        if (!showTutorial) {
+            update();
+        }
         if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             if (ctx) draw(ctx);
         }
         animationFrameRef.current = requestAnimationFrame(loop);
-    }, [isPlaying, gameOver, showSkinShop]);
+    }, [isPlaying, gameOver, showSkinShop, showTutorial]);
 
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
@@ -984,6 +997,11 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleJump]);
 
+    const toggleTutorial = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowTutorial(prev => !prev);
+    };
+
     const BiomeIcon = currentBiome.id === 'city' ? Zap : currentBiome.id === 'forest' ? TreeDeciduous : currentBiome.id === 'desert' ? Sun : Snowflake;
 
     return (
@@ -996,7 +1014,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-transparent pointer-events-none"></div>
 
             {/* MISSION HUD */}
-            {currentMission && !gameOver && (
+            {currentMission && !gameOver && !showTutorial && (
                 <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 w-full max-w-xs flex flex-col items-center animate-in slide-in-from-top-4 duration-500 pointer-events-none">
                     <div className="bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 flex items-center gap-2 mb-1 shadow-lg">
                         <Target size={14} className="text-yellow-400" />
@@ -1021,19 +1039,20 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             )}
 
             {/* Header */}
-            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0 pointer-events-none">
+                <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform pointer-events-auto"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 drop-shadow-[0_0_10px_rgba(251,146,60,0.5)] pr-2 pb-1">NEON RUN</h1>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 pointer-events-auto">
+                    <button onClick={toggleTutorial} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
                     <button onClick={(e) => { e.stopPropagation(); setShowSkinShop(true); }} className="p-2 bg-gray-800 rounded-lg text-yellow-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Palette size={20} /></button>
                     <button onClick={(e) => { e.stopPropagation(); resetGame(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
                 </div>
             </div>
 
             {/* Stats */}
-            <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10">
+            <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10 pointer-events-none">
                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">DISTANCE</span><span className="text-2xl font-mono font-bold text-white">{Math.floor(distance)} m</span></div>
                 <div className="flex flex-col items-center">
                     <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1"><BiomeIcon size={12} color={currentBiome.color}/> {currentBiome.name}</div>
@@ -1053,7 +1072,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             </div>
 
             {/* Active PowerUps UI */}
-            <div className="w-full max-w-lg flex gap-2 justify-center mb-2 z-10 h-8">
+            <div className="w-full max-w-lg flex gap-2 justify-center mb-2 z-10 h-8 pointer-events-none">
                 {activePowerUps.magnet && (
                     <div className="flex items-center gap-1 bg-blue-500/20 px-2 py-1 rounded border border-blue-500 text-blue-400 text-xs font-bold animate-pulse">
                         <Magnet size={14} /> MAGNET
@@ -1083,7 +1102,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                     className="w-full h-full object-contain"
                 />
 
-                {!isPlaying && !gameOver && !showSkinShop && (
+                {!isPlaying && !gameOver && !showSkinShop && !showTutorial && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20 pointer-events-none">
                         <Zap size={48} className="text-orange-400 animate-pulse mb-2"/>
                         <p className="text-orange-400 font-bold tracking-widest animate-pulse">APPUYEZ POUR SAUTER</p>
@@ -1092,6 +1111,52 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             </div>
             
             <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Courez le plus loin possible.</p>
+
+            {/* TUTORIAL OVERLAY (MOVED OUTSIDE CONTAINER FOR FULL VISIBILITY) */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">SAUTER</p>
+                                    <p className="text-xs text-gray-400">Cliquez ou appuyez pour sauter par-dessus les obstacles.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Coins className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">COLLECTER</p>
+                                    <p className="text-xs text-gray-400">Ramassez les pièces et les coffres pour augmenter votre score.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <div className="flex flex-col gap-1 shrink-0 mt-1">
+                                    <Magnet size={14} className="text-blue-400"/>
+                                    <Shield size={14} className="text-green-400"/>
+                                    <FastForward size={14} className="text-orange-400"/>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">BONUS</p>
+                                    <p className="text-xs text-gray-400">Aimant (attire pièces), Bouclier (1 coup), Boost (vitesse + invulnérable).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* SKIN SHOP OVERLAY */}
             {showSkinShop && (
@@ -1145,7 +1210,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 </div>
             )}
 
-            {gameOver && (
+            {gameOver && !showTutorial && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md z-50 animate-in zoom-in fade-in p-6">
                     <h2 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-orange-600 mb-6 italic drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]">CRASH !</h2>
                     

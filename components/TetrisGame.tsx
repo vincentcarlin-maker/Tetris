@@ -10,7 +10,7 @@ import { useGameLoop } from '../hooks/useGameLoop';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { NextPiece } from './NextPiece';
 import { HoldPiece } from './HoldPiece';
-import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home, Coins, Zap, Skull } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home, Coins, HelpCircle, Keyboard, MousePointer2 } from 'lucide-react';
 import type { Player } from '../types';
 
 interface TetrisGameProps {
@@ -27,6 +27,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     const [gameOver, setGameOver] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     const { player, updatePlayerPos, resetPlayer, playerRotate, nextTetromino, heldTetromino, playerHold } = usePlayer();
     const [ghostPlayer, setGhostPlayer] = useState<Player | null>(null);
@@ -41,6 +42,15 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     const [level, setLevel] = useState(0);
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.tetris || 0;
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_tetris_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_tetris_tutorial_seen', 'true');
+        }
+    }, []);
     
     useEffect(() => {
         if (rowsCleared > 0) {
@@ -59,12 +69,13 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     }, [score]);
 
     const togglePause = useCallback(() => {
-        if (!gameOver) {
+        if (!gameOver && !showTutorial) {
             setIsPaused(prev => !prev);
         }
-    }, [gameOver]);
+    }, [gameOver, showTutorial]);
 
     const movePlayer = (dir: -1 | 1) => {
+        if (showTutorial) return;
         if (!checkCollision(player, board, { x: dir, y: 0 })) {
             updatePlayerPos({ x: dir, y: 0, collided: false });
             playMove();
@@ -72,6 +83,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     };
 
     const startGame = useCallback((startLevel: number = 0) => {
+        if (showTutorial) return;
         setBoard(createBoard());
         // Calcul de la vitesse initiale basée sur le niveau choisi
         const initialSpeed = Math.max(100, 1000 / (startLevel + 1) + 200);
@@ -87,9 +99,10 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
         playClear(); 
         
         if (onReportProgress) onReportProgress('play', 1);
-    }, [setBoard, resetPlayer, playClear, onReportProgress]);
+    }, [setBoard, resetPlayer, playClear, onReportProgress, showTutorial]);
 
     const drop = useCallback(() => {
+        if (showTutorial) return;
         if (rows > (level + 1) * 10) {
             setLevel(prev => prev + 1);
             setDropTime(1000 / (level + 1) + 200);
@@ -117,12 +130,12 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
             }
             updatePlayerPos({ x: 0, y: 0, collided: true });
         }
-    }, [board, level, player, updatePlayerPos, rows, playGameOver, playLand, score, addCoins, updateHighScore, earnedCoins, onReportProgress]);
+    }, [board, level, player, updatePlayerPos, rows, playGameOver, playLand, score, addCoins, updateHighScore, earnedCoins, onReportProgress, showTutorial]);
     
-    useGameLoop(drop, isPaused || gameOver ? null : dropTime);
+    useGameLoop(drop, isPaused || gameOver || showTutorial ? null : dropTime);
 
     const keyUp = (e: KeyboardEvent) => {
-        if (!gameOver) {
+        if (!gameOver && !showTutorial) {
             if (e.keyCode === 40) { // down arrow
                 setDropTime(1000 / (level + 1) + 200);
             }
@@ -130,11 +143,13 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     };
 
     const dropPlayer = () => {
+        if (showTutorial) return;
         setDropTime(null);
         drop();
     };
     
     const hardDrop = () => {
+        if (showTutorial) return;
         let newY = player.pos.y;
         while (!checkCollision(player, board, { x: 0, y: newY - player.pos.y + 1 })) {
             newY++;
@@ -144,7 +159,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     }
 
     const move = (e: KeyboardEvent | React.KeyboardEvent): void => {
-        if (gameOver) return;
+        if (gameOver || showTutorial) return;
 
         if (e.keyCode === 80) { 
             togglePause();
@@ -175,7 +190,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     };
 
     useEffect(() => {
-        if (gameOver || isPaused || !player.tetromino || player.tetromino.length <= 1) {
+        if (gameOver || isPaused || showTutorial || !player.tetromino || player.tetromino.length <= 1) {
             setGhostPlayer(null);
             return;
         }
@@ -195,7 +210,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
             };
         });
 
-    }, [player, board, gameOver, isPaused]);
+    }, [player, board, gameOver, isPaused, showTutorial]);
 
     const moveRef = useRef(move);
     const keyUpRef = useRef(keyUp);
@@ -228,7 +243,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
             onClick={(e) => { 
                 e.preventDefault(); 
                 e.stopPropagation(); 
-                if (!isPaused && !gameOver && active) onClick(); 
+                if (!isPaused && !gameOver && active && !showTutorial) onClick(); 
             }}
         >
             {icon}
@@ -279,7 +294,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
                 <div className="h-full max-h-full aspect-[10/20] relative shadow-2xl">
                      <Board board={board} />
 
-                     {!gameOver && isPaused && (
+                     {!gameOver && isPaused && !showTutorial && (
                         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md rounded-lg border border-white/10 animate-in fade-in duration-200 gap-4">
                             <h2 className="text-4xl font-bold text-white mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">PAUSE</h2>
                             <button onClick={(e) => { e.preventDefault(); togglePause(); }} className="w-56 py-3 bg-neon-blue/20 border border-neon-blue text-neon-blue font-bold rounded hover:bg-neon-blue hover:text-black transition-all touch-manipulation flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.2)]"><Play size={20} fill="currentColor" /> REPRENDRE</button>
@@ -287,6 +302,57 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
                             <button onClick={(e) => { e.preventDefault(); onBack(); }} className="w-56 py-3 bg-gray-900 border border-red-500/50 text-red-400 font-bold rounded hover:bg-red-500 hover:text-white transition-all touch-manipulation flex items-center justify-center gap-2"><Home size={20} /> RETOUR AU MENU</button>
                         </div>
                      )}
+
+                     {/* TUTORIAL OVERLAY */}
+                     {showTutorial && (
+                        <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md rounded-lg flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                            <div className="w-full max-w-xs text-center">
+                                <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
+                                
+                                <div className="space-y-4 text-left">
+                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                        <ArrowLeft className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                        <ArrowRight className="text-cyan-400 shrink-0 mt-1 -ml-2" size={20} />
+                                        <div>
+                                            <p className="text-sm font-bold text-white mb-1">DÉPLACER</p>
+                                            <p className="text-xs text-gray-400">Utilisez les flèches gauche/droite pour déplacer la pièce.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                        <RotateCw className="text-purple-400 shrink-0 mt-1" size={20} />
+                                        <div>
+                                            <p className="text-sm font-bold text-white mb-1">PIVOTER</p>
+                                            <p className="text-xs text-gray-400">Flèche HAUT ou bouton pivoter pour tourner la pièce.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                        <ChevronDown className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                        <div>
+                                            <p className="text-sm font-bold text-white mb-1">ACCÉLÉRER</p>
+                                            <p className="text-xs text-gray-400">Maintenez BAS pour accélérer. ESPACE pour chute instantanée.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                        <Keyboard className="text-gray-400 shrink-0 mt-1" size={20} />
+                                        <div>
+                                            <p className="text-sm font-bold text-white mb-1">TOUCH OU CLAVIER</p>
+                                            <p className="text-xs text-gray-400">Compatible tactile et clavier (Flèches, Espace, C pour réserve).</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={() => setShowTutorial(false)}
+                                    className="mt-8 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                                >
+                                    J'AI COMPRIS !
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {gameOver && score > 0 && (
                         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm rounded-lg animate-in fade-in duration-300 border border-white/10">
@@ -322,6 +388,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
                          <MetaBtn onClick={onBack} icon={<Home size={18} className="text-gray-300"/>} label="MENU"/>
                          <MetaBtn onClick={toggleMute} icon={isMuted ? <VolumeX size={18} className="text-gray-400"/> : <Volume2 size={18} className="text-gray-300"/>} label={isMuted ? "MUET" : "SON"}/>
                         <MetaBtn onClick={() => startGame(level)} icon={<RotateCcw size={18} className="text-gray-300"/>} label="RESET"/>
+                        <MetaBtn onClick={() => setShowTutorial(true)} icon={<HelpCircle size={18} className="text-cyan-400"/>} label="AIDE"/>
                         <MetaBtn onClick={togglePause} icon={isPaused ? <Play size={18} className="text-green-400 fill-green-400"/> : <Pause size={18} className="text-yellow-400 fill-yellow-400"/>} label={isPaused ? "GO" : "PAUSE"} active/>
                     </div>
 
