@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Layers } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Layers, HelpCircle, X, MousePointer2, Scissors, Zap } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -52,6 +52,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const [gamePhase, setGamePhase] = useState<GamePhase>('IDLE');
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [perfectCount, setPerfectCount] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     const { playMove, playLand, playGameOver, playVictory, playBlockHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
@@ -69,6 +70,15 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const gameStartTimeRef = useRef(0); // Timestamp when game started
     
     const limitRef = useRef({ width: INITIAL_SIZE, depth: INITIAL_SIZE });
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_stack_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_stack_tutorial_seen', 'true');
+        }
+    }, []);
 
     // --- HELPERS ---
     const getHSL = (index: number) => {
@@ -281,8 +291,8 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const placeBlock = () => {
-        // Prevent actions during IDLE, GAMEOVER, or within 500ms of starting (prevents instant loss on spawn)
-        if (gamePhase !== 'PLAYING' || Date.now() - gameStartTimeRef.current < 500) return;
+        // Prevent actions during IDLE, GAMEOVER, Tutorial, or within 500ms of starting
+        if (gamePhase !== 'PLAYING' || showTutorial || Date.now() - gameStartTimeRef.current < 500) return;
 
         const current = currentBlockRef.current;
         const topBlock = stackRef.current[stackRef.current.length - 1];
@@ -401,7 +411,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         let animationId: number;
         
         const run = () => {
-            if (gamePhase === 'PLAYING') {
+            if (gamePhase === 'PLAYING' && !showTutorial) {
                 update();
             }
             const ctx = canvasRef.current?.getContext('2d');
@@ -411,13 +421,15 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         run();
         
         return () => cancelAnimationFrame(animationId);
-    }, [gamePhase, draw]);
+    }, [gamePhase, draw, showTutorial]);
 
     // --- INPUT HANDLERS ---
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
         e.preventDefault(); 
         
+        if (showTutorial) return;
+
         if (gamePhase === 'IDLE') {
             setGamePhase('PLAYING');
             gameStartTimeRef.current = Date.now(); // Mark start time
@@ -427,6 +439,8 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const handleAction = (e: React.MouseEvent | React.TouchEvent) => {
+        if (showTutorial) return;
+
         if (gamePhase === 'GAMEOVER') {
             resetGame();
             return;
@@ -434,6 +448,11 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         if (gamePhase === 'PLAYING') {
             placeBlock();
         }
+    };
+
+    const toggleTutorial = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowTutorial(prev => !prev);
     };
 
     return (
@@ -450,7 +469,10 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                 <div className="flex flex-col items-center">
                     <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] pr-2 pb-1">NEON STACK</h1>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); resetGame(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 pointer-events-auto active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2 pointer-events-auto">
+                    <button onClick={toggleTutorial} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); resetGame(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
 
             {/* Stats */}
@@ -463,10 +485,10 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
             <div className="relative w-full max-w-lg h-full max-h-[600px] bg-black/80 border-2 border-cyan-500/30 rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.2)] overflow-hidden backdrop-blur-md z-10 cursor-pointer">
                 <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="w-full h-full object-contain" />
                 
-                {gamePhase === 'IDLE' && (
+                {gamePhase === 'IDLE' && !showTutorial && (
                     <div 
                         className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30 cursor-pointer hover:bg-black/50 transition-colors"
-                        onMouseDown={handleStart} // Changed from onClick to match phase
+                        onMouseDown={handleStart} 
                         onTouchStart={handleStart}
                     >
                         <Layers size={48} className="text-cyan-400 animate-pulse mb-2"/>
@@ -474,7 +496,49 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                     </div>
                 )}
 
-                {gamePhase === 'GAMEOVER' && (
+                {/* TUTORIAL OVERLAY */}
+                {showTutorial && (
+                    <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-full max-w-xs text-center">
+                            <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
+                            
+                            <div className="space-y-4 text-left">
+                                <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                    <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                    <div>
+                                        <p className="text-sm font-bold text-white mb-1">CLIQUEZ POUR POSER</p>
+                                        <p className="text-xs text-gray-400">Le bloc se déplace. Appuyez au bon moment pour le poser sur la tour.</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                    <Scissors className="text-red-400 shrink-0 mt-1" size={20} />
+                                    <div>
+                                        <p className="text-sm font-bold text-white mb-1">ATTENTION À LA COUPE</p>
+                                        <p className="text-xs text-gray-400">Tout ce qui dépasse du bord est coupé ! La tour devient plus fine.</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                    <Zap className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                    <div>
+                                        <p className="text-sm font-bold text-white mb-1">COMBO PARFAIT</p>
+                                        <p className="text-xs text-gray-400">Alignez parfaitement pour agrandir la base et gagner des points bonus.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={() => setShowTutorial(false)}
+                                className="mt-8 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                            >
+                                J'AI COMPRIS !
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {gamePhase === 'GAMEOVER' && !showTutorial && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in pointer-events-none">
                         <h2 className="text-5xl font-black text-red-500 italic mb-2 drop-shadow-[0_0_10px_red]">PERDU</h2>
                         <div className="text-center mb-6">
