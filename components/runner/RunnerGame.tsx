@@ -89,6 +89,7 @@ interface Particle {
     life: number;
     color: string;
     size: number;
+    type?: 'spark' | 'normal'; // New particle types
 }
 
 interface WeatherParticle {
@@ -98,10 +99,20 @@ interface WeatherParticle {
     size: number;
 }
 
+// Speed Lines for high speed effect
+interface SpeedLine {
+    x: number;
+    y: number;
+    width: number;
+    speed: number;
+}
+
 type EventType = 'NONE' | 'GOLD_RUSH' | 'NIGHT_TERROR' | 'HYPER_SPEED';
 
 export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null); // For Screen Shake
+    
     const [distance, setDistance] = useState(0);
     const [gameOver, setGameOver] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -132,10 +143,13 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const powerUpsRef = useRef<PowerUpEntity[]>([]);
     const particlesRef = useRef<Particle[]>([]);
     const weatherRef = useRef<WeatherParticle[]>([]);
+    const speedLinesRef = useRef<SpeedLine[]>([]); // New Speed Lines
+    
     const speedRef = useRef(BASE_SPEED);
     const frameRef = useRef(0);
     const distanceRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
+    const shakeRef = useRef(0); // Screen Shake Intensity
     
     // Logic Refs
     const biomeRef = useRef(BIOMES[0]);
@@ -177,9 +191,11 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         powerUpsRef.current = [];
         particlesRef.current = [];
         weatherRef.current = [];
+        speedLinesRef.current = [];
         speedRef.current = BASE_SPEED;
         distanceRef.current = 0;
         frameRef.current = 0;
+        shakeRef.current = 0;
         
         // Reset Biome & Event
         biomeRef.current = BIOMES[0];
@@ -198,6 +214,8 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         setLocalBalance(parseInt(localStorage.getItem('neon-coins') || '0', 10));
         setNotification(null);
         
+        if (containerRef.current) containerRef.current.style.transform = 'none';
+
         // Init Weather
         for(let i=0; i<50; i++) {
             weatherRef.current.push({ x: Math.random() * CANVAS_WIDTH, y: Math.random() * CANVAS_HEIGHT, speed: Math.random() * 2 + 2, size: Math.random() * 2 });
@@ -225,15 +243,18 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         }
     };
 
-    const spawnParticles = (x: number, y: number, color: string, count: number) => {
+    const spawnParticles = (x: number, y: number, color: string, count: number, type: 'normal' | 'spark' = 'normal') => {
         for (let i = 0; i < count; i++) {
+            const speed = type === 'spark' ? 15 : 8;
+            const life = type === 'spark' ? 15 : 30;
             particlesRef.current.push({
                 x, y,
-                vx: (Math.random() - 0.5) * 8,
-                vy: (Math.random() - 0.5) * 8,
-                life: 30 + Math.random() * 20,
-                color,
-                size: Math.random() * 4 + 1
+                vx: (Math.random() - 0.5) * speed,
+                vy: (Math.random() - 0.5) * speed,
+                life: life + Math.random() * 10,
+                color: type === 'spark' ? (Math.random() > 0.5 ? '#ffffff' : '#ffff00') : color,
+                size: Math.random() * (type === 'spark' ? 3 : 4) + 1,
+                type
             });
         }
     };
@@ -254,6 +275,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             activeEffectsRef.current.boost = true;
             activeEffectsRef.current.boostEndTime = endTime;
             setActivePowerUps(prev => ({ ...prev, boost: endTime }));
+            shakeRef.current = 5; // Small shake on boost activation
         }
         
         if (playPowerUpCollect) playPowerUpCollect(type === 'boost' ? 'BALL_FAST' : type === 'shield' ? 'EXTRA_LIFE' : 'MULTI_BALL');
@@ -320,6 +342,20 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         const p = playerRef.current;
         const now = Date.now();
 
+        // --- SHAKE DECAY ---
+        if (shakeRef.current > 0) {
+            const dx = (Math.random() - 0.5) * shakeRef.current;
+            const dy = (Math.random() - 0.5) * shakeRef.current;
+            if (containerRef.current) {
+                containerRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
+            }
+            shakeRef.current *= 0.9;
+            if (shakeRef.current < 0.5) {
+                shakeRef.current = 0;
+                if (containerRef.current) containerRef.current.style.transform = 'none';
+            }
+        }
+
         // --- CHECK BIOME CHANGE ---
         if (distanceRef.current > nextBiomeThresholdRef.current) {
             switchBiome();
@@ -362,6 +398,23 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
         distanceRef.current += currentSpeed / 20;
         setDistance(Math.floor(distanceRef.current));
+
+        // --- SPEED LINES (High Speed FX) ---
+        if (currentSpeed > 8 || activeEffectsRef.current.boost) {
+            if (Math.random() < 0.3) {
+                speedLinesRef.current.push({
+                    x: CANVAS_WIDTH,
+                    y: Math.random() * CANVAS_HEIGHT,
+                    width: Math.random() * 50 + 20,
+                    speed: currentSpeed * 1.5
+                });
+            }
+        }
+        for (let i = speedLinesRef.current.length - 1; i >= 0; i--) {
+            const line = speedLinesRef.current[i];
+            line.x -= line.speed;
+            if (line.x + line.width < 0) speedLinesRef.current.splice(i, 1);
+        }
 
         // --- SPAWN LOGIC ---
         const minGap = (currentSpeed * 40); 
@@ -440,28 +493,26 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 if (activeEffectsRef.current.boost) {
                     obstaclesRef.current.splice(i, 1);
                     playExplosion();
-                    spawnParticles(obs.x + obs.width/2, obs.y + obs.height/2, '#fff', 10);
+                    shakeRef.current = 15; // Moderate shake
+                    spawnParticles(obs.x + obs.width/2, obs.y + obs.height/2, '#fff', 15, 'spark');
                     distanceRef.current += 10;
                     setDistance(Math.floor(distanceRef.current));
                 } else if (activeEffectsRef.current.shield) {
                     obstaclesRef.current.splice(i, 1);
                     playExplosion();
-                    spawnParticles(p.x + p.width/2, p.y + p.height/2, '#00ff00', 20);
+                    shakeRef.current = 15;
+                    spawnParticles(p.x + p.width/2, p.y + p.height/2, '#00ff00', 20, 'spark');
                     activeEffectsRef.current.shield = false;
                     setActivePowerUps(prev => { const n = {...prev}; delete n.shield; return n; });
                 } else {
                     setGameOver(true);
                     playExplosion();
                     playGameOver();
-                    spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 30);
+                    shakeRef.current = 30; // Heavy shake
+                    spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 40, 'spark');
                     
-                    // Score calculation logic (Night Terror gives bonus score)
+                    // Score calculation
                     let finalDistance = Math.floor(distanceRef.current);
-                    if (eventRef.current === 'NIGHT_TERROR') {
-                        // Bonus score logic would go here if we tracked separate score, 
-                        // but distance is the metric. We could just award extra XP/Coins.
-                    }
-
                     updateHighScore('runner', finalDistance);
                     const bonusCoins = Math.floor(finalDistance / 100);
                     if (bonusCoins > 0) {
@@ -484,10 +535,11 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 pu.collected = true;
                 activatePowerUp(pu.type);
                 powerUpsRef.current.splice(i, 1);
+                spawnParticles(pu.x + pu.width/2, pu.y + pu.height/2, '#fff', 10, 'spark');
             }
         }
 
-        // Coin Logic with Event Multiplier
+        // Coin Logic
         for (let i = coinsRef.current.length - 1; i >= 0; i--) {
             const coin = coinsRef.current[i];
             
@@ -570,6 +622,12 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         for(let i=0; i<CANVAS_HEIGHT; i+=50) { ctx.moveTo(0, i); ctx.lineTo(CANVAS_WIDTH, i); }
         for(let i= -gridOffset; i<CANVAS_WIDTH; i+=100) { ctx.moveTo(i, GROUND_HEIGHT); ctx.lineTo((i - CANVAS_WIDTH/2)*4 + CANVAS_WIDTH/2, CANVAS_HEIGHT); }
         ctx.stroke();
+
+        // Speed Lines
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        speedLinesRef.current.forEach(line => {
+            ctx.fillRect(line.x, line.y, line.width, 2);
+        });
 
         // Weather
         ctx.fillStyle = biome.particle;
@@ -724,7 +782,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
         particlesRef.current.forEach(p => {
             ctx.fillStyle = p.color;
-            ctx.globalAlpha = p.life / 30;
+            ctx.globalAlpha = p.life / (p.type === 'spark' ? 15 : 30);
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fill();
@@ -829,7 +887,10 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             </div>
 
             {/* Game Container */}
-            <div className="relative w-full max-w-2xl aspect-[2/1] bg-black/80 border-2 border-orange-500/30 rounded-xl shadow-[0_0_20px_rgba(249,115,22,0.2)] overflow-hidden backdrop-blur-md z-10 cursor-pointer">
+            <div 
+                ref={containerRef}
+                className="relative w-full max-w-2xl aspect-[2/1] bg-black/80 border-2 border-orange-500/30 rounded-xl shadow-[0_0_20px_rgba(249,115,22,0.2)] overflow-hidden backdrop-blur-md z-10 cursor-pointer"
+            >
                 <canvas 
                     ref={canvasRef} 
                     width={CANVAS_WIDTH} 
