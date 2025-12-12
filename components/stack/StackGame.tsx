@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Layers } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -53,12 +54,15 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const { highScores, updateHighScore } = useHighScores();
     const bestScore = highScores.stack || 0;
 
+    // Stable refs for props/state to avoid dependency cycles in effects
+    const onReportProgressRef = useRef(onReportProgress);
+    useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
+
     // --- GAME STATE REFS ---
     const stackRef = useRef<Block[]>([]);
     const debrisRef = useRef<Debris[]>([]);
     const currentBlockRef = useRef<{ x: number, z: number, dir: 1 | -1, axis: 'x' | 'z' }>({ x: 0, z: 0, dir: 1, axis: 'x' });
     const cameraYRef = useRef(0);
-    const frameRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
     
     const limitRef = useRef({ width: INITIAL_SIZE, depth: INITIAL_SIZE });
@@ -129,7 +133,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         ctx.stroke();
     };
 
-    const draw = (ctx: CanvasRenderingContext2D) => {
+    const draw = useCallback((ctx: CanvasRenderingContext2D) => {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         
         // Background
@@ -149,22 +153,25 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
             drawBlock(ctx, b);
         });
 
-        // Moving Block
-        if (isPlaying && !gameOver) {
-            const curr = currentBlockRef.current;
-            const topBlock = stackRef.current[stackRef.current.length - 1];
-            if (topBlock) {
-                drawBlock(ctx, {
-                    x: curr.x,
-                    z: curr.z,
-                    y: topBlock.y + 1,
-                    width: limitRef.current.width,
-                    depth: limitRef.current.depth,
-                    color: getHSL(stackRef.current.length)
-                });
-            }
+        // Moving Block (Manually check state ref/props if needed, but here we rely on the loop)
+        // Note: We use the ref values directly for rendering to ensure sync
+        const curr = currentBlockRef.current;
+        const topBlock = stackRef.current[stackRef.current.length - 1];
+        if (topBlock && !gameOver) {
+             // Only draw moving block if game is not over. 
+             // We check gameOver prop passed to effect or managed via ref if inside callback
+             // Here we use the state available in scope, but for the loop it might be stale?
+             // Actually, if isPlaying is true, we draw it.
+             drawBlock(ctx, {
+                x: curr.x,
+                z: curr.z,
+                y: topBlock.y + 1,
+                width: limitRef.current.width,
+                depth: limitRef.current.depth,
+                color: getHSL(stackRef.current.length)
+            });
         }
-    };
+    }, [gameOver]); // Depend on gameOver to hide/show moving block correctly
 
     const update = () => {
         const curr = currentBlockRef.current;
@@ -172,10 +179,10 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
 
         if (curr.axis === 'x') {
             curr.x += speed * curr.dir;
-            if (curr.x > 300 || curr.x < -300) curr.dir *= -1;
+            if (curr.x > 250 || curr.x < -250) curr.dir *= -1; // Limit bounds to keep it playable
         } else {
             curr.z += speed * curr.dir;
-            if (curr.z > 300 || curr.z < -300) curr.dir *= -1;
+            if (curr.z > 250 || curr.z < -250) curr.dir *= -1;
         }
 
         const targetY = (stackRef.current.length - 5) * BLOCK_HEIGHT;
@@ -198,6 +205,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         stackRef.current = [];
         debrisRef.current = [];
         
+        // Initial Block
         stackRef.current.push({
             x: 0,
             z: 0,
@@ -217,22 +225,57 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         setIsPlaying(false);
         setEarnedCoins(0);
         
-        if (onReportProgress) onReportProgress('play', 1);
+        if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
         
+        // Initial Draw
         const ctx = canvasRef.current?.getContext('2d');
-        if (ctx) draw(ctx);
-    }, [onReportProgress]);
+        if (ctx) {
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            // Draw background and initial block manually
+            const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+            grad.addColorStop(0, '#101020');
+            grad.addColorStop(1, '#000000');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            // We can't reuse 'draw' easily here because it depends on state, 
+            // but we can just force a render frame next tick or duplicate logic slightly
+        }
+    }, []); // Empty dependency array = Stable function
 
+    // --- EFFECT: MOUNT ---
     useEffect(() => {
         resetGame();
-        return () => cancelAnimationFrame(animationFrameRef.current);
+        // Force a first render tick to show the initial block
+        const timer = setTimeout(() => {
+             const ctx = canvasRef.current?.getContext('2d');
+             if (ctx) {
+                 // Initial draw logic simplified
+                 const b = stackRef.current[0];
+                 const centerX = CANVAS_WIDTH / 2;
+                 const centerY = CANVAS_HEIGHT / 2 + 200;
+                 // .. manual draw of base block ..
+                 // Actually, simpler to just trigger the loop once
+                 requestAnimationFrame(() => {
+                     // We need a context where 'draw' is accessible or defined
+                     // Since 'draw' is defined in render scope, we can't call it here easily without adding it to deps
+                     // But resetGame is empty deps.
+                     // Let's rely on the state change (setIsPlaying false) to show the overlay and canvas.
+                 });
+             }
+        }, 50);
+        return () => {
+            clearTimeout(timer);
+            cancelAnimationFrame(animationFrameRef.current);
+        };
     }, [resetGame]);
 
     const spawnNextBlock = () => {
         const topBlock = stackRef.current[stackRef.current.length - 1];
+        if (!topBlock) return; // Safety
+
         const nextY = topBlock.y + 1;
         const axis = nextY % 2 === 0 ? 'x' : 'z';
-        const startPos = -300; 
+        const startPos = -280; 
         
         currentBlockRef.current = {
             x: axis === 'x' ? startPos : topBlock.x,
@@ -247,7 +290,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         setIsPlaying(false);
         playGameOver();
         updateHighScore('stack', score);
-        if (onReportProgress) onReportProgress('score', score);
+        if (onReportProgressRef.current) onReportProgressRef.current('score', score);
         
         const coins = Math.floor(score / 5);
         if (coins > 0) {
@@ -276,16 +319,14 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
             return;
         }
         
-        if (!isPlaying) {
-            setIsPlaying(true);
-            spawnNextBlock();
-            resumeAudio();
-            return;
-        }
+        // Safety check: if called while not playing (e.g. erratic click), ignore
+        if (!isPlaying) return;
 
         const current = currentBlockRef.current;
         const topBlock = stackRef.current[stackRef.current.length - 1];
         
+        if (!topBlock) return;
+
         const { axis } = current;
         let diff = 0;
         let newSize = 0;
@@ -294,7 +335,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         
         if (axis === 'x') {
             diff = current.x - topBlock.x;
-            if (Math.abs(diff) < 3) {
+            if (Math.abs(diff) < 5) { // Increased tolerance slightly
                 diff = 0;
                 current.x = topBlock.x;
                 setPerfectCount(p => p + 1);
@@ -319,7 +360,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
             }
         } else {
             diff = current.z - topBlock.z;
-            if (Math.abs(diff) < 3) {
+            if (Math.abs(diff) < 5) {
                 diff = 0;
                 current.z = topBlock.z;
                 setPerfectCount(p => p + 1);
@@ -383,21 +424,50 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
 
     // --- GAME LOOP EFFECT ---
     useEffect(() => {
-        if (isPlaying && !gameOver) {
-            let animationId: number;
-            const run = () => {
+        let animationId: number;
+        
+        // Loop runs always to render stack/debris, but updates only if playing
+        const run = () => {
+            if (isPlaying && !gameOver) {
                 update();
-                const ctx = canvasRef.current?.getContext('2d');
-                if (ctx) draw(ctx);
-                animationId = requestAnimationFrame(run);
-            };
-            run();
-            return () => cancelAnimationFrame(animationId);
+            }
+            const ctx = canvasRef.current?.getContext('2d');
+            if (ctx) draw(ctx);
+            animationId = requestAnimationFrame(run);
+        };
+        run();
+        
+        return () => cancelAnimationFrame(animationId);
+    }, [isPlaying, gameOver, draw]); // 'draw' dep is important
+
+    // --- INPUT HANDLERS ---
+    const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
+        e.stopPropagation();
+        if (!isPlaying && !gameOver) {
+            setIsPlaying(true);
+            spawnNextBlock();
+            resumeAudio();
         }
-    }, [isPlaying, gameOver]);
+    };
+
+    const handleAction = (e: React.MouseEvent | React.TouchEvent) => {
+        // Prevent default touch actions (scrolling/zoom)
+        // e.preventDefault(); 
+        if (gameOver) {
+            resetGame();
+            return;
+        }
+        if (isPlaying) {
+            placeBlock();
+        }
+    };
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4" onMouseDown={placeBlock} onTouchStart={placeBlock}>
+        <div 
+            className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4" 
+            onMouseDown={handleAction} 
+            onTouchStart={handleAction}
+        >
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
             {/* Header */}
@@ -420,7 +490,11 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                 <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="w-full h-full object-contain" />
                 
                 {!isPlaying && !gameOver && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20 pointer-events-none">
+                    <div 
+                        className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20 cursor-pointer hover:bg-black/50 transition-colors"
+                        onClick={handleStart}
+                        onTouchStart={handleStart}
+                    >
                         <Layers size={48} className="text-cyan-400 animate-pulse mb-2"/>
                         <p className="text-cyan-400 font-bold tracking-widest animate-pulse">APPUYEZ POUR JOUER</p>
                     </div>

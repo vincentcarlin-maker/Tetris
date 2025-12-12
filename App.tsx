@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
 import { Connect4Game } from './components/connect4/Connect4Game';
@@ -238,9 +238,9 @@ const App: React.FC = () => {
     };
 
     // Generic Event Handler for Games to report progress
-    const handleGameEvent = (gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
+    const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
         reportQuestProgress(gameId, eventType, value);
-    };
+    }, [reportQuestProgress]);
 
     return (
         <>
