@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight, ChevronLeft, ChevronRight, Lock, Play, HelpCircle, MousePointer2, ArrowDown, Check } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
+import { useCurrency } from '../../hooks/useCurrency';
 import { TutorialOverlay } from '../Tutorials';
 
 interface WaterSortGameProps {
@@ -47,6 +48,7 @@ const isLevelSolved = (tubes: Tube[]) => {
 export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const { playMove, playLand, playVictory, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
+    const { coins } = useCurrency(); // Get current balance
     
     // View State
     const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
@@ -363,9 +365,15 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
     const handleAddTube = () => {
         if (extraTubeUsed || levelComplete || isAnimating) return;
-        setTubes(prev => [...prev, []]); 
-        setExtraTubeUsed(true);
-        playVictory(); 
+        
+        if (coins >= 500) {
+            addCoins(-500); // Cost
+            setTubes(prev => [...prev, []]); 
+            setExtraTubeUsed(true);
+            playVictory(); 
+        } else {
+            playPaddleHit(); // Not enough money sound (reusing this for fail)
+        }
     };
 
     const handleRestart = () => {
@@ -550,13 +558,15 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
                 <button 
                     onClick={handleAddTube} 
-                    disabled={extraTubeUsed || levelComplete || isAnimating}
+                    disabled={extraTubeUsed || levelComplete || isAnimating || coins < 500}
                     className="flex flex-col items-center gap-1 text-gray-400 disabled:opacity-30 hover:text-cyan-400 transition-colors group"
                 >
-                    <div className="p-4 bg-gray-800 rounded-full border border-white/10 group-hover:border-cyan-500 shadow-lg active:scale-95 transition-all">
-                        <Plus size={24} />
+                    <div className={`p-4 bg-gray-800 rounded-full border ${!extraTubeUsed && coins >= 500 ? 'border-yellow-500/30' : 'border-white/10'} group-hover:border-cyan-500 shadow-lg active:scale-95 transition-all relative`}>
+                        <Plus size={24} className={!extraTubeUsed && coins >= 500 ? 'text-yellow-400' : ''} />
                     </div>
-                    <span className="text-[10px] font-bold tracking-widest">TUBE (+1)</span>
+                    <span className="text-[10px] font-bold tracking-widest flex items-center gap-1">
+                        TUBE <span className="text-yellow-500 flex items-center"><Coins size={8} className="mr-0.5"/>500</span>
+                    </span>
                 </button>
             </div>
 
