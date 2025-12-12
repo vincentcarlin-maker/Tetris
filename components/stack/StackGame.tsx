@@ -68,7 +68,9 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const currentBlockRef = useRef<{ x: number, z: number, dir: 1 | -1, axis: 'x' | 'z' }>({ x: 0, z: 0, dir: 1, axis: 'x' });
     const cameraYRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
-    const gameStartTimeRef = useRef(0); // Timestamp when game started
+    
+    // Cooldown refs to prevent ghost clicks (double firing on mobile)
+    const lastActionTimeRef = useRef(0); 
     
     const limitRef = useRef({ width: INITIAL_SIZE, depth: INITIAL_SIZE });
 
@@ -292,9 +294,6 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const placeBlock = () => {
-        // Prevent actions during IDLE, GAMEOVER, Tutorial, or within 500ms of starting
-        if (gamePhase !== 'PLAYING' || showTutorial || Date.now() - gameStartTimeRef.current < 500) return;
-
         const current = currentBlockRef.current;
         const topBlock = stackRef.current[stackRef.current.length - 1];
         
@@ -427,27 +426,39 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     // --- INPUT HANDLERS ---
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        e.preventDefault(); 
+        if (e.cancelable && e.type === 'touchstart') e.preventDefault();
         
         if (showTutorial) return;
 
         if (gamePhase === 'IDLE') {
             setGamePhase('PLAYING');
-            gameStartTimeRef.current = Date.now(); // Mark start time
+            lastActionTimeRef.current = Date.now(); // Sync timer
             spawnNextBlock();
             resumeAudio();
         }
     };
 
     const handleAction = (e: React.MouseEvent | React.TouchEvent) => {
+        // Ignore clicks on UI buttons
+        if ((e.target as HTMLElement).closest('button')) return;
+
+        // Ensure touches are handled immediately
+        if (e.cancelable && e.type === 'touchstart') e.preventDefault();
+
         if (showTutorial) return;
+
+        const now = Date.now();
+        // Cooldown to prevent ghost clicks (double triggering)
+        if (now - lastActionTimeRef.current < 500) return;
 
         if (gamePhase === 'GAMEOVER') {
             resetGame();
+            lastActionTimeRef.current = now;
             return;
         }
         if (gamePhase === 'PLAYING') {
             placeBlock();
+            lastActionTimeRef.current = now;
         }
     };
 
