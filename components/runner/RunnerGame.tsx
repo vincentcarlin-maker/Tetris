@@ -123,6 +123,7 @@ interface Mission {
     current: number; // Snapshot at start of mission
     reward: number;
     description: string;
+    completed?: boolean; // Helper flag
 }
 
 type EventType = 'NONE' | 'GOLD_RUSH' | 'NIGHT_TERROR' | 'HYPER_SPEED';
