@@ -338,7 +338,7 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'arenaclash' && isAuthenticated && (
-                <ArenaClashGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('arenaclash', metric, val)} />
+                <ArenaClashGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('arenaclash', metric, val)} />
             )}
 
             {currentView === 'menu' && (

@@ -152,7 +152,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     
     // Online State
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
-    const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
 
     // Game Loop Refs
@@ -164,6 +163,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     
     const gameStateRef = useRef(gameState);
     const timeLeftRef = useRef(timeLeft);
+    const lastUiTimeRef = useRef(MATCH_DURATION); // Optimization: avoid state dependency
     const onReportProgressRef = useRef(onReportProgress);
     const cameraRef = useRef({ x: 0, y: 0 });
     
@@ -342,7 +342,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         };
     }, []);
 
-    const spawnCharacter = (id: string, name: string, isPlayer: boolean): Character => {
+    const spawnCharacter = useCallback((id: string, name: string, isPlayer: boolean): Character => {
         let x, y, safe;
         do {
             x = 50 + Math.random() * (CANVAS_WIDTH - 100);
@@ -363,32 +363,9 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             score: 0, shield: 0, powerups: [],
             targetId: null
         };
-    };
+    }, []);
 
-    const startGame = () => {
-        if (showTutorial) return;
-        playerRef.current = spawnCharacter('player', 'VOUS', true);
-        
-        // Spawn Bots (In Online mode we might replace one bot with a player later, for now simply co-op against bots or PvP if fully implemented)
-        // Since we are doing a lobby-based "game start", we stick to local simulation for this iteration unless full netcode is added.
-        botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
-        
-        bulletsRef.current = [];
-        powerUpsRef.current = [];
-        particlesRef.current = [];
-        setTimeLeft(MATCH_DURATION);
-        timeLeftRef.current = MATCH_DURATION;
-        setKillFeed([]);
-        setGameState('PLAYING');
-        gameStateRef.current = 'PLAYING';
-        setEarnedCoins(0);
-        resumeAudio();
-        if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
-        lastTimeRef.current = Date.now();
-        loop();
-    };
-
-    const spawnPowerUp = () => {
+    const spawnPowerUp = useCallback(() => {
         if (powerUpsRef.current.length > 5) return;
         let x, y, safe;
         do {
@@ -405,20 +382,110 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             id: `pu_${Date.now()}_${Math.random()}`,
             x, y, radius: 12, color: '#fff', type: types[Math.floor(Math.random() * types.length)]
         });
+    }, []);
+
+    const startGame = useCallback(() => {
+        if (showTutorial) return;
+        playerRef.current = spawnCharacter('player', 'VOUS', true);
+        
+        botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
+        
+        bulletsRef.current = [];
+        powerUpsRef.current = [];
+        particlesRef.current = [];
+        setTimeLeft(MATCH_DURATION);
+        timeLeftRef.current = MATCH_DURATION;
+        lastUiTimeRef.current = MATCH_DURATION;
+        
+        setKillFeed([]);
+        setGameState('PLAYING');
+        gameStateRef.current = 'PLAYING';
+        setEarnedCoins(0);
+        resumeAudio();
+        if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
+        lastTimeRef.current = Date.now();
+    }, [spawnCharacter, resumeAudio, showTutorial]);
+
+    // --- GAME LOOP HELPERS ---
+    const fireBullet = (char: Character, boosted: boolean) => {
+        const damage = boosted ? 25 : 10;
+        const speed = BULLET_SPEED;
+        const color = boosted ? '#ff00ff' : char.id === 'player' ? COLORS.player : COLORS.bullet;
+        bulletsRef.current.push({
+            id: `b_${Date.now()}_${Math.random()}`,
+            x: char.x + Math.cos(char.angle) * 20, y: char.y + Math.sin(char.angle) * 20,
+            vx: Math.cos(char.angle) * speed, vy: Math.sin(char.angle) * speed,
+            radius: 4, color, ownerId: char.id, damage, life: 2000
+        });
+        char.lastShot = Date.now();
+        playLaserShoot();
+        if (char.id === 'player') shakeRef.current = 2;
     };
 
-    // --- UPDATE ---
-    const update = (dt: number) => {
+    const spawnParticles = (x: number, y: number, color: string, count: number, explosion = false) => {
+        for (let i = 0; i < count; i++) {
+            const speed = explosion ? Math.random() * 5 : Math.random() * 2;
+            const angle = Math.random() * Math.PI * 2;
+            particlesRef.current.push({
+                x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                life: 30 + Math.random() * 20, maxLife: 50, color, size: Math.random() * 3 + 1
+            });
+        }
+    };
+
+    const takeDamage = (char: Character, dmg: number, attackerId: string) => {
+        if (char.shield > 0) { char.shield -= dmg; if (char.shield < 0) char.shield = 0; return; }
+        char.hp -= dmg;
+        if (char.hp <= 0 && !char.isDead) {
+            char.isDead = true; char.respawnTimer = RESPAWN_TIME; char.hp = 0;
+            playExplosion(); spawnParticles(char.x, char.y, char.color, 30, true);
+            const attacker = attackerId === 'player' ? playerRef.current : botsRef.current.find(b => b.id === attackerId);
+            if (attacker) {
+                attacker.score += 1;
+                setKillFeed(prev => [{ id: Date.now(), killer: attacker.name, victim: char.name, time: Date.now() }, ...prev].slice(0, 5));
+                if (attacker.id === 'player') { playCoin(); shakeRef.current = 10; }
+            }
+            if (char.id === 'player') { setGameState('RESPAWNING'); gameStateRef.current = 'RESPAWNING'; playGameOver(); }
+        }
+    };
+
+    const applyPowerUp = (char: Character, type: PowerUpType) => {
+        const now = Date.now();
+        if (type === 'HEALTH') char.hp = Math.min(char.maxHp, char.hp + 50);
+        else if (type === 'SHIELD') char.shield = 50;
+        else char.powerups.push({ type, expiry: now + 10000 });
+    };
+
+    const endGame = useCallback(() => {
+        setGameState('GAMEOVER'); gameStateRef.current = 'GAMEOVER'; playVictory();
+        const player = playerRef.current;
+        if (player) {
+            const finalScore = player.score;
+            updateHighScore('arenaclash', finalScore);
+            if (onReportProgressRef.current) onReportProgressRef.current('score', finalScore);
+            const coins = finalScore * 10 + 50;
+            addCoins(coins);
+            setEarnedCoins(coins);
+        }
+    }, [addCoins, updateHighScore, playVictory]);
+
+    const update = useCallback((dt: number) => {
         const now = Date.now();
         const player = playerRef.current;
+        
+        // If no player initiated, we are in menu, do basic camera movement or return
         if (!player) return;
 
         if (gameStateRef.current === 'PLAYING' || gameStateRef.current === 'RESPAWNING') {
             timeLeftRef.current = Math.max(0, timeLeftRef.current - dt / 1000);
-            if (Math.floor(timeLeftRef.current) !== Math.floor(timeLeft)) {
+            
+            // Only update UI state every second to prevent jitter
+            if (Math.floor(timeLeftRef.current) !== Math.floor(lastUiTimeRef.current)) {
                 setTimeLeft(timeLeftRef.current);
+                lastUiTimeRef.current = timeLeftRef.current;
                 if (Math.random() < 0.3) spawnPowerUp();
             }
+            
             if (timeLeftRef.current <= 0) {
                 endGame();
                 return;
@@ -452,36 +519,26 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             if (char.id === 'player') {
                 let dx = 0, dy = 0;
                 
-                // Keyboard
                 if (keysRef.current['w'] || keysRef.current['ArrowUp']) dy -= 1;
                 if (keysRef.current['s'] || keysRef.current['ArrowDown']) dy += 1;
                 if (keysRef.current['a'] || keysRef.current['ArrowLeft']) dx -= 1;
                 if (keysRef.current['d'] || keysRef.current['ArrowRight']) dx += 1;
 
-                // Virtual Joystick
                 if (controlsRef.current.move.active) {
                     dx = controlsRef.current.move.x;
                     dy = controlsRef.current.move.y;
                 }
 
-                // Normalize if mixed input
                 const len = Math.sqrt(dx*dx + dy*dy);
                 if (len > 1) { dx /= len; dy /= len; }
 
                 char.x += dx * currentSpeed;
                 char.y += dy * currentSpeed;
 
-                // AIMING
                 if (controlsRef.current.aim.active) {
-                    // Twin stick aim
                     char.angle = Math.atan2(controlsRef.current.aim.y, controlsRef.current.aim.x);
-                    
-                    // Shoot if holding stick
-                    if (now - char.lastShot > char.weaponDelay) {
-                        fireBullet(char, hasDamage);
-                    }
+                    if (now - char.lastShot > char.weaponDelay) fireBullet(char, hasDamage);
                 } else if (!controlsRef.current.move.active) { 
-                    // Mouse aim (only if no touch input to avoid conflict)
                     const worldMouseX = mouseRef.current.x + cameraRef.current.x;
                     const worldMouseY = mouseRef.current.y + cameraRef.current.y;
                     char.angle = Math.atan2(worldMouseY - char.y, worldMouseX - char.x);
@@ -492,7 +549,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
 
             } else {
-                // ... BOT AI CODE ...
                 let target: {x: number, y: number} | null = null;
                 let minDist = 600;
                 powerUpsRef.current.forEach(pu => {
@@ -595,72 +651,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
         const sorted = [...allChars].sort((a, b) => b.score - a.score);
         setLeaderboard(sorted.map(c => ({ name: c.name, score: c.score, isMe: c.id === 'player' })));
-    };
+    }, [spawnCharacter, spawnPowerUp, endGame]);
 
-    const fireBullet = (char: Character, boosted: boolean) => {
-        const damage = boosted ? 25 : 10;
-        const speed = BULLET_SPEED;
-        const color = boosted ? '#ff00ff' : char.id === 'player' ? COLORS.player : COLORS.bullet;
-        bulletsRef.current.push({
-            id: `b_${Date.now()}_${Math.random()}`,
-            x: char.x + Math.cos(char.angle) * 20, y: char.y + Math.sin(char.angle) * 20,
-            vx: Math.cos(char.angle) * speed, vy: Math.sin(char.angle) * speed,
-            radius: 4, color, ownerId: char.id, damage, life: 2000
-        });
-        char.lastShot = Date.now();
-        playLaserShoot();
-        if (char.id === 'player') shakeRef.current = 2;
-    };
-
-    const takeDamage = (char: Character, dmg: number, attackerId: string) => {
-        if (char.shield > 0) { char.shield -= dmg; if (char.shield < 0) char.shield = 0; return; }
-        char.hp -= dmg;
-        if (char.hp <= 0 && !char.isDead) {
-            char.isDead = true; char.respawnTimer = RESPAWN_TIME; char.hp = 0;
-            playExplosion(); spawnParticles(char.x, char.y, char.color, 30, true);
-            const attacker = attackerId === 'player' ? playerRef.current : botsRef.current.find(b => b.id === attackerId);
-            if (attacker) {
-                attacker.score += 1;
-                setKillFeed(prev => [{ id: Date.now(), killer: attacker.name, victim: char.name, time: Date.now() }, ...prev].slice(0, 5));
-                if (attacker.id === 'player') { playCoin(); shakeRef.current = 10; }
-            }
-            if (char.id === 'player') { setGameState('RESPAWNING'); gameStateRef.current = 'RESPAWNING'; playGameOver(); }
-        }
-    };
-
-    const applyPowerUp = (char: Character, type: PowerUpType) => {
-        const now = Date.now();
-        if (type === 'HEALTH') char.hp = Math.min(char.maxHp, char.hp + 50);
-        else if (type === 'SHIELD') char.shield = 50;
-        else char.powerups.push({ type, expiry: now + 10000 });
-    };
-
-    const spawnParticles = (x: number, y: number, color: string, count: number, explosion = false) => {
-        for (let i = 0; i < count; i++) {
-            const speed = explosion ? Math.random() * 5 : Math.random() * 2;
-            const angle = Math.random() * Math.PI * 2;
-            particlesRef.current.push({
-                x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-                life: 30 + Math.random() * 20, maxLife: 50, color, size: Math.random() * 3 + 1
-            });
-        }
-    };
-
-    const endGame = () => {
-        setGameState('GAMEOVER'); gameStateRef.current = 'GAMEOVER'; playVictory();
-        const player = playerRef.current;
-        if (player) {
-            const finalScore = player.score;
-            updateHighScore('arenaclash', finalScore);
-            if (onReportProgressRef.current) onReportProgressRef.current('score', finalScore);
-            const coins = finalScore * 10 + 50;
-            addCoins(coins);
-            setEarnedCoins(coins);
-        }
-    };
-
-    const draw = (ctx: CanvasRenderingContext2D) => {
+    const draw = useCallback((ctx: CanvasRenderingContext2D) => {
         ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+        
+        // Always draw the arena, even if player isn't spawned yet (Menu background effect)
         const cam = cameraRef.current;
         ctx.save(); ctx.translate(-cam.x, -cam.y);
 
@@ -694,7 +690,10 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
         });
 
-        [playerRef.current, ...botsRef.current].forEach(char => {
+        const player = playerRef.current;
+        const allChars = player ? [player, ...botsRef.current] : [];
+
+        allChars.forEach(char => {
             if (!char || char.isDead) return;
             if (char.shield > 0) {
                 ctx.strokeStyle = COLORS.powerup.shield; ctx.lineWidth = 2;
@@ -711,16 +710,22 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             ctx.fillStyle = '#fff'; ctx.font = '10px Rajdhani'; ctx.textAlign = 'center'; ctx.fillText(char.name, char.x, char.y - 35);
         });
         ctx.restore();
-    };
+    }, []);
 
-    const loop = () => {
+    const loop = useCallback(() => {
+        if (!lastTimeRef.current) lastTimeRef.current = Date.now();
         const now = Date.now();
         const dt = now - lastTimeRef.current;
         lastTimeRef.current = now;
+        
         update(dt);
-        if (canvasRef.current) { const ctx = canvasRef.current.getContext('2d'); if (ctx) draw(ctx); }
+        
+        if (canvasRef.current) { 
+            const ctx = canvasRef.current.getContext('2d'); 
+            if (ctx) draw(ctx); 
+        }
         animationFrameRef.current = requestAnimationFrame(loop);
-    };
+    }, [update, draw]);
 
     // --- CONTROLS ---
     useEffect(() => {
@@ -729,6 +734,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
         return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
     }, []);
+
+    useEffect(() => {
+        // Start loop on mount and keep it running
+        animationFrameRef.current = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(animationFrameRef.current);
+    }, [loop]);
 
     const handleMouseMove = (e: React.MouseEvent) => {
         const rect = canvasRef.current?.getBoundingClientRect();
@@ -766,9 +777,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     const renderLobby = () => {
         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
-        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
-
-         return (
+        return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
                  <div className="flex flex-col gap-3 mb-4">
                      <h3 className="text-xl font-black text-center text-purple-300 tracking-wider drop-shadow-md">LOBBY ARENA</h3>
@@ -796,50 +805,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         </>
                     )}
                     {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
-                    {otherPlayers.length > 0 && (
-                        <>
-                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
-                             {otherPlayers.map(player => {
-                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
-                                 const AvatarIcon = avatar.icon;
-                                 return (
-                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
-                                         <div className="flex items-center gap-3">
-                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
-                                             <span className="font-bold text-gray-400">{player.name}</span>
-                                         </div>
-                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
-                                     </div>
-                                 );
-                             })}
-                        </>
-                    )}
                 </div>
              </div>
          );
     };
 
-    // --- MENU VIEW ---
-    if (gameState === 'MENU') {
-        return (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
-                <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
-                
-                <div className="flex flex-col gap-4 w-full max-w-[260px]">
-                    <button onClick={() => { setGameMode('SOLO'); startGame(); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
-                        <User size={24} className="text-neon-blue"/> SOLO (BOTS)
-                    </button>
-                    <button onClick={() => setGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
-                        <Globe size={24} className="text-purple-500"/> EN LIGNE
-                    </button>
-                </div>
-                <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
-            </div>
-        );
-    }
-
-    // --- LOBBY VIEW ---
     if (gameMode === 'ONLINE' && onlineStep !== 'game') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
@@ -857,129 +827,157 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     }
 
     return (
-        <div id="arena-container" className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden select-none">
+        <div id="arena-container" className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden select-none relative">
             {/* Background */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none -z-10" />
             
             {showTutorial && <TutorialOverlay gameId="arenaclash" onClose={() => setShowTutorial(false)} />}
 
-            {/* HEADER */}
-            <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0 pointer-events-none">
-                <button onClick={(e) => { e.stopPropagation(); handleLocalBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
-                    <Home size={20} />
-                </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,217,255,0.5)] tracking-widest">NEON ARENA</h1>
-                <div className="flex gap-2 pointer-events-auto">
-                    <button onClick={toggleTutorial} className="p-3 bg-gray-900/80 rounded-xl text-yellow-400 border border-yellow-500/30 hover:bg-yellow-900/50 active:scale-95 transition-all"><HelpCircle size={20} /></button>
-                </div>
-            </div>
-
-            {/* GAME AREA */}
-            <div className="flex-1 w-full max-w-4xl relative min-h-0 flex flex-col">
-                
-                {/* HUD */}
-                <div className="absolute top-0 left-0 w-full flex justify-between p-4 z-20 pointer-events-none">
-                    <div className="flex flex-col gap-1">
-                        {killFeed.map(k => (
-                            <div key={k.id} className="text-xs bg-black/60 px-2 py-1 rounded text-white animate-in fade-in">
-                                <span className={k.killer === 'VOUS' ? 'text-cyan-400 font-bold' : 'text-pink-400'}>{k.killer}</span>
-                                <span className="text-gray-400 mx-1">killed</span>
-                                <span className={k.victim === 'VOUS' ? 'text-cyan-400 font-bold' : 'text-pink-400'}>{k.victim}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <div className={`text-2xl font-black font-mono ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                            {Math.floor(timeLeft / 60)}:{String(Math.floor(timeLeft % 60)).padStart(2, '0')}
-                        </div>
-                        {gameState === 'RESPAWNING' && (
-                            <div className="mt-2 bg-red-900/80 px-4 py-1 rounded text-red-200 font-bold animate-pulse border border-red-500 text-xs">
-                                RESPAWN DANS {Math.ceil(playerRef.current?.respawnTimer! / 1000)}s
-                            </div>
-                        )}
-                    </div>
-                    <div className="w-32 bg-gray-900/80 p-2 rounded-lg border border-white/10">
-                        <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
-                            <Trophy size={14} className="text-yellow-400"/>
-                            <span className="text-xs font-bold text-white">TOP</span>
-                        </div>
-                        {leaderboard.slice(0, 5).map((p, i) => (
-                            <div key={i} className={`flex justify-between text-[10px] mb-1 ${p.isMe ? 'text-cyan-400 font-bold' : 'text-gray-300'}`}>
-                                <span>{i+1}. {p.name}</span>
-                                <span>{p.score}</span>
-                            </div>
-                        ))}
+            {/* MAIN GAME CONTAINER (Always Rendered for Canvas) */}
+            <div className="absolute inset-0 flex flex-col items-center">
+                {/* HEADER */}
+                <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0 pointer-events-none">
+                    <button onClick={(e) => { e.stopPropagation(); handleLocalBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
+                        <Home size={20} />
+                    </button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,217,255,0.5)] tracking-widest">NEON ARENA</h1>
+                    <div className="flex gap-2 pointer-events-auto">
+                        <button onClick={toggleTutorial} className="p-3 bg-gray-900/80 rounded-xl text-yellow-400 border border-yellow-500/30 hover:bg-yellow-900/50 active:scale-95 transition-all"><HelpCircle size={20} /></button>
                     </div>
                 </div>
 
-                {/* CANVAS WRAPPER */}
-                <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-                    <canvas 
-                        ref={canvasRef}
-                        width={VIEWPORT_WIDTH}
-                        height={VIEWPORT_HEIGHT}
-                        className="bg-black/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-xl w-full h-full object-contain cursor-crosshair"
-                        onMouseDown={(e) => { 
-                            if(!showTutorial && gameState === 'PLAYING') { 
-                                mouseRef.current.down = true; 
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const scaleX = VIEWPORT_WIDTH / rect.width;
-                                const scaleY = VIEWPORT_HEIGHT / rect.height;
-                                mouseRef.current.x = (e.clientX - rect.left) * scaleX;
-                                mouseRef.current.y = (e.clientY - rect.top) * scaleY;
-                            } 
-                        }}
-                        onMouseUp={() => mouseRef.current.down = false}
-                        onMouseMove={handleMouseMove}
-                    />
-
-                    {/* WAITING FOR OPPONENT */}
-                    {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
-                        <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto">
-                            <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
-                            <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
-                            <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
-                        </div>
-                    )}
-
-                    {gameState === 'GAMEOVER' && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in pointer-events-auto">
-                            <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce"/>
-                            <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-400 to-orange-500 italic mb-4">MATCH TERMINÉ</h2>
-                            {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
-                            <div className="flex gap-4">
-                                <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startGame(); }} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
-                                {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                {/* GAME AREA */}
+                <div className="flex-1 w-full max-w-4xl relative min-h-0 flex flex-col">
+                    
+                    {/* HUD (Only visible when Playing) */}
+                    {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
+                        <div className="absolute top-0 left-0 w-full flex justify-between p-4 z-20 pointer-events-none">
+                            <div className="flex flex-col gap-1">
+                                {killFeed.map(k => (
+                                    <div key={k.id} className="text-xs bg-black/60 px-2 py-1 rounded text-white animate-in fade-in">
+                                        <span className={k.killer === 'VOUS' ? 'text-cyan-400 font-bold' : 'text-pink-400'}>{k.killer}</span>
+                                        <span className="text-gray-400 mx-1">killed</span>
+                                        <span className={k.victim === 'VOUS' ? 'text-cyan-400 font-bold' : 'text-pink-400'}>{k.victim}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <div className={`text-2xl font-black font-mono ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                                    {Math.floor(timeLeft / 60)}:{String(Math.floor(timeLeft % 60)).padStart(2, '0')}
+                                </div>
+                                {gameState === 'RESPAWNING' && (
+                                    <div className="mt-2 bg-red-900/80 px-4 py-1 rounded text-red-200 font-bold animate-pulse border border-red-500 text-xs">
+                                        RESPAWN DANS {Math.ceil(playerRef.current?.respawnTimer! / 1000)}s
+                                    </div>
+                                )}
+                            </div>
+                            <div className="w-32 bg-gray-900/80 p-2 rounded-lg border border-white/10">
+                                <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
+                                    <Trophy size={14} className="text-yellow-400"/>
+                                    <span className="text-xs font-bold text-white">TOP</span>
+                                </div>
+                                {leaderboard.slice(0, 5).map((p, i) => (
+                                    <div key={i} className={`flex justify-between text-[10px] mb-1 ${p.isMe ? 'text-cyan-400 font-bold' : 'text-gray-300'}`}>
+                                        <span>{i+1}. {p.name}</span>
+                                        <span>{p.score}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* MOBILE CONTROLS (BOTTOM) */}
-                <div className="h-48 w-full grid grid-cols-2 gap-4 shrink-0 sm:hidden z-40 p-4 pointer-events-auto">
-                    {/* LEFT STICK - MOVE */}
-                    <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
-                        <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
-                            <div className="w-20 h-20 rounded-full border-2 border-cyan-500"></div>
-                        </div>
-                        <div ref={leftKnobRef} className="w-12 h-12 bg-cyan-500/80 rounded-full shadow-[0_0_15px_#00f3ff] relative pointer-events-none">
-                            <div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div>
-                        </div>
-                        <span className="absolute bottom-2 text-[10px] text-cyan-500 font-bold tracking-widest pointer-events-none">BOUGER</span>
+                    {/* CANVAS WRAPPER */}
+                    <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+                        <canvas 
+                            ref={canvasRef}
+                            width={VIEWPORT_WIDTH}
+                            height={VIEWPORT_HEIGHT}
+                            className="bg-black/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-xl w-full h-full object-contain cursor-crosshair"
+                            onMouseDown={(e) => { 
+                                if(!showTutorial && gameState === 'PLAYING') { 
+                                    mouseRef.current.down = true; 
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const scaleX = VIEWPORT_WIDTH / rect.width;
+                                    const scaleY = VIEWPORT_HEIGHT / rect.height;
+                                    mouseRef.current.x = (e.clientX - rect.left) * scaleX;
+                                    mouseRef.current.y = (e.clientY - rect.top) * scaleY;
+                                } 
+                            }}
+                            onMouseUp={() => mouseRef.current.down = false}
+                            onMouseMove={handleMouseMove}
+                        />
                     </div>
 
-                    {/* RIGHT STICK - AIM/SHOOT */}
-                    <div ref={rightZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
-                        <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
-                            <div className="w-20 h-20 rounded-full border-2 border-red-500"></div>
+                    {/* MOBILE CONTROLS (Only visible when Playing) */}
+                    {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
+                        <div className="h-48 w-full grid grid-cols-2 gap-4 shrink-0 sm:hidden z-40 p-4 pointer-events-auto">
+                            {/* LEFT STICK - MOVE */}
+                            <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
+                                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                                    <div className="w-20 h-20 rounded-full border-2 border-cyan-500"></div>
+                                </div>
+                                <div ref={leftKnobRef} className="w-12 h-12 bg-cyan-500/80 rounded-full shadow-[0_0_15px_#00f3ff] relative pointer-events-none">
+                                    <div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div>
+                                </div>
+                                <span className="absolute bottom-2 text-[10px] text-cyan-500 font-bold tracking-widest pointer-events-none">BOUGER</span>
+                            </div>
+
+                            {/* RIGHT STICK - AIM/SHOOT */}
+                            <div ref={rightZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
+                                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                                    <div className="w-20 h-20 rounded-full border-2 border-red-500"></div>
+                                </div>
+                                <div ref={rightKnobRef} className="w-12 h-12 bg-red-500/80 rounded-full shadow-[0_0_15px_#ef4444] relative pointer-events-none">
+                                    <div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div>
+                                </div>
+                                <span className="absolute bottom-2 text-[10px] text-red-500 font-bold tracking-widest pointer-events-none">VISER & TIRER</span>
+                            </div>
                         </div>
-                        <div ref={rightKnobRef} className="w-12 h-12 bg-red-500/80 rounded-full shadow-[0_0_15px_#ef4444] relative pointer-events-none">
-                            <div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div>
-                        </div>
-                        <span className="absolute bottom-2 text-[10px] text-red-500 font-bold tracking-widest pointer-events-none">VISER & TIRER</span>
-                    </div>
+                    )}
                 </div>
             </div>
+
+            {/* --- OVERLAYS --- */}
+
+            {/* MENU OVERLAY */}
+            {gameState === 'MENU' && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
+                    <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
+                    <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
+                    
+                    <div className="flex flex-col gap-4 w-full max-w-[260px]">
+                        <button onClick={() => { setGameMode('SOLO'); startGame(); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                            <User size={24} className="text-neon-blue"/> SOLO (BOTS)
+                        </button>
+                        <button onClick={() => setGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                            <Globe size={24} className="text-purple-500"/> EN LIGNE
+                        </button>
+                    </div>
+                    <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
+                </div>
+            )}
+
+            {/* WAITING FOR OPPONENT OVERLAY */}
+            {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto">
+                    <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                    <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
+                </div>
+            )}
+
+            {/* GAME OVER OVERLAY */}
+            {gameState === 'GAMEOVER' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in pointer-events-auto">
+                    <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce"/>
+                    <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-400 to-orange-500 italic mb-4">MATCH TERMINÉ</h2>
+                    {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
+                    <div className="flex gap-4">
+                        <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startGame(); }} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
