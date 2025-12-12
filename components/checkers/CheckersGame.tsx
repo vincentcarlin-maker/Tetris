@@ -7,6 +7,7 @@ import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
 import { BoardState, Move, PlayerColor, Position, Difficulty } from './types';
 import { createInitialBoard, getValidMoves, executeMove, getBestMove, BOARD_SIZE } from './logic';
+import { TutorialOverlay } from '../Tutorials';
 
 interface CheckersGameProps {
     onBack: () => void;
@@ -592,46 +593,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
             {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-3 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">DÉPLACER</p>
-                                    <p className="text-xs text-gray-400">Touchez un pion pour le sélectionner, puis une case vide en diagonale.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <ArrowUp className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">CAPTURER</p>
-                                    <p className="text-xs text-gray-400">Sautez par-dessus les pions adverses pour les capturer (obligatoire !).</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Crown className="text-green-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">DAME</p>
-                                    <p className="text-xs text-gray-400">Atteignez le bord opposé pour transformer votre pion en Dame (recule et avance).</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => setShowTutorial(false)}
-                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
+            {showTutorial && <TutorialOverlay gameId="checkers" onClose={() => setShowTutorial(false)} />}
 
             {/* Header */}
             <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">

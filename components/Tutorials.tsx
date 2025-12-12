@@ -124,25 +124,25 @@ const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
     checkers: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "DÉPLACER", desc: "Diagonale avant." },
-            { icon: ArrowUp, color: "text-yellow-400", title: "CAPTURER", desc: "Sautez l'adversaire." },
-            { icon: Crown, color: "text-green-400", title: "DAME", desc: "Atteignez le fond." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "DÉPLACER", desc: "Touchez un pion pour le sélectionner, puis une case vide en diagonale." },
+            { icon: ArrowUp, color: "text-yellow-400", title: "CAPTURER", desc: "Sautez par-dessus les pions adverses pour les capturer (obligatoire !)." },
+            { icon: Crown, color: "text-green-400", title: "DAME", desc: "Atteignez le bord opposé pour transformer votre pion en Dame (recule et avance)." }
         ]
     },
     runner: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "SAUTER", desc: "Appuyez pour sauter." },
-            { icon: Coins, color: "text-yellow-400", title: "COLLECTER", desc: "Amassez les pièces." },
-            { icon: FastForward, color: "text-orange-400", title: "BONUS", desc: "Boost, Aimant, Bouclier." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "SAUTER", desc: "Cliquez ou appuyez pour sauter par-dessus les obstacles." },
+            { icon: Coins, color: "text-yellow-400", title: "COLLECTER", desc: "Ramassez les pièces et les coffres pour augmenter votre score." },
+            { icon: FastForward, color: "text-orange-400", title: "BONUS", desc: "Aimant (pièces), Bouclier (vie), Boost (vitesse + invulnérable)." }
         ]
     },
     stack: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "POSER", desc: "Appuyez au bon moment." },
-            { icon: Scissors, color: "text-red-400", title: "PRÉCISION", desc: "Tout dépassement est coupé." },
-            { icon: Zap, color: "text-yellow-400", title: "COMBO", desc: "Alignez parfaitement." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "POSER", desc: "Le bloc se déplace. Appuyez au bon moment pour le poser sur la tour." },
+            { icon: Scissors, color: "text-red-400", title: "PRÉCISION", desc: "Tout ce qui dépasse du bord est coupé ! La tour devient plus fine." },
+            { icon: Zap, color: "text-yellow-400", title: "COMBO", desc: "Alignez parfaitement pour agrandir la base et gagner des points bonus." }
         ]
     },
     game2048: {

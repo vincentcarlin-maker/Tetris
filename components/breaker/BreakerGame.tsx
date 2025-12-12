@@ -6,7 +6,6 @@ import { useHighScores } from '../../hooks/useHighScores';
 import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType, Laser } from './types';
 import { getLevelLayout, TOTAL_BREAKER_LEVELS } from './levels';
 import { drawBall, drawBlocks, drawPaddle, drawParticles, createParticles, BLOCK_COLORS, INDESTRUCTIBLE_COLOR, drawPowerUp, drawLasers } from './helpers';
-import { TutorialOverlay } from '../Tutorials';
 
 interface BreakerGameProps {
     onBack: () => void;
