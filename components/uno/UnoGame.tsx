@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette, User, Globe, Users, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette, User, Globe, Users, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, HelpCircle, MousePointer2, Zap } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -148,6 +148,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     const [unoShout, setUnoShout] = useState<Turn | null>(null);
     const [message, setMessage] = useState<string>('');
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Direction: 1 = Clockwise, -1 = Counter-Clockwise (Visual only in 1v1)
     const [playDirection, setPlayDirection] = useState<1 | -1>(1);
@@ -181,6 +182,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     useEffect(() => {
         gameStateRef.current = { playerHand, cpuHand, discardPile, activeColor, turn };
     }, [playerHand, cpuHand, discardPile, activeColor, turn]);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_uno_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_uno_tutorial_seen', 'true');
+        }
+    }, []);
 
     // --- EFFECT: PREVENT OVERSCROLL ---
     useEffect(() => {
@@ -530,7 +540,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
 
     const handleDrawPileClick = (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
-        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
+        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating || showTutorial) return;
 
         setShowContestButton(false); // Player interacting clears contest opportunity
 
@@ -758,7 +768,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
 
     const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
         e.stopPropagation();
-        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating) return;
+        if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating || showTutorial) return;
 
         setShowContestButton(false); // Player action clears contest opportunity
 
@@ -1024,6 +1034,48 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
             <div className={`absolute inset-0 transition-colors duration-1000 opacity-30 pointer-events-none ${COLOR_CONFIG[activeColor].bg}`}></div>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-black/60 to-black pointer-events-none"></div>
 
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Layers className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">ASSOCIER</p>
+                                    <p className="text-xs text-gray-400">Jouez une carte de même couleur ou même valeur que la pile.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Zap className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">ACTION</p>
+                                    <p className="text-xs text-gray-400">Utilisez +2, Passe, Inverse et Joker pour piéger l'adversaire.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Megaphone className="text-red-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">CRIER UNO</p>
+                                    <p className="text-xs text-gray-400">Appuyez sur le bouton UNO quand il vous reste 2 cartes avant de jouer, sinon +2 !</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <FlyingCardOverlay />
 
             {activeReaction && (() => {
@@ -1040,7 +1092,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)] pr-2 pb-1">NEON UNO</h1>
                     <span className="text-[10px] text-gray-400 font-bold tracking-widest bg-black/40 px-2 py-0.5 rounded-full border border-white/10">{message}</span>
                 </div>
-                <button onClick={() => startNewGame(gameMode)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={() => startNewGame(gameMode)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
 
             {gameMode === 'ONLINE' && onlineStep === 'connecting' && (

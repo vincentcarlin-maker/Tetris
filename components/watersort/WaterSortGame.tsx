@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight, ChevronLeft, ChevronRight, Lock, Play } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Undo2, Plus, ArrowRight, ChevronLeft, ChevronRight, Lock, Play, HelpCircle, MousePointer2, ArrowDown, Check } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -49,6 +49,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     
     // View State
     const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
+    const [showTutorial, setShowTutorial] = useState(false);
 
     // Initialize maxUnlockedLevel synchronously from localStorage to ensure navigation works immediately
     const [maxUnlockedLevel, setMaxUnlockedLevel] = useState<number>(() => {
@@ -71,6 +72,15 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
             setMaxUnlockedLevel(highScores.watersort);
         }
     }, [highScores.watersort, maxUnlockedLevel]);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_watersort_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_watersort_tutorial_seen', 'true');
+        }
+    }, []);
 
     // Current level being played
     const [currentLevel, setCurrentLevel] = useState<number>(maxUnlockedLevel);
@@ -166,7 +176,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     };
 
     const handleTubeClick = (index: number) => {
-        if (isAnimating || levelComplete) return;
+        if (isAnimating || levelComplete || showTutorial) return;
         resumeAudio();
 
         if (selectedTube === null) {
@@ -427,6 +437,48 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-500/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">SÉLECTIONNER</p>
+                                    <p className="text-xs text-gray-400">Touchez un tube pour prendre le liquide supérieur.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <ArrowDown className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">VERSER</p>
+                                    <p className="text-xs text-gray-400">Touchez un autre tube pour verser. La couleur doit correspondre ou le tube doit être vide.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Check className="text-green-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">TRIER</p>
+                                    <p className="text-xs text-gray-400">Remplissez chaque tube avec une seule couleur pour gagner.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-6 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
@@ -450,7 +502,10 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                         </button>
                     </div>
                 </div>
-                <button onClick={handleRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={handleRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
 
             {/* Game Area */}

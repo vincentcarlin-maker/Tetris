@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle, HelpCircle, MousePointer2, ArrowUp } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -39,6 +39,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [whiteCount, setWhiteCount] = useState(20);
     const [redCount, setRedCount] = useState(20);
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Multi-turn state
     const [mustJumpPos, setMustJumpPos] = useState<Position | null>(null);
@@ -61,6 +62,15 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
         };
     }, [username, currentAvatarId, mp.updateSelfInfo]);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_checkers_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_checkers_tutorial_seen', 'true');
+        }
+    }, []);
 
     useEffect(() => {
         if (gameMode === 'ONLINE') {
@@ -248,7 +258,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const handleCellClick = (r: number, c: number) => {
-        if (winner || isWaitingForHost || isWaitingForGuest) return;
+        if (winner || isWaitingForHost || isWaitingForGuest || showTutorial) return;
         
         // Online Turn Check
         if (gameMode === 'ONLINE') {
@@ -292,7 +302,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
     // --- AI ---
     useEffect(() => {
-        if (gameMode === 'SOLO' && turn === 'red' && !winner) {
+        if (gameMode === 'SOLO' && turn === 'red' && !winner && !showTutorial) {
             const timer = setTimeout(() => {
                 const move = getBestMove(board, 'red', difficulty);
                 
@@ -305,7 +315,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [turn, gameMode, winner, board, mustJumpPos, difficulty]);
+    }, [turn, gameMode, winner, board, mustJumpPos, difficulty, showTutorial]);
 
     const handleGameOver = (w: PlayerColor | 'DRAW') => {
         if (gameMode === 'SOLO' && w === 'white') {
@@ -581,6 +591,48 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4 select-none">
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">DÉPLACER</p>
+                                    <p className="text-xs text-gray-400">Touchez un pion pour le sélectionner, puis une case vide en diagonale.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <ArrowUp className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">CAPTURER</p>
+                                    <p className="text-xs text-gray-400">Sautez par-dessus les pions adverses pour les capturer (obligatoire !).</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Crown className="text-green-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">DAME</p>
+                                    <p className="text-xs text-gray-400">Atteignez le bord opposé pour transformer votre pion en Dame (recule et avance).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
@@ -592,7 +644,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                     </div>
                     {gameMode === 'SOLO' && <span className={`text-[9px] font-bold tracking-widest ${DIFFICULTY_CONFIG[difficulty].color.split(' ')[0]}`}>{DIFFICULTY_CONFIG[difficulty].name}</span>}
                 </div>
-                <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
 
             {/* Turn Indicator */}
