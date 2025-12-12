@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2, Globe } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2, Globe, HelpCircle, LayoutGrid, Zap, Shield } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
+import { TutorialOverlay } from '../Tutorials';
 
 interface Connect4GameProps {
   onBack: () => void;
@@ -93,6 +94,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [earnedCoins, setEarnedCoins] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Online State
   const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
@@ -127,6 +129,15 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   useEffect(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
+
+  // Check localStorage for tutorial seen
+  useEffect(() => {
+      const hasSeen = localStorage.getItem('neon_connect4_tutorial_seen');
+      if (!hasSeen) {
+          setShowTutorial(true);
+          localStorage.setItem('neon_connect4_tutorial_seen', 'true');
+      }
+  }, []);
 
   // Sync Self Info for Online
   useEffect(() => {
@@ -180,7 +191,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
   // Main Game Action
   const handleColumnClick = useCallback((colIndex: number, isRemoteMove = false) => {
-    if (winState.winner || isAnimatingRef.current || opponentLeft) return;
+    if (winState.winner || isAnimatingRef.current || opponentLeft || showTutorial) return;
     
     // Online Turn Check
     if (gameMode === 'ONLINE' && !isRemoteMove) {
@@ -251,7 +262,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
         isAnimatingRef.current = false;
     }, 500); 
 
-  }, [currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft, onReportProgress]);
+  }, [currentPlayer, winState.winner, isAiThinking, playMove, playLand, playGameOver, playVictory, gameMode, difficulty, addCoins, mp, opponentLeft, onReportProgress, showTutorial]);
 
   // STABLE SUBSCRIPTION REF
   const handleDataRef = useRef<(data: any) => void>(null);
@@ -326,7 +337,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       const Icon = reaction.icon;
       const anim = reaction.anim || 'animate-bounce';
       return <div className={anim}><Icon size={48} className={`${color} drop-shadow-[0_0_20px_currentColor]`} /></div>;
-  };
+    };
 
   const handleOpponentLeftAction = (action: 'lobby' | 'wait') => {
         if (action === 'lobby') {
@@ -355,6 +366,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   };
 
   const startGame = (mode: GameMode, diff?: Difficulty) => {
+      if (showTutorial) return;
       setGameMode(mode);
       if (diff) setDifficulty(diff);
       resetGame();
@@ -475,6 +487,9 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-black to-transparent pointer-events-none"></div>
 
+       {/* TUTORIAL OVERLAY */}
+       {showTutorial && <TutorialOverlay gameId="connect4" onClose={() => setShowTutorial(false)} />}
+
        {/* REACTION DISPLAY */}
        {activeReaction && (() => {
             const reaction = REACTIONS.find(r => r.id === activeReaction.id);
@@ -493,7 +508,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
          <div className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none w-full">
             <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] pr-2 pb-1">NEON CONNECT</h1>
          </div>
-         <div className="z-20 relative min-w-[40px] flex justify-end">
+         <div className="z-20 relative min-w-[40px] flex justify-end gap-2">
+            <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-neon-pink hover:text-white border border-white/10"><HelpCircle size={20} /></button>
             <button onClick={() => resetGame()} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
                 <RefreshCw size={20} />
             </button>

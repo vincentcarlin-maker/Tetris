@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause, Loader2, HelpCircle, MousePointer2, Target, Shield } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause, Loader2, HelpCircle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency, Mallet } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
+import { TutorialOverlay } from '../Tutorials';
 
 interface AirHockeyGameProps {
     onBack: () => void;
@@ -761,46 +762,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
             {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-3 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">GLISSER</p>
-                                    <p className="text-xs text-gray-400">Utilisez votre doigt ou la souris pour déplacer votre palet.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Target className="text-pink-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">FRAPPER</p>
-                                    <p className="text-xs text-gray-400">Frappez le disque vers le but adverse pour marquer.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Shield className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">DÉFENDRE</p>
-                                    <p className="text-xs text-gray-400">Protégez votre but des tirs adverses !</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => setShowTutorial(false)}
-                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
+            {showTutorial && <TutorialOverlay gameId="airhockey" onClose={() => setShowTutorial(false)} />}
 
             <div className="w-full max-w-md flex items-center justify-between z-20 mb-4 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>

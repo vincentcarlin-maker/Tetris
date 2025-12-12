@@ -5,6 +5,7 @@ import { useGameAudio } from '../../hooks/useGameAudio';
 import { generateSudoku } from './logic';
 import { Difficulty, Grid } from './types';
 import { useHighScores } from '../../hooks/useHighScores';
+import { TutorialOverlay } from '../Tutorials';
 
 interface SudokuGameProps {
     onBack: () => void;
@@ -164,46 +165,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
             {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-3 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">SÉLECTIONNER</p>
-                                    <p className="text-xs text-gray-400">Touchez une case vide pour la sélectionner.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Hash className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">REMPLIR</p>
-                                    <p className="text-xs text-gray-400">Utilisez le pavé numérique pour insérer un chiffre.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Brain className="text-purple-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">LOGIQUE</p>
-                                    <p className="text-xs text-gray-400">Chaque ligne, colonne et bloc doit contenir les chiffres 1-9.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => setShowTutorial(false)}
-                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
+            {showTutorial && <TutorialOverlay gameId="sudoku" onClose={() => setShowTutorial(false)} />}
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">

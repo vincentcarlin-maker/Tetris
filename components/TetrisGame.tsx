@@ -10,8 +10,9 @@ import { useGameLoop } from '../hooks/useGameLoop';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { NextPiece } from './NextPiece';
 import { HoldPiece } from './HoldPiece';
-import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home, Coins, HelpCircle, Keyboard, MousePointer2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, RotateCw, Play, RefreshCw, ChevronDown, Pause, RotateCcw, Volume2, VolumeX, Home, Coins, HelpCircle } from 'lucide-react';
 import type { Player } from '../types';
+import { TutorialOverlay } from './Tutorials';
 
 interface TetrisGameProps {
     onBack: () => void;
@@ -303,56 +304,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
                         </div>
                      )}
 
-                     {/* TUTORIAL OVERLAY */}
-                     {showTutorial && (
-                        <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md rounded-lg flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                            <div className="w-full max-w-xs text-center">
-                                <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
-                                
-                                <div className="space-y-4 text-left">
-                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
-                                        <ArrowLeft className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                        <ArrowRight className="text-cyan-400 shrink-0 mt-1 -ml-2" size={20} />
-                                        <div>
-                                            <p className="text-sm font-bold text-white mb-1">DÉPLACER</p>
-                                            <p className="text-xs text-gray-400">Utilisez les flèches gauche/droite pour déplacer la pièce.</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
-                                        <RotateCw className="text-purple-400 shrink-0 mt-1" size={20} />
-                                        <div>
-                                            <p className="text-sm font-bold text-white mb-1">PIVOTER</p>
-                                            <p className="text-xs text-gray-400">Flèche HAUT ou bouton pivoter pour tourner la pièce.</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
-                                        <ChevronDown className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                        <div>
-                                            <p className="text-sm font-bold text-white mb-1">ACCÉLÉRER</p>
-                                            <p className="text-xs text-gray-400">Maintenez BAS pour accélérer. ESPACE pour chute instantanée.</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
-                                        <Keyboard className="text-gray-400 shrink-0 mt-1" size={20} />
-                                        <div>
-                                            <p className="text-sm font-bold text-white mb-1">TOUCH OU CLAVIER</p>
-                                            <p className="text-xs text-gray-400">Compatible tactile et clavier (Flèches, Espace, C pour réserve).</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button 
-                                    onClick={() => setShowTutorial(false)}
-                                    className="mt-8 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                                >
-                                    J'AI COMPRIS !
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                     {showTutorial && <TutorialOverlay gameId="tetris" onClose={() => setShowTutorial(false)} />}
 
                     {gameOver && score > 0 && (
                         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm rounded-lg animate-in fade-in duration-300 border border-white/10">

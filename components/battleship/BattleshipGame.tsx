@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Trash2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Loader2, Cpu, Globe, ArrowLeft, X, Radio } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Target, Crosshair, Anchor, ShieldAlert, Coins, RotateCw, Play, Trash2, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Loader2, Cpu, Globe, ArrowLeft, X, Radio, HelpCircle, MousePointer2 } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { GRID_SIZE, createEmptyGrid, generateRandomShips, checkHit, getCpuMove, SHIPS_CONFIG, isValidPlacement, placeShipOnGrid } from './logic';
 import { Grid, Ship as ShipType, ShipType as ShipTypeName } from './types';
+import { TutorialOverlay } from '../Tutorials';
 
 interface BattleshipGameProps {
   onBack: () => void;
@@ -130,6 +131,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const [shakeBoard, setShakeBoard] = useState(false);
   const [earnedCoins, setEarnedCoins] = useState(0);
   const [winner, setWinner] = useState<'PLAYER' | 'CPU' | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Refs
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -145,6 +147,15 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   useEffect(() => {
       mp.updateSelfInfo(username, currentAvatarId);
   }, [username, currentAvatarId, mp]);
+
+  // Check localStorage for tutorial seen
+  useEffect(() => {
+      const hasSeen = localStorage.getItem('neon_battleship_tutorial_seen');
+      if (!hasSeen) {
+          setShowTutorial(true);
+          localStorage.setItem('neon_battleship_tutorial_seen', 'true');
+      }
+  }, []);
 
   useEffect(() => {
         if (gameMode === 'ONLINE') {
@@ -316,6 +327,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   // --- SETUP INTERACTION ---
 
   const handleSetupCellClick = (r: number, c: number) => {
+      if (showTutorial) return;
       // 1. If ship selected from inventory, try place
       if (selectedShipType) {
           const config = SHIPS_CONFIG.find(s => s.type === selectedShipType);
@@ -360,6 +372,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   };
 
   const randomizeSetup = () => {
+      if (showTutorial) return;
       const { grid, ships } = generateRandomShips();
       setSetupGrid(grid);
       setSetupShips(ships);
@@ -368,6 +381,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   };
 
   const startBattle = () => {
+      if (showTutorial) return;
       if (setupShips.length < 5) return;
       
       setPlayerShips(setupShips);
@@ -388,7 +402,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   // --- GAMEPLAY INTERACTION ---
 
   const handleAttack = (r: number, c: number) => {
-      if (phase !== 'PLAYING' || turn !== 'PLAYER') return;
+      if (phase !== 'PLAYING' || turn !== 'PLAYER' || showTutorial) return;
       if (cpuGrid[r][c] !== 0) return; // Already shot there
 
       playLaserShoot();
@@ -623,6 +637,9 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         {/* Background FX */}
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
         
+        {/* TUTORIAL OVERLAY */}
+        {showTutorial && <TutorialOverlay gameId="battleship" onClose={() => setShowTutorial(false)} />}
+
         {notification && (
             <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs p-4 rounded-xl border-2 flex flex-col items-center text-center animate-in zoom-in duration-200 ${notification.type === 'HIT' ? 'bg-red-900/90 border-red-500 shadow-[0_0_30px_red]' : 'bg-green-900/90 border-green-500 shadow-[0_0_30px_lime]'}`}>
                 <span className="text-xl font-black italic tracking-widest text-white drop-shadow-md leading-tight break-words">{notification.text}</span>
@@ -641,7 +658,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     </div>
                 )}
             </div>
-            <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+            <div className="flex gap-2">
+                <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+            </div>
         </div>
 
         {phase === 'SETUP' && (
@@ -709,18 +729,4 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     <>
                         <Anchor size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
                         <h2 className="text-5xl font-black italic text-white mb-2">DÉFAITE...</h2>
-                        <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ</p>
-                    </>
-                )}
-                <div className="flex flex-col gap-4 w-full max-w-[280px]">
-                    <div className="flex gap-2 w-full">
-                        <button onClick={resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2"><RefreshCw size={18} /> REJOUER</button>
-                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 text-sm">QUITTER</button>}
-                    </div>
-                    <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>
-                </div>
-            </div>
-        )}
-    </div>
-  );
-};
+                        <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ

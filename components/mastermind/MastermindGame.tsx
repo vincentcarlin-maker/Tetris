@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, BrainCircuit, Delete, Check, X, User, Globe, Play, ArrowLeft, Loader2, LogOut, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Lock, Unlock, Eye } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, BrainCircuit, Delete, Check, X, User, Globe, Play, ArrowLeft, Loader2, LogOut, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Lock, Unlock, Eye, HelpCircle, Palette, Search } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
+import { TutorialOverlay } from '../Tutorials';
 
 interface MastermindGameProps {
     onBack: () => void;
@@ -57,6 +58,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     const [gameState, setGameState] = useState<'playing' | 'won' | 'lost' | 'creating' | 'waiting'>('playing');
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [activeRow, setActiveRow] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Online State
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
@@ -89,6 +91,15 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory]);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_mastermind_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_mastermind_tutorial_seen', 'true');
+        }
+    }, []);
 
     // Connect/Disconnect based on mode
     useEffect(() => {
@@ -140,6 +151,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     };
 
     const startNewGame = () => {
+        if (showTutorial) return;
         resetLocalGame();
         resumeAudio();
 
@@ -196,6 +208,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
 
     // --- GAMEPLAY INPUTS ---
     const handleColorClick = (colorIndex: number) => {
+        if (showTutorial) return;
         // Can only play if: Playing state, not full row, AND not Codemaker (Codemaker just watches)
         if (gameState !== 'playing' || currentGuess.length >= CODE_LENGTH || isCodemaker) return;
         playMove();
@@ -203,6 +216,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     };
 
     const handleDelete = () => {
+        if (showTutorial) return;
         if (gameState !== 'playing' || currentGuess.length === 0 || isCodemaker) return;
         playPaddleHit();
         setCurrentGuess(prev => prev.slice(0, -1));
@@ -235,6 +249,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     };
 
     const handleSubmit = () => {
+        if (showTutorial) return;
         if (gameState !== 'playing' || currentGuess.length !== CODE_LENGTH || isCodemaker) return;
 
         const currentFeedback = calculateFeedback(currentGuess, secretCode);
@@ -496,6 +511,9 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900/20 via-black to-transparent pointer-events-none"></div>
 
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && <TutorialOverlay gameId="mastermind" onClose={() => setShowTutorial(false)} />}
+
             {activeReaction && (() => {
                 const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                 if (!reaction) return null;
@@ -514,7 +532,10 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                         </span>
                     )}
                 </div>
-                <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startNewGame(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startNewGame(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
 
             {/* CREATION PHASE (Host) */}

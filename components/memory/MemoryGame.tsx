@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut, Globe } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Zap, Ghost, Star, Heart, Crown, Diamond, Anchor, Music, Sun, Moon, Cloud, Snowflake, Flame, Droplets, Skull, Gamepad2, Rocket, Coins, Play, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Hand, Users, User, ArrowLeft, LogOut, Globe, HelpCircle, MousePointer2, Brain, CheckCircle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -74,6 +74,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
     const [isGameOver, setIsGameOver] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     // Online State
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
@@ -99,7 +100,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
     useEffect(() => {
         const diffName = DIFFICULTY_CONFIG[difficulty].name;
         if (mp.isHost) {
-             mp.updateSelfInfo(username, currentAvatarId, diffName);
+             mp.updateSelfInfo(username, currentAvatarId, undefined, diffName);
         } else {
              mp.updateSelfInfo(username, currentAvatarId);
         }
@@ -108,6 +109,15 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory]);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_memory_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_memory_tutorial_seen', 'true');
+        }
+    }, []);
 
     // --- GAME LOGIC ---
 
@@ -131,6 +141,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
     };
 
     const startSoloGame = () => {
+        if (showTutorial) return;
         const deck = generateDeck(difficulty);
         setCards(deck);
         setFlippedIndices([]);
@@ -298,6 +309,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
     };
 
     const handleCardClick = (index: number, isRemote = false) => {
+        if (showTutorial) return;
         resumeAudio();
         if (isProcessing) return;
         if (cards[index].isMatched || cards[index].isFlipped) return;
@@ -569,10 +581,58 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-purple-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-purple-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">RETOURNER</p>
+                                    <p className="text-xs text-gray-400">Cliquez sur une carte pour la retourner.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Brain className="text-pink-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">MÉMORISER</p>
+                                    <p className="text-xs text-gray-400">Retenez l'emplacement des symboles.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <CheckCircle className="text-green-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">PAIRES</p>
+                                    <p className="text-xs text-gray-400">Trouvez les deux cartes identiques.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-purple-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)] pr-2 pb-1">NEON MEMORY</h1>
-                {gameMode === 'SOLO' ? <button onClick={startSoloGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button> : <div className="w-10"/>}
+                {gameMode === 'SOLO' ? 
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-purple-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                        <button onClick={startSoloGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                    </div>
+                : 
+                    <div className="w-10"/>}
             </div>
 
             {gameMode === 'ONLINE' && onlineStep === 'connecting' ? (
