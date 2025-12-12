@@ -18,8 +18,8 @@ const BLOCK_HEIGHT = 30;
 const INITIAL_SIZE = 180;
 const MOVE_SPEED = 3.5;
 const COLORS_START = 180;
-const MOVEMENT_RANGE = 360; // Wide range to safely spawn blocks
-const SPAWN_POS = -320;
+const MOVEMENT_RANGE = 280; 
+const SPAWN_POS = -280;
 
 // --- TYPES ---
 interface Block {
@@ -160,9 +160,6 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         const curr = currentBlockRef.current;
         const topBlock = stackRef.current[stackRef.current.length - 1];
         
-        // Draw moving block only if playing
-        // Note: checking ref directly inside loop logic usually, but here relying on React state for the "game over" status is risky in loop
-        // We assume valid state if stack has items.
         if (topBlock) {
              drawBlock(ctx, {
                 x: curr.x,
@@ -293,89 +290,106 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
         if (!topBlock) return;
 
         const { axis } = current;
-        let diff = 0;
-        let newSize = 0;
-        let debrisPos = 0;
-        let debrisSize = 0;
         
-        if (axis === 'x') {
-            diff = current.x - topBlock.x;
-            if (Math.abs(diff) < 5) {
-                diff = 0;
-                current.x = topBlock.x;
-                setPerfectCount(p => p + 1);
-                playVictory();
-                if (perfectCount > 2) {
-                    limitRef.current.width = Math.min(INITIAL_SIZE, limitRef.current.width + 5);
-                    limitRef.current.depth = Math.min(INITIAL_SIZE, limitRef.current.depth + 5);
-                }
-            } else {
-                setPerfectCount(0);
-                playBlockHit();
+        // Calculate difference between centers
+        const delta = axis === 'x' ? current.x - topBlock.x : current.z - topBlock.z;
+        const absDelta = Math.abs(delta);
+        
+        const size = axis === 'x' ? limitRef.current.width : limitRef.current.depth;
+        
+        // PERFECT HIT CHECK
+        if (absDelta < 5) {
+            // Snap to grid
+            if (axis === 'x') current.x = topBlock.x;
+            else current.z = topBlock.z;
+            
+            setPerfectCount(p => p + 1);
+            playVictory();
+            
+            // Expand slightly on consecutive perfects (up to initial size)
+            if (perfectCount > 2) {
+                if (axis === 'x') limitRef.current.width = Math.min(INITIAL_SIZE, limitRef.current.width + 5);
+                else limitRef.current.depth = Math.min(INITIAL_SIZE, limitRef.current.depth + 5);
             }
-
-            newSize = limitRef.current.width - Math.abs(diff);
-            if (diff > 0) {
-                debrisPos = current.x + newSize;
-                debrisSize = diff;
-            } else {
-                debrisPos = current.x;
-                debrisSize = Math.abs(diff);
-                current.x = topBlock.x - (Math.abs(diff));
-            }
-        } else {
-            diff = current.z - topBlock.z;
-            if (Math.abs(diff) < 5) {
-                diff = 0;
-                current.z = topBlock.z;
-                setPerfectCount(p => p + 1);
-                playVictory();
-                if (perfectCount > 2) {
-                    limitRef.current.width = Math.min(INITIAL_SIZE, limitRef.current.width + 5);
-                    limitRef.current.depth = Math.min(INITIAL_SIZE, limitRef.current.depth + 5);
-                }
-            } else {
-                setPerfectCount(0);
-                playBlockHit();
-            }
-
-            newSize = limitRef.current.depth - Math.abs(diff);
-            if (diff > 0) {
-                debrisPos = current.z + newSize;
-                debrisSize = diff;
-            } else {
-                debrisPos = current.z;
-                debrisSize = Math.abs(diff);
-                current.z = topBlock.z - (Math.abs(diff));
-            }
+            
+            const newBlock: Block = {
+                x: current.x,
+                z: current.z,
+                width: limitRef.current.width,
+                depth: limitRef.current.depth,
+                y: topBlock.y + 1,
+                color: getHSL(stackRef.current.length)
+            };
+            stackRef.current.push(newBlock);
+            setScore(s => s + 1);
+            spawnNextBlock();
+            return;
         }
 
-        if (newSize <= 0) {
+        // RESET PERFECT COUNT
+        setPerfectCount(0);
+        playBlockHit();
+
+        // CHECK IF MISSED COMPLETELY
+        if (absDelta >= size) {
             handleGameOver();
             return;
         }
 
-        if (Math.abs(diff) > 0) {
-            debrisRef.current.push({
-                x: axis === 'x' ? (diff > 0 ? debrisPos : debrisPos - debrisSize) : current.x,
-                z: axis === 'z' ? (diff > 0 ? debrisPos : debrisPos - debrisSize) : current.z,
-                y: (topBlock.y + 1) * BLOCK_HEIGHT,
-                width: axis === 'x' ? debrisSize : limitRef.current.width,
-                depth: axis === 'z' ? debrisSize : limitRef.current.depth,
-                color: getHSL(stackRef.current.length),
-                vx: axis === 'x' ? (diff > 0 ? 2 : -2) : 0,
-                vz: axis === 'z' ? (diff > 0 ? 2 : -2) : 0,
-                vy: 5,
-                scale: 1
-            });
+        // CALCULATE CUT
+        const newSize = size - absDelta;
+        const correction = delta / 2;
+        
+        // New block logic
+        const newX = axis === 'x' ? current.x - correction : current.x;
+        const newZ = axis === 'z' ? current.z - correction : current.z;
+        
+        // Debris Logic
+        // Debris center is offset from the original edge
+        // If moved Positive: Debris is on the Positive side (Right/Front)
+        // Debris Center = topBlock Edge + DebrisWidth/2
+        // Edge = topBlock.center + size/2
+        
+        let debrisX = current.x;
+        let debrisZ = current.z;
+        
+        if (axis === 'x') {
+            if (delta > 0) {
+                // Moved Right -> Debris on Right
+                debrisX = topBlock.x + (size / 2) + (absDelta / 2);
+            } else {
+                // Moved Left -> Debris on Left
+                debrisX = topBlock.x - (size / 2) - (absDelta / 2);
+            }
+        } else {
+            if (delta > 0) {
+                debrisZ = topBlock.z + (size / 2) + (absDelta / 2);
+            } else {
+                debrisZ = topBlock.z - (size / 2) - (absDelta / 2);
+            }
         }
 
+        debrisRef.current.push({
+            x: debrisX,
+            z: debrisZ,
+            y: (topBlock.y + 1) * BLOCK_HEIGHT,
+            width: axis === 'x' ? absDelta : limitRef.current.width,
+            depth: axis === 'z' ? absDelta : limitRef.current.depth,
+            color: getHSL(stackRef.current.length),
+            vx: axis === 'x' ? (delta > 0 ? 3 : -3) : 0,
+            vz: axis === 'z' ? (delta > 0 ? 3 : -3) : 0,
+            vy: 5,
+            scale: 1
+        });
+
+        // Update Limits
         if (axis === 'x') limitRef.current.width = newSize;
         else limitRef.current.depth = newSize;
 
+        // Add Block
         const newBlock: Block = {
-            x: current.x,
-            z: current.z,
+            x: newX,
+            z: newZ,
             width: limitRef.current.width,
             depth: limitRef.current.depth,
             y: topBlock.y + 1,
@@ -407,7 +421,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     // --- INPUT HANDLERS ---
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        e.preventDefault(); // Critical for mobile to prevent double firing
+        e.preventDefault(); 
         
         if (gamePhase === 'IDLE') {
             setGamePhase('PLAYING');
