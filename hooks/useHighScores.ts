@@ -7,13 +7,14 @@ export interface HighScores {
   pacman: number;
   snake: number;
   invaders: number;
-  runner: number; // Added runner
-  sudoku: { [difficulty: string]: number }; // difficulty: minMistakes
-  memory: number; // minMoves (Lower is better)
-  mastermind?: number; // minAttempts (Lower is better)
-  uno?: number; // Total Score (Accumulated)
-  game2048?: number; // Highest Score
-  watersort?: number; // Max Level Reached
+  runner: number; 
+  stack: number; // Added Stack
+  sudoku: { [difficulty: string]: number }; 
+  memory: number; 
+  mastermind?: number; 
+  uno?: number; 
+  game2048?: number; 
+  watersort?: number; 
 }
 
 const initialHighScores: HighScores = {
@@ -23,6 +24,7 @@ const initialHighScores: HighScores = {
   snake: 0,
   invaders: 0,
   runner: 0,
+  stack: 0,
   sudoku: {},
   memory: 0,
   mastermind: 0,
@@ -48,6 +50,7 @@ export const useHighScores = () => {
         if (!parsed.snake) parsed.snake = 0;
         if (!parsed.invaders) parsed.invaders = 0;
         if (!parsed.runner) parsed.runner = 0;
+        if (!parsed.stack) parsed.stack = 0;
         if (!parsed.memory) parsed.memory = 0;
         if (!parsed.mastermind) parsed.mastermind = 0;
         if (!parsed.uno) parsed.uno = 0;
@@ -74,7 +77,7 @@ export const useHighScores = () => {
       const newScores = JSON.parse(JSON.stringify(prev)); // Deep copy
       let shouldUpdate = false;
 
-      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort' || game === 'runner') {
+      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort' || game === 'runner' || game === 'stack') {
         // Higher is better
         if (value > (prev[game] as number || 0)) {
           newScores[game] = value;
