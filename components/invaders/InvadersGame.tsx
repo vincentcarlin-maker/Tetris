@@ -136,6 +136,11 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     const touchXRef = useRef<number | null>(null);
     const isTouchingRef = useRef(false);
 
+    useEffect(() => {
+        resetGame();
+        return () => cancelAnimationFrame(animationFrameRef.current);
+    }, []);
+
     // Check localStorage for tutorial seen
     useEffect(() => {
         const hasSeen = localStorage.getItem('neon_invaders_tutorial_seen');
@@ -145,14 +150,7 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
         }
     }, []);
 
-    useEffect(() => {
-        // Initial reset only if not showing tutorial to avoid conflicts
-        if (!showTutorial) resetGame();
-        return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [showTutorial]);
-
     const resetGame = () => {
-        if (showTutorial) return;
         setScore(0);
         setLives(3);
         setWave(1);
@@ -470,7 +468,9 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
     };
 
     const loop = () => {
-        update();
+        if (!showTutorial) {
+            update();
+        }
         if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             if (ctx) draw(ctx);
@@ -521,48 +521,6 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
             {/* Ambient Light */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-rose-500/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
-            {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-rose-400"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-3 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">GLISSER</p>
-                                    <p className="text-xs text-gray-400">Touchez l'écran et glissez gauche/droite pour déplacer le vaisseau.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Target className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">TIR AUTO</p>
-                                    <p className="text-xs text-gray-400">Le vaisseau tire automatiquement quand vous bougez.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Shield className="text-red-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">ESQUIVER</p>
-                                    <p className="text-xs text-gray-400">Évitez les tirs ennemis et les kamikazes !</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => { setShowTutorial(false); resetGame(); }}
-                            className="mt-6 w-full py-3 bg-rose-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
@@ -630,6 +588,48 @@ export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCo
                     <div key={i} className={`w-8 h-2 rounded-full ${i < lives ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-gray-800'}`} />
                 ))}
             </div>
+
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-rose-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-4 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-rose-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">PILOTER</p>
+                                    <p className="text-xs text-gray-400">Glissez le doigt horizontalement pour déplacer votre vaisseau.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                <Target className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">TIRER</p>
+                                    <p className="text-xs text-gray-400">Le tir est automatique tant que vous maintenez l'écran.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                <Shield className="text-blue-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">ESQUIVER</p>
+                                    <p className="text-xs text-gray-400">Évitez les tirs ennemis et les kamikazes !</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-8 w-full py-3 bg-rose-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

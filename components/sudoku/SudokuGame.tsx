@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins, HelpCircle, MousePointer2, Grid3X3, Check } from 'lucide-react';
+import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { generateSudoku } from './logic';
 import { Difficulty, Grid } from './types';
@@ -22,22 +22,11 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
     const [isWon, setIsWon] = useState(false);
     const [mistakes, setMistakes] = useState(0);
     const [earnedCoins, setEarnedCoins] = useState(0);
-    const [showTutorial, setShowTutorial] = useState(false);
 
     const { playMove, playClear, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
 
-    // Check localStorage for tutorial seen
-    useEffect(() => {
-        const hasSeen = localStorage.getItem('neon_sudoku_tutorial_seen');
-        if (!hasSeen) {
-            setShowTutorial(true);
-            localStorage.setItem('neon_sudoku_tutorial_seen', 'true');
-        }
-    }, []);
-
     const startNewGame = useCallback(() => {
-        if (showTutorial) return;
         try {
             const { initial, solution: sol } = generateSudoku(difficulty);
             setInitialGrid(initial);
@@ -55,20 +44,19 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
             setInitialGrid([]);
             setPlayerGrid([]);
         }
-    }, [difficulty, onReportProgress, showTutorial]);
+    }, [difficulty, onReportProgress]);
 
     useEffect(() => {
-        if (!showTutorial) startNewGame();
-    }, [startNewGame, showTutorial]);
+        startNewGame();
+    }, [startNewGame]);
 
     const handleCellClick = (r: number, c: number) => {
-        if (showTutorial) return;
         resumeAudio();
         setSelectedCell({ r, c });
     };
 
     const handleInput = (num: number) => {
-        if (!selectedCell || isWon || showTutorial) return;
+        if (!selectedCell || isWon) return;
         const { r, c } = selectedCell;
 
         // Cannot edit initial cells
@@ -117,7 +105,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
     };
 
     const handleErase = () => {
-        if (!selectedCell || isWon || showTutorial) return;
+        if (!selectedCell || isWon) return;
         const { r, c } = selectedCell;
         if (initialGrid[r][c] !== null) return;
 
@@ -130,7 +118,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
     // Keyboard support
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (isWon || showTutorial) return;
+            if (isWon) return;
             
             // Numbers 1-9
             if (e.key >= '1' && e.key <= '9') {
@@ -150,11 +138,11 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedCell, isWon, initialGrid, playerGrid, solution, showTutorial]); // deps needed for handleInput context
+    }, [selectedCell, isWon, initialGrid, playerGrid, solution]); // deps needed for handleInput context
 
     const bestScore = highScores.sudoku?.[difficulty.toLowerCase()];
 
-    if (playerGrid.length === 0 && !showTutorial) return <div className="text-white text-center mt-20">Chargement...</div>;
+    if (playerGrid.length === 0) return <div className="text-white text-center mt-20">Chargement...</div>;
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
@@ -164,48 +152,6 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
              {/* Background */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
 
-            {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-cyan-400"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-3 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">SÉLECTIONNER</p>
-                                    <p className="text-xs text-gray-400">Touchez une case vide pour la sélectionner.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Grid3X3 className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">REMPLIR</p>
-                                    <p className="text-xs text-gray-400">Utilisez les chiffres 1-9. Chaque chiffre doit être unique par ligne, colonne et carré.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Check className="text-green-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">GAGNER</p>
-                                    <p className="text-xs text-gray-400">Complétez toute la grille sans erreur pour gagner !</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => { setShowTutorial(false); startNewGame(); }}
-                            className="mt-6 w-full py-3 bg-cyan-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
@@ -214,9 +160,7 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
                 <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 drop-shadow-[0_0_10px_rgba(6,182,212,0.4)] pr-2 pb-1">
                     NEON SUDOKU
                 </h1>
-                <div className="w-10 flex justify-end">
-                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
-                </div>
+                <div className="w-10"></div> {/* Spacer */}
             </div>
 
             {/* Stats / Controls */}

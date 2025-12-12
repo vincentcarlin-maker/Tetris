@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, Heart, Trophy, Play, Coins, ArrowLeft, Lock, RefreshCw, HelpCircle, MousePointer2, MoveHorizontal, Zap } from 'lucide-react';
+import { Home, Heart, Trophy, Play, Coins, ArrowLeft, Lock, RefreshCw, HelpCircle, MousePointer2, Zap, LayoutGrid } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType, Laser } from './types';
@@ -149,7 +149,8 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     };
 
     const serveBall = () => {
-        if (gameState === 'waitingToServe' && !showTutorial) {
+        if (showTutorial) return;
+        if (gameState === 'waitingToServe') {
             setGameState('playing');
         }
     };
@@ -266,9 +267,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 powerUp.x > paddle.x &&
                 powerUp.x < paddle.x + paddle.width) {
                 activatePowerUp(powerUp.type);
-                powerUpsRef.current.splice(i, 1);
+                powerUps.splice(i, 1);
             } else if (powerUp.y - powerUp.height / 2 > GAME_HEIGHT) {
-                powerUpsRef.current.splice(i, 1);
+                powerUps.splice(i, 1);
             }
         }
         
@@ -467,19 +468,17 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
 
     // Controls
     useEffect(() => {
-        if (view !== 'GAME') return;
+        if (view !== 'GAME' || showTutorial) return;
 
         const canvas = canvasRef.current;
         if (!canvas) return;
         const handleMouseMove = (e: MouseEvent) => {
-            if (showTutorial) return;
             const rect = canvas.getBoundingClientRect();
             let relativeX = e.clientX - rect.left;
             relativeX *= (GAME_WIDTH / rect.width);
             paddleRef.current.x = Math.max(0, Math.min(GAME_WIDTH - paddleRef.current.width, relativeX - paddleRef.current.width / 2));
         };
         const handleTouchMove = (e: TouchEvent) => {
-            if (showTutorial) return;
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
             let relativeX = e.touches[0].clientX - rect.left;
@@ -611,48 +610,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
              {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
-            {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-pink-400"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-3 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">DÉPLACER</p>
-                                    <p className="text-xs text-gray-400">Touchez l'écran et glissez pour bouger la raquette.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MoveHorizontal className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">DÉTRUIRE</p>
-                                    <p className="text-xs text-gray-400">Renvoyez la balle pour casser toutes les briques.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Zap className="text-green-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">BONUS</p>
-                                    <p className="text-xs text-gray-400">Attrapez les bonus qui tombent (Multi-balles, Lasers...).</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => setShowTutorial(false)}
-                            className="mt-6 w-full py-3 bg-pink-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative">
                 {/* Left: Back Btn + Score */}
@@ -686,6 +643,48 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 <canvas ref={canvasRef} width={GAME_WIDTH} height={GAME_HEIGHT} className="w-full h-full" />
                 {renderOverlay()}
             </div>
+
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-neon-pink"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-4 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-neon-pink shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">CONTRÔLER</p>
+                                    <p className="text-xs text-gray-400">Glissez le doigt pour déplacer la raquette et renvoyer la balle.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                <LayoutGrid className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">DÉTRUIRE</p>
+                                    <p className="text-xs text-gray-400">Brisez toutes les briques pour passer au niveau suivant.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-3 rounded-lg border border-white/10">
+                                <Zap className="text-blue-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">BONUS</p>
+                                    <p className="text-xs text-gray-400">Attrapez les bonus : Lasers, Multi-balles, Vie extra, etc.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-8 w-full py-3 bg-neon-pink text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
