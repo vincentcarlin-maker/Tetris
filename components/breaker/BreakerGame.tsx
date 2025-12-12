@@ -6,6 +6,7 @@ import { useHighScores } from '../../hooks/useHighScores';
 import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType, Laser } from './types';
 import { getLevelLayout, TOTAL_BREAKER_LEVELS } from './levels';
 import { drawBall, drawBlocks, drawPaddle, drawParticles, createParticles, BLOCK_COLORS, INDESTRUCTIBLE_COLOR, drawPowerUp, drawLasers } from './helpers';
+import { TutorialOverlay } from '../Tutorials';
 
 interface BreakerGameProps {
     onBack: () => void;
@@ -615,46 +616,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
             {/* TUTORIAL OVERLAY */}
-            {showTutorial && (
-                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
-                    <div className="w-full max-w-xs text-center">
-                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-fuchsia-500"/> COMMENT JOUER ?</h2>
-                        
-                        <div className="space-y-3 text-left">
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MoveHorizontal className="text-fuchsia-500 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">DÉPLACER</p>
-                                    <p className="text-xs text-gray-400">Glissez le doigt pour bouger la raquette.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <MousePointerClick className="text-cyan-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">LANCER</p>
-                                    <p className="text-xs text-gray-400">Touchez l'écran pour lancer la balle au début.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
-                                <Zap className="text-yellow-400 shrink-0 mt-1" size={20} />
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">BONUS</p>
-                                    <p className="text-xs text-gray-400">Attrapez les objets qui tombent pour des pouvoirs spéciaux.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button 
-                            onClick={() => setShowTutorial(false)}
-                            className="mt-6 w-full py-3 bg-fuchsia-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
-                        >
-                            J'AI COMPRIS !
-                        </button>
-                    </div>
-                </div>
-            )}
+            {showTutorial && <TutorialOverlay gameId="breaker" onClose={() => setShowTutorial(false)} />}
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative">
