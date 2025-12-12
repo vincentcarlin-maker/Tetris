@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, Zap } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -19,6 +19,7 @@ const GRAVITY = 0.6;
 const JUMP_FORCE = -12;
 const BASE_SPEED = 5;
 const MAX_SPEED = 12;
+const BOOST_SPEED_MULTIPLIER = 1.8;
 
 interface Player {
     x: number;
@@ -46,7 +47,19 @@ interface CoinEntity {
     width: number;
     height: number;
     collected: boolean;
-    offsetY: number; // For floating animation
+    offsetY: number;
+}
+
+type PowerUpType = 'magnet' | 'shield' | 'boost';
+
+interface PowerUpEntity {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    type: PowerUpType;
+    collected: boolean;
+    offsetY: number;
 }
 
 interface Particle {
@@ -65,8 +78,11 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const [gameOver, setGameOver] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    
+    // UI State for Active PowerUps
+    const [activePowerUps, setActivePowerUps] = useState<{ [key in PowerUpType]?: number }>({}); // value is timestamp of expiration
 
-    const { playMove, playGameOver, playCoin, playExplosion, resumeAudio } = audio;
+    const { playMove, playGameOver, playCoin, playExplosion, playPowerUpCollect, playPowerUpSpawn, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.runner || 0;
 
@@ -74,13 +90,28 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const playerRef = useRef<Player>({ x: 100, y: GROUND_HEIGHT - 40, width: 30, height: 30, dy: 0, grounded: true, color: '#00f3ff', rotation: 0 });
     const obstaclesRef = useRef<Obstacle[]>([]);
     const coinsRef = useRef<CoinEntity[]>([]);
+    const powerUpsRef = useRef<PowerUpEntity[]>([]);
     const particlesRef = useRef<Particle[]>([]);
     const speedRef = useRef(BASE_SPEED);
     const frameRef = useRef(0);
     const scoreRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
     
-    // Refs for props to avoid stale closures in game loop
+    // PowerUp Logic Refs (avoid react state in loop)
+    const activeEffectsRef = useRef<{ 
+        magnet: boolean; 
+        shield: boolean; 
+        boost: boolean;
+        boostEndTime: number;
+        magnetEndTime: number;
+    }>({ 
+        magnet: false, 
+        shield: false, 
+        boost: false,
+        boostEndTime: 0,
+        magnetEndTime: 0
+    });
+
     const addCoinsRef = useRef(addCoins);
     const onReportProgressRef = useRef(onReportProgress);
     
@@ -91,10 +122,15 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         playerRef.current = { x: 100, y: GROUND_HEIGHT - 40, width: 30, height: 30, dy: 0, grounded: true, color: '#00f3ff', rotation: 0 };
         obstaclesRef.current = [];
         coinsRef.current = [];
+        powerUpsRef.current = [];
         particlesRef.current = [];
         speedRef.current = BASE_SPEED;
         scoreRef.current = 0;
         frameRef.current = 0;
+        
+        activeEffectsRef.current = { magnet: false, shield: false, boost: false, boostEndTime: 0, magnetEndTime: 0 };
+        setActivePowerUps({});
+
         setScore(0);
         setGameOver(false);
         setIsPlaying(false);
@@ -121,6 +157,28 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         }
     };
 
+    const activatePowerUp = (type: PowerUpType) => {
+        const duration = 10000; // 10 seconds
+        const now = Date.now();
+        const endTime = now + duration;
+
+        if (type === 'shield') {
+            activeEffectsRef.current.shield = true;
+            setActivePowerUps(prev => ({ ...prev, shield: 1 })); // 1 means active (no timer needed for shield logic, it's one-hit)
+        } else if (type === 'magnet') {
+            activeEffectsRef.current.magnet = true;
+            activeEffectsRef.current.magnetEndTime = endTime;
+            setActivePowerUps(prev => ({ ...prev, magnet: endTime }));
+        } else if (type === 'boost') {
+            activeEffectsRef.current.boost = true;
+            activeEffectsRef.current.boostEndTime = endTime;
+            setActivePowerUps(prev => ({ ...prev, boost: endTime }));
+        }
+        
+        // Play specific sound if available or general powerup sound
+        if (playPowerUpCollect) playPowerUpCollect(type === 'boost' ? 'BALL_FAST' : type === 'shield' ? 'EXTRA_LIFE' : 'MULTI_BALL');
+    };
+
     const handleJump = useCallback((e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
         if (e && e.type !== 'keydown') {
             e.stopPropagation();
@@ -135,11 +193,13 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         }
 
         const p = playerRef.current;
-        if (p.grounded) {
-            p.dy = JUMP_FORCE;
-            p.grounded = false;
-            playMove(); 
-            spawnParticles(p.x + p.width/2, p.y + p.height, '#fff', 5);
+        if (p.grounded || activeEffectsRef.current.boost) { // Can jump in air if boosted? Maybe just simple jump logic
+            if (p.grounded) {
+                p.dy = JUMP_FORCE;
+                p.grounded = false;
+                playMove(); 
+                spawnParticles(p.x + p.width/2, p.y + p.height, '#fff', 5);
+            }
         }
     }, [gameOver, isPlaying, playMove, resumeAudio]);
 
@@ -148,8 +208,21 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
         frameRef.current++;
         const p = playerRef.current;
+        const now = Date.now();
+
+        // --- CHECK POWERUP EXPIRATION ---
+        if (activeEffectsRef.current.boost && now > activeEffectsRef.current.boostEndTime) {
+            activeEffectsRef.current.boost = false;
+            setActivePowerUps(prev => { const n = {...prev}; delete n.boost; return n; });
+        }
+        if (activeEffectsRef.current.magnet && now > activeEffectsRef.current.magnetEndTime) {
+            activeEffectsRef.current.magnet = false;
+            setActivePowerUps(prev => { const n = {...prev}; delete n.magnet; return n; });
+        }
 
         // --- PLAYER PHYSICS ---
+        // Gravity applies unless boosting (optional: flying boost?) let's keep gravity for now but maybe lighter?
+        // Let's keep physics normal for consistency, but Boost makes player invincible and fast.
         p.dy += GRAVITY;
         p.y += p.dy;
 
@@ -160,20 +233,47 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             p.grounded = true;
             p.rotation = Math.round(p.rotation / (Math.PI / 2)) * (Math.PI / 2);
         } else {
-            p.rotation += 0.1;
+            // Spin faster if boosting
+            p.rotation += activeEffectsRef.current.boost ? 0.3 : 0.1;
         }
 
         // --- SPEED PROGRESSION ---
-        if (frameRef.current % 300 === 0) {
+        let currentSpeed = speedRef.current;
+        if (activeEffectsRef.current.boost) {
+            currentSpeed = Math.min(MAX_SPEED * 1.5, currentSpeed * BOOST_SPEED_MULTIPLIER);
+        } else if (frameRef.current % 300 === 0) {
             speedRef.current = Math.min(MAX_SPEED, speedRef.current + 0.2);
         }
 
         // --- SPAWN LOGIC ---
-        const minGap = (speedRef.current * 40); 
-        
-        // Obstacles
-        if (obstaclesRef.current.length === 0 || (CANVAS_WIDTH - obstaclesRef.current[obstaclesRef.current.length - 1].x > minGap + Math.random() * 200)) {
-            if (Math.random() < 0.05) {
+        const minGap = (currentSpeed * 40); 
+        const lastObstacleX = obstaclesRef.current.length > 0 ? obstaclesRef.current[obstaclesRef.current.length - 1].x : 0;
+        const distToLast = CANVAS_WIDTH - lastObstacleX;
+
+        if (obstaclesRef.current.length === 0 || distToLast > minGap + Math.random() * 200) {
+            const rand = Math.random();
+            
+            // 5% chance for PowerUp (if space allows)
+            if (rand < 0.05) {
+                const puTypeRand = Math.random();
+                let type: PowerUpType = 'magnet';
+                if (puTypeRand > 0.66) type = 'boost';
+                else if (puTypeRand > 0.33) type = 'shield';
+
+                // Spawn a bit higher
+                powerUpsRef.current.push({
+                    x: CANVAS_WIDTH,
+                    y: GROUND_HEIGHT - 80 - Math.random() * 100,
+                    width: 30,
+                    height: 30,
+                    type,
+                    collected: false,
+                    offsetY: Math.random() * Math.PI
+                });
+                if (playPowerUpSpawn) playPowerUpSpawn();
+            } 
+            // 50% chance for Obstacle
+            else if (rand < 0.55) {
                 const typeRand = Math.random();
                 let type: 'block' | 'spike' | 'drone' = 'block';
                 let w = 40, h = 40, y = GROUND_HEIGHT - 40;
@@ -187,15 +287,13 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                     w = 30; h = 30;
                     y = GROUND_HEIGHT - 30;
                 }
-
                 obstaclesRef.current.push({ x: CANVAS_WIDTH, y, width: w, height: h, type, passed: false });
             }
         }
 
-        // Coins
+        // Coins (Separate spawn cycle)
         if (Math.random() < 0.03) {
             const lastCoin = coinsRef.current[coinsRef.current.length - 1];
-            // Ensure spacing
             if (!lastCoin || CANVAS_WIDTH - lastCoin.x > 30) {
                 const isGround = Math.random() > 0.6;
                 const y = isGround ? GROUND_HEIGHT - 40 : GROUND_HEIGHT - 120;
@@ -223,7 +321,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         // Obstacles
         for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
             const obs = obstaclesRef.current[i];
-            obs.x -= speedRef.current;
+            obs.x -= currentSpeed;
 
             if (obs.x + obs.width < 0) {
                 obstaclesRef.current.splice(i, 1);
@@ -232,42 +330,90 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
             if (!obs.passed && obs.x + obs.width < p.x) {
                 obs.passed = true;
-                scoreRef.current += 10;
+                scoreRef.current += 10 * (activeEffectsRef.current.boost ? 2 : 1); // Double points if boosted
                 setScore(scoreRef.current);
             }
 
             const padding = 6;
+            // Collision Check
             if (
                 p.x + padding < obs.x + obs.width - padding &&
                 p.x + p.width - padding > obs.x + padding &&
                 p.y + padding < obs.y + obs.height - padding &&
                 p.y + p.height - padding > obs.y + padding
             ) {
-                setGameOver(true);
-                playExplosion();
-                playGameOver();
-                spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 30);
-                
-                updateHighScore('runner', scoreRef.current);
-                // Bonus coins based on score
-                const bonusCoins = Math.floor(scoreRef.current / 50);
-                // We display total collected + bonus
-                // Current collected coins are already in earnedCoins state via setEarnedCoins
-                // We just add bonus to wallet here (collected ones added instantly)
-                if (bonusCoins > 0) {
-                    addCoinsRef.current(bonusCoins);
-                    // Update display to show Total (Collected + Bonus)
-                    setEarnedCoins(prev => prev + bonusCoins);
+                if (activeEffectsRef.current.boost) {
+                    // Boost Mode: Destroy obstacle!
+                    obstaclesRef.current.splice(i, 1);
+                    playExplosion();
+                    spawnParticles(obs.x + obs.width/2, obs.y + obs.height/2, '#fff', 10);
+                    scoreRef.current += 20; // Bonus for destruction
+                    setScore(scoreRef.current);
+                } else if (activeEffectsRef.current.shield) {
+                    // Shield Mode: Absorb hit
+                    obstaclesRef.current.splice(i, 1);
+                    playExplosion(); // Shield break sound (reuse explosion for now)
+                    spawnParticles(p.x + p.width/2, p.y + p.height/2, '#00ff00', 20); // Green particles
+                    activeEffectsRef.current.shield = false;
+                    setActivePowerUps(prev => { const n = {...prev}; delete n.shield; return n; });
+                } else {
+                    // Game Over
+                    setGameOver(true);
+                    playExplosion();
+                    playGameOver();
+                    spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 30);
+                    
+                    updateHighScore('runner', scoreRef.current);
+                    const bonusCoins = Math.floor(scoreRef.current / 50);
+                    if (bonusCoins > 0) {
+                        addCoinsRef.current(bonusCoins);
+                        setEarnedCoins(prev => prev + bonusCoins);
+                    }
+                    if (onReportProgressRef.current) onReportProgressRef.current('score', scoreRef.current);
                 }
+            }
+        }
+
+        // PowerUps
+        for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
+            const pu = powerUpsRef.current[i];
+            pu.x -= currentSpeed;
+            
+            if (pu.x + pu.width < 0) {
+                powerUpsRef.current.splice(i, 1);
+                continue;
+            }
+
+            if (!pu.collected && 
+                p.x < pu.x + pu.width &&
+                p.x + p.width > pu.x &&
+                p.y < pu.y + pu.height &&
+                p.y + p.height > pu.y) {
                 
-                if (onReportProgressRef.current) onReportProgressRef.current('score', scoreRef.current);
+                pu.collected = true;
+                activatePowerUp(pu.type);
+                powerUpsRef.current.splice(i, 1);
             }
         }
 
         // Coins
         for (let i = coinsRef.current.length - 1; i >= 0; i--) {
             const coin = coinsRef.current[i];
-            coin.x -= speedRef.current;
+            
+            // Magnet Logic
+            if (activeEffectsRef.current.magnet && !coin.collected) {
+                const dx = (p.x + p.width/2) - (coin.x + coin.width/2);
+                const dy = (p.y + p.height/2) - (coin.y + coin.height/2);
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 300) { // Magnet Range
+                    coin.x += (dx / dist) * 15; // Pull speed
+                    coin.y += (dy / dist) * 15;
+                } else {
+                    coin.x -= currentSpeed;
+                }
+            } else {
+                coin.x -= currentSpeed;
+            }
 
             if (coin.x + coin.width < 0) {
                 coinsRef.current.splice(i, 1);
@@ -308,9 +454,9 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         // Background
-        ctx.strokeStyle = 'rgba(251, 146, 60, 0.15)';
+        ctx.strokeStyle = activeEffectsRef.current.boost ? 'rgba(255, 69, 0, 0.2)' : 'rgba(251, 146, 60, 0.15)';
         ctx.lineWidth = 2;
-        const gridOffset = (frameRef.current * speedRef.current * 0.5) % 100;
+        const gridOffset = (frameRef.current * (activeEffectsRef.current.boost ? MAX_SPEED * 1.5 : speedRef.current) * 0.5) % 100;
         
         ctx.beginPath();
         for(let i=0; i<CANVAS_HEIGHT; i+=50) { ctx.moveTo(0, i); ctx.lineTo(CANVAS_WIDTH, i); }
@@ -318,9 +464,9 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         ctx.stroke();
 
         // Ground
-        ctx.strokeStyle = '#fb923c';
+        ctx.strokeStyle = activeEffectsRef.current.boost ? '#ff4500' : '#fb923c';
         ctx.lineWidth = 3;
-        ctx.shadowColor = '#fb923c';
+        ctx.shadowColor = activeEffectsRef.current.boost ? '#ff4500' : '#fb923c';
         ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.moveTo(0, GROUND_HEIGHT);
@@ -358,6 +504,34 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             ctx.shadowBlur = 0;
         });
 
+        // PowerUps
+        powerUpsRef.current.forEach(pu => {
+            if (pu.collected) return;
+            const floatY = Math.sin(frameRef.current * 0.1 + pu.offsetY) * 5;
+            const cx = pu.x + pu.width/2;
+            const cy = pu.y + pu.height/2 + floatY;
+            
+            let color = '#fff';
+            let label = '?';
+            if (pu.type === 'magnet') { color = '#3b82f6'; label = 'M'; }
+            if (pu.type === 'shield') { color = '#22c55e'; label = 'S'; }
+            if (pu.type === 'boost') { color = '#f97316'; label = 'B'; }
+
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, cx, cy);
+        });
+
         // Coins
         coinsRef.current.forEach(coin => {
             if (coin.collected) return;
@@ -392,12 +566,40 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             ctx.translate(p.x + p.width/2, p.y + p.height/2);
             ctx.rotate(p.rotation);
             
+            // Visual Effects for Powerups
+            if (activeEffectsRef.current.boost) {
+                // Boost Trail
+                ctx.fillStyle = 'rgba(255, 69, 0, 0.5)';
+                ctx.fillRect(-p.width, -p.height/2, p.width*2, p.height);
+            }
+            
             ctx.fillStyle = p.color;
             ctx.shadowColor = p.color;
             ctx.shadowBlur = 15;
             ctx.fillRect(-p.width/2, -p.height/2, p.width, p.height);
             ctx.fillStyle = '#fff';
             ctx.fillRect(-p.width/4, -p.height/4, p.width/2, p.height/2);
+            
+            // Shield Overlay
+            if (activeEffectsRef.current.shield) {
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#22c55e';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(0, 0, 25, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // Magnet Overlay
+            if (activeEffectsRef.current.magnet) {
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 30 + Math.sin(frameRef.current * 0.2) * 5, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
             ctx.restore();
         }
 
@@ -467,6 +669,25 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-2xl font-mono font-bold text-yellow-400">{Math.max(Math.floor(score), highScore)}</span></div>
             </div>
 
+            {/* Active PowerUps UI */}
+            <div className="w-full max-w-lg flex gap-2 justify-center mb-2 z-10 h-8">
+                {activePowerUps.magnet && (
+                    <div className="flex items-center gap-1 bg-blue-500/20 px-2 py-1 rounded border border-blue-500 text-blue-400 text-xs font-bold animate-pulse">
+                        <Magnet size={14} /> MAGNET
+                    </div>
+                )}
+                {activePowerUps.shield && (
+                    <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded border border-green-500 text-green-400 text-xs font-bold animate-pulse">
+                        <Shield size={14} /> BOUCLIER
+                    </div>
+                )}
+                {activePowerUps.boost && (
+                    <div className="flex items-center gap-1 bg-orange-500/20 px-2 py-1 rounded border border-orange-500 text-orange-400 text-xs font-bold animate-pulse">
+                        <FastForward size={14} /> BOOST
+                    </div>
+                )}
+            </div>
+
             {/* Game Container */}
             <div className="relative w-full max-w-2xl aspect-[2/1] bg-black/80 border-2 border-orange-500/30 rounded-xl shadow-[0_0_20px_rgba(249,115,22,0.2)] overflow-hidden backdrop-blur-md z-10 cursor-pointer">
                 <canvas 
@@ -509,7 +730,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 )}
             </div>
             
-            <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Collectez des pièces. Survivez.</p>
+            <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Collectez des pièces et bonus.</p>
         </div>
     );
 };
