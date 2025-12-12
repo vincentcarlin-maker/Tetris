@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, Heart, Trophy, Play, Coins, ArrowLeft, Lock, RefreshCw } from 'lucide-react';
+import { Home, Heart, Trophy, Play, Coins, ArrowLeft, Lock, RefreshCw, HelpCircle, MousePointer2, MoveHorizontal, Zap } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType, Laser } from './types';
@@ -24,6 +24,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     
     // View State
     const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Progression State
     const [maxUnlockedLevel, setMaxUnlockedLevel] = useState<number>(() => {
@@ -55,6 +56,15 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const laserEffectTimeoutRef = useRef<any>(null);
     
     const lastLaserShotTime = useRef<number>(0);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_breaker_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_breaker_tutorial_seen', 'true');
+        }
+    }, []);
 
     const resetBallAndPaddle = useCallback(() => {
         // Clear any active power-up timers
@@ -139,7 +149,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     };
 
     const serveBall = () => {
-        if (gameState === 'waitingToServe') {
+        if (gameState === 'waitingToServe' && !showTutorial) {
             setGameState('playing');
         }
     };
@@ -196,7 +206,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
 
 
     const gameTick = useCallback(() => {
-        if (gameState !== 'playing') return;
+        if (gameState !== 'playing' || showTutorial) return;
 
         const paddle = paddleRef.current;
         const blocks = blocksRef.current;
@@ -256,9 +266,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 powerUp.x > paddle.x &&
                 powerUp.x < paddle.x + paddle.width) {
                 activatePowerUp(powerUp.type);
-                powerUps.splice(i, 1);
+                powerUpsRef.current.splice(i, 1);
             } else if (powerUp.y - powerUp.height / 2 > GAME_HEIGHT) {
-                powerUps.splice(i, 1);
+                powerUpsRef.current.splice(i, 1);
             }
         }
         
@@ -416,7 +426,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             }, 3000); 
         }
 
-    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, onReportProgress, maxUnlockedLevel]);
+    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, onReportProgress, maxUnlockedLevel, showTutorial]);
 
     // Game Loop
     useEffect(() => {
@@ -462,12 +472,14 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         const canvas = canvasRef.current;
         if (!canvas) return;
         const handleMouseMove = (e: MouseEvent) => {
+            if (showTutorial) return;
             const rect = canvas.getBoundingClientRect();
             let relativeX = e.clientX - rect.left;
             relativeX *= (GAME_WIDTH / rect.width);
             paddleRef.current.x = Math.max(0, Math.min(GAME_WIDTH - paddleRef.current.width, relativeX - paddleRef.current.width / 2));
         };
         const handleTouchMove = (e: TouchEvent) => {
+            if (showTutorial) return;
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
             let relativeX = e.touches[0].clientX - rect.left;
@@ -485,7 +497,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             canvas.removeEventListener('touchmove', handleTouchMove);
             canvas.removeEventListener('click', handleClick);
         };
-    }, [serveBall, view]);
+    }, [serveBall, view, showTutorial]);
 
 
     const renderOverlay = () => {
@@ -526,7 +538,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 </div>
             );
         }
-        if (gameState === 'waitingToServe') {
+        if (gameState === 'waitingToServe' && !showTutorial) {
              return (
                 <div className="absolute bottom-20 left-0 right-0 z-50 flex flex-col items-center justify-center text-white text-lg font-bold animate-pulse pointer-events-none">
                    <p>TOUCHEZ POUR SERVIR</p>
@@ -599,6 +611,48 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
              {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-pink-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">DÉPLACER</p>
+                                    <p className="text-xs text-gray-400">Touchez l'écran et glissez pour bouger la raquette.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MoveHorizontal className="text-yellow-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">DÉTRUIRE</p>
+                                    <p className="text-xs text-gray-400">Renvoyez la balle pour casser toutes les briques.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Zap className="text-green-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">BONUS</p>
+                                    <p className="text-xs text-gray-400">Attrapez les bonus qui tombent (Multi-balles, Lasers...).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowTutorial(false)}
+                            className="mt-6 w-full py-3 bg-pink-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative">
                 {/* Left: Back Btn + Score */}
@@ -619,6 +673,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
 
                 {/* Right: Lives & Restart */}
                 <div className="flex items-center gap-3">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
                     <div className="flex items-center gap-1 text-red-400 font-bold">
                         {Array.from({ length: lives }).map((_, i) => <Heart key={i} size={16} fill="currentColor"/>)}
                     </div>

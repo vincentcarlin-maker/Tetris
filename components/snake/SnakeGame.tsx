@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Pause, RotateCcw, XCircle } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Pause, RotateCcw, XCircle, HelpCircle, MousePointer2, Skull, Apple } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -29,6 +29,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     const [isPaused, setIsPaused] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [speed, setSpeed] = useState(INITIAL_SPEED);
+    const [showTutorial, setShowTutorial] = useState(false);
     
     // Crash effects
     const [crashPos, setCrashPos] = useState<Position | null>(null);
@@ -40,6 +41,15 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     const { playCoin, playGameOver, playVictory, playWallHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.snake || 0;
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_snake_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_snake_tutorial_seen', 'true');
+        }
+    }, []);
 
     const generateFood = useCallback((currentSnake: Position[]) => {
         let newFood: Position;
@@ -55,6 +65,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     }, []);
 
     const resetGame = () => {
+        if (showTutorial) return;
         stopLoop();
         setSnake([{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }]);
         setFood(generateFood([{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }]));
@@ -73,9 +84,10 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     };
 
     useEffect(() => {
-        resetGame();
+        // Initial reset only if not showing tutorial to avoid auto-start conflicts
+        if (!showTutorial) resetGame();
         return () => stopLoop();
-    }, []);
+    }, [showTutorial]);
 
     const stopLoop = () => {
         if (gameLoopRef.current) {
@@ -85,7 +97,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const togglePause = () => {
-        if (gameOver) return;
+        if (gameOver || showTutorial) return;
         
         if (isPlaying) {
             setIsPlaying(false);
@@ -113,7 +125,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     };
 
     const moveSnake = useCallback(() => {
-        if (gameOver || !isPlaying || isPaused) return;
+        if (gameOver || !isPlaying || isPaused || showTutorial) return;
 
         setSnake(prevSnake => {
             const head = prevSnake[0];
@@ -166,20 +178,20 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
 
         gameLoopRef.current = setTimeout(moveSnake, speed);
 
-    }, [gameOver, isPlaying, isPaused, nextDirection, direction, food, speed, playCoin, playGameOver, playWallHit, generateFood, onReportProgress]);
+    }, [gameOver, isPlaying, isPaused, nextDirection, direction, food, speed, playCoin, playGameOver, playWallHit, generateFood, onReportProgress, showTutorial]);
 
     useEffect(() => {
-        if (isPlaying && !gameOver && !isPaused) {
+        if (isPlaying && !gameOver && !isPaused && !showTutorial) {
             if (gameLoopRef.current) clearTimeout(gameLoopRef.current);
             gameLoopRef.current = setTimeout(moveSnake, speed);
         } else {
             stopLoop();
         }
         return () => stopLoop();
-    }, [isPlaying, gameOver, isPaused, moveSnake]);
+    }, [isPlaying, gameOver, isPaused, moveSnake, showTutorial]);
 
     const handleDirectionChange = useCallback((newDir: Direction) => {
-        if (gameOver || isPaused) return;
+        if (gameOver || isPaused || showTutorial) return;
         if (!isPlaying) { setIsPlaying(true); resumeAudio(); }
         setNextDirection(prevNext => {
             const isOpposite = (newDir === 'UP' && prevNext === 'DOWN') || (newDir === 'DOWN' && prevNext === 'UP') || (newDir === 'LEFT' && prevNext === 'RIGHT') || (newDir === 'RIGHT' && prevNext === 'LEFT');
@@ -187,7 +199,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
             if (isOpposite || isOppositeCurrent) return prevNext;
             return newDir;
         });
-    }, [gameOver, isPaused, isPlaying, resumeAudio, direction]);
+    }, [gameOver, isPaused, isPlaying, resumeAudio, direction, showTutorial]);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         const key = e.key;
@@ -208,7 +220,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
 
     const handleTouchStart = (e: React.TouchEvent) => { touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (!touchStartRef.current || isPaused) return;
+        if (!touchStartRef.current || isPaused || showTutorial) return;
         const touch = e.touches[0];
         const diffX = touch.clientX - touchStartRef.current.x;
         const diffY = touch.clientY - touchStartRef.current.y;
@@ -219,7 +231,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
         }
     };
     const handleTouchEnd = () => { touchStartRef.current = null; };
-    const startGame = () => { setIsPlaying(true); setIsPaused(false); resumeAudio(); };
+    const startGame = () => { if(!showTutorial) { setIsPlaying(true); setIsPaused(false); resumeAudio(); } };
     const DPadBtn = ({ dir, icon: Icon }: { dir: Direction, icon: any }) => (
         <button onMouseDown={(e) => { e.preventDefault(); handleDirectionChange(dir); }} onTouchStart={(e) => { e.preventDefault(); handleDirectionChange(dir); }} className="w-14 h-14 bg-gray-800/80 rounded-xl flex items-center justify-center border border-white/10 shadow-lg active:bg-green-500 active:text-black active:scale-95 transition-all text-green-400 group"><Icon size={28} className="drop-shadow-[0_0_5px_currentColor] group-active:drop-shadow-none" /></button>
     );
@@ -228,10 +240,57 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans touch-none select-none p-4" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-green-500/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-900/10 via-black to-transparent pointer-events-none"></div>
+            
+            {/* TUTORIAL OVERLAY */}
+            {showTutorial && (
+                <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full max-w-xs text-center">
+                        <h2 className="text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2"><HelpCircle className="text-green-400"/> COMMENT JOUER ?</h2>
+                        
+                        <div className="space-y-3 text-left">
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <MousePointer2 className="text-cyan-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">DIRIGER</p>
+                                    <p className="text-xs text-gray-400">Glissez ou utilisez les boutons pour guider le serpent.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <div className="w-5 h-5 rounded-full bg-red-500 shrink-0 mt-1 shadow-[0_0_10px_red]"></div>
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">MANGER</p>
+                                    <p className="text-xs text-gray-400">Attrapez les pommes rouges pour grandir et gagner des points.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start bg-gray-900/50 p-2 rounded-lg border border-white/10">
+                                <Skull className="text-red-400 shrink-0 mt-1" size={20} />
+                                <div>
+                                    <p className="text-sm font-bold text-white mb-1">SURVIVRE</p>
+                                    <p className="text-xs text-gray-400">Ne touchez pas les murs ni votre propre queue !</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => { setShowTutorial(false); resetGame(); }}
+                            className="mt-6 w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-lg active:scale-95"
+                        >
+                            J'AI COMPRIS !
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 drop-shadow-[0_0_10px_rgba(34,197,94,0.5)] pr-2 pb-1">NEON SNAKE</h1>
-                <div className="flex gap-2"><button onClick={togglePause} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">{isPaused ? <Play size={20} /> : <Pause size={20} />}</button><button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button></div>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={togglePause} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">{isPaused ? <Play size={20} /> : <Pause size={20} />}</button>
+                    <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
             </div>
             <div className="w-full max-w-lg flex justify-between items-center px-4 mb-4 z-10">
                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-2xl font-mono font-bold text-white">{score}</span></div>
@@ -245,8 +304,8 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
                 })}
                 <div className="absolute z-20 animate-pulse" style={{ left: `${(food.x / GRID_SIZE) * 100}%`, top: `${(food.y / GRID_SIZE) * 100}%`, width: `${100 / GRID_SIZE}%`, height: `${100 / GRID_SIZE}%` }}><div className="w-full h-full bg-red-500 rounded-full shadow-[0_0_15px_#ef4444] transform scale-75 border-2 border-white/20"></div></div>
                 {crashPos && (<div className="absolute z-30 animate-ping" style={{ left: `${(crashPos.x / GRID_SIZE) * 100}%`, top: `${(crashPos.y / GRID_SIZE) * 100}%`, width: `${100 / GRID_SIZE}%`, height: `${100 / GRID_SIZE}%` }}><div className="w-full h-full flex items-center justify-center"><XCircle className="text-red-500 drop-shadow-[0_0_10px_red]" size={24} strokeWidth={3} /></div></div>)}
-                {!isPlaying && !gameOver && !isPaused && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30"><p className="text-green-400 font-bold tracking-widest animate-pulse mb-4">APPUYEZ POUR JOUER</p><button onClick={startGame} className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_20px_#22c55e] hover:scale-110 transition-transform"><Play size={32} className="text-black ml-1" /></button></div>)}
-                {isPaused && !gameOver && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 animate-in fade-in"><h2 className="text-4xl font-black text-white mb-6 tracking-widest">PAUSE</h2><div className="flex flex-col gap-3"><button onClick={togglePause} className="px-8 py-3 bg-green-500 text-black font-bold rounded-full hover:bg-white transition-colors flex items-center justify-center gap-2"><Play size={20} /> REPRENDRE</button><button onClick={onBack} className="px-8 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"><Home size={20} /> QUITTER</button></div></div>)}
+                {!isPlaying && !gameOver && !isPaused && !showTutorial && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30"><p className="text-green-400 font-bold tracking-widest animate-pulse mb-4">APPUYEZ POUR JOUER</p><button onClick={startGame} className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_20px_#22c55e] hover:scale-110 transition-transform"><Play size={32} className="text-black ml-1" /></button></div>)}
+                {isPaused && !gameOver && !showTutorial && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 animate-in fade-in"><h2 className="text-4xl font-black text-white mb-6 tracking-widest">PAUSE</h2><div className="flex flex-col gap-3"><button onClick={togglePause} className="px-8 py-3 bg-green-500 text-black font-bold rounded-full hover:bg-white transition-colors flex items-center justify-center gap-2"><Play size={20} /> REPRENDRE</button><button onClick={onBack} className="px-8 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"><Home size={20} /> QUITTER</button></div></div>)}
                 {gameOver && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-40 animate-in zoom-in fade-in"><h2 className="text-5xl font-black text-red-500 italic mb-2 drop-shadow-[0_0_10px_red]">PERDU !</h2><div className="text-center mb-6"><p className="text-gray-400 text-xs tracking-widest">SCORE FINAL</p><p className="text-4xl font-mono text-white">{score}</p></div>{earnedCoins > 0 && (<div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}<button onClick={resetGame} className="px-8 py-3 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button></div>)}
             </div>
             <div className="w-full max-w-xs mt-6 grid grid-cols-3 gap-3 z-20"><div></div><div className="flex justify-center"><DPadBtn dir="UP" icon={ArrowUp}/></div><div></div><div className="flex justify-center"><DPadBtn dir="LEFT" icon={ArrowLeft}/></div><div className="flex justify-center"><div className="w-14 h-14 bg-gray-800/50 rounded-full flex items-center justify-center border border-white/5"><div className="w-4 h-4 bg-white/20 rounded-full"></div></div></div><div className="flex justify-center"><DPadBtn dir="RIGHT" icon={ArrowRight}/></div><div></div><div className="flex justify-center"><DPadBtn dir="DOWN" icon={ArrowDown}/></div><div></div></div>
