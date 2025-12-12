@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward, Palette, Lock, Check } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, Zap, Magnet, Shield, FastForward, Palette, Lock, Check, CloudRain, Snowflake, Sun, TreeDeciduous, Moon, AlertTriangle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 
@@ -18,8 +18,17 @@ const GROUND_HEIGHT = 350;
 const GRAVITY = 0.6;
 const JUMP_FORCE = -12;
 const BASE_SPEED = 5;
-const MAX_SPEED = 12;
+const MAX_SPEED = 14;
 const BOOST_SPEED_MULTIPLIER = 1.8;
+const BIOME_SWITCH_DISTANCE = 250; // Meters
+
+// --- BIOMES CONFIG ---
+const BIOMES = [
+    { id: 'city', name: 'NÉON CITY', color: '#00f3ff', bg: '#000000', sky: 'rgba(0, 243, 255, 0.1)', particle: '#ffffff' },
+    { id: 'forest', name: 'CYBER FOREST', color: '#22c55e', bg: '#051a05', sky: 'rgba(34, 197, 94, 0.1)', particle: '#4ade80' },
+    { id: 'desert', name: 'SOLAR DUNES', color: '#f97316', bg: '#1a0c00', sky: 'rgba(249, 115, 22, 0.1)', particle: '#fdba74' },
+    { id: 'snow', name: 'ICE SECTOR', color: '#22d3ee', bg: '#081c24', sky: 'rgba(34, 211, 238, 0.1)', particle: '#cffafe' },
+];
 
 const SKINS = [
     { id: 'default', name: 'Néon Cyan', color: '#00f3ff', cost: 0 },
@@ -30,6 +39,7 @@ const SKINS = [
     { id: 'gold', name: 'Or Légendaire', color: '#ffd700', cost: 5000 },
 ];
 
+// --- INTERFACES ---
 interface Player {
     x: number;
     y: number;
@@ -81,12 +91,24 @@ interface Particle {
     size: number;
 }
 
+interface WeatherParticle {
+    x: number;
+    y: number;
+    speed: number;
+    size: number;
+}
+
+type EventType = 'NONE' | 'GOLD_RUSH' | 'NIGHT_TERROR' | 'HYPER_SPEED';
+
 export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [distance, setDistance] = useState(0);
     const [gameOver, setGameOver] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [currentBiome, setCurrentBiome] = useState(BIOMES[0]);
+    const [activeEvent, setActiveEvent] = useState<{ type: EventType, label: string } | null>(null);
+    const [notification, setNotification] = useState<string | null>(null);
     
     // Skins State
     const [showSkinShop, setShowSkinShop] = useState(false);
@@ -94,7 +116,6 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const [ownedSkins, setOwnedSkins] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('runner_owned_skins') || '["default"]'); } catch { return ['default']; }
     });
-    // Local balance tracking for instant UI updates in shop
     const [localBalance, setLocalBalance] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
 
     // UI State for Active PowerUps
@@ -110,11 +131,17 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const coinsRef = useRef<CoinEntity[]>([]);
     const powerUpsRef = useRef<PowerUpEntity[]>([]);
     const particlesRef = useRef<Particle[]>([]);
+    const weatherRef = useRef<WeatherParticle[]>([]);
     const speedRef = useRef(BASE_SPEED);
     const frameRef = useRef(0);
     const distanceRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
     
+    // Logic Refs
+    const biomeRef = useRef(BIOMES[0]);
+    const eventRef = useRef<EventType>('NONE');
+    const nextBiomeThresholdRef = useRef(BIOME_SWITCH_DISTANCE);
+
     const activeEffectsRef = useRef<{ 
         magnet: boolean; 
         shield: boolean; 
@@ -149,9 +176,17 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         coinsRef.current = [];
         powerUpsRef.current = [];
         particlesRef.current = [];
+        weatherRef.current = [];
         speedRef.current = BASE_SPEED;
         distanceRef.current = 0;
         frameRef.current = 0;
+        
+        // Reset Biome & Event
+        biomeRef.current = BIOMES[0];
+        setCurrentBiome(BIOMES[0]);
+        eventRef.current = 'NONE';
+        setActiveEvent(null);
+        nextBiomeThresholdRef.current = BIOME_SWITCH_DISTANCE;
         
         activeEffectsRef.current = { magnet: false, shield: false, boost: false, boostEndTime: 0, magnetEndTime: 0 };
         setActivePowerUps({});
@@ -160,8 +195,14 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         setGameOver(false);
         setIsPlaying(false);
         setEarnedCoins(0);
-        setLocalBalance(parseInt(localStorage.getItem('neon-coins') || '0', 10)); // Refresh balance
+        setLocalBalance(parseInt(localStorage.getItem('neon-coins') || '0', 10));
+        setNotification(null);
         
+        // Init Weather
+        for(let i=0; i<50; i++) {
+            weatherRef.current.push({ x: Math.random() * CANVAS_WIDTH, y: Math.random() * CANVAS_HEIGHT, speed: Math.random() * 2 + 2, size: Math.random() * 2 });
+        }
+
         if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
     }, [currentSkinId]);
 
@@ -172,7 +213,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
     const handleBuySkin = (skin: typeof SKINS[0]) => {
         if (localBalance >= skin.cost) {
-            addCoinsRef.current(-skin.cost); // Deduct coins
+            addCoinsRef.current(-skin.cost); 
             const newBalance = localBalance - skin.cost;
             setLocalBalance(newBalance);
             
@@ -198,7 +239,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     };
 
     const activatePowerUp = (type: PowerUpType) => {
-        const duration = 10000; // 10 seconds
+        const duration = 10000;
         const now = Date.now();
         const endTime = now + duration;
 
@@ -218,12 +259,41 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         if (playPowerUpCollect) playPowerUpCollect(type === 'boost' ? 'BALL_FAST' : type === 'shield' ? 'EXTRA_LIFE' : 'MULTI_BALL');
     };
 
+    const switchBiome = () => {
+        const currentIdx = BIOMES.findIndex(b => b.id === biomeRef.current.id);
+        const nextIdx = (currentIdx + 1) % BIOMES.length;
+        biomeRef.current = BIOMES[nextIdx];
+        setCurrentBiome(BIOMES[nextIdx]);
+        
+        // Random Event Chance (20%)
+        const rand = Math.random();
+        if (rand < 0.2) {
+            const events: EventType[] = ['GOLD_RUSH', 'NIGHT_TERROR', 'HYPER_SPEED'];
+            const chosenEvent = events[Math.floor(Math.random() * events.length)];
+            eventRef.current = chosenEvent;
+            
+            let label = "";
+            if (chosenEvent === 'GOLD_RUSH') label = "RUÉE VERS L'OR (PIÈCES x2)";
+            if (chosenEvent === 'NIGHT_TERROR') label = "NUIT NOIRE (SCORE x2)";
+            if (chosenEvent === 'HYPER_SPEED') label = "VITESSE LUMIÈRE";
+            
+            setActiveEvent({ type: chosenEvent, label });
+            setNotification(`ÉVÉNEMENT : ${label}`);
+            setTimeout(() => setNotification(null), 3000);
+        } else {
+            eventRef.current = 'NONE';
+            setActiveEvent(null);
+            setNotification(`ZONE : ${BIOMES[nextIdx].name}`);
+            setTimeout(() => setNotification(null), 2000);
+        }
+    };
+
     const handleJump = useCallback((e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
         if (e && e.type !== 'keydown') {
-            // e.stopPropagation(); // Avoid stopping propagation if clicking UI inside
+            // e.stopPropagation(); 
         }
 
-        if (showSkinShop) return; // Disable jump when shop is open
+        if (showSkinShop) return; 
         if (gameOver) return;
         
         if (!isPlaying) {
@@ -250,6 +320,12 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         const p = playerRef.current;
         const now = Date.now();
 
+        // --- CHECK BIOME CHANGE ---
+        if (distanceRef.current > nextBiomeThresholdRef.current) {
+            switchBiome();
+            nextBiomeThresholdRef.current += BIOME_SWITCH_DISTANCE;
+        }
+
         // --- CHECK POWERUP EXPIRATION ---
         if (activeEffectsRef.current.boost && now > activeEffectsRef.current.boostEndTime) {
             activeEffectsRef.current.boost = false;
@@ -274,6 +350,10 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         }
 
         let currentSpeed = speedRef.current;
+        
+        // Event Speed Modifier
+        if (eventRef.current === 'HYPER_SPEED') currentSpeed *= 1.3;
+        
         if (activeEffectsRef.current.boost) {
             currentSpeed = Math.min(MAX_SPEED * 1.5, currentSpeed * BOOST_SPEED_MULTIPLIER);
         } else if (frameRef.current % 300 === 0) {
@@ -312,6 +392,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 let type: 'block' | 'spike' | 'drone' = 'block';
                 let w = 40, h = 40, y = GROUND_HEIGHT - 40;
 
+                // Adjust frequency based on biome? (Optional)
                 if (typeRand > 0.7) {
                     type = 'drone'; w = 30; h = 20; y = GROUND_HEIGHT - 50 - Math.random() * 60; 
                 } else if (typeRand > 0.4) {
@@ -321,7 +402,10 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             }
         }
 
-        if (Math.random() < 0.03) {
+        // Coin Spawn Rate (Doubled during GOLD_RUSH)
+        const coinChance = eventRef.current === 'GOLD_RUSH' ? 0.08 : 0.03;
+        
+        if (Math.random() < coinChance) {
             const lastCoin = coinsRef.current[coinsRef.current.length - 1];
             if (!lastCoin || CANVAS_WIDTH - lastCoin.x > 30) {
                 const isGround = Math.random() > 0.6;
@@ -371,7 +455,13 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                     playGameOver();
                     spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 30);
                     
-                    const finalDistance = Math.floor(distanceRef.current);
+                    // Score calculation logic (Night Terror gives bonus score)
+                    let finalDistance = Math.floor(distanceRef.current);
+                    if (eventRef.current === 'NIGHT_TERROR') {
+                        // Bonus score logic would go here if we tracked separate score, 
+                        // but distance is the metric. We could just award extra XP/Coins.
+                    }
+
                     updateHighScore('runner', finalDistance);
                     const bonusCoins = Math.floor(finalDistance / 100);
                     if (bonusCoins > 0) {
@@ -397,6 +487,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             }
         }
 
+        // Coin Logic with Event Multiplier
         for (let i = coinsRef.current.length - 1; i >= 0; i--) {
             const coin = coinsRef.current[i];
             
@@ -424,8 +515,10 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                     coin.collected = true;
                     playCoin();
                     spawnParticles(coin.x + coin.width/2, coin.y + coin.height/2, '#facc15', 8);
-                    setEarnedCoins(prev => prev + 1);
-                    addCoinsRef.current(1);
+                    
+                    const coinValue = eventRef.current === 'GOLD_RUSH' ? 2 : 1;
+                    setEarnedCoins(prev => prev + coinValue);
+                    addCoinsRef.current(coinValue);
                 }
             }
             if (coin.collected) coinsRef.current.splice(i, 1);
@@ -438,12 +531,38 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             part.life--;
             if (part.life <= 0) particlesRef.current.splice(i, 1);
         }
+
+        // Weather Update
+        weatherRef.current.forEach(w => {
+            w.y += w.speed;
+            w.x -= currentSpeed * 0.5; // Wind effect
+            if (w.y > CANVAS_HEIGHT) {
+                w.y = -10;
+                w.x = Math.random() * CANVAS_WIDTH + (currentSpeed * 50); // Respawn ahead
+            }
+        });
     };
 
     const draw = (ctx: CanvasRenderingContext2D) => {
+        const biome = biomeRef.current;
+        const isNight = eventRef.current === 'NIGHT_TERROR';
+        
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        ctx.strokeStyle = activeEffectsRef.current.boost ? 'rgba(255, 69, 0, 0.2)' : 'rgba(251, 146, 60, 0.15)';
+        // Dynamic Background
+        const bgGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+        if (isNight) {
+            bgGradient.addColorStop(0, '#000000');
+            bgGradient.addColorStop(1, '#1a0000');
+        } else {
+            bgGradient.addColorStop(0, biome.bg);
+            bgGradient.addColorStop(1, '#000000');
+        }
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0,0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // Grid Lines
+        ctx.strokeStyle = isNight ? 'rgba(255, 0, 0, 0.1)' : biome.sky;
         ctx.lineWidth = 2;
         const gridOffset = (frameRef.current * (activeEffectsRef.current.boost ? MAX_SPEED * 1.5 : speedRef.current) * 0.5) % 100;
         
@@ -452,9 +571,26 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         for(let i= -gridOffset; i<CANVAS_WIDTH; i+=100) { ctx.moveTo(i, GROUND_HEIGHT); ctx.lineTo((i - CANVAS_WIDTH/2)*4 + CANVAS_WIDTH/2, CANVAS_HEIGHT); }
         ctx.stroke();
 
-        ctx.strokeStyle = activeEffectsRef.current.boost ? '#ff4500' : '#fb923c';
+        // Weather
+        ctx.fillStyle = biome.particle;
+        weatherRef.current.forEach(w => {
+            ctx.beginPath();
+            if (biome.id === 'snow') {
+                ctx.arc(w.x, w.y, w.size, 0, Math.PI*2); // Snow
+            } else if (biome.id === 'city') {
+                ctx.fillRect(w.x, w.y, 1, w.size * 3); // Digital Rain
+            } else if (biome.id === 'forest') {
+                ctx.arc(w.x, w.y, w.size, 0, Math.PI*2); // Spores
+            } else {
+                ctx.fillRect(w.x, w.y, w.size, w.size); // Dust
+            }
+            ctx.fill();
+        });
+
+        // Ground
+        ctx.strokeStyle = activeEffectsRef.current.boost ? '#ff4500' : biome.color;
         ctx.lineWidth = 3;
-        ctx.shadowColor = activeEffectsRef.current.boost ? '#ff4500' : '#fb923c';
+        ctx.shadowColor = activeEffectsRef.current.boost ? '#ff4500' : biome.color;
         ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.moveTo(0, GROUND_HEIGHT);
@@ -462,6 +598,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         ctx.stroke();
         ctx.shadowBlur = 0;
 
+        // Obstacles
         obstaclesRef.current.forEach(obs => {
             if (obs.type === 'spike') {
                 ctx.fillStyle = '#ef4444';
@@ -480,8 +617,8 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 ctx.fillStyle = '#000';
                 ctx.fillRect(obs.x + 5, obs.y + 5, obs.width - 10, obs.height - 10);
             } else {
-                ctx.fillStyle = '#a855f7';
-                ctx.shadowColor = '#a855f7';
+                ctx.fillStyle = biome.id === 'snow' ? '#a5f3fc' : '#a855f7';
+                ctx.shadowColor = ctx.fillStyle;
                 ctx.shadowBlur = 10;
                 ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
                 ctx.strokeStyle = '#fff';
@@ -491,6 +628,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             ctx.shadowBlur = 0;
         });
 
+        // PowerUps & Coins (Same as before)
         powerUpsRef.current.forEach(pu => {
             if (pu.collected) return;
             const floatY = Math.sin(frameRef.current * 0.1 + pu.offsetY) * 5;
@@ -544,6 +682,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             ctx.fillText('$', cx, cy + 1);
         });
 
+        // Player
         if (!gameOver) {
             const p = playerRef.current;
             ctx.save();
@@ -618,6 +757,8 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleJump]);
 
+    const BiomeIcon = currentBiome.id === 'city' ? Zap : currentBiome.id === 'forest' ? TreeDeciduous : currentBiome.id === 'desert' ? Sun : Snowflake;
+
     return (
         <div 
             className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans touch-none select-none p-4"
@@ -626,6 +767,15 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         >
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orange-600/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-transparent pointer-events-none"></div>
+
+            {/* NOTIFICATION OVERLAY */}
+            {notification && (
+                <div className="fixed top-32 left-1/2 -translate-x-1/2 z-50 animate-in zoom-in fade-in duration-300">
+                    <div className="bg-black/80 backdrop-blur-md px-6 py-3 rounded-full border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                        <span className="text-xl font-black italic text-white tracking-widest whitespace-nowrap">{notification}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
@@ -642,11 +792,21 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             {/* Stats */}
             <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10">
                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">DISTANCE</span><span className="text-2xl font-mono font-bold text-white">{Math.floor(distance)} m</span></div>
-                <div className="flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full border border-yellow-500/30">
-                    <Coins className="text-yellow-400" size={16} />
-                    <span className="text-yellow-100 font-bold font-mono">{earnedCoins}</span>
+                <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1"><BiomeIcon size={12} color={currentBiome.color}/> {currentBiome.name}</div>
+                    {activeEvent && (
+                        <div className="flex items-center gap-1 bg-red-500/20 px-2 py-0.5 rounded border border-red-500/50 animate-pulse">
+                            <AlertTriangle size={10} className="text-red-400"/>
+                            <span className="text-[9px] text-red-100 font-bold">{activeEvent.label}</span>
+                        </div>
+                    )}
                 </div>
-                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-2xl font-mono font-bold text-yellow-400">{Math.max(Math.floor(distance), highScore)} m</span></div>
+                <div className="flex flex-col items-end">
+                    <div className="flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full border border-yellow-500/30">
+                        <Coins className="text-yellow-400" size={16} />
+                        <span className="text-yellow-100 font-bold font-mono">{earnedCoins}</span>
+                    </div>
+                </div>
             </div>
 
             {/* Active PowerUps UI */}
