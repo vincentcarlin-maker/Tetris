@@ -152,6 +152,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     // Input Refs
     const keysRef = useRef<{ [key: string]: boolean }>({});
     const mouseRef = useRef({ x: 0, y: 0, down: false });
+    
     // Improved Joystick Ref with Identifier
     const joystickRef = useRef<{ 
         active: boolean, 
@@ -159,6 +160,9 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         x: number, y: number, 
         originX: number, originY: number 
     } | null>(null);
+
+    // Aim Touch Ref (to track specific finger for aiming)
+    const aimTouchRef = useRef<number | null>(null);
     
     const cameraRef = useRef({ x: 0, y: 0 });
     
@@ -188,7 +192,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const getGameCoords = (clientX: number, clientY: number) => {
             const rect = canvas.getBoundingClientRect();
             // Scaling logic: Map viewport touch to game resolution (800x600)
-            // Note: rect might be smaller/larger than VIEWPORT_* due to CSS object-contain
             const scaleX = VIEWPORT_WIDTH / rect.width;
             const scaleY = VIEWPORT_HEIGHT / rect.height;
             
@@ -216,7 +219,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 const t = e.changedTouches[i];
                 const { x: gameX, y: gameY } = getGameCoords(t.clientX, t.clientY);
 
-                // Split screen logic based on Screen Coordinates, not Game Coordinates
+                // Split screen logic based on Screen Coordinates for INITIAL touch
                 if (t.clientX < windowWidth / 2) {
                     // Joystick (Left)
                     if (!joystickRef.current || !joystickRef.current.active) {
@@ -231,9 +234,13 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     }
                 } else {
                     // Shoot (Right)
-                    mouseRef.current.down = true;
-                    mouseRef.current.x = gameX;
-                    mouseRef.current.y = gameY;
+                    // If no aim finger active, assign this one
+                    if (aimTouchRef.current === null) {
+                        aimTouchRef.current = t.identifier;
+                        mouseRef.current.down = true;
+                        mouseRef.current.x = gameX;
+                        mouseRef.current.y = gameY;
+                    }
                 }
             }
         };
@@ -245,8 +252,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             e.preventDefault();
             if (showTutorialRef.current) return;
             
-            const windowWidth = window.innerWidth;
-
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 const { x: gameX, y: gameY } = getGameCoords(t.clientX, t.clientY);
@@ -256,12 +261,10 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     joystickRef.current.x = gameX;
                     joystickRef.current.y = gameY;
                 } 
-                // Else is it aiming?
-                else {
-                    if (t.clientX >= windowWidth / 2) {
-                        mouseRef.current.x = gameX;
-                        mouseRef.current.y = gameY;
-                    }
+                // Is this the aiming finger?
+                else if (t.identifier === aimTouchRef.current) {
+                    mouseRef.current.x = gameX;
+                    mouseRef.current.y = gameY;
                 }
             }
         };
@@ -273,10 +276,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
+                
                 if (joystickRef.current && joystickRef.current.identifier === t.identifier) {
                     joystickRef.current.active = false;
                     joystickRef.current.identifier = null;
-                } else {
+                } 
+                
+                if (t.identifier === aimTouchRef.current) {
+                    aimTouchRef.current = null;
                     mouseRef.current.down = false;
                 }
             }
@@ -869,18 +876,41 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         if (joystickRef.current && joystickRef.current.active) {
             const { originX, originY, x, y } = joystickRef.current;
             
-            // Base
+            // Outer Ring (Glow)
+            ctx.save();
             ctx.beginPath();
-            ctx.arc(originX, originY, 40, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.arc(originX, originY, 50, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.5)';
             ctx.lineWidth = 4;
+            ctx.shadowColor = '#00f3ff';
+            ctx.shadowBlur = 20;
             ctx.stroke();
             
-            // Stick
+            // Inner Base
             ctx.beginPath();
-            ctx.arc(x, y, 20, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 243, 255, 0.7)';
+            ctx.arc(originX, originY, 15, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.3)';
             ctx.fill();
+
+            // Stick Line
+            ctx.beginPath();
+            ctx.moveTo(originX, originY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Stick Knob
+            ctx.beginPath();
+            ctx.arc(x, y, 25, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.8)';
+            ctx.shadowColor = '#00f3ff';
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
         }
     };
 
