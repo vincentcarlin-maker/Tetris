@@ -40,6 +40,15 @@ interface Obstacle {
     passed: boolean;
 }
 
+interface CoinEntity {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    collected: boolean;
+    offsetY: number; // For floating animation
+}
+
 interface Particle {
     x: number;
     y: number;
@@ -64,19 +73,24 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     // Game State Refs
     const playerRef = useRef<Player>({ x: 100, y: GROUND_HEIGHT - 40, width: 30, height: 30, dy: 0, grounded: true, color: '#00f3ff', rotation: 0 });
     const obstaclesRef = useRef<Obstacle[]>([]);
+    const coinsRef = useRef<CoinEntity[]>([]);
     const particlesRef = useRef<Particle[]>([]);
     const speedRef = useRef(BASE_SPEED);
     const frameRef = useRef(0);
     const scoreRef = useRef(0);
     const animationFrameRef = useRef<number>(0);
     
-    // Stabilisation des callbacks pour éviter les boucles de rendu
+    // Refs for props to avoid stale closures in game loop
+    const addCoinsRef = useRef(addCoins);
     const onReportProgressRef = useRef(onReportProgress);
+    
+    useEffect(() => { addCoinsRef.current = addCoins; }, [addCoins]);
     useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
 
     const resetGame = useCallback(() => {
         playerRef.current = { x: 100, y: GROUND_HEIGHT - 40, width: 30, height: 30, dy: 0, grounded: true, color: '#00f3ff', rotation: 0 };
         obstaclesRef.current = [];
+        coinsRef.current = [];
         particlesRef.current = [];
         speedRef.current = BASE_SPEED;
         scoreRef.current = 0;
@@ -86,7 +100,6 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         setIsPlaying(false);
         setEarnedCoins(0);
         
-        // Utilisation de la ref pour ne pas déclencher de re-render du useEffect parent
         if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
     }, []);
 
@@ -110,7 +123,6 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
     const handleJump = useCallback((e?: React.MouseEvent | React.TouchEvent | KeyboardEvent) => {
         if (e && e.type !== 'keydown') {
-            // Empêcher la propagation pour éviter les doubles déclenchements (ex: touch + mouse)
             e.stopPropagation();
         }
 
@@ -126,7 +138,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
         if (p.grounded) {
             p.dy = JUMP_FORCE;
             p.grounded = false;
-            playMove(); // Jump sound
+            playMove(); 
             spawnParticles(p.x + p.width/2, p.y + p.height, '#fff', 5);
         }
     }, [gameOver, isPlaying, playMove, resumeAudio]);
@@ -146,10 +158,8 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             p.y = GROUND_HEIGHT - p.height;
             p.dy = 0;
             p.grounded = true;
-            // Align rotation on ground
             p.rotation = Math.round(p.rotation / (Math.PI / 2)) * (Math.PI / 2);
         } else {
-            // Rotate while jumping
             p.rotation += 0.1;
         }
 
@@ -158,22 +168,19 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             speedRef.current = Math.min(MAX_SPEED, speedRef.current + 0.2);
         }
 
-        // --- OBSTACLES ---
-        // Min gap based on speed to ensure jumpable
+        // --- SPAWN LOGIC ---
         const minGap = (speedRef.current * 40); 
         
-        // Spawn Logic
+        // Obstacles
         if (obstaclesRef.current.length === 0 || (CANVAS_WIDTH - obstaclesRef.current[obstaclesRef.current.length - 1].x > minGap + Math.random() * 200)) {
-            // Chance to spawn
             if (Math.random() < 0.05) {
                 const typeRand = Math.random();
                 let type: 'block' | 'spike' | 'drone' = 'block';
                 let w = 40, h = 40, y = GROUND_HEIGHT - 40;
 
                 if (typeRand > 0.7) {
-                    type = 'drone'; // Flying
+                    type = 'drone'; 
                     w = 30; h = 20; 
-                    // Random height: low jump or high jump needed
                     y = GROUND_HEIGHT - 50 - Math.random() * 60; 
                 } else if (typeRand > 0.4) {
                     type = 'spike';
@@ -185,27 +192,50 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             }
         }
 
-        // Move & Collide
+        // Coins
+        if (Math.random() < 0.03) {
+            const lastCoin = coinsRef.current[coinsRef.current.length - 1];
+            // Ensure spacing
+            if (!lastCoin || CANVAS_WIDTH - lastCoin.x > 30) {
+                const isGround = Math.random() > 0.6;
+                const y = isGround ? GROUND_HEIGHT - 40 : GROUND_HEIGHT - 120;
+                
+                // Avoid spawning inside latest obstacle
+                const lastObs = obstaclesRef.current[obstaclesRef.current.length - 1];
+                let safe = true;
+                if (lastObs && CANVAS_WIDTH - lastObs.x < 60 && Math.abs(y - lastObs.y) < 50) safe = false;
+
+                if (safe) {
+                    coinsRef.current.push({ 
+                        x: CANVAS_WIDTH, 
+                        y, 
+                        width: 24, 
+                        height: 24, 
+                        collected: false,
+                        offsetY: Math.random() * Math.PI 
+                    });
+                }
+            }
+        }
+
+        // --- UPDATE & COLLISION ---
+        
+        // Obstacles
         for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
             const obs = obstaclesRef.current[i];
             obs.x -= speedRef.current;
 
-            // Remove off-screen
             if (obs.x + obs.width < 0) {
                 obstaclesRef.current.splice(i, 1);
                 continue;
             }
 
-            // Score Logic
             if (!obs.passed && obs.x + obs.width < p.x) {
                 obs.passed = true;
                 scoreRef.current += 10;
                 setScore(scoreRef.current);
-                if (scoreRef.current % 100 === 0) playCoin();
             }
 
-            // Collision AABB
-            // Shrink hitbox slightly for forgiveness
             const padding = 6;
             if (
                 p.x + padding < obs.x + obs.width - padding &&
@@ -213,24 +243,58 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 p.y + padding < obs.y + obs.height - padding &&
                 p.y + p.height - padding > obs.y + padding
             ) {
-                // DIE
                 setGameOver(true);
                 playExplosion();
                 playGameOver();
                 spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 30);
                 
                 updateHighScore('runner', scoreRef.current);
-                const coins = Math.floor(scoreRef.current / 50);
-                if (coins > 0) {
-                    addCoins(coins);
-                    setEarnedCoins(coins);
+                // Bonus coins based on score
+                const bonusCoins = Math.floor(scoreRef.current / 50);
+                // We display total collected + bonus
+                // Current collected coins are already in earnedCoins state via setEarnedCoins
+                // We just add bonus to wallet here (collected ones added instantly)
+                if (bonusCoins > 0) {
+                    addCoinsRef.current(bonusCoins);
+                    // Update display to show Total (Collected + Bonus)
+                    setEarnedCoins(prev => prev + bonusCoins);
                 }
                 
                 if (onReportProgressRef.current) onReportProgressRef.current('score', scoreRef.current);
             }
         }
 
-        // --- PARTICLES ---
+        // Coins
+        for (let i = coinsRef.current.length - 1; i >= 0; i--) {
+            const coin = coinsRef.current[i];
+            coin.x -= speedRef.current;
+
+            if (coin.x + coin.width < 0) {
+                coinsRef.current.splice(i, 1);
+                continue;
+            }
+
+            if (!coin.collected) {
+                if (
+                    p.x < coin.x + coin.width &&
+                    p.x + p.width > coin.x &&
+                    p.y < coin.y + coin.height &&
+                    p.y + p.height > coin.y
+                ) {
+                    coin.collected = true;
+                    playCoin();
+                    spawnParticles(coin.x + coin.width/2, coin.y + coin.height/2, '#facc15', 8);
+                    setEarnedCoins(prev => prev + 1);
+                    addCoinsRef.current(1);
+                }
+            }
+            
+            if (coin.collected) {
+                coinsRef.current.splice(i, 1);
+            }
+        }
+
+        // Particles
         for (let i = particlesRef.current.length - 1; i >= 0; i--) {
             const part = particlesRef.current[i];
             part.x += part.vx;
@@ -243,25 +307,17 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
     const draw = (ctx: CanvasRenderingContext2D) => {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // Background (Parallax Grid)
-        ctx.strokeStyle = 'rgba(251, 146, 60, 0.15)'; // Orange tint
+        // Background
+        ctx.strokeStyle = 'rgba(251, 146, 60, 0.15)';
         ctx.lineWidth = 2;
         const gridOffset = (frameRef.current * speedRef.current * 0.5) % 100;
         
         ctx.beginPath();
-        // Horizontal lines
-        for(let i=0; i<CANVAS_HEIGHT; i+=50) {
-            ctx.moveTo(0, i); ctx.lineTo(CANVAS_WIDTH, i);
-        }
-        // Vertical lines moving
-        for(let i= -gridOffset; i<CANVAS_WIDTH; i+=100) {
-            // Perspective effect
-            ctx.moveTo(i, GROUND_HEIGHT); 
-            ctx.lineTo((i - CANVAS_WIDTH/2)*4 + CANVAS_WIDTH/2, CANVAS_HEIGHT);
-        }
+        for(let i=0; i<CANVAS_HEIGHT; i+=50) { ctx.moveTo(0, i); ctx.lineTo(CANVAS_WIDTH, i); }
+        for(let i= -gridOffset; i<CANVAS_WIDTH; i+=100) { ctx.moveTo(i, GROUND_HEIGHT); ctx.lineTo((i - CANVAS_WIDTH/2)*4 + CANVAS_WIDTH/2, CANVAS_HEIGHT); }
         ctx.stroke();
 
-        // Ground Line
+        // Ground
         ctx.strokeStyle = '#fb923c';
         ctx.lineWidth = 3;
         ctx.shadowColor = '#fb923c';
@@ -288,11 +344,9 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 ctx.shadowColor = '#facc15';
                 ctx.shadowBlur = 10;
                 ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                // Drone visual
                 ctx.fillStyle = '#000';
                 ctx.fillRect(obs.x + 5, obs.y + 5, obs.width - 10, obs.height - 10);
             } else {
-                // Block
                 ctx.fillStyle = '#a855f7';
                 ctx.shadowColor = '#a855f7';
                 ctx.shadowBlur = 10;
@@ -304,7 +358,34 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             ctx.shadowBlur = 0;
         });
 
-        // Player (Draw ONLY if not game over, or handle death animation separately)
+        // Coins
+        coinsRef.current.forEach(coin => {
+            if (coin.collected) return;
+            const floatY = Math.sin(frameRef.current * 0.1 + coin.offsetY) * 5;
+            const cx = coin.x + coin.width/2;
+            const cy = coin.y + coin.height/2 + floatY;
+            
+            ctx.fillStyle = '#facc15';
+            ctx.shadowColor = '#facc15';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#facc15';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('$', cx, cy + 1);
+        });
+
+        // Player
         if (!gameOver) {
             const p = playerRef.current;
             ctx.save();
@@ -315,11 +396,8 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             ctx.shadowColor = p.color;
             ctx.shadowBlur = 15;
             ctx.fillRect(-p.width/2, -p.height/2, p.width, p.height);
-            
-            // Inner detail
             ctx.fillStyle = '#fff';
             ctx.fillRect(-p.width/4, -p.height/4, p.width/2, p.height/2);
-            
             ctx.restore();
         }
 
@@ -381,6 +459,11 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
             {/* Stats */}
             <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10">
                 <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-2xl font-mono font-bold text-white">{Math.floor(score)}</span></div>
+                {/* Coin Counter */}
+                <div className="flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full border border-yellow-500/30">
+                    <Coins className="text-yellow-400" size={16} />
+                    <span className="text-yellow-100 font-bold font-mono">{earnedCoins}</span>
+                </div>
                 <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-2xl font-mono font-bold text-yellow-400">{Math.max(Math.floor(score), highScore)}</span></div>
             </div>
 
@@ -426,7 +509,7 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                 )}
             </div>
             
-            <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Collectez des points. Survivez.</p>
+            <p className="text-xs text-gray-500 mt-4 text-center">Évitez les obstacles. Collectez des pièces. Survivez.</p>
         </div>
     );
 };
