@@ -15,8 +15,9 @@ import { MastermindGame } from './components/mastermind/MastermindGame';
 import { UnoGame } from './components/uno/UnoGame';
 import { WaterSortGame } from './components/watersort/WaterSortGame';
 import { CheckersGame } from './components/checkers/CheckersGame';
+import { RunnerGame } from './components/runner/RunnerGame'; // Import RunnerGame
 import { Shop } from './components/Shop';
-import { AdminDashboard } from './components/AdminDashboard'; // Import
+import { AdminDashboard } from './components/AdminDashboard';
 import { SocialOverlay } from './components/SocialOverlay';
 import { LoginScreen } from './components/LoginScreen';
 import { useGameAudio } from './hooks/useGameAudio';
@@ -27,7 +28,7 @@ import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
 
 
-type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'shop' | 'admin_dashboard';
+type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'shop' | 'admin_dashboard';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -149,7 +150,7 @@ const App: React.FC = () => {
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers'];
+        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers', 'runner'];
         const isGameView = gameViews.includes(currentView);
 
         if (isGameView) {
@@ -201,6 +202,7 @@ const App: React.FC = () => {
         else if (game === 'uno') setCurrentView('uno');
         else if (game === 'watersort') setCurrentView('watersort');
         else if (game === 'checkers') setCurrentView('checkers');
+        else if (game === 'runner') setCurrentView('runner');
         else if (game === 'shop') setCurrentView('shop');
     };
 
@@ -321,6 +323,10 @@ const App: React.FC = () => {
 
             {currentView === 'checkers' && isAuthenticated && (
                 <CheckersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('checkers', metric, val)} />
+            )}
+
+            {currentView === 'runner' && isAuthenticated && (
+                <RunnerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('runner', metric, val)} />
             )}
 
             {currentView === 'menu' && (
