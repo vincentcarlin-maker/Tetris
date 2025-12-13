@@ -763,6 +763,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 setOnlineStep('lobby');
             } else {
                 mp.disconnect();
+                setGameMode('SOLO');
                 setGameState('MENU');
             }
             return;
