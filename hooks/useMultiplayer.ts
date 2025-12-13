@@ -102,6 +102,10 @@ export const useMultiplayer = () => {
                     handleSignalingMessage(payload.from, payload.data);
                 }
             })
+            .on('broadcast', { event: 'admin_broadcast' }, ({ payload }) => {
+                // Global Admin Events
+                window.dispatchEvent(new CustomEvent('neon_admin_event', { detail: payload }));
+            })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     await channel.track({
@@ -279,7 +283,6 @@ export const useMultiplayer = () => {
                 payload: { from: myIdRef.current, data }
             });
         }
-        // Fallback or specific logic could go here
     }, []);
 
     const sendTo = useCallback((targetId: string, data: any) => {
@@ -289,6 +292,16 @@ export const useMultiplayer = () => {
                 type: 'broadcast',
                 event: 'dm',
                 payload: { from: myIdRef.current, to: targetId, data }
+            });
+        }
+    }, []);
+
+    const sendAdminBroadcast = useCallback((message: string, type: 'info' | 'warning' | 'reload' = 'info') => {
+        if (lobbyChannelRef.current) {
+            lobbyChannelRef.current.send({
+                type: 'broadcast',
+                event: 'admin_broadcast',
+                payload: { message, type, timestamp: Date.now() }
             });
         }
     }, []);
@@ -345,10 +358,7 @@ export const useMultiplayer = () => {
     }, [sendData]);
 
     // Helpers for compatibility
-    const connectTo = useCallback((id: string) => {
-        // In Supabase version, we are already "connected" via lobby.
-        // This is a no-op or could trigger a specific handshake if needed for DMs.
-    }, []);
+    const connectTo = useCallback((id: string) => {}, []);
 
     const subscribe = useCallback((callback: DataCallback) => {
         subscribersRef.current.add(callback);
@@ -371,6 +381,7 @@ export const useMultiplayer = () => {
         cancelHosting,
         leaveGame,
         requestRematch,
-        connectTo 
+        connectTo,
+        sendAdminBroadcast
     };
 };
