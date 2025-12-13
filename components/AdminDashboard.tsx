@@ -82,7 +82,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     };
 
     const connectionStats = getConnectionStats();
-    const maxConnectionCount = Math.max(...connectionStats, 10); // Minimum scale of 10 to avoid full bars for low counts
+    const maxConnectionCount = Math.max(...connectionStats, 5); // Minimum scale of 5 to avoid flat graph if values are low
 
     // Total Economy (Excluding Admin 'Vincent')
     const totalCoins = profiles.reduce((acc, p) => {
@@ -261,11 +261,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                     <div className="flex items-end justify-between h-40 gap-2">
                                         {connectionStats.map((val, i) => (
                                             <div key={i} className="flex-1 flex flex-col justify-end group">
+                                                <div className="text-[10px] text-gray-300 text-center mb-1 font-mono font-bold">{val}</div>
                                                 <div 
-                                                    style={{ height: `${Math.max(5, (val / maxConnectionCount) * 100)}%` }} 
-                                                    className={`w-full ${i === 6 ? 'bg-blue-500' : 'bg-gray-700'} rounded-t-sm transition-all duration-500 hover:bg-blue-400 relative`}
+                                                    style={{ height: `${Math.max(10, (val / maxConnectionCount) * 100)}%` }} 
+                                                    className={`w-full ${i === 6 ? 'bg-blue-500 shadow-[0_0_10px_#3b82f6]' : 'bg-gray-700 border-t border-gray-600'} rounded-t-sm transition-all duration-500 hover:bg-blue-400 relative`}
                                                 >
-                                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-black px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{val}</div>
                                                 </div>
                                                 <div className="text-[10px] text-gray-500 text-center mt-2 border-t border-white/5 pt-1">
                                                     {i === 6 ? 'AUJ' : `J-${6-i}`}
