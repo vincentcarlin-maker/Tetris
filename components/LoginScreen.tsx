@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, ArrowRight, Sparkles, X, Lock, Key, LogIn, UserPlus, Cloud, Check } from 'lucide-react';
+import { User, ArrowRight, Sparkles, X, Lock, Key, LogIn, UserPlus, Cloud, Check, ShieldAlert } from 'lucide-react';
 
 interface LoginScreenProps {
     onLogin: (username: string, cloudData?: any) => void;
@@ -123,6 +123,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
             if (cloudProfile) {
                 const cloudData = cloudProfile.data || {};
                 
+                // --- VÉRIFICATION DU BANNISSEMENT (CLOUD) ---
+                if (cloudData.banned === true) {
+                    setError("Ce compte a été suspendu par l'administrateur.");
+                    setIsLoading(false);
+                    return;
+                }
+
                 if (cloudData.password && cloudData.password !== password) {
                     setError("Mot de passe incorrect.");
                     setIsLoading(false);
@@ -153,6 +160,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
 
         const dataStr = localStorage.getItem(DATA_PREFIX + username);
         const localData = dataStr ? JSON.parse(dataStr) : null;
+
+        // --- VÉRIFICATION DU BANNISSEMENT (LOCAL) ---
+        // Cas rare où le ban serait synchronisé localement
+        if (localData && localData.banned === true) {
+            setError("Ce compte a été suspendu localement.");
+            setIsLoading(false);
+            return;
+        }
+
         handleSuccess(username, password, localData);
     };
 
@@ -182,6 +198,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         // Create new account using current local progress
         const currentData = saveCurrentDataToUserSlot(username);
         currentData.password = password;
+        currentData.banned = false; // Explicitly set not banned on creation
 
         handleSuccess(username, password, currentData);
     };
@@ -230,7 +247,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
                         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-600 outline-none focus:border-neon-pink focus:ring-1 focus:ring-neon-pink/50 transition-all font-bold" />
                     </div>
 
-                    {error && <div className="text-red-500 text-xs font-bold text-center bg-red-900/20 py-2 rounded border border-red-500/50 animate-pulse">{error}</div>}
+                    {error && (
+                        <div className="text-red-500 text-xs font-bold text-center bg-red-900/20 py-3 rounded border border-red-500/50 animate-pulse flex items-center justify-center gap-2">
+                            <ShieldAlert size={16} /> {error}
+                        </div>
+                    )}
 
                     <button type="submit" disabled={isLoading || !username.trim() || !password.trim()} className={`group relative w-full py-4 rounded-xl font-black text-white tracking-widest shadow-[0_0_20px_rgba(0,0,0,0.4)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] disabled:opacity-50 disabled:cursor-not-allowed transition-all overflow-hidden ${mode === 'LOGIN' ? 'bg-gradient-to-r from-blue-600 to-cyan-600' : 'bg-gradient-to-r from-pink-600 to-purple-600'}`}>
                         <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
