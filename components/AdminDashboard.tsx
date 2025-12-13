@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, Database, LayoutGrid, Trophy, X, Shield, Clock, Gamepad2, ChevronRight, Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye } from 'lucide-react';
+import { Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, Database, LayoutGrid, Trophy, X, Shield, Clock, Gamepad2, ChevronRight, Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -46,9 +46,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     }, [activeTab]);
 
     const loadData = async () => {
-        if (!isSupabaseConfigured) return;
         setLoading(true);
-        const data = await DB.getFullAdminExport();
+        let data: any[] = [];
+
+        // 1. Try fetching from Cloud
+        if (isSupabaseConfigured) {
+            try {
+                data = await DB.getFullAdminExport();
+            } catch (e) {
+                console.error("Cloud fetch failed", e);
+            }
+        }
+
+        // 2. Local Storage Fallback (if cloud empty or offline)
+        if (data.length === 0) {
+            const localUsers: any[] = [];
+            const usersDbStr = localStorage.getItem('neon_users_db'); // { "user": "pass" }
+            if (usersDbStr) {
+                try {
+                    const usersDb = JSON.parse(usersDbStr);
+                    Object.keys(usersDb).forEach(username => {
+                        const userDataStr = localStorage.getItem('neon_data_' + username);
+                        if (userDataStr) {
+                            const userData = JSON.parse(userDataStr);
+                            localUsers.push({
+                                username: username,
+                                data: userData,
+                                updated_at: userData.lastLogin || new Date().toISOString()
+                            });
+                        } else {
+                            // Minimal entry if data missing
+                            localUsers.push({
+                                username: username,
+                                data: { coins: 0, avatarId: 'av_bot' },
+                                updated_at: new Date().toISOString()
+                            });
+                        }
+                    });
+                } catch (e) {
+                    console.error("Local DB parse error", e);
+                }
+            }
+            // Use local users if found
+            if (localUsers.length > 0) {
+                data = localUsers;
+            }
+        }
+
         setProfiles(data);
         setLoading(false);
     };
@@ -65,16 +109,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         if (!confirmAction) return;
         const { type, username } = confirmAction;
 
+        // Apply to Cloud (if online)
+        if (isSupabaseConfigured) {
+            if (type === 'DELETE') {
+                await DB.deleteUser(username);
+            } else if (type === 'BAN' || type === 'UNBAN') {
+                const isBanned = type === 'BAN';
+                await DB.updateUserData(username, { banned: isBanned });
+            }
+        }
+
+        // Always apply to Local State & Storage (Mirroring)
         if (type === 'DELETE') {
-            await DB.deleteUser(username);
+            // Remove from local list
             setProfiles(prev => prev.filter(p => p.username !== username));
+            
+            // Remove from localStorage
+            const usersDb = JSON.parse(localStorage.getItem('neon_users_db') || '{}');
+            delete usersDb[username];
+            localStorage.setItem('neon_users_db', JSON.stringify(usersDb));
+            localStorage.removeItem('neon_data_' + username);
+
             if (selectedUser?.username === username) setSelectedUser(null);
         } else if (type === 'BAN' || type === 'UNBAN') {
             const isBanned = type === 'BAN';
-            await DB.updateUserData(username, { banned: isBanned });
+            // Update local state
             setProfiles(prev => prev.map(p => p.username === username ? { ...p, data: { ...p.data, banned: isBanned } } : p));
             if (selectedUser?.username === username) setSelectedUser(prev => ({ ...prev, data: { ...prev.data, banned: isBanned } }));
+            
+            // Update localStorage data
+            const userDataStr = localStorage.getItem('neon_data_' + username);
+            if (userDataStr) {
+                const userData = JSON.parse(userDataStr);
+                userData.banned = isBanned;
+                localStorage.setItem('neon_data_' + username, JSON.stringify(userData));
+            }
         }
+        
         setConfirmAction(null);
     };
 
@@ -89,9 +160,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const handleGiftCoins = async () => {
         if (!selectedUser) return;
         const newAmount = (selectedUser.data.coins || 0) + giftAmount;
-        await DB.updateUserData(selectedUser.username, { coins: newAmount });
         
-        // Update Local State
+        if (isSupabaseConfigured) {
+            await DB.updateUserData(selectedUser.username, { coins: newAmount });
+        }
+        
+        // Update Local Storage Mirror
+        const userDataStr = localStorage.getItem('neon_data_' + selectedUser.username);
+        if (userDataStr) {
+            const userData = JSON.parse(userDataStr);
+            userData.coins = newAmount;
+            localStorage.setItem('neon_data_' + selectedUser.username, JSON.stringify(userData));
+        }
+        
+        // Update UI
         setProfiles(prev => prev.map(p => p.username === selectedUser.username ? { ...p, data: { ...p.data, coins: newAmount } } : p));
         setSelectedUser(prev => ({ ...prev, data: { ...prev.data, coins: newAmount } }));
         alert(`${giftAmount} pièces envoyées à ${selectedUser.username} !`);
@@ -300,6 +382,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             <div className="text-xs text-gray-500 self-center whitespace-nowrap">{filteredUsers.length} joueurs trouvés</div>
                         </div>
 
+                        {/* DESKTOP TABLE */}
                         <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden hidden md:block">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-gray-800 text-gray-400 font-bold uppercase text-[10px] tracking-wider">
@@ -325,6 +408,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* MOBILE LIST (Cards) */}
+                        <div className="md:hidden space-y-3">
+                            {loading ? <p className="text-center text-gray-500 py-8">Chargement...</p> :
+                            filteredUsers.map(p => (
+                                <div key={p.username} className="bg-gray-900 border border-white/10 rounded-xl p-4 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setSelectedUser(p)}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center border border-white/10 text-xs font-bold text-white">
+                                            {p.username.substring(0,2).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white text-sm">{p.username}</div>
+                                            <div className="text-[10px] text-gray-500">{new Date(p.updated_at).toLocaleDateString()}</div>
+                                            {p.data?.banned && <span className="text-[9px] text-red-500 bg-red-900/20 px-1 rounded inline-block mt-1">BANNI</span>}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-yellow-400 font-mono font-bold text-sm">{p.data?.coins || 0} <span className="text-[10px]">PC</span></div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
