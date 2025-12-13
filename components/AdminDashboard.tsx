@@ -21,10 +21,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
     const loadData = async () => {
         if (!isSupabaseConfigured) {
-            // Mock data for demo/offline
-            const mockProfiles = Array.from({ length: 15 }).map((_, i) => ({
+            // Mock data for demo/offline - Increased count and recent bias for better graph visuals
+            const mockProfiles = Array.from({ length: 50 }).map((_, i) => ({
                 username: `Player_${i + 1}`,
-                updated_at: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+                // Distribute updates over the last 7 days primarily
+                updated_at: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString(),
                 data: {
                     coins: Math.floor(Math.random() * 5000),
                     highScores: {
@@ -58,6 +59,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         const d = new Date(p.updated_at);
         return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
+
+    // Calculate Last 7 Days Activity for Graph
+    const getConnectionStats = () => {
+        const stats: number[] = [];
+        const today = new Date();
+        
+        for (let i = 6; i >= 0; i--) {
+            const targetDate = new Date();
+            targetDate.setDate(today.getDate() - i);
+            
+            const count = profiles.filter(p => {
+                const pDate = new Date(p.updated_at);
+                return pDate.getDate() === targetDate.getDate() &&
+                       pDate.getMonth() === targetDate.getMonth() &&
+                       pDate.getFullYear() === targetDate.getFullYear();
+            }).length;
+            
+            stats.push(count);
+        }
+        return stats;
+    };
+
+    const connectionStats = getConnectionStats();
+    const maxConnectionCount = Math.max(...connectionStats, 10); // Minimum scale of 10 to avoid full bars for low counts
 
     // Total Economy
     const totalCoins = profiles.reduce((acc, p) => acc + (p.data?.coins || 0), 0);
@@ -227,14 +252,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                     <StatCard title="Jeux Actifs" value={Object.values(gameStats).filter(v => v > 0).length} icon={LayoutGrid} color="purple" />
                                 </div>
 
-                                {/* Quick Activity Chart (Simulation) */}
+                                {/* Quick Activity Chart */}
                                 <div className="bg-gray-900 border border-white/10 rounded-xl p-6">
                                     <h3 className="text-sm font-bold text-gray-400 mb-6 flex items-center gap-2"><BarChart2 size={16}/> CONNEXIONS (7 DERNIERS JOURS)</h3>
                                     <div className="flex items-end justify-between h-40 gap-2">
-                                        {[45, 60, 35, 80, 50, 90, activeToday].map((val, i) => (
+                                        {connectionStats.map((val, i) => (
                                             <div key={i} className="flex-1 flex flex-col justify-end group">
                                                 <div 
-                                                    style={{ height: `${Math.max(10, (val / 100) * 100)}%` }} 
+                                                    style={{ height: `${Math.max(5, (val / maxConnectionCount) * 100)}%` }} 
                                                     className={`w-full ${i === 6 ? 'bg-blue-500' : 'bg-gray-700'} rounded-t-sm transition-all duration-500 hover:bg-blue-400 relative`}
                                                 >
                                                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-black px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">{val}</div>
