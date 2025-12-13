@@ -55,6 +55,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const paddleEffectTimeoutRef = useRef<any>(null);
     const ballSpeedEffectTimeoutRef = useRef<any>(null);
     const laserEffectTimeoutRef = useRef<any>(null);
+    const levelCompleteTimeoutRef = useRef<any>(null);
     
     const lastLaserShotTime = useRef<number>(0);
 
@@ -65,6 +66,15 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             setShowTutorial(true);
             localStorage.setItem('neon_breaker_tutorial_seen', 'true');
         }
+        
+        // Clear timeouts on unmount
+        return () => {
+            if (levelCompleteTimeoutRef.current) clearTimeout(levelCompleteTimeoutRef.current);
+            if (paddleEffectTimeoutRef.current) clearTimeout(paddleEffectTimeoutRef.current);
+            if (ballSpeedEffectTimeoutRef.current) clearTimeout(ballSpeedEffectTimeoutRef.current);
+            if (laserEffectTimeoutRef.current) clearTimeout(laserEffectTimeoutRef.current);
+            if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+        };
     }, []);
 
     const resetBallAndPaddle = useCallback(() => {
@@ -117,7 +127,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     }, []);
 
     const startLevel = (lvl: number) => {
-        if (showTutorial) return;
+        // Removed the showTutorial check here to allow view switching
+        if (levelCompleteTimeoutRef.current) clearTimeout(levelCompleteTimeoutRef.current);
+        
         setCurrentLevel(lvl);
         setScore(0);
         setLives(3);
@@ -143,6 +155,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     };
 
     const handleLocalBack = () => {
+        if (levelCompleteTimeoutRef.current) clearTimeout(levelCompleteTimeoutRef.current);
         if (view === 'GAME') {
             setView('LEVEL_SELECT');
         } else {
@@ -411,7 +424,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             if (onReportProgress) onReportProgress('action', currentLevel);
             
             setGameState('levelComplete');
-            setTimeout(() => {
+            levelCompleteTimeoutRef.current = setTimeout(() => {
                 const nextLevel = currentLevel + 1;
                 
                 // Unlock logic
@@ -431,41 +444,56 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, onReportProgress, maxUnlockedLevel, showTutorial]);
 
     // Game Loop
+    const gameTickRef = useRef(gameTick);
+    useEffect(() => { gameTickRef.current = gameTick; }, [gameTick]);
+
     useEffect(() => {
         if (view !== 'GAME') return;
 
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        let animationFrameId: number;
         
-        const render = () => {
-            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        const startLoop = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) {
+                // Retry in next frame if canvas isn't ready yet (rare but possible with view switches)
+                animationFrameId = requestAnimationFrame(startLoop);
+                return;
+            }
             
-            ctx.strokeStyle = 'rgba(236, 72, 153, 0.07)';
-            for(let i=0; i<GAME_WIDTH; i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke(); }
-            for(let i=0; i<GAME_HEIGHT; i+=20) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
 
-            drawBlocks(ctx, blocksRef.current);
-            drawLasers(ctx, lasersRef.current);
-            drawPaddle(ctx, paddleRef.current, GAME_HEIGHT);
-            ballsRef.current.forEach(ball => drawBall(ctx, ball));
-            powerUpsRef.current.forEach(powerUp => drawPowerUp(ctx, powerUp));
-            drawParticles(ctx, particlesRef.current);
+            const render = () => {
+                ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                
+                ctx.strokeStyle = 'rgba(236, 72, 153, 0.07)';
+                for(let i=0; i<GAME_WIDTH; i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke(); }
+                for(let i=0; i<GAME_HEIGHT; i+=20) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
+
+                drawBlocks(ctx, blocksRef.current);
+                drawLasers(ctx, lasersRef.current);
+                drawPaddle(ctx, paddleRef.current, GAME_HEIGHT);
+                ballsRef.current.forEach(ball => drawBall(ctx, ball));
+                powerUpsRef.current.forEach(powerUp => drawPowerUp(ctx, powerUp));
+                drawParticles(ctx, particlesRef.current);
+            };
+
+            const loop = () => {
+                if (gameTickRef.current) gameTickRef.current();
+                render();
+                gameLoopRef.current = requestAnimationFrame(loop);
+            };
+            
+            loop();
         };
 
-        const loop = () => {
-            gameTick();
-            render();
-            gameLoopRef.current = requestAnimationFrame(loop);
-        };
-
-        loop();
+        startLoop();
 
         return () => {
             if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
-    }, [gameTick, view]);
+    }, [view]);
 
     // Controls
     useEffect(() => {
@@ -619,9 +647,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             {showTutorial && <TutorialOverlay gameId="breaker" onClose={() => setShowTutorial(false)} />}
 
             {/* Header */}
-            <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative">
+            <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative gap-2">
                 {/* Left: Back Btn + Score */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 shrink-0">
                     <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
                         <Home size={20} />
                     </button>
@@ -631,14 +659,14 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                     </div>
                 </div>
 
-                {/* Center: Level */}
-                <div className="absolute left-1/2 -translate-x-1/2">
-                    <div className="text-lg font-bold text-neon-pink drop-shadow-[0_0_8px_#ff00ff]">NIVEAU {currentLevel}</div>
+                {/* Center: Level (No longer absolute to prevent overlap) */}
+                <div className="text-lg font-bold text-neon-pink drop-shadow-[0_0_8px_#ff00ff] whitespace-nowrap">
+                    NIVEAU {currentLevel}
                 </div>
 
                 {/* Right: Lives & Restart */}
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 text-red-400 font-bold mr-2">
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-0.5 text-red-400 font-bold">
                         {Array.from({ length: lives }).map((_, i) => <Heart key={i} size={16} fill="currentColor"/>)}
                     </div>
                     <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-fuchsia-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
