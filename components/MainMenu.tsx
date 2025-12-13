@@ -626,7 +626,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             className={`
                                 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all border
                                 ${activeCategory === cat.id 
-                                    ? 'bg-neon-blue text-black border-neon-blue shadow-[0_0_15px_#22d3ee]' 
+                                    ? 'bg-neon-blue text-black border-neon-blue'
                                     : 'bg-gray-900 text-gray-400 border-white/10 hover:border-white/30 hover:text-white'
                                 }
                             `}
