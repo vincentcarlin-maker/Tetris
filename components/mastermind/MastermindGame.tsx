@@ -55,7 +55,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     const [guesses, setGuesses] = useState<number[][]>([]);
     const [feedback, setFeedback] = useState<{ exact: number; partial: number }[]>([]);
     const [currentGuess, setCurrentGuess] = useState<number[]>([]);
-    const [gameState, setGameState] = useState<'playing' | 'won' | 'lost' | 'creating' | 'waiting'>('playing');
+    const [gameState, setGameState] = useState<'playing' | 'won' | 'lost' | 'creating' | 'waiting'>('waiting');
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [activeRow, setActiveRow] = useState(0);
     const [showTutorial, setShowTutorial] = useState(false);
@@ -141,7 +141,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
         setFeedback(Array(MAX_ATTEMPTS).fill(null));
         setCurrentGuess([]);
         setActiveRow(0);
-        setGameState('playing');
+        setGameState('waiting'); // Changed from 'playing' to ensure no interaction before code is set
         setEarnedCoins(0);
         setResultMessage(null);
         setOpponentLeft(false);
@@ -150,15 +150,16 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
         setIsCodemaker(false);
     };
 
-    const startNewGame = () => {
+    const startNewGame = (modeOverride?: 'SOLO' | 'ONLINE') => {
         if (showTutorial) return;
+        const targetMode = modeOverride || gameMode;
         resetLocalGame();
         resumeAudio();
 
-        if (gameMode === 'SOLO') {
+        if (targetMode === 'SOLO') {
             const newCode = Array.from({ length: CODE_LENGTH }, () => Math.floor(Math.random() * COLORS.length));
             setSecretCode(newCode);
-            setGameState('playing');
+            setGameState('playing'); // Explicitly set playing after code gen
             playLand();
             if (onReportProgress) onReportProgress('play', 1);
         } else {
@@ -178,8 +179,8 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
     const initGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
         setPhase('GAME');
-        if (mode === 'SOLO') startNewGame();
-        else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame();
+        if (mode === 'SOLO') startNewGame('SOLO'); // Force passing mode
+        else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame('ONLINE');
     };
 
     // --- CODE CREATION LOGIC (HOST) ---
@@ -250,7 +251,8 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
 
     const handleSubmit = () => {
         if (showTutorial) return;
-        if (gameState !== 'playing' || currentGuess.length !== CODE_LENGTH || isCodemaker) return;
+        // Add safety check for empty secret code
+        if (gameState !== 'playing' || currentGuess.length !== CODE_LENGTH || isCodemaker || secretCode.length !== CODE_LENGTH) return;
 
         const currentFeedback = calculateFeedback(currentGuess, secretCode);
         
@@ -639,15 +641,20 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                                         )}
                                         <h2 className="text-3xl font-black italic text-white mb-2">{resultMessage || "PARTIE TERMINÉE"}</h2>
                                         
-                                        {!isCodemaker && secretCode.length > 0 && (
-                                            <>
-                                                <p className="text-gray-400 mb-4">Le code était :</p>
-                                                <div className="flex gap-2 mb-6">
+                                        {/* Always show code if available and not the one who set it (or even if set it, just to be sure in lost state for solo) */}
+                                        {secretCode.length > 0 && !isCodemaker && (
+                                            <div className="bg-white/5 p-4 rounded-xl border border-white/10 mb-6 flex flex-col items-center animate-in slide-in-from-bottom-4 fade-in duration-500">
+                                                <span className="text-xs text-gray-400 font-bold tracking-widest uppercase mb-2">Le Code Secret</span>
+                                                <div className="flex gap-3">
                                                     {secretCode.map((c, i) => (
-                                                        <div key={i} className={`w-8 h-8 rounded-full ${COLORS[c]} border-2 border-white/20`} />
+                                                        <div 
+                                                            key={i} 
+                                                            className={`w-10 h-10 rounded-full ${COLORS[c]} border-2 border-white/30 shadow-lg`}
+                                                            style={{ animationDelay: `${i * 100}ms` }}
+                                                        />
                                                     ))}
                                                 </div>
-                                            </>
+                                            </div>
                                         )}
                                     </>
                                 )}
