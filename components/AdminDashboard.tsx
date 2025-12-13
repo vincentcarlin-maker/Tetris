@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, Database, LayoutGrid, Trophy, X, Shield, Clock, Gamepad2, ChevronRight } from 'lucide-react';
+import { Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, Database, LayoutGrid, Trophy, X, Shield, Clock, Gamepad2, ChevronRight, Trash2, Ban, AlertTriangle, Check } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
 
@@ -14,6 +14,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     const [profiles, setProfiles] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
+    
+    // Action Confirmation State
+    const [confirmAction, setConfirmAction] = useState<{ type: 'DELETE' | 'BAN' | 'UNBAN', username: string } | null>(null);
 
     useEffect(() => {
         loadData();
@@ -38,6 +41,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     inventory: [],
                     ownedAvatars: [],
                     ownedFrames: [],
+                    banned: false // Mock banned status
                 }
             }));
             setProfiles(mockProfiles);
@@ -110,6 +114,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         p.username.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // --- ACTIONS ---
+    const handleAction = async () => {
+        if (!confirmAction) return;
+        const { type, username } = confirmAction;
+
+        if (type === 'DELETE') {
+            if (isSupabaseConfigured) {
+                await DB.deleteUser(username);
+            }
+            // Update local state
+            setProfiles(prev => prev.filter(p => p.username !== username));
+            if (selectedUser?.username === username) setSelectedUser(null);
+        } else if (type === 'BAN' || type === 'UNBAN') {
+            const isBanned = type === 'BAN';
+            if (isSupabaseConfigured) {
+                await DB.updateUserData(username, { banned: isBanned });
+            }
+            // Update local state
+            setProfiles(prev => prev.map(p => {
+                if (p.username === username) {
+                    return { ...p, data: { ...p.data, banned: isBanned } };
+                }
+                return p;
+            }));
+            // Update selected user view if open
+            if (selectedUser?.username === username) {
+                setSelectedUser(prev => ({ ...prev, data: { ...prev.data, banned: isBanned } }));
+            }
+        }
+        setConfirmAction(null);
+    };
+
     const StatCard = ({ title, value, sub, icon: Icon, color }: any) => (
         <div className={`bg-gray-900 border border-white/10 p-4 rounded-xl flex items-center gap-4 shadow-lg relative overflow-hidden group hover:border-${color}-500/50 transition-all`}>
             <div className={`absolute -right-6 -top-6 w-24 h-24 bg-${color}-500/10 rounded-full blur-2xl group-hover:bg-${color}-500/20 transition-all`}></div>
@@ -132,19 +168,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         const AvatarIcon = avatar.icon;
         const frame = FRAMES_CATALOG.find(f => f.id === selectedUser.data?.frameId) || FRAMES_CATALOG[0];
         const scores = selectedUser.data?.highScores || {};
+        const isBanned = selectedUser.data?.banned === true;
 
         return (
             <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center sm:p-4 animate-in fade-in zoom-in duration-200" onClick={() => setSelectedUser(null)}>
                 {/* Modale plein écran sur mobile (h-full rounded-none), popup sur desktop (sm:h-auto sm:rounded-2xl) */}
                 <div className="bg-gray-900 w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl border-0 sm:border border-white/20 shadow-2xl overflow-hidden relative flex flex-col" onClick={e => e.stopPropagation()}>
                     {/* Header */}
-                    <div className="p-6 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-white/10 flex justify-between items-start shrink-0">
-                        <div className="flex gap-4 items-center">
+                    <div className="p-6 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-white/10 flex justify-between items-start shrink-0 relative overflow-hidden">
+                        {isBanned && <div className="absolute inset-0 bg-red-500/10 pointer-events-none flex items-center justify-center"><span className="text-6xl font-black text-red-500/20 -rotate-12 select-none">BANNI</span></div>}
+                        <div className="flex gap-4 items-center relative z-10">
                             <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border-4 ${frame.cssClass}`}>
                                 <AvatarIcon size={32} className={`${avatar.color} sm:w-10 sm:h-10`} />
                             </div>
                             <div>
-                                <h2 className="text-xl sm:text-2xl font-black text-white italic">{selectedUser.username}</h2>
+                                <h2 className="text-xl sm:text-2xl font-black text-white italic flex items-center gap-2">
+                                    {selectedUser.username}
+                                    {isBanned && <Ban size={20} className="text-red-500" />}
+                                </h2>
                                 <p className="text-[10px] sm:text-xs text-gray-400 font-mono mt-1 mb-2">ID: {selectedUser.username}</p>
                                 <div className="flex gap-2">
                                     <span className="px-2 py-1 bg-blue-900/30 text-blue-400 border border-blue-500/30 rounded text-[10px] font-bold">
@@ -156,7 +197,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 </div>
                             </div>
                         </div>
-                        <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} className="text-gray-400 hover:text-white"/></button>
+                        <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors relative z-10"><X size={20} className="text-gray-400 hover:text-white"/></button>
                     </div>
 
                     {/* Content */}
@@ -210,6 +251,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 <pre>{JSON.stringify(selectedUser.data, null, 2)}</pre>
                             </div>
                         </div>
+
+                        {/* DANGER ZONE */}
+                        <div className="border-t border-white/10 pt-6">
+                            <h3 className="text-sm font-bold text-red-500 mb-4 flex items-center gap-2"><AlertTriangle size={16}/> ZONE DE DANGER</h3>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setConfirmAction({ type: isBanned ? 'UNBAN' : 'BAN', username: selectedUser.username })}
+                                    className={`flex-1 py-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all ${isBanned ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-orange-600/20 hover:bg-orange-600/40 text-orange-500 border border-orange-600/50'}`}
+                                >
+                                    {isBanned ? <><Check size={14}/> DÉBANNIR</> : <><Ban size={14}/> BANNIR</>}
+                                </button>
+                                <button 
+                                    onClick={() => setConfirmAction({ type: 'DELETE', username: selectedUser.username })}
+                                    className="flex-1 py-3 bg-red-600/20 hover:bg-red-600/40 text-red-500 border border-red-600/50 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all"
+                                >
+                                    <Trash2 size={14}/> SUPPRIMER
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -219,6 +279,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     return (
         <div className="h-full w-full bg-black/90 text-white font-sans overflow-hidden flex flex-col">
             {renderUserDetails()}
+
+            {/* CONFIRMATION MODAL */}
+            {confirmAction && (
+                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in zoom-in duration-200" onClick={() => setConfirmAction(null)}>
+                    <div className="bg-gray-900 w-full max-w-sm rounded-xl border border-white/20 p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                        <AlertTriangle size={48} className={`mx-auto mb-4 ${confirmAction.type === 'DELETE' ? 'text-red-500' : 'text-orange-500'}`} />
+                        <h3 className="text-xl font-black text-center text-white mb-2">CONFIRMATION</h3>
+                        <p className="text-gray-400 text-sm text-center mb-6">
+                            Êtes-vous sûr de vouloir {confirmAction.type === 'DELETE' ? 'supprimer définitivement' : confirmAction.type === 'BAN' ? 'bannir' : 'débannir'} l'utilisateur <strong className="text-white">{confirmAction.username}</strong> ?
+                            {confirmAction.type === 'DELETE' && <span className="block mt-2 text-red-400 font-bold">Cette action est irréversible.</span>}
+                        </p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setConfirmAction(null)} className="flex-1 py-3 bg-gray-800 rounded-lg text-white font-bold text-sm hover:bg-gray-700 transition-colors">ANNULER</button>
+                            <button onClick={handleAction} className={`flex-1 py-3 rounded-lg text-white font-bold text-sm transition-colors ${confirmAction.type === 'DELETE' ? 'bg-red-600 hover:bg-red-500' : 'bg-orange-600 hover:bg-orange-500'}`}>CONFIRMER</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <div className="bg-gray-900/80 border-b border-white/10 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center backdrop-blur-md z-10 shrink-0 gap-4 sm:gap-0">
@@ -319,6 +397,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                                         }
                                                     });
                                                 }
+                                                const isBanned = p.data?.banned;
 
                                                 return (
                                                     <tr key={p.username} className="hover:bg-white/5 transition-colors">
@@ -326,7 +405,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                                             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center border border-white/10 text-xs">
                                                                 {p.username.substring(0,2).toUpperCase()}
                                                             </div>
-                                                            {p.username}
+                                                            <div className="flex flex-col">
+                                                                {p.username}
+                                                                {isBanned && <span className="text-[9px] text-red-500 font-black tracking-widest bg-red-900/20 px-1 rounded w-fit">BANNI</span>}
+                                                            </div>
                                                         </td>
                                                         <td className="p-4 text-center text-yellow-400 font-mono">{p.data?.coins || 0}</td>
                                                         <td className="p-4 text-center text-gray-400 text-xs">
@@ -357,6 +439,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                                 }
                                             });
                                         }
+                                        const isBanned = p.data?.banned;
 
                                         return (
                                             <div key={p.username} onClick={() => setSelectedUser(p)} className="bg-gray-800/50 p-4 rounded-xl border border-white/5 flex flex-col gap-3 active:scale-95 transition-transform cursor-pointer">
@@ -365,7 +448,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center border border-white/10 text-xs font-bold text-white">
                                                             {p.username.substring(0,2).toUpperCase()}
                                                         </div>
-                                                        <span className="font-bold text-white text-sm">{p.username}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-white text-sm">{p.username}</span>
+                                                            {isBanned && <span className="text-[8px] text-red-500 font-black tracking-widest">BANNI</span>}
+                                                        </div>
                                                     </div>
                                                     <div className="flex items-center gap-1 text-yellow-400 font-mono text-sm">
                                                         <Coins size={12} /> {p.data?.coins || 0}

@@ -119,6 +119,50 @@ export const DB = {
         }
     },
 
+    // --- ADMIN ACTIONS ---
+    
+    // Supprimer un utilisateur
+    deleteUser: async (username: string) => {
+        if (!supabase) return { success: false, error: "Offline mode" };
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('username', username);
+            
+            if (error) throw error;
+            return { success: true };
+        } catch (e) {
+            console.error("Delete user failed:", e);
+            return { success: false, error: e };
+        }
+    },
+
+    // Mettre à jour uniquement les données (pour Ban/Unban)
+    updateUserData: async (username: string, newData: any) => {
+        if (!supabase) return { success: false, error: "Offline mode" };
+        try {
+            // On récupère d'abord pour merger proprement
+            const { data: existing } = await supabase
+                .from('profiles')
+                .select('data')
+                .eq('username', username)
+                .single();
+
+            const merged = { ...(existing?.data || {}), ...newData };
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({ data: merged, updated_at: new Date().toISOString() })
+                .eq('username', username);
+
+            if (error) throw error;
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e };
+        }
+    },
+
     getGlobalLeaderboard: async () => {
         if (!supabase) return [];
         try {
