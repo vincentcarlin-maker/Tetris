@@ -84,8 +84,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     const connectionStats = getConnectionStats();
     const maxConnectionCount = Math.max(...connectionStats, 10); // Minimum scale of 10 to avoid full bars for low counts
 
-    // Total Economy
-    const totalCoins = profiles.reduce((acc, p) => acc + (p.data?.coins || 0), 0);
+    // Total Economy (Excluding Admin 'Vincent')
+    const totalCoins = profiles.reduce((acc, p) => {
+        if (p.username === 'Vincent') return acc;
+        return acc + (p.data?.coins || 0);
+    }, 0);
 
     // Game Popularity (Count users who have a score > 0)
     const gameStats: Record<string, number> = {};
