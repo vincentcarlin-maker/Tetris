@@ -26,10 +26,10 @@ export const SkyjoCard: React.FC<SkyjoCardProps> = ({ card, onClick, interactive
 
     const neonClass = getNeonStyle(card.value);
     
-    // Tailles
+    // Tailles Responsives : Plus petit sur mobile (w-10 h-14), Normal sur Desktop (w-20 h-28)
     const sizeClasses = small 
         ? 'w-8 h-12 text-xs rounded border' 
-        : 'w-16 h-24 sm:w-20 sm:h-28 text-3xl sm:text-4xl rounded-xl border-2';
+        : 'w-10 h-14 sm:w-20 sm:h-28 text-lg sm:text-4xl rounded-md sm:rounded-xl border sm:border-2';
 
     // Visibilité
     const opacityClass = card.isCleared ? 'opacity-0 pointer-events-none' : 'opacity-100';
@@ -53,7 +53,7 @@ export const SkyjoCard: React.FC<SkyjoCardProps> = ({ card, onClick, interactive
             <style>{`.preserve-3d { transform-style: preserve-3d; } .backface-hidden { backface-visibility: hidden; } .rotate-y-180 { transform: rotateY(180deg); }`}</style>
 
             {/* FACE AVANT (Révélée) - Style Cyberpunk */}
-            <div className={`absolute inset-0 backface-hidden flex flex-col items-center justify-center font-black bg-gray-950 ${neonClass} backdrop-blur-md overflow-hidden rounded-xl`}>
+            <div className={`absolute inset-0 backface-hidden flex flex-col items-center justify-center font-black bg-gray-950 ${neonClass} backdrop-blur-md overflow-hidden rounded-md sm:rounded-xl`}>
                 
                 {/* Texture de fond "Tech" légère */}
                 <div className="absolute inset-0 opacity-20 pointer-events-none" 
@@ -68,18 +68,15 @@ export const SkyjoCard: React.FC<SkyjoCardProps> = ({ card, onClick, interactive
                 
                 {!small && (
                     <>
-                        {/* Valeurs aux coins */}
-                        <span className="absolute top-1 left-2 text-xs opacity-80 font-mono">{card.value}</span>
-                        <span className="absolute bottom-1 right-2 text-xs opacity-80 transform rotate-180 font-mono">{card.value}</span>
-                        
-                        {/* Élément décoratif central (cercle fin) */}
-                        <div className="absolute inset-0 m-auto w-12 h-12 rounded-full border border-current opacity-20 pointer-events-none"></div>
+                        {/* Valeurs aux coins (Caché sur mobile très petit pour clarté) */}
+                        <span className="hidden sm:block absolute top-1 left-2 text-xs opacity-80 font-mono">{card.value}</span>
+                        <span className="hidden sm:block absolute bottom-1 right-2 text-xs opacity-80 transform rotate-180 font-mono">{card.value}</span>
                     </>
                 )}
             </div>
 
             {/* FACE ARRIÈRE (Cachée) - Motif Néon Grid */}
-            <div className={`absolute inset-0 backface-hidden rotate-y-180 bg-black border-2 border-slate-700 flex flex-col items-center justify-center rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.8)] overflow-hidden`}>
+            <div className={`absolute inset-0 backface-hidden rotate-y-180 bg-black border sm:border-2 border-slate-700 flex flex-col items-center justify-center rounded-md sm:rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.8)] overflow-hidden`}>
                 
                 {/* Grille Néon violette en fond */}
                 <div className="absolute inset-0 opacity-30" 
@@ -93,8 +90,8 @@ export const SkyjoCard: React.FC<SkyjoCardProps> = ({ card, onClick, interactive
                 </div>
 
                 {/* Logo central stylisé */}
-                <div className="relative z-10 transform -rotate-12 border-2 border-neon-blue px-2 py-1 rounded bg-black/80 shadow-[0_0_10px_#00f3ff]">
-                    <span className="font-script text-neon-pink text-lg drop-shadow-[0_0_5px_#ff00ff]">Neon</span>
+                <div className="relative z-10 transform -rotate-12 border sm:border-2 border-neon-blue px-1 sm:px-2 py-0.5 sm:py-1 rounded bg-black/80 shadow-[0_0_10px_#00f3ff]">
+                    <span className="font-script text-neon-pink text-xs sm:text-lg drop-shadow-[0_0_5px_#ff00ff]">Neon</span>
                 </div>
                 
                 {showValueForDebug && <span className="absolute bottom-0 left-0 right-0 text-center text-[8px] text-gray-500 bg-black">{card.value}</span>}
