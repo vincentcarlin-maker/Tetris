@@ -128,6 +128,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     
     const [activityLog, setActivityLog] = useState<{id: number, text: string, type: 'game'|'login'|'win'}[]>([]);
 
+    // NEW: Global Chat / System Messages
+    const [globalChat, setGlobalChat] = useState<{id: number, text: string, sender: string, isSystem: boolean, type?: string}[]>([]);
+
     const [btnTop, setBtnTop] = useState(window.innerHeight / 3);
     const isDraggingRef = useRef(false);
     const dragStartRef = useRef(0);
@@ -138,6 +141,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const notificationTimerRef = useRef<any>(null);
 
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const globalChatEndRef = useRef<HTMLDivElement>(null);
 
     // --- STABLE REFS FOR SUBSCRIPTIONS ---
     // Includes onlineUsers to resolve IDs without re-subscribing
@@ -176,16 +180,37 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         isDraggingRef.current = false;
     }, []);
 
-    // Listen for admin events to update activity log
+    // Listen for admin events to update activity log AND global chat
     useEffect(() => {
         const handleAdminEvent = (e: CustomEvent) => {
             const { message, type } = e.detail;
             if (message) {
+                // Add to Activity Log
                 setActivityLog(prev => [{ 
                     id: Date.now(), 
                     text: `[ADMIN] ${message}`, 
-                    type: type === 'warning' ? 'win' : 'game' // Abuse 'win' type for highlighted admin messages
+                    type: type === 'warning' ? 'win' : 'game'
                 }, ...prev].slice(0, 15));
+
+                // Add to Global Chat / Notification as "Neon Arcade"
+                setGlobalChat(prev => [...prev, {
+                    id: Date.now(),
+                    text: message,
+                    sender: 'Neon Arcade',
+                    isSystem: true,
+                    type: type
+                }]);
+                
+                // Show notification if social is closed
+                if (!stateRef.current.showSocial) {
+                    setNotificationPreview({ 
+                        senderId: 'system', 
+                        senderName: 'Neon Arcade', 
+                        text: message 
+                    });
+                    if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current);
+                    notificationTimerRef.current = setTimeout(() => setNotificationPreview(null), 5000);
+                }
             }
         };
         window.addEventListener('neon_admin_event', handleAdminEvent as EventListener);
@@ -231,10 +256,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         setConfigUrl(conf.url);
         setConfigKey(conf.key);
     }, [isConnectedToSupabase, username]);
-
-    // ... (Reste du code inchangé jusqu'au return du composant) ...
-    // Je ré-inclus la partie inchangée pour garder le contexte mais abrégé pour la réponse XML.
-    // L'essentiel du changement est l'ajout du listener 'neon_admin_event' ci-dessus.
 
     // --- REALTIME FRIEND REQUESTS SUBSCRIPTION ---
     useEffect(() => {
@@ -399,6 +420,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     }, [onlineUsers, friends]);
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, activeChatId, showSocial, isLoadingHistory]);
+    useEffect(() => { globalChatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [globalChat, showSocial, socialTab]);
 
     // --- ACTIONS ---
     const sendFriendRequest = (targetId: string) => {
@@ -524,7 +546,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
             
             if (notificationPreview) {
                 setSocialTab('CHAT');
-                openChat(notificationPreview.senderId);
+                // Only open private chat if notification isn't system
+                if (notificationPreview.senderId !== 'system') {
+                    openChat(notificationPreview.senderId);
+                } else {
+                    setSocialTab('COMMUNITY'); // Go to community tab for system messages
+                }
             } else if (unreadCount > 0 && activeChatId) {
                 setSocialTab('CHAT');
             }
@@ -582,7 +609,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                         </div>
                         <p className="text-xs text-white truncate group-hover:text-purple-100">{notificationPreview.text}</p>
                         <div className="text-[10px] text-purple-500 font-bold flex items-center gap-1 mt-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                            RÉPONDRE <ChevronRight size={12} />
+                            OUVRIR <ChevronRight size={12} />
                         </div>
                     </div>
                 )}
@@ -644,6 +671,25 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                     <div className={`border p-3 rounded-lg text-center mb-2 flex items-center justify-center gap-2 ${isConnectedToSupabase ? 'bg-green-900/20 border-green-500/30 text-green-400' : 'bg-gray-800/50 border-white/10 text-gray-400'}`}>
                                         {isConnectedToSupabase ? ( <><Cloud size={16} /> <span className="text-xs font-bold">CONNECTÉ</span></> ) : !isSupabaseConfigured ? ( <><CloudOff size={16} /> <span className="text-xs font-bold">MODE HORS-LIGNE</span></> ) : ( <><Wifi size={16} className="animate-pulse" /> <span className="text-xs font-bold">CONNEXION...</span></> )}
                                     </div>
+
+                                    {/* GLOBAL CHAT AREA */}
+                                    {globalChat.length > 0 && (
+                                        <div className="bg-black/40 rounded-lg p-2 border border-white/5 mb-4">
+                                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-1 flex items-center gap-1"><MessageSquare size={10}/> Chat Global</p>
+                                            <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar-thin">
+                                                {globalChat.map(msg => (
+                                                    <div key={msg.id} className="text-xs flex flex-col bg-white/5 p-1.5 rounded border border-white/5">
+                                                        <div className="flex justify-between items-center mb-0.5">
+                                                            <span className="font-bold text-neon-blue text-[10px]">{msg.sender}</span>
+                                                            <span className="text-[8px] text-gray-500">{new Date(msg.id).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                        </div>
+                                                        <span className="text-white break-words">{msg.text}</span>
+                                                    </div>
+                                                ))}
+                                                <div ref={globalChatEndRef}/>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* FRIEND CODE DISPLAY */}
                                     <div className="bg-gray-800/40 p-2 rounded-lg border border-white/5 flex items-center justify-between mb-4 shadow-sm">

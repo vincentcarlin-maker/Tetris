@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -35,6 +35,14 @@ interface MainMenuProps {
         description: string;
         type: 'XP_BOOST' | 'TOURNAMENT' | 'SPECIAL_QUEST' | 'COMMUNITY';
         active: boolean;
+        startDate: string;
+        endDate: string;
+        theme?: {
+            primaryColor: string;
+            backgroundImage?: string;
+        };
+        objectives?: { type: string, target: number, gameIds: string[] }[];
+        rewards?: { coins: number, badgeId?: string, skinId?: string };
     };
 }
 
@@ -211,6 +219,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [showScores, setShowScores] = useState(false);
     const [scoreTab, setScoreTab] = useState<'LOCAL' | 'GLOBAL'>('LOCAL');
     const [activeCategory, setActiveCategory] = useState('ALL');
+    const [showEventInfo, setShowEventInfo] = useState(false);
     
     const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, claimAllBonus, allCompletedBonusClaimed } = dailyData;
 
@@ -353,32 +362,110 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  <ArcadeLogo />
 
-                 {/* EVENT BANNER - ALWAYS VISIBLE IF ACTIVE */}
+                 {/* EVENT BANNER - CLICKABLE FOR DETAILS */}
                  {activeEvent && (
-                     <div className={`w-full mt-4 p-4 rounded-xl border-2 flex items-center justify-between shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 ${
-                         activeEvent.type === 'XP_BOOST' ? 'bg-yellow-900/60 border-yellow-400 text-yellow-100 shadow-yellow-500/20' :
-                         activeEvent.type === 'TOURNAMENT' ? 'bg-purple-900/60 border-purple-400 text-purple-100 shadow-purple-500/20' :
-                         activeEvent.type === 'SPECIAL_QUEST' ? 'bg-green-900/60 border-green-400 text-green-100 shadow-green-500/20' :
-                         'bg-blue-900/60 border-blue-400 text-blue-100 shadow-blue-500/20'
-                     } backdrop-blur-md`}>
-                         <div className="flex items-center gap-4">
-                             <div className={`p-2 rounded-full border-2 bg-black/30 ${
-                                 activeEvent.type === 'XP_BOOST' ? 'border-yellow-400 text-yellow-400' :
-                                 activeEvent.type === 'TOURNAMENT' ? 'border-purple-400 text-purple-400' :
-                                 activeEvent.type === 'SPECIAL_QUEST' ? 'border-green-400 text-green-400' :
-                                 'border-blue-400 text-blue-400'
-                             }`}>
+                     <div 
+                        onClick={() => setShowEventInfo(true)}
+                        className={`w-full mt-4 p-4 rounded-xl border-2 flex items-center justify-between shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 backdrop-blur-md cursor-pointer relative overflow-hidden group hover:scale-[1.02] transition-transform`}
+                        style={{
+                            borderColor: activeEvent.theme?.primaryColor || (
+                                activeEvent.type === 'XP_BOOST' ? '#facc15' :
+                                activeEvent.type === 'TOURNAMENT' ? '#a855f7' :
+                                activeEvent.type === 'SPECIAL_QUEST' ? '#4ade80' : '#3b82f6'
+                            ),
+                            background: activeEvent.theme?.backgroundImage ? `${activeEvent.theme.backgroundImage}` : (
+                                activeEvent.type === 'XP_BOOST' ? 'rgba(133, 77, 14, 0.6)' :
+                                activeEvent.type === 'TOURNAMENT' ? 'rgba(88, 28, 135, 0.6)' :
+                                activeEvent.type === 'SPECIAL_QUEST' ? 'rgba(20, 83, 45, 0.6)' :
+                                'rgba(30, 58, 138, 0.6)'
+                            )
+                        }}
+                     >
+                         <div className="flex items-center gap-4 z-10">
+                             <div className="p-2 rounded-full border-2 bg-black/30" style={{ borderColor: activeEvent.theme?.primaryColor || 'inherit', color: activeEvent.theme?.primaryColor || 'inherit' }}>
                                  {activeEvent.type === 'XP_BOOST' && <Zap size={24} className="animate-pulse"/>}
                                  {activeEvent.type === 'TOURNAMENT' && <Trophy size={24} className="animate-bounce"/>}
                                  {activeEvent.type === 'SPECIAL_QUEST' && <Star size={24} className="animate-spin-slow"/>}
                                  {activeEvent.type === 'COMMUNITY' && <Users size={24} className="animate-pulse"/>}
                              </div>
                              <div className="flex flex-col">
-                                 <span className="text-[10px] font-black tracking-[0.2em] opacity-80 uppercase">{activeEvent.type.replace('_', ' ')}</span>
-                                 <span className="font-black text-lg uppercase leading-tight drop-shadow-md">{activeEvent.title}</span>
+                                 <span className="text-[10px] font-black tracking-[0.2em] opacity-80 uppercase" style={{ color: activeEvent.theme?.primaryColor || 'white' }}>{activeEvent.type.replace('_', ' ')}</span>
+                                 <span className="font-black text-lg uppercase leading-tight drop-shadow-md text-white">{activeEvent.title}</span>
                              </div>
                          </div>
-                         <div className="px-3 py-1 bg-white/20 rounded-lg text-xs font-black tracking-wider animate-pulse border border-white/30">EN COURS</div>
+                         <div className="px-3 py-1 bg-white/20 rounded-lg text-xs font-black tracking-wider animate-pulse border border-white/30 text-white z-10 flex items-center gap-1">
+                             <Info size={12} /> DÉTAILS
+                         </div>
+                         
+                         {/* Shine Effect */}
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"></div>
+                     </div>
+                 )}
+
+                 {/* EVENT DETAILS MODAL */}
+                 {showEventInfo && activeEvent && (
+                     <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowEventInfo(false)}>
+                         <div className="bg-gray-900 w-full max-w-md rounded-2xl border-2 shadow-2xl overflow-hidden flex flex-col relative" style={{ borderColor: activeEvent.theme?.primaryColor || '#fff' }} onClick={e => e.stopPropagation()}>
+                             <button onClick={() => setShowEventInfo(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white z-20"><X size={24}/></button>
+                             
+                             <div className="p-6 relative overflow-hidden" style={{ background: activeEvent.theme?.backgroundImage ? `${activeEvent.theme.backgroundImage}` : 'bg-gray-800' }}>
+                                 <div className="absolute inset-0 bg-black/60"></div>
+                                 <div className="relative z-10 flex flex-col items-center text-center">
+                                     <h2 className="text-2xl font-black text-white italic uppercase drop-shadow-lg mb-2">{activeEvent.title}</h2>
+                                     <p className="text-sm text-gray-200">{activeEvent.description}</p>
+                                     <div className="mt-4 flex items-center gap-4 text-xs font-mono font-bold text-white bg-black/40 px-3 py-1 rounded border border-white/20">
+                                         <span>{new Date(activeEvent.startDate).toLocaleDateString()}</span>
+                                         <span>➔</span>
+                                         <span>{new Date(activeEvent.endDate).toLocaleDateString()}</span>
+                                     </div>
+                                 </div>
+                             </div>
+
+                             <div className="p-6 bg-gray-900 space-y-6">
+                                 {activeEvent.objectives && activeEvent.objectives.length > 0 && (
+                                     <div>
+                                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Target size={14}/> OBJECTIFS</h4>
+                                         <div className="space-y-3">
+                                             {activeEvent.objectives.map((obj, i) => (
+                                                 <div key={i} className="bg-gray-800 p-3 rounded-lg border border-white/10">
+                                                     <div className="flex justify-between text-sm text-white mb-1">
+                                                         <span>{obj.type === 'PLAY_GAMES' ? 'Jouer des parties' : obj.type === 'REACH_SCORE' ? 'Atteindre un score' : 'Gagner des pièces'}</span>
+                                                         <span className="font-mono font-bold" style={{ color: activeEvent.theme?.primaryColor }}>0 / {obj.target}</span>
+                                                     </div>
+                                                     <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
+                                                         <div className="h-full w-0" style={{ backgroundColor: activeEvent.theme?.primaryColor || '#fff' }}></div>
+                                                     </div>
+                                                     <p className="text-[10px] text-gray-500 mt-1">{obj.gameIds.length > 0 ? `Sur : ${obj.gameIds.join(', ')}` : 'Sur tous les jeux'}</p>
+                                                 </div>
+                                             ))}
+                                         </div>
+                                     </div>
+                                 )}
+
+                                 {activeEvent.rewards && (
+                                     <div>
+                                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Gift size={14}/> RÉCOMPENSES</h4>
+                                         <div className="flex gap-2">
+                                             {activeEvent.rewards.coins > 0 && (
+                                                 <div className="px-3 py-2 bg-yellow-900/20 border border-yellow-500/30 rounded-lg flex items-center gap-2 text-yellow-400 font-bold text-sm">
+                                                     <Coins size={16}/> {activeEvent.rewards.coins}
+                                                 </div>
+                                             )}
+                                             {activeEvent.rewards.badgeId && (
+                                                 <div className="px-3 py-2 bg-purple-900/20 border border-purple-500/30 rounded-lg flex items-center gap-2 text-purple-400 font-bold text-sm">
+                                                     <Shield size={16}/> BADGE
+                                                 </div>
+                                             )}
+                                             {activeEvent.rewards.skinId && (
+                                                 <div className="px-3 py-2 bg-pink-900/20 border border-pink-500/30 rounded-lg flex items-center gap-2 text-pink-400 font-bold text-sm">
+                                                     <Palette size={16}/> SKIN
+                                                 </div>
+                                             )}
+                                         </div>
+                                     </div>
+                                 )}
+                             </div>
+                         </div>
                      </div>
                  )}
 
