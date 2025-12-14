@@ -345,9 +345,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         handleDataRef.current = (data: any) => {
             // Handshake Logic
             if (data.type === 'CHECKERS_READY') {
+                // IMPORTANT: Always reply INIT to unblock guest, even if we are not waiting (e.g. lost packet)
+                mp.sendData({ type: 'CHECKERS_INIT' }); 
                 if (isWaitingForGuest) {
                     setIsWaitingForGuest(false);
-                    mp.sendData({ type: 'CHECKERS_INIT' }); // Unlock guest
                 }
             }
             if (data.type === 'CHECKERS_INIT') {
