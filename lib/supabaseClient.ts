@@ -119,6 +119,42 @@ export const DB = {
         }
     },
 
+    // --- SYSTEM CONFIG (Admin Persistance) ---
+    getSystemConfig: async () => {
+        if (!supabase) return null;
+        try {
+            const { data } = await supabase
+                .from('profiles')
+                .select('data')
+                .eq('username', 'SYSTEM_CONFIG')
+                .single();
+            return data?.data || null;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    saveSystemConfig: async (config: any) => {
+        if (!supabase) return;
+        try {
+            const { data: existing } = await supabase
+                .from('profiles')
+                .select('data')
+                .eq('username', 'SYSTEM_CONFIG')
+                .single();
+                
+            const merged = { ...(existing?.data || {}), ...config };
+            
+            await supabase.from('profiles').upsert({
+                username: 'SYSTEM_CONFIG',
+                data: merged,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'username' });
+        } catch (e) {
+            console.error("System config save failed", e);
+        }
+    },
+
     // --- ADMIN ACTIONS ---
     
     // Supprimer un utilisateur

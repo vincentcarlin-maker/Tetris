@@ -29,6 +29,7 @@ import { useMultiplayer } from './hooks/useMultiplayer';
 import { useDailySystem } from './hooks/useDailySystem';
 import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
+import { DB } from './lib/supabaseClient';
 import { AlertTriangle, Info } from 'lucide-react';
 
 
@@ -45,10 +46,10 @@ const App: React.FC = () => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
 
-    // Global Events State - Initialisé vide, mis à jour par l'Admin ou le LocalStorage
+    // Global Events State
     const [globalEvents, setGlobalEvents] = useState<any[]>(() => {
         try { 
-            return JSON.parse(localStorage.getItem('neon_global_events') || '[]');
+            return JSON.parse(localStorage.getItem('neon_admin_events') || '[]');
         } catch { return []; }
     });
 
@@ -86,6 +87,25 @@ const App: React.FC = () => {
     );
 
     const saveTimeoutRef = useRef<any>(null);
+
+    // Initial Load of System Config (Ensure all players have the latest rules)
+    useEffect(() => {
+        const loadSystemConfig = async () => {
+            if (!isConnectedToSupabase) return;
+            const sysConfig = await DB.getSystemConfig();
+            if (sysConfig) {
+                if (sysConfig.disabledGames && Array.isArray(sysConfig.disabledGames)) {
+                    setDisabledGames(sysConfig.disabledGames);
+                    localStorage.setItem('neon_disabled_games', JSON.stringify(sysConfig.disabledGames));
+                }
+                if (sysConfig.events && Array.isArray(sysConfig.events)) {
+                    setGlobalEvents(sysConfig.events);
+                    localStorage.setItem('neon_admin_events', JSON.stringify(sysConfig.events));
+                }
+            }
+        };
+        loadSystemConfig();
+    }, [isConnectedToSupabase]);
 
     const buildSavePayload = () => {
         const cachedPassword = localStorage.getItem('neon_current_password');
@@ -128,7 +148,7 @@ const App: React.FC = () => {
         const handleAdminEvent = (e: CustomEvent) => {
             const { message, type, data } = e.detail;
             
-            // Handle Config Updates silently
+            // Handle Config Updates
             if (type === 'game_config') {
                 if (Array.isArray(data)) {
                     setDisabledGames(data);
@@ -139,26 +159,29 @@ const App: React.FC = () => {
                     if (data.includes(currentView) && !isImmune && currentView !== 'menu' && currentView !== 'shop') {
                         setCurrentView('menu');
                         setGlobalAlert({ message: "Ce jeu a été désactivé par l'administrateur.", type: 'warning' });
+                        setTimeout(() => setGlobalAlert(null), 5000);
+                        return; // Stop further processing to prioritize kick
                     }
                 }
-                return;
             }
 
             // Handle Event Sync
             if (type === 'sync_events') {
                 if (Array.isArray(data)) {
                     setGlobalEvents(data);
-                    localStorage.setItem('neon_global_events', JSON.stringify(data));
+                    localStorage.setItem('neon_admin_events', JSON.stringify(data));
                 }
-                return;
+                if (!message) return; // Silent sync if no message
             }
 
-            // Handle Text Alerts
-            setGlobalAlert({ message, type });
-            if (type === 'warning') audio.playGameOver(); 
-            else audio.playVictory();
-            
-            setTimeout(() => setGlobalAlert(null), 8000);
+            // Handle Text Alerts (Display the banner)
+            if (message) {
+                setGlobalAlert({ message, type: type === 'game_config' ? 'info' : type });
+                if (type === 'warning') audio.playGameOver(); 
+                else audio.playVictory();
+                
+                setTimeout(() => setGlobalAlert(null), 5000);
+            }
         };
         window.addEventListener('neon_admin_event', handleAdminEvent as EventListener);
         return () => window.removeEventListener('neon_admin_event', handleAdminEvent as EventListener);
@@ -279,12 +302,12 @@ const App: React.FC = () => {
     const currentActiveEvent = globalEvents.find(e => {
         if (!e.active) return false;
         const now = new Date();
+        // Convert dates to timestamps for safer comparison
         const start = new Date(e.startDate);
-        const end = new Date(e.endDate);
-        // Normalize time to ensure whole-day validity
         start.setHours(0, 0, 0, 0);
+        const end = new Date(e.endDate);
         end.setHours(23, 59, 59, 999);
-        return now >= start && now <= end;
+        return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
     });
 
     return (
