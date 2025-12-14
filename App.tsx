@@ -30,7 +30,7 @@ import { useDailySystem } from './hooks/useDailySystem';
 import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
 import { DB } from './lib/supabaseClient';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, Construction } from 'lucide-react';
 
 
 type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'shop' | 'admin_dashboard';
@@ -45,6 +45,13 @@ const App: React.FC = () => {
     // Global Disabled Games State (Loaded from LS first, then updated via Broadcast)
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
+    });
+
+    // Feature Flags (Maintenance, etc.)
+    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
+        try { 
+            return JSON.parse(localStorage.getItem('neon_feature_flags') || '{}');
+        } catch { return {}; }
     });
 
     // Global Events State
@@ -107,6 +114,10 @@ const App: React.FC = () => {
                 if (sysConfig.events && Array.isArray(sysConfig.events)) {
                     setGlobalEvents(sysConfig.events);
                     localStorage.setItem('neon_admin_events', JSON.stringify(sysConfig.events));
+                }
+                if (sysConfig.featureFlags) {
+                    setFeatureFlags(sysConfig.featureFlags);
+                    localStorage.setItem('neon_feature_flags', JSON.stringify(sysConfig.featureFlags));
                 }
             }
         };
@@ -177,6 +188,7 @@ const App: React.FC = () => {
             // Handle Config Updates
             if (type === 'game_config') {
                 if (Array.isArray(data)) {
+                    // It's a disabled games list update
                     setDisabledGames(data);
                     localStorage.setItem('neon_disabled_games', JSON.stringify(data));
                     
@@ -186,8 +198,12 @@ const App: React.FC = () => {
                         setCurrentView('menu');
                         setGlobalAlert({ message: "Ce jeu a été désactivé par l'administrateur.", type: 'warning' });
                         setTimeout(() => setGlobalAlert(null), 5000);
-                        return; // Stop further processing to prioritize kick
+                        return;
                     }
+                } else if (data && data.flags) {
+                    // It's a feature flags update
+                    setFeatureFlags(data.flags);
+                    localStorage.setItem('neon_feature_flags', JSON.stringify(data.flags));
                 }
             }
 
@@ -209,7 +225,6 @@ const App: React.FC = () => {
                         audio.playVictory();
                         
                         // FORCE immediate cloud sync to acknowledge receipt and prevent overwrite
-                        // We set isCloudSynced to true here because we are explicitly handling an update
                         setIsCloudSynced(true);
                         setTimeout(() => {
                              syncProfileToCloud(currency.username, buildSavePayload());
@@ -407,6 +422,24 @@ const App: React.FC = () => {
         reportQuestProgress(gameId, eventType, value);
         updateEventProgress(gameId, eventType, value);
     }, [reportQuestProgress, updateEventProgress]);
+
+    // --- MAINTENANCE MODE CHECK ---
+    const isMaintenance = featureFlags.maintenance_mode;
+    const isImmune = currency.username === 'Vincent' || currency.adminModeActive;
+    
+    if (isMaintenance && !isImmune) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen w-screen bg-black/90 p-4 text-center animate-in fade-in">
+                <div className="p-6 rounded-2xl bg-gray-900 border-2 border-yellow-500/50 shadow-[0_0_50px_rgba(234,179,8,0.3)] max-w-md">
+                    <Construction size={64} className="mx-auto text-yellow-500 mb-6 animate-pulse"/>
+                    <h1 className="text-3xl font-black text-white mb-2">MAINTENANCE</h1>
+                    <p className="text-gray-400 mb-6">Le serveur est actuellement en cours de mise à jour. Veuillez revenir plus tard.</p>
+                    {isAuthenticated && <p className="text-xs text-gray-600 font-mono mb-4">ID: {currency.username}</p>}
+                    <button onClick={handleLogout} className="px-6 py-2 bg-gray-800 text-gray-300 rounded-full hover:text-white transition-colors text-sm font-bold border border-white/10">Se déconnecter</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>

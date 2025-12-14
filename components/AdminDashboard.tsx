@@ -184,7 +184,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setDisabledGames(newArr);
         localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
         
-        // Broadcast
+        // Broadcast - Pass array directly
         mp.sendAdminBroadcast(disabledGames.includes(gameId) ? 'Jeu réactivé' : 'Jeu en maintenance', 'game_config', newArr);
         
         // Save to Cloud Config
@@ -197,8 +197,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setFeatureFlags(prev => {
             const newState = { ...prev, [key]: !prev[key] };
             localStorage.setItem('neon_feature_flags', JSON.stringify(newState));
-            // Broadcast the change (clients can listen to 'game_config' if implemented)
+            
+            // Broadcast the change (clients listen to 'game_config' looking for 'flags' prop)
             mp.sendAdminBroadcast(`Feature Flag Updated: ${key.toUpperCase()} -> ${newState[key] ? 'ON' : 'OFF'}`, 'game_config', { flags: newState });
+            
+            // Persist to Cloud
+            if (isSupabaseConfigured) {
+                DB.saveSystemConfig({ featureFlags: newState });
+            }
+            
             return newState;
         });
     };
@@ -234,7 +241,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         }
         
         // 2. Broadcast to user (if online) to update their local state instantly
-        // This prevents the user's next auto-save from overwriting the DB with old coin values
         mp.sendAdminBroadcast(
             `🎁 Cadeau Admin : +${giftAmount} Pièces !`, 
             'user_update', 
