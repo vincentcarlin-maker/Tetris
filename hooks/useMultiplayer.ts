@@ -296,12 +296,12 @@ export const useMultiplayer = () => {
         }
     }, []);
 
-    const sendAdminBroadcast = useCallback((message: string, type: 'info' | 'warning' | 'reload' = 'info') => {
+    const sendAdminBroadcast = useCallback((message: string, type: 'info' | 'warning' | 'reload' | 'game_config' = 'info', data?: any) => {
         if (lobbyChannelRef.current) {
             lobbyChannelRef.current.send({
                 type: 'broadcast',
                 event: 'admin_broadcast',
-                payload: { message, type, timestamp: Date.now() }
+                payload: { message, type, data, timestamp: Date.now() }
             });
         }
     }, []);

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, Database, LayoutGrid, Trophy, X, Shield, Clock, Gamepad2, ChevronRight, Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone } from 'lucide-react';
+import { Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, Database, LayoutGrid, Trophy, X, Shield, Clock, Gamepad2, ChevronRight, Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone, Edit2, Settings } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -22,8 +22,29 @@ const GAME_COLORS: Record<string, string> = {
     'shop': 'text-orange-400 border-orange-500/50 bg-orange-900/20'
 };
 
+const GAMES_LIST = [
+    { id: 'tetris', name: 'Tetris' },
+    { id: 'connect4', name: 'Connect 4' },
+    { id: 'sudoku', name: 'Sudoku' },
+    { id: 'breaker', name: 'Breaker' },
+    { id: 'pacman', name: 'Pacman' },
+    { id: 'memory', name: 'Memory' },
+    { id: 'battleship', name: 'Bataille' },
+    { id: 'snake', name: 'Snake' },
+    { id: 'invaders', name: 'Invaders' },
+    { id: 'airhockey', name: 'Air Hockey' },
+    { id: 'mastermind', name: 'Mastermind' },
+    { id: 'uno', name: 'Uno' },
+    { id: 'watersort', name: 'Neon Mix' },
+    { id: 'checkers', name: 'Dames' },
+    { id: 'runner', name: 'Neon Run' },
+    { id: 'stack', name: 'Stack' },
+    { id: 'arenaclash', name: 'Arena' },
+    { id: 'skyjo', name: 'Skyjo' }
+];
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onlineUsers }) => {
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'USERS' | 'LIVE' | 'BROADCAST'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'USERS' | 'LIVE' | 'BROADCAST' | 'GAMES'>('OVERVIEW');
     const [loading, setLoading] = useState(false);
     const [profiles, setProfiles] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +59,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     // Action Confirmation State
     const [confirmAction, setConfirmAction] = useState<{ type: 'DELETE' | 'BAN' | 'UNBAN', username: string } | null>(null);
+
+    // Games Management
+    const [disabledGames, setDisabledGames] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
+    });
 
     useEffect(() => {
         if (activeTab === 'USERS' || activeTab === 'OVERVIEW') {
@@ -103,6 +129,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     // Filter Users
     const filteredUsers = profiles.filter(p => p.username.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    // --- GAME MANAGEMENT ---
+    const toggleGameAvailability = (gameId: string) => {
+        const newArr = disabledGames.includes(gameId) ? disabledGames.filter(id => id !== gameId) : [...disabledGames, gameId];
+        setDisabledGames(newArr);
+        localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
+        // Broadcast change globally immediately
+        mp.sendAdminBroadcast('Mise à jour jeux', 'game_config', newArr);
+    };
 
     // --- ACTIONS ---
     const handleAction = async () => {
@@ -286,6 +321,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                         <button onClick={() => setActiveTab('OVERVIEW')} className={`px-3 py-1.5 rounded-md text-xs font-bold ${activeTab === 'OVERVIEW' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>VUE D'ENSEMBLE</button>
                         <button onClick={() => setActiveTab('LIVE')} className={`px-3 py-1.5 rounded-md text-xs font-bold ${activeTab === 'LIVE' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}>LIVE ({onlineUsers.filter(u => u.status === 'online').length})</button>
                         <button onClick={() => setActiveTab('USERS')} className={`px-3 py-1.5 rounded-md text-xs font-bold ${activeTab === 'USERS' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>UTILISATEURS</button>
+                        <button onClick={() => setActiveTab('GAMES')} className={`px-3 py-1.5 rounded-md text-xs font-bold ${activeTab === 'GAMES' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:text-white'}`}>JEUX</button>
                         <button onClick={() => setActiveTab('BROADCAST')} className={`px-3 py-1.5 rounded-md text-xs font-bold ${activeTab === 'BROADCAST' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}>DIFFUSION</button>
                     </div>
                 </div>
@@ -362,6 +398,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                     <Radio size={18}/> ENVOYER
                                 </button>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'GAMES' && (
+                    <div className="animate-in fade-in max-w-2xl mx-auto">
+                        <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2"><Settings size={20}/> GESTION DES JEUX</h3>
+                        <p className="text-gray-400 text-xs mb-4">Activez ou désactivez les jeux pour les joueurs. Cela met à jour les clients en temps réel.</p>
+                        
+                        <div className="space-y-2">
+                            {GAMES_LIST.map(game => {
+                                const isDisabled = disabledGames.includes(game.id);
+                                return (
+                                    <div key={game.id} className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <Gamepad2 size={20} className={isDisabled ? "text-gray-500" : "text-cyan-400"}/>
+                                            <span className={`font-bold text-sm ${isDisabled ? "text-gray-500" : "text-white"}`}>{game.name}</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => toggleGameAvailability(game.id)}
+                                            className={`w-12 h-6 rounded-full p-1 transition-colors ${isDisabled ? 'bg-red-900/50' : 'bg-green-600'}`}
+                                        >
+                                            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isDisabled ? 'translate-x-0' : 'translate-x-6'}`} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

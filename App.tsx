@@ -40,6 +40,11 @@ const App: React.FC = () => {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     
+    // Global Disabled Games State (Loaded from LS first, then updated via Broadcast)
+    const [disabledGames, setDisabledGames] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
+    });
+
     const audio = useGameAudio();
     const currency = useCurrency();
     const mp = useMultiplayer(); 
@@ -111,12 +116,29 @@ const App: React.FC = () => {
         }, 2000); 
     }, [currency.coins, currency.currentAvatarId, highScores, quests, streak]);
 
-    // Admin Global Alert Listener
+    // Admin Global Listener (Alerts AND Config Updates)
     useEffect(() => {
         const handleAdminEvent = (e: CustomEvent) => {
-            const { message, type } = e.detail;
+            const { message, type, data } = e.detail;
+            
+            // Handle Config Updates silently
+            if (type === 'game_config') {
+                if (Array.isArray(data)) {
+                    setDisabledGames(data);
+                    localStorage.setItem('neon_disabled_games', JSON.stringify(data));
+                    
+                    // If user is currently playing a disabled game, kick them out (unless admin/immune)
+                    const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
+                    if (data.includes(currentView) && !isImmune && currentView !== 'menu' && currentView !== 'shop') {
+                        setCurrentView('menu');
+                        setGlobalAlert({ message: "Ce jeu a été désactivé par l'administrateur.", type: 'warning' });
+                    }
+                }
+                return;
+            }
+
+            // Handle Text Alerts
             setGlobalAlert({ message, type });
-            // Alert sound
             if (type === 'warning') audio.playGameOver(); 
             else audio.playVictory();
             
@@ -124,7 +146,7 @@ const App: React.FC = () => {
         };
         window.addEventListener('neon_admin_event', handleAdminEvent as EventListener);
         return () => window.removeEventListener('neon_admin_event', handleAdminEvent as EventListener);
-    }, [audio]);
+    }, [audio, currentView, currency.username, currency.adminModeActive]);
 
     useEffect(() => {
         const storedName = localStorage.getItem('neon-username');
@@ -193,6 +215,17 @@ const App: React.FC = () => {
             setCurrentView('admin_dashboard');
             return;
         }
+        
+        // Security check for disabled games (redundant with MainMenu but safe)
+        const isRestricted = disabledGames.includes(game);
+        const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
+        
+        if (isRestricted && !isImmune) {
+             setGlobalAlert({ message: "Ce jeu est actuellement désactivé.", type: 'warning' });
+             setTimeout(() => setGlobalAlert(null), 2000);
+             return;
+        }
+
         reportQuestProgress(game, 'play', 1);
         setCurrentView(game as ViewState);
     };
@@ -306,7 +339,9 @@ const App: React.FC = () => {
                         claimAllBonus,
                         allCompletedBonusClaimed
                     }}
-                    onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers} 
+                    onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
+                    // Passing current disabled games for render logic
+                    disabledGamesList={disabledGames}
                 />
             )}
         </>

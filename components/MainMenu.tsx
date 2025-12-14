@@ -28,6 +28,7 @@ interface MainMenuProps {
         allCompletedBonusClaimed: boolean;
     };
     onlineUsers: OnlineUser[]; 
+    disabledGamesList?: string[]; // Received from App state
 }
 
 // Custom Tetris Icon (T-Piece)
@@ -197,7 +198,7 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, disabledGamesList = [] }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog, currentMalletId } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
@@ -216,20 +217,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [flyingCoins, setFlyingCoins] = useState<{id: number, startX: number, startY: number, targetX: number, targetY: number, delay: number}[]>([]);
     const coinBalanceRef = useRef<HTMLDivElement>(null);
 
-    // --- ADMIN GAMES MANAGEMENT ---
-    const [disabledGames, setDisabledGames] = useState<string[]>(() => {
-        try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
-    });
-    const [showAdminGamePanel, setShowAdminGamePanel] = useState(false);
-
-    const toggleGameAvailability = (gameId: string) => {
-        setDisabledGames(prev => {
-            const newArr = prev.includes(gameId) ? prev.filter(id => id !== gameId) : [...prev, gameId];
-            localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
-            return newArr;
-        });
-    };
-
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
         onMouseLeave: () => setActiveGlow(null),
@@ -238,9 +225,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     });
     
     const handleGameStart = (gameId: string) => { 
-        if (!disabledGames.includes(gameId) || currency.adminModeActive) {
-            onSelectGame(gameId); 
-        }
+        onSelectGame(gameId); 
     };
 
     const spawnCoins = (startX: number, startY: number, amount: number) => {
@@ -339,35 +324,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             {flyingCoins.map(coin => <FlyingCoin key={coin.id} startX={coin.startX} startY={coin.startY} targetX={coin.targetX} targetY={coin.targetY} delay={coin.delay} onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))} />)}
             {showDailyModal && isAuthenticated && <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />}
             <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
-
-            {/* ADMIN GAME CONFIG MODAL */}
-            {showAdminGamePanel && isAuthenticated && currency.adminModeActive && (
-                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-                    <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/20 p-6 shadow-2xl relative">
-                        <button onClick={() => setShowAdminGamePanel(false)} className="absolute top-2 right-2 text-gray-400 hover:text-white"><Edit2 size={20}/></button>
-                        <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2"><Settings className="text-neon-blue"/> GESTION DES JEUX</h3>
-                        <div className="space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                            {GAMES_CONFIG.map(game => {
-                                const isDisabled = disabledGames.includes(game.id);
-                                return (
-                                    <div key={game.id} className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/10">
-                                        <div className="flex items-center gap-3">
-                                            <game.icon size={20} className={isDisabled ? "text-gray-500" : game.color}/>
-                                            <span className={`font-bold text-sm ${isDisabled ? "text-gray-500" : "text-white"}`}>{game.name}</span>
-                                        </div>
-                                        <button 
-                                            onClick={() => toggleGameAvailability(game.id)}
-                                            className={`w-12 h-6 rounded-full p-1 transition-colors ${isDisabled ? 'bg-red-900/50' : 'bg-green-600'}`}
-                                        >
-                                            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isDisabled ? 'translate-x-0' : 'translate-x-6'}`} />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
                 {isAuthenticated ? (
@@ -470,9 +426,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
             </button>
             {currency.adminModeActive && (
                 <>
-                    <button onClick={() => setShowAdminGamePanel(true)} className="flex-1 py-1.5 bg-blue-900/50 text-blue-400 border border-blue-500/50 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1">
-                        <Settings size={10}/> JEUX
-                    </button>
                     <button onClick={() => onSelectGame('admin_dashboard')} className="flex-1 py-1.5 bg-purple-900/50 text-purple-400 border border-purple-500/50 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1">
                         <BarChart2 size={10}/> DASHBOARD
                     </button>
@@ -645,8 +598,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         if (activeCategory === 'ONLINE') return g.badges.online;
                         return g.category === activeCategory;
                     }).map((game) => {
-                        const isRestricted = disabledGames.includes(game.id);
-                        const isDisabled = isRestricted && !currency.adminModeActive;
+                        const isRestricted = disabledGamesList.includes(game.id);
+                        const isImmune = username === 'Vincent' || username === 'Test' || currency.adminModeActive;
+                        const isDisabled = isRestricted && !isImmune;
+                        
                         return (
                             <button 
                                 key={game.id} 
@@ -663,15 +618,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 
                                 {isDisabled && (
                                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/70">
-                                        <div className="bg-yellow-500/90 text-black font-black text-[9px] px-2 py-1 rounded border border-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.5)] transform -rotate-12 animate-pulse flex items-center gap-1">
-                                            <Hourglass size={10} /> BIENTÔT DISPONIBLE
+                                        <div className="bg-red-900/90 text-red-200 font-black text-[9px] px-2 py-1 rounded border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] transform -rotate-12 animate-pulse flex items-center gap-1">
+                                            <Lock size={10} /> DÉSACTIVÉ
                                         </div>
                                     </div>
                                 )}
 
                                 <div className="w-full flex justify-end gap-1 relative z-10">
-                                    {isRestricted && currency.adminModeActive && (
-                                        <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)]" title="Désactivé pour les joueurs">
+                                    {isRestricted && isImmune && (
+                                        <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)]" title="Désactivé pour les joueurs (Admin Bypass)">
                                             OFF
                                         </div>
                                     )}
