@@ -207,7 +207,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     };
 
     // --- AGGREGATES ---
-    const totalCoins = profiles.reduce((acc, p) => acc + (p.data?.coins || 0), 0);
+    // Calcul de la masse monétaire en excluant Vincent si le God Mode est activé
+    const totalCoins = profiles.reduce((acc, p) => {
+        if (p.username === 'Vincent') {
+            const isGodMode = localStorage.getItem('neon-admin-mode') === 'true';
+            if (isGodMode) return acc;
+        }
+        return acc + (p.data?.coins || 0);
+    }, 0);
+
+    // Calcul du nombre de joueurs comptabilisés (pour la moyenne)
+    const economyPlayersCount = profiles.reduce((acc, p) => {
+        if (p.username === 'Vincent') {
+             const isGodMode = localStorage.getItem('neon-admin-mode') === 'true';
+             if (isGodMode) return acc;
+        }
+        return acc + 1;
+    }, 0);
+
     const activeUsers = onlineUsers.filter(u => u.status === 'online').length;
 
     // --- CALCULATED STATS ---
@@ -429,7 +446,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     <div className="flex items-center gap-2">
                         <TrendingUp size={24} className="text-green-400"/>
                         <span className="text-3xl font-black text-white">
-                            {profiles.length > 0 ? Math.round(totalCoins / profiles.length).toLocaleString() : 0}
+                            {economyPlayersCount > 0 ? Math.round(totalCoins / economyPlayersCount).toLocaleString() : 0}
                         </span>
                     </div>
                 </div>
