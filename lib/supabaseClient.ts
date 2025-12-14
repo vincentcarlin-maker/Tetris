@@ -205,6 +205,7 @@ export const DB = {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('username, data, updated_at')
+                .neq('username', 'SYSTEM_CONFIG') // EXCLURE SYSTEM_CONFIG
                 .limit(100);
 
             if (error || !data) return [];

@@ -170,7 +170,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 } catch {}
             }
         }
-        setProfiles(data);
+        
+        // FILTRAGE : On retire l'utilisateur technique 'SYSTEM_CONFIG' de la liste
+        const realUsers = data.filter(u => u.username !== 'SYSTEM_CONFIG');
+        
+        setProfiles(realUsers);
         setLoading(false);
     };
 
