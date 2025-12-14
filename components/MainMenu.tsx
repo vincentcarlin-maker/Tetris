@@ -353,25 +353,32 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  <ArcadeLogo />
 
-                 {/* EVENT BANNER */}
+                 {/* EVENT BANNER - ALWAYS VISIBLE IF ACTIVE */}
                  {activeEvent && (
-                     <div className={`w-full p-3 rounded-xl border flex items-center justify-between animate-pulse shadow-lg ${
-                         activeEvent.type === 'XP_BOOST' ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-300' :
-                         activeEvent.type === 'TOURNAMENT' ? 'bg-purple-900/40 border-purple-500/50 text-purple-300' :
-                         activeEvent.type === 'SPECIAL_QUEST' ? 'bg-green-900/40 border-green-500/50 text-green-300' :
-                         'bg-blue-900/40 border-blue-500/50 text-blue-300'
-                     }`}>
-                         <div className="flex items-center gap-3">
-                             {activeEvent.type === 'XP_BOOST' && <Zap size={24}/>}
-                             {activeEvent.type === 'TOURNAMENT' && <Trophy size={24}/>}
-                             {activeEvent.type === 'SPECIAL_QUEST' && <Star size={24}/>}
-                             {activeEvent.type === 'COMMUNITY' && <Users size={24}/>}
+                     <div className={`w-full mt-4 p-4 rounded-xl border-2 flex items-center justify-between shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 ${
+                         activeEvent.type === 'XP_BOOST' ? 'bg-yellow-900/60 border-yellow-400 text-yellow-100 shadow-yellow-500/20' :
+                         activeEvent.type === 'TOURNAMENT' ? 'bg-purple-900/60 border-purple-400 text-purple-100 shadow-purple-500/20' :
+                         activeEvent.type === 'SPECIAL_QUEST' ? 'bg-green-900/60 border-green-400 text-green-100 shadow-green-500/20' :
+                         'bg-blue-900/60 border-blue-400 text-blue-100 shadow-blue-500/20'
+                     } backdrop-blur-md`}>
+                         <div className="flex items-center gap-4">
+                             <div className={`p-2 rounded-full border-2 bg-black/30 ${
+                                 activeEvent.type === 'XP_BOOST' ? 'border-yellow-400 text-yellow-400' :
+                                 activeEvent.type === 'TOURNAMENT' ? 'border-purple-400 text-purple-400' :
+                                 activeEvent.type === 'SPECIAL_QUEST' ? 'border-green-400 text-green-400' :
+                                 'border-blue-400 text-blue-400'
+                             }`}>
+                                 {activeEvent.type === 'XP_BOOST' && <Zap size={24} className="animate-pulse"/>}
+                                 {activeEvent.type === 'TOURNAMENT' && <Trophy size={24} className="animate-bounce"/>}
+                                 {activeEvent.type === 'SPECIAL_QUEST' && <Star size={24} className="animate-spin-slow"/>}
+                                 {activeEvent.type === 'COMMUNITY' && <Users size={24} className="animate-pulse"/>}
+                             </div>
                              <div className="flex flex-col">
-                                 <span className="text-xs font-bold tracking-widest opacity-80">{activeEvent.type.replace('_', ' ')}</span>
-                                 <span className="font-black uppercase">{activeEvent.title}</span>
+                                 <span className="text-[10px] font-black tracking-[0.2em] opacity-80 uppercase">{activeEvent.type.replace('_', ' ')}</span>
+                                 <span className="font-black text-lg uppercase leading-tight drop-shadow-md">{activeEvent.title}</span>
                              </div>
                          </div>
-                         <div className="px-2 py-1 bg-black/40 rounded text-[10px] font-bold">ACTIF</div>
+                         <div className="px-3 py-1 bg-white/20 rounded-lg text-xs font-black tracking-wider animate-pulse border border-white/30">EN COURS</div>
                      </div>
                  )}
 

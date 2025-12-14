@@ -47,7 +47,21 @@ const App: React.FC = () => {
 
     // Global Events State
     const [globalEvents, setGlobalEvents] = useState<any[]>(() => {
-        try { return JSON.parse(localStorage.getItem('neon_global_events') || '[]'); } catch { return []; }
+        try { 
+            const stored = JSON.parse(localStorage.getItem('neon_global_events') || '[]');
+            if (stored.length > 0) return stored;
+            
+            // DEFAULT EVENT (Fallback if no events exist)
+            return [{
+                id: 'season_1',
+                title: 'SAISON 1 : LANCEMENT',
+                description: 'Bienvenue sur Neon Arcade ! Profitez de tous les jeux.',
+                type: 'XP_BOOST',
+                startDate: new Date().toISOString().split('T')[0], // Today
+                endDate: new Date(Date.now() + 86400000 * 365).toISOString().split('T')[0], // 1 Year from now
+                active: true
+            }];
+        } catch { return []; }
     });
 
     const audio = useGameAudio();
@@ -273,12 +287,16 @@ const App: React.FC = () => {
         reportQuestProgress(gameId, eventType, value);
     }, [reportQuestProgress]);
 
-    // Calculate Active Event
+    // Calculate Active Event (Fix Date Logic)
     const currentActiveEvent = globalEvents.find(e => {
+        if (!e.active) return false;
         const now = new Date();
         const start = new Date(e.startDate);
         const end = new Date(e.endDate);
-        return e.active && now >= start && now <= end;
+        // Normalize time to ensure whole-day validity
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        return now >= start && now <= end;
     });
 
     return (
