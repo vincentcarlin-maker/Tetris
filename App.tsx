@@ -45,22 +45,10 @@ const App: React.FC = () => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
 
-    // Global Events State
+    // Global Events State - Initialisé vide, mis à jour par l'Admin ou le LocalStorage
     const [globalEvents, setGlobalEvents] = useState<any[]>(() => {
         try { 
-            const stored = JSON.parse(localStorage.getItem('neon_global_events') || '[]');
-            if (stored.length > 0) return stored;
-            
-            // DEFAULT EVENT (Fallback if no events exist)
-            return [{
-                id: 'season_1',
-                title: 'SAISON 1 : LANCEMENT',
-                description: 'Bienvenue sur Neon Arcade ! Profitez de tous les jeux.',
-                type: 'XP_BOOST',
-                startDate: new Date().toISOString().split('T')[0], // Today
-                endDate: new Date(Date.now() + 86400000 * 365).toISOString().split('T')[0], // 1 Year from now
-                active: true
-            }];
+            return JSON.parse(localStorage.getItem('neon_global_events') || '[]');
         } catch { return []; }
     });
 
@@ -83,7 +71,7 @@ const App: React.FC = () => {
 
     const { 
         onlineUsers, 
-        globalLeaderboard,
+        globalLeaderboard, 
         isConnectedToSupabase, 
         isSupabaseConfigured,
         loginAndFetchProfile,
