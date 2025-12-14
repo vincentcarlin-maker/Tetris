@@ -6,7 +6,7 @@ import {
     Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone, 
     Edit2, Settings, Flag, Megaphone, FileText, Rocket, Lock, Save, Download, 
     RefreshCw, Moon, Sun, Volume2, Battery, Globe, ToggleLeft, ToggleRight,
-    LogOut, TrendingUp, PieChart
+    LogOut, TrendingUp, PieChart, MessageSquare, Gift
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -77,6 +77,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     });
     const [editingGame, setEditingGame] = useState<{id: string, name: string, version: string} | null>(null);
 
+    // Feature Flags State
+    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
+        try {
+            return JSON.parse(localStorage.getItem('neon_feature_flags') || JSON.stringify({
+                maintenance_mode: false,
+                social_module: true,
+                economy_system: true,
+                beta_games: false,
+                global_chat: true
+            }));
+        } catch {
+            return {
+                maintenance_mode: false,
+                social_module: true,
+                economy_system: true,
+                beta_games: false,
+                global_chat: true
+            };
+        }
+    });
+
     useEffect(() => {
         loadData();
     }, []);
@@ -111,6 +132,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setDisabledGames(newArr);
         localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
         mp.sendAdminBroadcast(disabledGames.includes(gameId) ? 'Jeu réactivé' : 'Jeu en maintenance', 'game_config', newArr);
+    };
+
+    const toggleFlag = (key: string) => {
+        setFeatureFlags(prev => {
+            const newState = { ...prev, [key]: !prev[key] };
+            localStorage.setItem('neon_feature_flags', JSON.stringify(newState));
+            // Broadcast the change (clients can listen to 'game_config' if implemented)
+            mp.sendAdminBroadcast(`Feature Flag Updated: ${key.toUpperCase()} -> ${newState[key] ? 'ON' : 'OFF'}`, 'game_config', { flags: newState });
+            return newState;
+        });
     };
 
     const handleSaveGameEdit = () => {
@@ -280,6 +311,98 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             </div>
                         ))}
                         {gamePopularity.length === 0 && <p className="text-gray-500 text-xs italic">Pas assez de données...</p>}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderFeatureFlags = () => (
+        <div className="animate-in fade-in space-y-6 max-w-3xl">
+            <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                    <Flag size={20} className="text-orange-400"/> MODULES & SYSTÈME
+                </h3>
+                
+                <div className="space-y-4">
+                    {/* MAINTENANCE */}
+                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-lg ${featureFlags.maintenance_mode ? 'bg-red-500/20 text-red-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                                <AlertTriangle size={24} />
+                            </div>
+                            <div>
+                                <div className="font-bold text-white">Mode Maintenance</div>
+                                <div className="text-xs text-gray-500">Bloque l'accès aux joueurs non-admin.</div>
+                            </div>
+                        </div>
+                        <button onClick={() => toggleFlag('maintenance_mode')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.maintenance_mode ? 'bg-red-500' : 'bg-gray-600'}`}>
+                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${featureFlags.maintenance_mode ? 'left-7' : 'left-1'}`}></div>
+                        </button>
+                    </div>
+
+                    {/* SOCIAL */}
+                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-lg ${featureFlags.social_module ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                                <Users size={24} />
+                            </div>
+                            <div>
+                                <div className="font-bold text-white">Module Social</div>
+                                <div className="text-xs text-gray-500">Amis, Chat privé, Présence en ligne.</div>
+                            </div>
+                        </div>
+                        <button onClick={() => toggleFlag('social_module')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.social_module ? 'bg-blue-500' : 'bg-gray-600'}`}>
+                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${featureFlags.social_module ? 'left-7' : 'left-1'}`}></div>
+                        </button>
+                    </div>
+
+                    {/* ECONOMY */}
+                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-lg ${featureFlags.economy_system ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                                <Coins size={24} />
+                            </div>
+                            <div>
+                                <div className="font-bold text-white">Système Économique</div>
+                                <div className="text-xs text-gray-500">Gains de pièces, Boutique, Cadeaux.</div>
+                            </div>
+                        </div>
+                        <button onClick={() => toggleFlag('economy_system')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.economy_system ? 'bg-green-500' : 'bg-gray-600'}`}>
+                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${featureFlags.economy_system ? 'left-7' : 'left-1'}`}></div>
+                        </button>
+                    </div>
+
+                    {/* BETA GAMES */}
+                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-lg ${featureFlags.beta_games ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                                <Gamepad2 size={24} />
+                            </div>
+                            <div>
+                                <div className="font-bold text-white">Jeux Bêta / Expérimental</div>
+                                <div className="text-xs text-gray-500">Affiche les jeux en cours de développement.</div>
+                            </div>
+                        </div>
+                        <button onClick={() => toggleFlag('beta_games')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.beta_games ? 'bg-purple-500' : 'bg-gray-600'}`}>
+                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${featureFlags.beta_games ? 'left-7' : 'left-1'}`}></div>
+                        </button>
+                    </div>
+                    
+                    {/* GLOBAL CHAT */}
+                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-lg ${featureFlags.global_chat ? 'bg-cyan-500/20 text-cyan-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                                <MessageSquare size={24} />
+                            </div>
+                            <div>
+                                <div className="font-bold text-white">Chat Global (Jeux)</div>
+                                <div className="text-xs text-gray-500">Active le chat et les réactions dans les jeux multijoueurs.</div>
+                            </div>
+                        </div>
+                        <button onClick={() => toggleFlag('global_chat')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.global_chat ? 'bg-cyan-500' : 'bg-gray-600'}`}>
+                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${featureFlags.global_chat ? 'left-7' : 'left-1'}`}></div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -631,12 +754,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     {activeSection === 'GAMES' && renderGamesManager()}
                     {activeSection === 'USERS' && renderUsers()}
                     {activeSection === 'CONFIG' && renderConfig()}
+                    {activeSection === 'FLAGS' && renderFeatureFlags()}
                     {activeSection === 'CONTENT' && renderContent()}
                     {activeSection === 'LOGS' && renderLogs()}
                     {activeSection === 'DATA' && renderData()}
                     
                     {/* Placeholder for other sections */}
-                    {['APPEARANCE', 'FLAGS', 'EVENTS', 'SECURITY', 'FUTURE'].includes(activeSection) && (
+                    {['APPEARANCE', 'EVENTS', 'SECURITY', 'FUTURE'].includes(activeSection) && (
                         <div className="flex flex-col items-center justify-center h-64 text-gray-500 opacity-50">
                             <Lock size={48} className="mb-4"/>
                             <p className="font-bold">SECTION EN DÉVELOPPEMENT</p>
