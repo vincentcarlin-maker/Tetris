@@ -209,6 +209,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setProfiles(p => p.map(u => u.username === selectedUser.username ? { ...u, data: { ...u.data, banned: isBanned } } : u));
         setSelectedUser((prev: any) => ({ ...prev, data: { ...prev.data, banned: isBanned } }));
     };
+    
+    const handleDeleteUser = async () => {
+        if (!selectedUser) return;
+        
+        const confirmDelete = window.confirm(`Êtes-vous sûr de vouloir SUPPRIMER DÉFINITIVEMENT le compte de ${selectedUser.username} ? Cette action est irréversible.`);
+        if (!confirmDelete) return;
+
+        const username = selectedUser.username;
+
+        // 1. Supabase deletion
+        if (isSupabaseConfigured) {
+            await DB.deleteUser(username);
+        }
+
+        // 2. Local Storage deletion
+        const usersDbStr = localStorage.getItem('neon_users_db');
+        if (usersDbStr) {
+            const usersDb = JSON.parse(usersDbStr);
+            delete usersDb[username];
+            localStorage.setItem('neon_users_db', JSON.stringify(usersDb));
+        }
+        localStorage.removeItem('neon_data_' + username);
+
+        // 3. Update State
+        setProfiles(prev => prev.filter(p => p.username !== username));
+        setSelectedUser(null);
+    };
 
     const exportData = () => {
         const dataStr = JSON.stringify(profiles, null, 2);
@@ -1162,6 +1189,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             
                             <button onClick={handleBan} className={`w-full py-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 ${selectedUser.data?.banned ? 'bg-green-600 text-white' : 'bg-red-600/20 text-red-500 border border-red-500/50'}`}>
                                 {selectedUser.data?.banned ? <><Check size={14}/> DÉBANNIR</> : <><Ban size={14}/> BANNIR L'UTILISATEUR</>}
+                            </button>
+
+                            {/* DELETE USER BUTTON */}
+                            <button onClick={handleDeleteUser} className="w-full py-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 bg-red-950 text-red-500 border border-red-900 hover:bg-red-900 transition-colors mt-2">
+                                <Trash2 size={14}/> SUPPRIMER LE COMPTE DÉFINITIVEMENT
                             </button>
                         </div>
                     </div>
