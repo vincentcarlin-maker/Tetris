@@ -40,6 +40,7 @@ const App: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
+    const [isCloudSynced, setIsCloudSynced] = useState(false);
     
     // Global Disabled Games State (Loaded from LS first, then updated via Broadcast)
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
@@ -112,6 +113,22 @@ const App: React.FC = () => {
         loadSystemConfig();
     }, [isConnectedToSupabase]);
 
+    // Sync latest data from cloud on startup/reconnect to prevent overwriting gifts/updates
+    useEffect(() => {
+        if (isAuthenticated && isConnectedToSupabase && !isCloudSynced && currency.username) {
+            loginAndFetchProfile(currency.username).then(profile => {
+                if (profile && profile.data) {
+                    console.log("☁️ Synced profile from cloud on connect");
+                    currency.importData(profile.data);
+                    if (profile.data.highScores) {
+                        importScores(profile.data.highScores);
+                    }
+                }
+                setIsCloudSynced(true);
+            });
+        }
+    }, [isAuthenticated, isConnectedToSupabase, isCloudSynced, currency.username, loginAndFetchProfile, currency.importData, importScores]);
+
     const buildSavePayload = () => {
         const cachedPassword = localStorage.getItem('neon_current_password');
         const payload: any = {
@@ -142,11 +159,15 @@ const App: React.FC = () => {
     // Auto-Save
     useEffect(() => {
         if (!isAuthenticated || !currency.username) return;
+        
+        // Prevent overwriting cloud data with stale local data before initial sync
+        if (isConnectedToSupabase && !isCloudSynced) return;
+
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             syncProfileToCloud(currency.username, buildSavePayload());
         }, 2000); 
-    }, [currency.coins, currency.currentAvatarId, highScores, quests, streak]);
+    }, [currency.coins, currency.currentAvatarId, highScores, quests, streak, isConnectedToSupabase, isCloudSynced]);
 
     // Admin Global Listener (Alerts AND Config Updates)
     useEffect(() => {
@@ -188,7 +209,8 @@ const App: React.FC = () => {
                         audio.playVictory();
                         
                         // FORCE immediate cloud sync to acknowledge receipt and prevent overwrite
-                        // We delay slightly to let state update
+                        // We set isCloudSynced to true here because we are explicitly handling an update
+                        setIsCloudSynced(true);
                         setTimeout(() => {
                              syncProfileToCloud(currency.username, buildSavePayload());
                         }, 1000);
@@ -365,6 +387,7 @@ const App: React.FC = () => {
             if (cloudData.highScores) {
                 importScores(cloudData.highScores);
             }
+            setIsCloudSynced(true); // Mark as synced
             syncProfileToCloud(username, cloudData);
         } else {
             currency.refreshData(); 
@@ -377,6 +400,7 @@ const App: React.FC = () => {
     const handleLogout = () => {
         setIsAuthenticated(false);
         mp.disconnect();
+        setIsCloudSynced(false); // Reset sync state
     };
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
