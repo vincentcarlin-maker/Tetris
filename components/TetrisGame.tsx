@@ -269,6 +269,17 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
         >
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-blue/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
+            {/* TOP MENU BAR (Moved from bottom) */}
+            {!gameOver && (
+                <div className="w-full max-w-lg px-4 pt-4 pb-1 flex justify-between items-center z-30 shrink-0">
+                    <MetaBtn onClick={onBack} icon={<Home size={18} className="text-gray-300"/>} label="MENU"/>
+                    <MetaBtn onClick={toggleMute} icon={isMuted ? <VolumeX size={18} className="text-gray-400"/> : <Volume2 size={18} className="text-gray-300"/>} label={isMuted ? "MUET" : "SON"}/>
+                    <MetaBtn onClick={() => startGame(level)} icon={<RotateCcw size={18} className="text-gray-300"/>} label="RESET"/>
+                    <MetaBtn onClick={() => setShowTutorial(true)} icon={<HelpCircle size={18} className="text-cyan-400"/>} label="AIDE"/>
+                    <MetaBtn onClick={togglePause} icon={isPaused ? <Play size={18} className="text-green-400 fill-green-400"/> : <Pause size={18} className="text-yellow-400 fill-yellow-400"/>} label={isPaused ? "GO" : "PAUSE"} active/>
+                </div>
+            )}
+
             <div className="w-full max-w-lg px-3 py-2 flex items-center justify-between gap-2 z-20 shrink-0">
                 <div className="flex flex-col items-center bg-gray-900/50 border border-white/10 rounded-lg p-1 w-14 h-14 relative shrink-0">
                     <span className="text-[8px] text-gray-400 absolute top-1 left-1">RÉSERVE</span>
@@ -336,13 +347,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
 
             {!gameOver && (
                 <div className="w-full max-w-md px-4 pb-6 pt-2 flex flex-col justify-end gap-3 z-30 shrink-0 select-none">
-                    <div className="flex justify-between items-center w-full px-2">
-                         <MetaBtn onClick={onBack} icon={<Home size={18} className="text-gray-300"/>} label="MENU"/>
-                         <MetaBtn onClick={toggleMute} icon={isMuted ? <VolumeX size={18} className="text-gray-400"/> : <Volume2 size={18} className="text-gray-300"/>} label={isMuted ? "MUET" : "SON"}/>
-                        <MetaBtn onClick={() => startGame(level)} icon={<RotateCcw size={18} className="text-gray-300"/>} label="RESET"/>
-                        <MetaBtn onClick={() => setShowTutorial(true)} icon={<HelpCircle size={18} className="text-cyan-400"/>} label="AIDE"/>
-                        <MetaBtn onClick={togglePause} icon={isPaused ? <Play size={18} className="text-green-400 fill-green-400"/> : <Pause size={18} className="text-yellow-400 fill-yellow-400"/>} label={isPaused ? "GO" : "PAUSE"} active/>
-                    </div>
+                    {/* Meta Buttons were moved to top */}
 
                     <div className="flex justify-between items-end w-full">
                         <div className="grid grid-cols-3 gap-2 w-36 h-36">
