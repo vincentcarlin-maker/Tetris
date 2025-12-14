@@ -44,6 +44,7 @@ interface MainMenuProps {
         objectives?: { type: string, target: number, gameIds: string[] }[];
         rewards?: { coins: number, badgeId?: string, skinId?: string };
     };
+    eventProgress?: Record<string, number>;
 }
 
 // Custom Tetris Icon (T-Piece)
@@ -213,7 +214,7 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, disabledGamesList = [], activeEvent }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, disabledGamesList = [], activeEvent, eventProgress }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog, currentMalletId } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
@@ -426,18 +427,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                      <div>
                                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Target size={14}/> OBJECTIFS</h4>
                                          <div className="space-y-3">
-                                             {activeEvent.objectives.map((obj, i) => (
-                                                 <div key={i} className="bg-gray-800 p-3 rounded-lg border border-white/10">
-                                                     <div className="flex justify-between text-sm text-white mb-1">
-                                                         <span>{obj.type === 'PLAY_GAMES' ? 'Jouer des parties' : obj.type === 'REACH_SCORE' ? 'Atteindre un score' : 'Gagner des pièces'}</span>
-                                                         <span className="font-mono font-bold" style={{ color: activeEvent.theme?.primaryColor }}>0 / {obj.target}</span>
+                                             {activeEvent.objectives.map((obj, i) => {
+                                                 const progressKey = `${activeEvent.id}_${i}`;
+                                                 const currentProgress = eventProgress?.[progressKey] || 0;
+                                                 const percentage = Math.min(100, Math.round((currentProgress / obj.target) * 100));
+                                                 
+                                                 return (
+                                                     <div key={i} className="bg-gray-800 p-3 rounded-lg border border-white/10">
+                                                         <div className="flex justify-between text-sm text-white mb-1">
+                                                             <span>{obj.type === 'PLAY_GAMES' ? 'Jouer des parties' : obj.type === 'REACH_SCORE' ? 'Atteindre un score' : 'Gagner des pièces'}</span>
+                                                             <span className="font-mono font-bold" style={{ color: activeEvent.theme?.primaryColor }}>{currentProgress} / {obj.target}</span>
+                                                         </div>
+                                                         <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
+                                                             <div className="h-full transition-all duration-500" style={{ width: `${percentage}%`, backgroundColor: activeEvent.theme?.primaryColor || '#fff' }}></div>
+                                                         </div>
+                                                         <p className="text-[10px] text-gray-500 mt-1">{obj.gameIds.length > 0 ? `Sur : ${obj.gameIds.join(', ')}` : 'Sur tous les jeux'}</p>
                                                      </div>
-                                                     <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
-                                                         <div className="h-full w-0" style={{ backgroundColor: activeEvent.theme?.primaryColor || '#fff' }}></div>
-                                                     </div>
-                                                     <p className="text-[10px] text-gray-500 mt-1">{obj.gameIds.length > 0 ? `Sur : ${obj.gameIds.join(', ')}` : 'Sur tous les jeux'}</p>
-                                                 </div>
-                                             ))}
+                                                 );
+                                             })}
                                          </div>
                                      </div>
                                  )}

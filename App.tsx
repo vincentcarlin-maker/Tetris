@@ -53,6 +53,11 @@ const App: React.FC = () => {
         } catch { return []; }
     });
 
+    // Event Progress State
+    const [eventProgress, setEventProgress] = useState<Record<string, number>>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_event_progress') || '{}'); } catch { return {}; }
+    });
+
     const audio = useGameAudio();
     const currency = useCurrency();
     const mp = useMultiplayer(); 
@@ -262,11 +267,65 @@ const App: React.FC = () => {
         };
     }, [currentView]);
 
+    // Calculate Active Event (Fix Date Logic)
+    const currentActiveEvent = globalEvents.find(e => {
+        if (!e.active) return false;
+        const now = new Date();
+        // Convert dates to timestamps for safer comparison
+        const start = new Date(e.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(e.endDate);
+        end.setHours(23, 59, 59, 999);
+        return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
+    });
+
+    const updateEventProgress = useCallback((gameId: string, metric: string, value: number) => {
+        if (!currentActiveEvent) return;
+        
+        setEventProgress(prev => {
+            const newProgress = { ...prev };
+            let changed = false;
+
+            currentActiveEvent.objectives?.forEach((obj: any, index: number) => {
+                const key = `${currentActiveEvent.id}_${index}`;
+                const currentVal = newProgress[key] || 0;
+                
+                if (currentVal >= obj.target) return;
+
+                const gameMatch = obj.gameIds.length === 0 || obj.gameIds.includes(gameId);
+                if (!gameMatch && gameId !== 'any') return;
+
+                if (obj.type === 'PLAY_GAMES' && metric === 'play') {
+                    newProgress[key] = Math.min(obj.target, currentVal + 1);
+                    changed = true;
+                } else if (obj.type === 'EARN_COINS' && metric === 'coins') {
+                    newProgress[key] = Math.min(obj.target, currentVal + value);
+                    changed = true;
+                } else if (obj.type === 'REACH_SCORE' && metric === 'score') {
+                    if (value >= obj.target) {
+                        newProgress[key] = obj.target;
+                        changed = true;
+                    } else if (value > currentVal) {
+                         newProgress[key] = value;
+                         changed = true;
+                    }
+                }
+            });
+
+            if (changed) {
+                localStorage.setItem('neon_event_progress', JSON.stringify(newProgress));
+                return newProgress;
+            }
+            return prev;
+        });
+    }, [currentActiveEvent]);
+
     const addCoinsWithSoundAndQuest = (amount: number) => {
         if (amount > 0) {
             currency.addCoins(amount);
             audio.playCoin();
             reportQuestProgress('any', 'coins', amount);
+            updateEventProgress('any', 'coins', amount);
         }
     };
 
@@ -291,6 +350,7 @@ const App: React.FC = () => {
         }
 
         reportQuestProgress(game, 'play', 1);
+        updateEventProgress(game, 'play', 1);
         setCurrentView(game as ViewState);
     };
 
@@ -321,19 +381,8 @@ const App: React.FC = () => {
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
         reportQuestProgress(gameId, eventType, value);
-    }, [reportQuestProgress]);
-
-    // Calculate Active Event (Fix Date Logic)
-    const currentActiveEvent = globalEvents.find(e => {
-        if (!e.active) return false;
-        const now = new Date();
-        // Convert dates to timestamps for safer comparison
-        const start = new Date(e.startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(e.endDate);
-        end.setHours(23, 59, 59, 999);
-        return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
-    });
+        updateEventProgress(gameId, eventType, value);
+    }, [reportQuestProgress, updateEventProgress]);
 
     return (
         <>
@@ -418,6 +467,7 @@ const App: React.FC = () => {
                     onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
                     disabledGamesList={disabledGames}
                     activeEvent={currentActiveEvent}
+                    eventProgress={eventProgress}
                 />
             )}
         </>
