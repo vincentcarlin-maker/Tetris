@@ -6,7 +6,7 @@ import {
     Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone, 
     Edit2, Settings, Flag, Megaphone, FileText, Rocket, Lock, Save, Download, 
     RefreshCw, Moon, Sun, Volume2, Battery, Globe, ToggleLeft, ToggleRight,
-    LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, Copy, Layers, Bell
+    LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, Copy, Layers, Bell, RefreshCcw
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -301,6 +301,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         // 3. Update State
         setProfiles(prev => prev.filter(p => p.username !== username));
         setSelectedUser(null);
+    };
+
+    const handleResetVincent = async () => {
+        if (!confirm("ATTENTION: Réinitialiser TOTALEMENT le compte Vincent ? (0 pièces, 0 items)")) return;
+        
+        const freshData = {
+            coins: 0,
+            inventory: [],
+            avatarId: 'av_bot',
+            ownedAvatars: ['av_bot', 'av_human'],
+            frameId: 'fr_none',
+            ownedFrames: ['fr_none'],
+            wallpaperId: 'bg_brick',
+            ownedWallpapers: ['bg_brick'],
+            titleId: 't_none',
+            ownedTitles: ['t_none'],
+            malletId: 'm_classic',
+            ownedMallets: ['m_classic'],
+            highScores: {
+                tetris: 0, breaker: 0, pacman: 0, snake: 0, invaders: 0, 
+                runner: 0, stack: 0, arenaclash: 0, sudoku: {}, 
+                memory: 0, mastermind: 0, uno: 0, game2048: 0, watersort: 1, skyjo: 0
+            },
+            streak: 0,
+            quests: [],
+            banned: false
+        };
+
+        // 1. Update Cloud
+        if (isSupabaseConfigured) {
+            await DB.updateUserData('Vincent', freshData);
+        }
+
+        // 2. Update Local Storage Mirror
+        localStorage.setItem('neon_data_Vincent', JSON.stringify(freshData));
+
+        // 3. If currently logged in as Vincent, reset active session keys immediately
+        const currentUser = localStorage.getItem('neon-username');
+        if (currentUser === 'Vincent') {
+            localStorage.setItem('neon-coins', '0');
+            localStorage.setItem('neon-inventory', '[]');
+            localStorage.setItem('neon-avatar', 'av_bot');
+            localStorage.setItem('neon-owned-avatars', JSON.stringify(['av_bot', 'av_human']));
+            localStorage.setItem('neon-highscores', JSON.stringify(freshData.highScores));
+            // Force reset of other cosmetic keys to defaults
+            localStorage.setItem('neon-frame', 'fr_none');
+            localStorage.setItem('neon-owned-frames', JSON.stringify(['fr_none']));
+            localStorage.setItem('neon-wallpaper', 'bg_brick');
+            localStorage.setItem('neon-owned-wallpapers', JSON.stringify(['bg_brick']));
+            localStorage.setItem('neon-title', 't_none');
+            localStorage.setItem('neon-owned-titles', JSON.stringify(['t_none']));
+            localStorage.setItem('neon-mallet', 'm_classic');
+            localStorage.setItem('neon-owned-mallets', JSON.stringify(['m_classic']));
+        }
+        
+        alert("Compte Vincent réinitialisé ! La page va se recharger.");
+        window.location.reload();
     };
 
     const exportData = () => {
@@ -756,7 +813,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                 <span className="text-xs font-bold text-gray-300">{g.name}</span>
                                 <div className="flex items-center gap-2">
                                     <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (g.count / profiles.length) * 100)}%` }}></div>
+                                        <div className={`h-full ${g.count > 0 ? 'bg-blue-500' : 'bg-gray-600'}`} style={{ width: `${Math.min(100, (g.count / profiles.length) * 100)}%` }}></div>
                                     </div>
                                     <span className="text-xs font-mono text-white w-8 text-right">{g.count}</span>
                                 </div>
@@ -924,6 +981,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                         <p className="text-xs text-gray-400">Télécharger toute la base de données actuelle.</p>
                     </div>
                     <button onClick={exportData} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center gap-2"><Download size={18}/> EXPORTER</button>
+                </div>
+                
+                <div className="bg-red-900/20 p-6 rounded-xl border border-red-500/30 flex items-center justify-between">
+                    <div>
+                        <h4 className="font-bold text-red-400">Réinitialiser Vincent</h4>
+                        <p className="text-xs text-red-300">Remet à zéro le compte Admin (0 pièces, 0 items).</p>
+                    </div>
+                    <button onClick={handleResetVincent} className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex items-center gap-2 shadow-[0_0_15px_rgba(220,38,38,0.4)] hover:shadow-[0_0_20px_rgba(220,38,38,0.6)] transition-all">
+                        <RefreshCcw size={18}/> RÉINITIALISER
+                    </button>
                 </div>
             </div>
         </div>
