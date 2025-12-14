@@ -5,7 +5,7 @@ import {
     MousePointer2, Target, Shield, Hash, Brain, Palette, Search, BrainCircuit,
     LayoutGrid, Zap, CheckCircle, Crosshair, Anchor, Ghost, Skull, MoveHorizontal,
     MousePointerClick, Layers, Megaphone, ArrowDown, Check, ArrowUp, Crown,
-    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross
+    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross, Grid3X3, AlertTriangle
 } from 'lucide-react';
 
 interface Step {
@@ -167,6 +167,15 @@ const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
             { icon: MousePointer2, color: "text-cyan-400", title: "DÉPLACER", desc: "Glissez les véhicules pour libérer le passage." },
             { icon: Car, color: "text-red-500", title: "OBJECTIF", desc: "La voiture ROUGE doit sortir à droite." },
             { icon: LockOpen, color: "text-yellow-400", title: "CONTRAINTE", desc: "Les véhicules ne bougent que dans leur axe (Horizontal ou Vertical)." }
+        ]
+    },
+    skyjo: {
+        titleColor: "text-purple-400",
+        steps: [
+            { icon: Trophy, color: "text-purple-400", title: "OBJECTIF", desc: "Avoir le moins de points possible." },
+            { icon: MousePointer2, color: "text-cyan-400", title: "JOUER", desc: "Piochez ou prenez la défausse pour échanger avec une carte de votre grille." },
+            { icon: Layers, color: "text-green-400", title: "COMBO", desc: "3 cartes identiques en colonne s'annulent (0 pts)." },
+            { icon: AlertTriangle, color: "text-red-500", title: "DANGER", desc: "Si vous finissez 1er sans le score le plus bas, vos points doublent !" }
         ]
     }
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, HelpCircle, ArrowLeft, Play, Layers, RotateCcw, User, Globe, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, HelpCircle, ArrowLeft, Play, Layers, RotateCcw, User, Globe, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, AlertTriangle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -107,6 +107,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
     // Control Flow
     const [turn, setTurn] = useState<Turn>('PLAYER');
     const [currentDrawnCard, setCurrentDrawnCard] = useState<SkyjoCard | null>(null);
+    const [firstFinisher, setFirstFinisher] = useState<Turn | null>(null); // Who finished first
     
     // Strict State Machine for Player Interaction
     const [subTurnState, setSubTurnState] = useState<SubTurnState>('IDLE');
@@ -115,6 +116,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
     const [winner, setWinner] = useState<Turn | null>(null);
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [showTutorial, setShowTutorial] = useState(false);
+    const [doubledScore, setDoubledScore] = useState<Turn | null>(null);
 
     // Online
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
@@ -125,6 +127,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
     const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
 
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const handleDataRef = useRef<(data: any) => void>(null);
     
     // Setup Phase Ref (prevents rapid-fire clicking exploit)
     const setupRevealedIndicesRef = useRef(new Set<number>());
@@ -207,6 +210,8 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
         setWinner(null);
         setEarnedCoins(0);
         setSubTurnState('IDLE');
+        setFirstFinisher(null);
+        setDoubledScore(null);
         setupRevealedIndicesRef.current.clear();
     };
 
@@ -385,6 +390,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
         if (allRevealed) {
             if (phase === 'PLAYING') {
                 setPhase('LAST_TURN');
+                setFirstFinisher('PLAYER');
                 setMessage("Dernier tour !");
                 if (gameMode === 'ONLINE') mp.sendData({ type: 'SKYJO_LAST_TURN' });
                 // If I finished, turn goes to opponent
@@ -477,6 +483,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                 if (allRev) {
                     if (phase === 'PLAYING') {
                         setPhase('LAST_TURN');
+                        setFirstFinisher('CPU');
                         setMessage("Dernier tour (CPU a fini) !");
                         setTurn('PLAYER');
                     } else {
@@ -507,8 +514,22 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
         setPlayerGrid(procP);
         setCpuGrid(procC);
 
-        const pScore = calculateScore(procP);
-        const cScore = calculateScore(procC);
+        let pScore = calculateScore(procP);
+        let cScore = calculateScore(procC);
+
+        // --- RÈGLE SPÉCIALE SKYJO : DOUBLER LE SCORE ---
+        // Si le joueur qui termine n'a pas strictement le plus petit score, son score est doublé.
+        if (firstFinisher === 'PLAYER') {
+            if (pScore >= cScore) {
+                pScore *= 2;
+                setDoubledScore('PLAYER');
+            }
+        } else if (firstFinisher === 'CPU') {
+            if (cScore >= pScore) {
+                cScore *= 2;
+                setDoubledScore('CPU');
+            }
+        }
 
         setPhase('ENDED');
         if (pScore < cScore) {
@@ -536,6 +557,8 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                 setMessage("Révélez 2 cartes pour commencer");
                 setDeck(Array(20).fill(null) as any); // Dummy deck for visuals
                 setSubTurnState('IDLE');
+                setFirstFinisher(null);
+                setDoubledScore(null);
                 setupRevealedIndicesRef.current.clear(); // Reset setup counter for Guest
                 setIsWaitingForHost(false);
                 setOpponentLeft(false);
@@ -575,39 +598,14 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
             if (data.type === 'SKYJO_LAST_TURN') {
                 setMessage("Dernier tour (Adversaire) !");
                 setPhase('LAST_TURN');
+                setFirstFinisher('CPU');
             }
             if (data.type === 'SKYJO_PASS') {
                 setTurn('PLAYER');
                 setMessage("À vous !");
             }
             if (data.type === 'REMATCH_START') {
-                // Restart logic controlled by host via SKYJO_INIT
-                if (mp.isHost) {
-                    // Host resets and sends new init
-                    resetGame();
-                    const newDeck = generateDeck();
-                    const pHand = newDeck.splice(0, 12);
-                    const cHand = newDeck.splice(0, 12);
-                    const topCard = newDeck.pop()!;
-                    topCard.isRevealed = true;
-                    setDeck(newDeck);
-                    setPlayerGrid(pHand);
-                    setCpuGrid(cHand); 
-                    setDiscardPile([topCard]);
-                    setTimeout(() => {
-                        mp.sendData({
-                            type: 'SKYJO_INIT',
-                            hand: cHand,
-                            oppHand: pHand,
-                            topCard,
-                            startTurn: mp.peerId
-                        });
-                    }, 1000);
-                } else {
-                    // Guest waits
-                    setIsWaitingForHost(true);
-                    resetGame();
-                }
+                startGame('ONLINE');
             }
             if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
@@ -767,10 +765,13 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
             <div className="flex-1 w-full max-w-md flex flex-col gap-4 relative z-10 min-h-0 pb-4">
                 
                 {/* OPPONENT GRID (Small) */}
-                <div className="w-full bg-gray-900/50 rounded-xl p-2 border border-white/5 opacity-80 scale-90 origin-top">
+                <div className="w-full bg-gray-900/50 rounded-xl p-2 border border-white/5 opacity-80 scale-90 origin-top relative">
                     <div className="flex justify-between px-2 mb-1">
                         <span className="text-[10px] font-bold text-gray-500">ADVERSAIRE</span>
-                        <span className="text-[10px] font-bold text-gray-500">SCORE: {calculateScore(cpuGrid)}</span>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-bold text-gray-500">SCORE: {calculateScore(cpuGrid)}</span>
+                            {doubledScore === 'CPU' && <span className="text-[8px] font-black text-red-500 animate-pulse flex items-center gap-1"><AlertTriangle size={8}/> SCORE DOUBLÉ</span>}
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 gap-1 sm:gap-2">
                         {cpuGrid.map((card, i) => (
@@ -809,10 +810,13 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                 </div>
 
                 {/* PLAYER GRID */}
-                <div className={`w-full bg-gray-900/80 rounded-xl p-2 border-2 ${turn === 'PLAYER' ? 'border-cyan-500 shadow-[0_0_20px_rgba(34,211,238,0.2)]' : 'border-white/10'} transition-all`}>
+                <div className={`w-full bg-gray-900/80 rounded-xl p-2 border-2 ${turn === 'PLAYER' ? 'border-cyan-500 shadow-[0_0_20px_rgba(34,211,238,0.2)]' : 'border-white/10'} transition-all relative`}>
                     <div className="flex justify-between px-2 mb-2">
                         <span className="text-xs font-bold text-cyan-400">VOUS</span>
-                        <span className="text-xs font-bold text-white">SCORE: {calculateScore(playerGrid)}</span>
+                        <div className="flex flex-col items-end">
+                            <span className="text-xs font-bold text-white">SCORE: {calculateScore(playerGrid)}</span>
+                            {doubledScore === 'PLAYER' && <span className="text-[9px] font-black text-red-500 animate-pulse flex items-center gap-1"><AlertTriangle size={10}/> SCORE DOUBLÉ</span>}
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                         {playerGrid.map((card, i) => (
@@ -840,10 +844,27 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                     <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6 text-center">
                         <Trophy size={64} className="text-yellow-400 mb-4 drop-shadow-[0_0_15px_gold]" />
                         <h2 className="text-4xl font-black italic text-white mb-2">{winner === 'PLAYER' ? "VICTOIRE !" : "DÉFAITE..."}</h2>
-                        <div className="flex gap-8 mb-6">
-                            <div className="text-center"><p className="text-xs text-gray-400">VOUS</p><p className="text-2xl font-mono text-cyan-400">{calculateScore(playerGrid)}</p></div>
-                            <div className="text-center"><p className="text-xs text-gray-400">ADV</p><p className="text-2xl font-mono text-purple-400">{calculateScore(cpuGrid)}</p></div>
+                        
+                        <div className="flex gap-8 mb-6 bg-gray-800/50 p-4 rounded-xl border border-white/10">
+                            <div className="text-center relative">
+                                <p className="text-xs text-gray-400 font-bold mb-1">VOUS</p>
+                                <p className="text-3xl font-mono text-cyan-400">{calculateScore(playerGrid)}</p>
+                                {doubledScore === 'PLAYER' && <div className="absolute -top-3 -right-6 text-[8px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded rotate-12 shadow-md">DOUBLÉ</div>}
+                            </div>
+                            <div className="text-center relative">
+                                <p className="text-xs text-gray-400 font-bold mb-1">ADV</p>
+                                <p className="text-3xl font-mono text-purple-400">{calculateScore(cpuGrid)}</p>
+                                {doubledScore === 'CPU' && <div className="absolute -top-3 -right-6 text-[8px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded rotate-12 shadow-md">DOUBLÉ</div>}
+                            </div>
                         </div>
+
+                        {doubledScore && (
+                            <div className="mb-4 text-[10px] text-gray-400 max-w-[200px] border border-red-500/30 bg-red-900/10 p-2 rounded">
+                                <AlertTriangle size={12} className="inline mr-1 text-red-500"/>
+                                <strong>RÈGLE SKYJO :</strong> Le joueur ayant fini premier n'avait pas le plus petit score. Ses points ont été doublés.
+                            </div>
+                        )}
+
                         {earnedCoins > 0 && <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
                         <button onClick={() => startGame(gameMode)} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg active:scale-95 flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
                     </div>
