@@ -30,7 +30,7 @@ import { useDailySystem } from './hooks/useDailySystem';
 import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
 import { DB } from './lib/supabaseClient';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, Zap } from 'lucide-react';
 
 
 type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'shop' | 'admin_dashboard';
@@ -40,6 +40,7 @@ const App: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
+    const [coinMultiplierEvent, setCoinMultiplierEvent] = useState<number | null>(null);
     
     // Global Disabled Games State (Loaded from LS first, then updated via Broadcast)
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
@@ -237,11 +238,31 @@ const App: React.FC = () => {
         };
     }, [currentView]);
 
+    // Calculate Active Event (Fix Date Logic)
+    const currentActiveEvent = globalEvents.find(e => {
+        if (!e.active) return false;
+        const now = new Date();
+        const start = new Date(e.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(e.endDate);
+        end.setHours(23, 59, 59, 999);
+        return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
+    });
+
+    // Handle Coin Addition with Event Multiplier
     const addCoinsWithSoundAndQuest = (amount: number) => {
         if (amount > 0) {
-            currency.addCoins(amount);
+            let finalAmount = amount;
+            // Apply Multiplier from Event
+            if (currentActiveEvent && currentActiveEvent.multiplier && currentActiveEvent.multiplier > 1) {
+                finalAmount = Math.ceil(amount * currentActiveEvent.multiplier);
+                setCoinMultiplierEvent(finalAmount);
+                setTimeout(() => setCoinMultiplierEvent(null), 2000);
+            }
+
+            currency.addCoins(finalAmount);
             audio.playCoin();
-            reportQuestProgress('any', 'coins', amount);
+            reportQuestProgress('any', 'coins', finalAmount);
         }
     };
 
@@ -298,18 +319,6 @@ const App: React.FC = () => {
         reportQuestProgress(gameId, eventType, value);
     }, [reportQuestProgress]);
 
-    // Calculate Active Event (Fix Date Logic)
-    const currentActiveEvent = globalEvents.find(e => {
-        if (!e.active) return false;
-        const now = new Date();
-        // Convert dates to timestamps for safer comparison
-        const start = new Date(e.startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(e.endDate);
-        end.setHours(23, 59, 59, 999);
-        return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
-    });
-
     return (
         <>
             {globalAlert && (
@@ -320,6 +329,16 @@ const App: React.FC = () => {
                             <h4 className="font-black text-sm uppercase tracking-widest mb-1">{globalAlert.type === 'warning' ? 'ALERTE SYSTÈME' : 'MESSAGE ADMIN'}</h4>
                             <p className="font-bold text-lg leading-tight text-white">{globalAlert.message}</p>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* BONUS COIN POPUP */}
+            {coinMultiplierEvent && (
+                <div className="fixed top-20 right-6 z-[250] pointer-events-none animate-in slide-in-from-right-10 fade-out zoom-out duration-1000">
+                    <div className="flex items-center gap-2 bg-yellow-500 text-black font-black px-4 py-2 rounded-full shadow-[0_0_20px_gold] animate-bounce">
+                        <Zap size={20} fill="black"/>
+                        <span className="text-xl">+{coinMultiplierEvent}</span>
                     </div>
                 </div>
             )}
