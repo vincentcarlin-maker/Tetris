@@ -47,8 +47,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
     // Online State
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
-    const [isWaitingForHost, setIsWaitingForHost] = useState(false);
-    const [isWaitingForGuest, setIsWaitingForGuest] = useState(false);
+    const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
 
     const handleDataRef = useRef<(data: any) => void>(null);
@@ -89,7 +88,6 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         if (mp.mode === 'lobby') {
             if (isHosting) {
                 setOnlineStep('game');
-                // Force Host to transition to game setup immediately to see waiting screen
                 if (menuPhase === 'MENU') {
                     initGame('ONLINE');
                 }
@@ -100,36 +98,31 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 setMenuPhase('MENU');
             }
         } else if (mp.mode === 'in_game') {
-            const isFreshTransition = onlineStep !== 'game';
             setOnlineStep('game');
             setOpponentLeft(false);
             
-            // --- FIX FOR GUEST SYNC ---
-            // If Guest joins, force reset and start handshake sequence
-            if (!mp.isHost) {
-                // Ensure we are in GAME phase
-                if (menuPhase === 'MENU') {
-                    setMenuPhase('GAME');
-                }
+            // Transition to Game Phase if not already
+            if (menuPhase === 'MENU') {
+                setMenuPhase('GAME');
+                resetGame();
+            }
+
+            // --- SYMMETRIC HANDSHAKE ---
+            // Both sides start waiting and broadcasting their presence
+            if (!isWaitingForOpponent && !winner && whiteCount === 20 && redCount === 20) {
+                setIsWaitingForOpponent(true);
                 
-                // If not already waiting (or to ensure fresh start), trigger handshake
-                // We use a small timeout to let the connection settle
-                if (isFreshTransition || !isWaitingForHost) {
-                    resetGame(); // Ensure board is clean
-                    setIsWaitingForHost(true);
-                    
-                    if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
-                    
-                    // Start spamming READY until ACK
-                    handshakeIntervalRef.current = setInterval(() => {
-                        mp.sendData({ type: 'CHECKERS_READY' });
-                    }, 1000);
-                    // Send one immediately
-                    setTimeout(() => mp.sendData({ type: 'CHECKERS_READY' }), 200);
-                }
+                if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+                
+                // Broadcast presence every 1s
+                const signalType = mp.isHost ? 'CHECKERS_HOST_HERE' : 'CHECKERS_GUEST_HERE';
+                mp.sendData({ type: signalType }); // Send immediately
+                handshakeIntervalRef.current = setInterval(() => {
+                    mp.sendData({ type: signalType });
+                }, 1000);
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, menuPhase, isWaitingForHost, onlineStep]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, menuPhase, isWaitingForOpponent, winner]);
 
     // --- LOGIC ---
 
@@ -157,10 +150,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         setEarnedCoins(0);
         setMustJumpPos(null);
         setOpponentLeft(false);
-        
-        // Reset waiting states
-        setIsWaitingForHost(false);
-        setIsWaitingForGuest(false);
+        setIsWaitingForOpponent(false); // Reset wait state
         
         if (onReportProgress) onReportProgress('play', 1);
     };
@@ -173,17 +163,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             setMenuPhase('DIFFICULTY');
         } else {
             setMenuPhase('GAME');
-            if (mode === 'LOCAL') {
-                resetGame();
-            } else if (mode === 'ONLINE') {
-                resetGame();
-                if (mp.isHost) {
-                    setIsWaitingForGuest(true);
-                } else {
-                    // Guest logic is handled in useEffect when mode switches to in_game
-                    // But if we are re-initializing manually:
-                    setIsWaitingForHost(true);
-                }
+            resetGame();
+            if (mode === 'ONLINE') {
+                // Initial wait state before handshake triggers
+                setIsWaitingForOpponent(true);
             }
         }
     };
@@ -259,7 +242,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const handleCellClick = (r: number, c: number) => {
-        if (winner || isWaitingForHost || isWaitingForGuest || showTutorial) return;
+        if (winner || isWaitingForOpponent || showTutorial) return;
         
         // Online Turn Check
         if (gameMode === 'ONLINE') {
@@ -344,20 +327,21 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     useEffect(() => {
         handleDataRef.current = (data: any) => {
             // Handshake Logic
-            if (data.type === 'CHECKERS_READY') {
-                // IMPORTANT: Always reply INIT to unblock guest, even if we are not waiting (e.g. lost packet)
-                mp.sendData({ type: 'CHECKERS_INIT' }); 
-                if (isWaitingForGuest) {
-                    setIsWaitingForGuest(false);
-                }
-            }
-            if (data.type === 'CHECKERS_INIT') {
-                // Unlock Guest
-                if (isWaitingForHost) {
-                    setIsWaitingForHost(false);
+            if (data.type === 'CHECKERS_HOST_HERE') {
+                // If I am guest and I see host is here, I stop waiting
+                if (!mp.isHost && isWaitingForOpponent) {
+                    setIsWaitingForOpponent(false);
                     if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
                 }
             }
+            if (data.type === 'CHECKERS_GUEST_HERE') {
+                // If I am host and I see guest is here, I stop waiting
+                if (mp.isHost && isWaitingForOpponent) {
+                    setIsWaitingForOpponent(false);
+                    if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
+                }
+            }
+
             // Game Logic
             if (data.type === 'CHECKERS_MOVE') {
                 performMove(data.move);
@@ -367,17 +351,13 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 setWinner(mp.amIP1 ? 'white' : 'red');
             }
             if (data.type === 'REMATCH_START') {
-                if (mp.isHost) {
-                    resetGame();
-                    setIsWaitingForGuest(true);
-                } else {
-                    resetGame();
-                    setIsWaitingForHost(true);
-                    mp.sendData({ type: 'CHECKERS_READY' });
-                    handshakeIntervalRef.current = setInterval(() => {
-                        mp.sendData({ type: 'CHECKERS_READY' });
-                    }, 1000);
-                }
+                resetGame();
+                // Restart handshake
+                setIsWaitingForOpponent(true);
+                const signalType = mp.isHost ? 'CHECKERS_HOST_HERE' : 'CHECKERS_GUEST_HERE';
+                handshakeIntervalRef.current = setInterval(() => {
+                    mp.sendData({ type: signalType });
+                }, 1000);
             }
         };
     });
@@ -622,14 +602,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 </div>
             )}
 
-            {(isWaitingForHost || isWaitingForGuest) && gameMode === 'ONLINE' && (
+            {isWaitingForOpponent && gameMode === 'ONLINE' && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
                     <Loader2 size={48} className="text-cyan-400 animate-spin mb-4"/>
-                    <p className="font-bold">EN ATTENTE D'UN JOUEUR...</p>
+                    <p className="font-bold">EN ATTENTE DU JOUEUR...</p>
                     <button onClick={mp.cancelHosting} className="mt-4 px-4 py-2 bg-red-600 rounded text-sm font-bold">ANNULER</button>
-                    {isWaitingForGuest && (
-                         <button onClick={() => { setIsWaitingForGuest(false); mp.sendData({ type: 'CHECKERS_INIT' }); }} className="mt-2 text-xs text-gray-400 hover:text-white underline">Forcer le démarrage</button>
-                    )}
                 </div>
             )}
 
