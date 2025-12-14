@@ -92,7 +92,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
     // --- HOOKS ---
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio, playCoin } = audio;
     const { highScores, updateHighScore } = useHighScores();
-    const { username, currentAvatarId } = useCurrency();
+    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
 
     // --- GAME STATE ---
     const [phase, setPhase] = useState<GamePhase>('MENU');
@@ -125,7 +125,9 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
     const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
 
     const chatEndRef = useRef<HTMLDivElement>(null);
-    const handleDataRef = useRef<(data: any) => void>(null);
+    
+    // Setup Phase Ref (prevents rapid-fire clicking exploit)
+    const setupRevealedIndicesRef = useRef(new Set<number>());
 
     // --- INITIALIZATION ---
     useEffect(() => {
@@ -142,6 +144,57 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
+    // Handle Online Connection
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            mp.disconnect();
+            setOpponentLeft(false);
+        }
+        return () => mp.disconnect();
+    }, [gameMode]);
+
+    // Handle Online Mode Transition
+    useEffect(() => {
+        const isHosting = mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+            if (phase !== 'MENU') setPhase('MENU'); // Return to menu if disconnected
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            
+            // Host logic to start game once in_game
+            if (mp.isHost && (phase === 'MENU' || phase === 'ENDED')) {
+                resetGame();
+                const newDeck = generateDeck();
+                const pHand = newDeck.splice(0, 12);
+                const cHand = newDeck.splice(0, 12);
+                const topCard = newDeck.pop()!;
+                topCard.isRevealed = true;
+
+                setDeck(newDeck);
+                setPlayerGrid(pHand);
+                setCpuGrid(cHand); 
+                setDiscardPile([topCard]);
+                
+                // Give connection time to settle
+                setTimeout(() => {
+                    mp.sendData({
+                        type: 'SKYJO_INIT',
+                        hand: cHand,
+                        oppHand: pHand,
+                        topCard,
+                        startTurn: mp.peerId
+                    });
+                }, 1000);
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase]);
+
     // --- RESET & SETUP ---
     const resetGame = () => {
         setDeck([]);
@@ -154,14 +207,15 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
         setWinner(null);
         setEarnedCoins(0);
         setSubTurnState('IDLE');
+        setupRevealedIndicesRef.current.clear();
     };
 
     const startGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
-        resetGame();
-        resumeAudio();
-
+        
         if (mode === 'SOLO') {
+            resetGame();
+            resumeAudio();
             const newDeck = generateDeck();
             
             // Player hand
@@ -188,31 +242,9 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
             
             if (onReportProgress) onReportProgress('play', 1);
         } else {
-            // ONLINE HOST LOGIC
-            if (mp.isHost) {
-                const newDeck = generateDeck();
-                const pHand = newDeck.splice(0, 12);
-                const cHand = newDeck.splice(0, 12);
-                const topCard = newDeck.pop()!;
-                topCard.isRevealed = true;
-
-                setDeck(newDeck);
-                setPlayerGrid(pHand);
-                setCpuGrid(cHand); // This stores opponent data locally for host
-                setDiscardPile([topCard]);
-                
-                setTimeout(() => {
-                    mp.sendData({
-                        type: 'SKYJO_INIT',
-                        hand: cHand, // Send to P2
-                        oppHand: pHand, // P2 needs to see P1 (Host) hand
-                        topCard,
-                        startTurn: mp.peerId
-                    });
-                }, 500);
-            } else {
-                setIsWaitingForHost(true);
-            }
+            // ONLINE mode just connects and shows lobby (handled by useEffect)
+            setOnlineStep('connecting');
+            mp.connect();
         }
     };
 
@@ -222,23 +254,21 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
     const handleSetupReveal = (index: number) => {
         if (phase !== 'SETUP') return;
         
-        // Prevent revealing already revealed
-        if (playerGrid[index].isRevealed) return;
+        // Safety check using Ref to prevent race conditions on rapid clicks
+        if (setupRevealedIndicesRef.current.has(index)) return;
+        if (setupRevealedIndicesRef.current.size >= 2) return;
 
-        // Count strictly current revealed
-        const currentlyRevealed = playerGrid.filter(c => c.isRevealed).length;
-        if (currentlyRevealed >= 2) return; // Already done
-
+        setupRevealedIndicesRef.current.add(index);
+        
         playMove();
         
-        // Update Grid (Immutable)
-        const newGrid = playerGrid.map((c, i) => i === index ? { ...c, isRevealed: true } : c);
-        setPlayerGrid(newGrid);
+        // Use functional update to ensure state consistency
+        setPlayerGrid(prevGrid => prevGrid.map((c, i) => i === index ? { ...c, isRevealed: true } : c));
 
         if (gameMode === 'ONLINE') mp.sendData({ type: 'SKYJO_SETUP_REVEAL', index });
 
         // Check if we hit 2 revealed
-        if (currentlyRevealed + 1 >= 2) {
+        if (setupRevealedIndicesRef.current.size >= 2) {
             setTimeout(() => {
                 setPhase('PLAYING');
                 setMessage("À vous de jouer !");
@@ -248,7 +278,8 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
 
     // 2. PLAYING PHASE ACTIONS
     const handleDeckClick = () => {
-        if (phase !== 'PLAYING' || turn !== 'PLAYER' || subTurnState !== 'IDLE') return;
+        // ALLOW ACTION IN LAST TURN TOO
+        if ((phase !== 'PLAYING' && phase !== 'LAST_TURN') || turn !== 'PLAYER' || subTurnState !== 'IDLE') return;
         
         // Shuffle check
         let currentDeck = [...deck];
@@ -273,7 +304,8 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
 
     const handleDiscardPileClick = () => {
         // Can only pick discard if IDLE state
-        if (phase !== 'PLAYING' || turn !== 'PLAYER' || subTurnState !== 'IDLE') {
+        // ALLOW ACTION IN LAST TURN TOO
+        if ((phase !== 'PLAYING' && phase !== 'LAST_TURN') || turn !== 'PLAYER' || subTurnState !== 'IDLE') {
             // Special Case: If HOLDING_DECK, clicking discard pile means "Discard the drawn card"
             if (subTurnState === 'HOLDING_DECK' && currentDrawnCard) {
                 // Action: Discard drawn card -> Must Reveal one
@@ -290,14 +322,11 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
 
         if (discardPile.length === 0) return;
 
-        // Action: Pick up top discard -> Must Swap immediately (state effectively same as holding deck but limited options technically)
-        // Actually, rules say if you take discard, you MUST swap. You cannot discard it back.
+        // Action: Pick up top discard -> Must Swap immediately
         const top = discardPile[discardPile.length - 1];
         setDiscardPile(prev => prev.slice(0, -1));
         setCurrentDrawnCard(top);
-        setSubTurnState('HOLDING_DECK'); // Reusing state, but logic knows it came from discard implicitly? 
-        // To be strict: We should allow swap only. But for UI simplicity, 'HOLDING_DECK' allows swap.
-        // We just need to prevent clicking discard AGAIN. The logic above handles that (subTurnState != IDLE).
+        setSubTurnState('HOLDING_DECK'); 
         
         setMessage("Échangez avec une carte de la grille");
         playMove();
@@ -425,10 +454,8 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                         // All revealed? Swap anyway with random
                         const rnd = Math.floor(Math.random() * 12);
                         const old = aiGrid[rnd];
-                        aiGrid[rnd] = cardToPlay; // wait, logic error if we discarded it... 
-                        // Actually if we discard drawn, we keep grid as is except reveal.
-                        // If no hidden, we MUST have swapped earlier or game is ending.
-                        // Fallback: Swap lowest priority (rare edge case)
+                        aiGrid[rnd] = cardToPlay;
+                        aiDiscard.push(old);
                     }
                 } else {
                     // Took from discard -> Must swap
@@ -501,9 +528,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'SKYJO_INIT') {
-                setPlayerGrid(data.hand); // Received by guest (or host if they listen to self?)
-                // Actually host sends to guest. Guest sets hand.
-                // Guest also receives opponent hand (host's)
+                setPlayerGrid(data.hand); // Received by guest
                 setCpuGrid(data.oppHand);
                 setDiscardPile([data.topCard]);
                 setTurn(data.startTurn === mp.peerId ? 'PLAYER' : 'CPU');
@@ -511,6 +536,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                 setMessage("Révélez 2 cartes pour commencer");
                 setDeck(Array(20).fill(null) as any); // Dummy deck for visuals
                 setSubTurnState('IDLE');
+                setupRevealedIndicesRef.current.clear(); // Reset setup counter for Guest
                 setIsWaitingForHost(false);
                 setOpponentLeft(false);
             }
@@ -555,7 +581,33 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                 setMessage("À vous !");
             }
             if (data.type === 'REMATCH_START') {
-                startGame('ONLINE');
+                // Restart logic controlled by host via SKYJO_INIT
+                if (mp.isHost) {
+                    // Host resets and sends new init
+                    resetGame();
+                    const newDeck = generateDeck();
+                    const pHand = newDeck.splice(0, 12);
+                    const cHand = newDeck.splice(0, 12);
+                    const topCard = newDeck.pop()!;
+                    topCard.isRevealed = true;
+                    setDeck(newDeck);
+                    setPlayerGrid(pHand);
+                    setCpuGrid(cHand); 
+                    setDiscardPile([topCard]);
+                    setTimeout(() => {
+                        mp.sendData({
+                            type: 'SKYJO_INIT',
+                            hand: cHand,
+                            oppHand: pHand,
+                            topCard,
+                            startTurn: mp.peerId
+                        });
+                    }, 1000);
+                } else {
+                    // Guest waits
+                    setIsWaitingForHost(true);
+                    resetGame();
+                }
             }
             if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
@@ -570,12 +622,93 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
 
     // --- RENDER ---
     const handleLocalBack = () => {
-        if (phase === 'MENU') onBack();
-        else {
-            if (gameMode === 'ONLINE') mp.disconnect();
-            setPhase('MENU');
+        if (phase === 'MENU') {
+            onBack();
+        } else {
+            if (gameMode === 'ONLINE') {
+                if (onlineStep === 'game') {
+                    mp.leaveGame();
+                    setOnlineStep('lobby');
+                } else {
+                    mp.disconnect();
+                    setPhase('MENU');
+                }
+            } else {
+                setPhase('MENU');
+            }
         }
     };
+
+    const renderLobby = () => {
+        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+
+         return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
+                 <div className="flex flex-col gap-3 mb-4">
+                     <h3 className="text-xl font-black text-center text-purple-300 tracking-wider drop-shadow-md">LOBBY SKYJO</h3>
+                     <button onClick={mp.createRoom} className="w-full py-3 bg-green-500 text-black font-black tracking-widest rounded-xl text-sm hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.4)] active:scale-95">
+                        <Play size={18} fill="black"/> CRÉER UNE PARTIE
+                     </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {hostingPlayers.length > 0 && (
+                        <>
+                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
+                            {hostingPlayers.map(player => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                            <span className="font-bold">{player.name}</span>
+                                        </div>
+                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
+                </div>
+             </div>
+         );
+    };
+
+    if (gameMode === 'ONLINE' && onlineStep !== 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)] pr-2 pb-1">NEON SKYJO</h1>
+                    <div className="w-10"></div>
+                </div>
+                {onlineStep === 'connecting' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-purple-400 animate-spin mb-4" /><p className="text-purple-300 font-bold">CONNEXION...</p></div>
+                ) : renderLobby()}
+            </div>
+        );
+    }
 
     // Menu
     if (phase === 'MENU') {
@@ -586,7 +719,9 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                     <button onClick={() => startGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
                         <User size={24} className="text-neon-blue"/> SOLO
                     </button>
-                    {/* Add online button if needed, same structure */}
+                    <button onClick={() => startGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                        <Globe size={24} className="text-green-500"/> EN LIGNE
+                    </button>
                 </div>
                 <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
             </div>
@@ -598,6 +733,22 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
             {showTutorial && <TutorialOverlay gameId="skyjo" onClose={() => setShowTutorial(false)} />}
+
+            {gameMode === 'ONLINE' && isWaitingForHost && (
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                    <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE DE L'HÔTE...</p>
+                    <button onClick={mp.leaveGame} className="px-6 py-2 bg-gray-700 text-white rounded-full text-sm font-bold mt-4 hover:bg-gray-600">QUITTER</button>
+                </div>
+            )}
+            
+            {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                    <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                    <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold mt-4">ANNULER</button>
+                </div>
+            )}
 
             {/* HEADER */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
@@ -631,7 +782,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                 {/* DECKS AREA */}
                 <div className="flex items-center justify-center gap-8 h-32 relative">
                     {/* Deck */}
-                    <div onClick={handleDeckClick} className={`relative cursor-pointer transition-transform ${turn === 'PLAYER' && !currentDrawnCard && phase === 'PLAYING' ? 'hover:scale-105' : 'opacity-50'}`}>
+                    <div onClick={handleDeckClick} className={`relative cursor-pointer transition-transform ${turn === 'PLAYER' && !currentDrawnCard && (phase === 'PLAYING' || phase === 'LAST_TURN') ? 'hover:scale-105' : 'opacity-50'}`}>
                         <div className="w-20 h-28 bg-gray-800 rounded-lg border-2 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center">
                             <Layers className="text-purple-400" />
                         </div>
@@ -639,7 +790,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                     </div>
 
                     {/* Discard */}
-                    <div onClick={handleDiscardPileClick} className={`relative cursor-pointer transition-transform ${turn === 'PLAYER' && !currentDrawnCard && phase === 'PLAYING' ? 'hover:scale-105' : ''}`}>
+                    <div onClick={handleDiscardPileClick} className={`relative cursor-pointer transition-transform ${turn === 'PLAYER' && !currentDrawnCard && (phase === 'PLAYING' || phase === 'LAST_TURN') ? 'hover:scale-105' : ''}`}>
                         {discardPile.length > 0 ? (
                             <SkyjoCardComponent card={discardPile[discardPile.length-1]} />
                         ) : (
@@ -672,7 +823,12 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
                                         if (phase === 'SETUP') handleSetupReveal(i);
                                         else handleGridCardClick(i);
                                     }}
-                                    interactive={turn === 'PLAYER' && (phase === 'SETUP' || phase === 'PLAYING' || phase === 'LAST_TURN')}
+                                    interactive={
+                                        turn === 'PLAYER' && (
+                                            phase === 'SETUP' || 
+                                            ((phase === 'PLAYING' || phase === 'LAST_TURN') && subTurnState !== 'IDLE')
+                                        )
+                                    }
                                 />
                             </div>
                         ))}
