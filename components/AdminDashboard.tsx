@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, 
     Database, LayoutGrid, Trophy, X, Shield, Clock, Gamepad2, ChevronRight, 
     Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone, 
     Edit2, Settings, Flag, Megaphone, FileText, Rocket, Lock, Save, Download, 
     RefreshCw, Moon, Sun, Volume2, Battery, Globe, ToggleLeft, ToggleRight,
-    LogOut
+    LogOut, TrendingUp, PieChart
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -179,6 +179,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const totalCoins = profiles.reduce((acc, p) => acc + (p.data?.coins || 0), 0);
     const activeUsers = onlineUsers.filter(u => u.status === 'online').length;
 
+    // --- CALCULATED STATS ---
+    const gamePopularity = useMemo(() => {
+        const stats: Record<string, number> = {};
+        profiles.forEach(p => {
+            const scores = p.data?.highScores || {};
+            Object.keys(scores).forEach(gameKey => {
+                if (scores[gameKey] > 0) {
+                    stats[gameKey] = (stats[gameKey] || 0) + 1;
+                }
+            });
+        });
+        // Convert to array and sort
+        return Object.entries(stats)
+            .map(([id, count]) => {
+                const gameName = GAMES_LIST.find(g => g.id === id)?.name || id;
+                return { id, name: gameName, count };
+            })
+            .sort((a, b) => b.count - a.count);
+    }, [profiles]);
+
+    const richList = useMemo(() => {
+        return [...profiles]
+            .sort((a, b) => (b.data?.coins || 0) - (a.data?.coins || 0))
+            .slice(0, 5);
+    }, [profiles]);
+
     // --- RENDERERS ---
 
     const renderDashboard = () => (
@@ -242,20 +268,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 </div>
 
                 <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
-                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Trophy size={18} className="text-yellow-400"/> JEUX POPULAIRES</h3>
+                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Trophy size={18} className="text-yellow-400"/> JEUX POPULAIRES (TOP 4)</h3>
                     <div className="space-y-3">
-                        {[
-                            { name: 'Tetris', pct: 85, color: 'bg-cyan-500' },
-                            { name: 'Pacman', pct: 70, color: 'bg-yellow-500' },
-                            { name: 'Arena Clash', pct: 65, color: 'bg-red-500' },
-                            { name: 'Skyjo', pct: 45, color: 'bg-purple-500' }
-                        ].map(g => (
-                            <div key={g.name} className="flex items-center gap-3">
-                                <span className="text-xs font-bold text-gray-300 w-24">{g.name}</span>
+                        {gamePopularity.slice(0, 4).map((g, i) => (
+                            <div key={g.id} className="flex items-center gap-3">
+                                <span className="text-xs font-bold text-gray-300 w-24 truncate">{g.name}</span>
                                 <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                    <div className={`h-full ${g.color}`} style={{ width: `${g.pct}%` }}></div>
+                                    <div className={`h-full ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-cyan-500' : i === 2 ? 'bg-purple-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, (g.count / profiles.length) * 100)}%` }}></div>
                                 </div>
-                                <span className="text-xs font-mono text-gray-400">{g.pct}%</span>
+                                <span className="text-xs font-mono text-gray-400">{g.count}</span>
+                            </div>
+                        ))}
+                        {gamePopularity.length === 0 && <p className="text-gray-500 text-xs italic">Pas assez de données...</p>}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderStats = () => (
+        <div className="animate-in fade-in space-y-6">
+            <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2 border-b border-white/10 pb-4">
+                <BarChart2 className="text-purple-400" /> STATISTIQUES GLOBALES
+            </h3>
+
+            {/* ECONOMY STATS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                    <h4 className="text-gray-400 text-xs font-bold uppercase mb-2">Richesse Totale</h4>
+                    <div className="flex items-center gap-2">
+                        <Coins size={24} className="text-yellow-400"/>
+                        <span className="text-3xl font-black text-white">{totalCoins.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                    <h4 className="text-gray-400 text-xs font-bold uppercase mb-2">Moyenne / Joueur</h4>
+                    <div className="flex items-center gap-2">
+                        <TrendingUp size={24} className="text-green-400"/>
+                        <span className="text-3xl font-black text-white">
+                            {profiles.length > 0 ? Math.round(totalCoins / profiles.length).toLocaleString() : 0}
+                        </span>
+                    </div>
+                </div>
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                    <h4 className="text-gray-400 text-xs font-bold uppercase mb-2">Jeux Joués (Cumul)</h4>
+                    <div className="flex items-center gap-2">
+                        <Gamepad2 size={24} className="text-cyan-400"/>
+                        <span className="text-3xl font-black text-white">
+                            {gamePopularity.reduce((acc, g) => acc + g.count, 0)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* DETAILED CHARTS */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* GAME POPULARITY FULL */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                    <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><PieChart size={18} className="text-pink-400"/> RÉPARTITION DES JEUX</h4>
+                    <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                        {gamePopularity.map((g) => (
+                            <div key={g.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg">
+                                <span className="text-xs font-bold text-gray-300">{g.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (g.count / profiles.length) * 100)}%` }}></div>
+                                    </div>
+                                    <span className="text-xs font-mono text-white w-8 text-right">{g.count}</span>
+                                </div>
+                            </div>
+                        ))}
+                        {gamePopularity.length === 0 && <p className="text-gray-500 text-sm">Aucune donnée de jeu.</p>}
+                    </div>
+                </div>
+
+                {/* RICH LIST */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                    <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Trophy size={18} className="text-yellow-400"/> CLASSEMENT FORTUNE (TOP 5)</h4>
+                    <div className="space-y-3">
+                        {richList.map((p, i) => (
+                            <div key={p.username} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <span className={`font-black font-mono text-lg w-6 ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-orange-400':'text-gray-600'}`}>#{i+1}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold text-white">{p.username}</span>
+                                        <span className="text-[10px] text-gray-500">Dernière vue: {new Date(p.updated_at).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 text-yellow-400 font-mono font-bold">
+                                    {p.data?.coins?.toLocaleString() || 0} <Coins size={14}/>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -525,6 +627,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     </h2>
 
                     {activeSection === 'DASHBOARD' && renderDashboard()}
+                    {activeSection === 'STATS' && renderStats()}
                     {activeSection === 'GAMES' && renderGamesManager()}
                     {activeSection === 'USERS' && renderUsers()}
                     {activeSection === 'CONFIG' && renderConfig()}
@@ -533,7 +636,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     {activeSection === 'DATA' && renderData()}
                     
                     {/* Placeholder for other sections */}
-                    {['APPEARANCE', 'STATS', 'FLAGS', 'EVENTS', 'SECURITY', 'FUTURE'].includes(activeSection) && (
+                    {['APPEARANCE', 'FLAGS', 'EVENTS', 'SECURITY', 'FUTURE'].includes(activeSection) && (
                         <div className="flex flex-col items-center justify-center h-64 text-gray-500 opacity-50">
                             <Lock size={48} className="mb-4"/>
                             <p className="font-bold">SECTION EN DÉVELOPPEMENT</p>
