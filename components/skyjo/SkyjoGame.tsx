@@ -764,18 +764,20 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
             {/* GAME AREA */}
             <div className="flex-1 w-full max-w-md flex flex-col gap-4 relative z-10 min-h-0 pb-4">
                 
-                {/* OPPONENT GRID (Small) */}
-                <div className="w-full bg-gray-900/50 rounded-xl p-2 border border-white/5 opacity-80 scale-90 origin-top relative">
-                    <div className="flex justify-between px-2 mb-1">
-                        <span className="text-[10px] font-bold text-gray-500">ADVERSAIRE</span>
+                {/* OPPONENT GRID */}
+                <div className="w-full bg-gray-900/50 rounded-xl p-2 border border-white/5 relative">
+                    <div className="flex justify-between px-2 mb-2">
+                        <span className="text-xs font-bold text-gray-500">ADVERSAIRE</span>
                         <div className="flex flex-col items-end">
-                            <span className="text-[10px] font-bold text-gray-500">SCORE: {calculateScore(cpuGrid)}</span>
+                            <span className="text-xs font-bold text-gray-500">SCORE: {calculateScore(cpuGrid)}</span>
                             {doubledScore === 'CPU' && <span className="text-[8px] font-black text-red-500 animate-pulse flex items-center gap-1"><AlertTriangle size={8}/> SCORE DOUBLÉ</span>}
                         </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-1 sm:gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                         {cpuGrid.map((card, i) => (
-                            <SkyjoCardComponent key={card.id || i} card={card} small />
+                            <div key={card.id || i} className="flex justify-center">
+                                <SkyjoCardComponent key={card.id || i} card={card} />
+                            </div>
                         ))}
                     </div>
                 </div>
