@@ -71,6 +71,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
 
+    // Game Overrides (Name/Version)
+    const [gameOverrides, setGameOverrides] = useState<Record<string, {name: string, version: string}>>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_game_overrides') || '{}'); } catch { return {}; }
+    });
+    const [editingGame, setEditingGame] = useState<{id: string, name: string, version: string} | null>(null);
+
     useEffect(() => {
         loadData();
     }, []);
@@ -104,7 +110,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         const newArr = disabledGames.includes(gameId) ? disabledGames.filter(id => id !== gameId) : [...disabledGames, gameId];
         setDisabledGames(newArr);
         localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
-        mp.sendAdminBroadcast('Mise à jour jeux', 'game_config', newArr);
+        mp.sendAdminBroadcast(disabledGames.includes(gameId) ? 'Jeu réactivé' : 'Jeu en maintenance', 'game_config', newArr);
+    };
+
+    const handleSaveGameEdit = () => {
+        if (!editingGame) return;
+        const newOverrides = { 
+            ...gameOverrides, 
+            [editingGame.id]: { name: editingGame.name, version: editingGame.version } 
+        };
+        setGameOverrides(newOverrides);
+        localStorage.setItem('neon_game_overrides', JSON.stringify(newOverrides));
+        setEditingGame(null);
+        mp.sendAdminBroadcast(`Mise à jour : ${editingGame.name} v${editingGame.version}`, 'info');
     };
 
     const handleBroadcast = (e: React.FormEvent) => {
@@ -149,6 +167,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         linkElement.setAttribute('href', dataUri);
         linkElement.setAttribute('download', 'neon_arcade_backup.json');
         linkElement.click();
+    };
+
+    // --- HELPER ---
+    const getGameData = (game: typeof GAMES_LIST[0]) => {
+        const override = gameOverrides[game.id];
+        return override ? { ...game, ...override } : game;
     };
 
     // --- AGGREGATES ---
@@ -243,7 +267,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const renderGamesManager = () => (
         <div className="animate-in fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {GAMES_LIST.map(game => {
+                {GAMES_LIST.map(rawGame => {
+                    const game = getGameData(rawGame);
                     const isDisabled = disabledGames.includes(game.id);
                     return (
                         <div key={game.id} className={`p-4 rounded-xl border flex flex-col gap-3 transition-all ${isDisabled ? 'bg-red-900/10 border-red-500/30' : 'bg-gray-800 border-white/10'}`}>
@@ -262,8 +287,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                 </button>
                             </div>
                             <div className="flex gap-2 mt-auto pt-2 border-t border-white/5">
-                                <button className="flex-1 py-1 text-[10px] bg-gray-700 hover:bg-gray-600 rounded text-gray-300">MAINTENANCE</button>
-                                <button className="flex-1 py-1 text-[10px] bg-gray-700 hover:bg-gray-600 rounded text-gray-300">EDITER</button>
+                                <button onClick={() => toggleGame(game.id)} className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-colors ${isDisabled ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-red-900/50 hover:bg-red-900 text-red-300'}`}>
+                                    {isDisabled ? 'ACTIVER' : 'MAINTENANCE'}
+                                </button>
+                                <button onClick={() => setEditingGame(game)} className="flex-1 py-1.5 text-[10px] bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 font-bold rounded transition-colors border border-blue-500/30">
+                                    ÉDITER
+                                </button>
                             </div>
                         </div>
                     );
@@ -512,6 +541,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     )}
                 </div>
             </div>
+
+            {/* GAME EDIT MODAL */}
+            {editingGame && (
+                <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setEditingGame(null)}>
+                    <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/20 shadow-2xl p-6 relative" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setEditingGame(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X/></button>
+                        <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2"><Edit2 className="text-blue-400"/> ÉDITER LE JEU</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-500 font-bold block mb-1">ID SYSTÈME</label>
+                                <input type="text" value={editingGame.id} disabled className="w-full bg-black/50 border border-white/10 rounded-lg p-2 text-gray-500 cursor-not-allowed font-mono text-sm" />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold block mb-1">NOM DU JEU</label>
+                                <input 
+                                    type="text" 
+                                    value={editingGame.name} 
+                                    onChange={e => setEditingGame({...editingGame, name: e.target.value})} 
+                                    className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-blue-500 outline-none font-bold" 
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold block mb-1">VERSION</label>
+                                <input 
+                                    type="text" 
+                                    value={editingGame.version} 
+                                    onChange={e => setEditingGame({...editingGame, version: e.target.value})} 
+                                    className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-blue-500 outline-none font-mono" 
+                                />
+                            </div>
+                            <button onClick={handleSaveGameEdit} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 mt-2">
+                                <Save size={18}/> SAUVEGARDER
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* USER DETAIL MODAL */}
             {selectedUser && (
