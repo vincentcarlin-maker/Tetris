@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Clock } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -35,13 +35,9 @@ interface MainMenuProps {
         description: string;
         type: 'XP_BOOST' | 'TOURNAMENT' | 'SPECIAL_QUEST' | 'COMMUNITY';
         active: boolean;
-        endDate: string;
-        multiplier?: number;
-        theme?: string;
     };
 }
 
-// ... (Icons components unchanged) ...
 // Custom Tetris Icon (T-Piece)
 const TetrisIcon = ({ size, className }: { size?: number | string, className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -166,79 +162,6 @@ const LEADERBOARD_GAMES = [
     { id: 'memory', label: 'MEMORY', unit: 'cps', type: 'low', color: 'text-violet-400' },
     { id: 'mastermind', label: 'NEON MIND', unit: 'cps', type: 'low', color: 'text-indigo-400' },
 ];
-
-// Visual Theme Components
-const ThemeParticles = ({ theme }: { theme: string }) => {
-    if (theme === 'winter') {
-        return (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-                {Array.from({ length: 50 }).map((_, i) => (
-                    <div key={i} className="absolute bg-white rounded-full opacity-60 animate-[fall_5s_linear_infinite]" 
-                        style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `-${Math.random() * 20}%`,
-                            width: `${Math.random() * 4 + 2}px`,
-                            height: `${Math.random() * 4 + 2}px`,
-                            animationDelay: `${Math.random() * 5}s`,
-                            animationDuration: `${Math.random() * 3 + 4}s`
-                        }}
-                    />
-                ))}
-            </div>
-        );
-    }
-    if (theme === 'gold') {
-        return (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-                {Array.from({ length: 30 }).map((_, i) => (
-                    <div key={i} className="absolute bg-yellow-400 rounded-full opacity-60 animate-[rise_4s_ease-in_infinite]" 
-                        style={{
-                            left: `${Math.random() * 100}%`,
-                            bottom: `-${Math.random() * 20}%`,
-                            width: `${Math.random() * 3 + 1}px`,
-                            height: `${Math.random() * 3 + 1}px`,
-                            animationDelay: `${Math.random() * 4}s`,
-                            boxShadow: '0 0 10px gold'
-                        }}
-                    />
-                ))}
-            </div>
-        );
-    }
-    // Default or other themes
-    return null;
-};
-
-// Countdown Timer Component
-const EventCountdown = ({ endDate }: { endDate: string }) => {
-    const [timeLeft, setTimeLeft] = useState<{h: number, m: number, s: number} | null>(null);
-
-    useEffect(() => {
-        const calculateTime = () => {
-            const diff = new Date(endDate).getTime() - new Date().getTime();
-            if (diff > 0) {
-                const h = Math.floor(diff / (1000 * 60 * 60));
-                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const s = Math.floor((diff % (1000 * 60)) / 1000);
-                setTimeLeft({ h, m, s });
-            } else {
-                setTimeLeft(null);
-            }
-        };
-        calculateTime();
-        const interval = setInterval(calculateTime, 1000);
-        return () => clearInterval(interval);
-    }, [endDate]);
-
-    if (!timeLeft) return null;
-
-    return (
-        <div className="flex items-center gap-1 font-mono text-xs font-bold bg-black/40 px-2 py-0.5 rounded border border-white/20">
-            <Clock size={12} className="text-white"/>
-            <span>{String(timeLeft.h).padStart(2,'0')}h {String(timeLeft.m).padStart(2,'0')}m {String(timeLeft.s).padStart(2,'0')}s</span>
-        </div>
-    );
-};
 
 const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {
     const [style, setStyle] = useState<React.CSSProperties>({ position: 'fixed', top: startY, left: startX, opacity: 1, transform: 'scale(0.5)', zIndex: 100, pointerEvents: 'none', transition: 'none' });
@@ -403,25 +326,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
     const allQuestsCompleted = quests.every(q => q.isCompleted);
 
-    // Dynamic Theme Class
-    const getEventThemeClass = (theme?: string) => {
-        if (theme === 'winter') return 'bg-cyan-900/40 border-cyan-400 text-cyan-100 shadow-cyan-500/20';
-        if (theme === 'gold') return 'bg-yellow-900/40 border-yellow-400 text-yellow-100 shadow-yellow-500/20';
-        if (theme === 'cyber') return 'bg-purple-900/40 border-purple-400 text-purple-100 shadow-purple-500/20';
-        if (theme === 'halloween') return 'bg-orange-900/40 border-orange-500 text-orange-100 shadow-orange-500/20';
-        // Fallback to type
-        if (activeEvent?.type === 'XP_BOOST') return 'bg-yellow-900/40 border-yellow-400 text-yellow-100 shadow-yellow-500/20';
-        if (activeEvent?.type === 'TOURNAMENT') return 'bg-purple-900/40 border-purple-400 text-purple-100 shadow-purple-500/20';
-        if (activeEvent?.type === 'SPECIAL_QUEST') return 'bg-green-900/40 border-green-400 text-green-100 shadow-green-500/20';
-        return 'bg-blue-900/40 border-blue-400 text-blue-100 shadow-blue-500/20';
-    };
-
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
-            
-            {/* Event Theme Overlay (Particles/Atmosphere) */}
-            {activeEvent && activeEvent.theme && <ThemeParticles theme={activeEvent.theme} />}
-
             {flyingCoins.map(coin => <FlyingCoin key={coin.id} startX={coin.startX} startY={coin.startY} targetX={coin.targetX} targetY={coin.targetY} delay={coin.delay} onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))} />)}
             {showDailyModal && isAuthenticated && <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />}
             <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
@@ -447,47 +353,37 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  <ArcadeLogo />
 
-                 {/* EVENT BANNER - NEW DESIGN */}
+                 {/* EVENT BANNER - ALWAYS VISIBLE IF ACTIVE */}
                  {activeEvent && (
-                     <div className={`w-full mt-4 p-4 rounded-xl border-2 flex flex-col shadow-[0_0_30px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 relative overflow-hidden backdrop-blur-md ${getEventThemeClass(activeEvent.theme)}`}>
-                         
-                         {/* Animated background sheen */}
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] animate-[shimmer_3s_infinite] pointer-events-none"></div>
-
-                         <div className="flex justify-between items-start mb-2 relative z-10">
-                             <div className="flex items-center gap-3">
-                                 <div className={`p-2 rounded-full border-2 bg-black/40 ${
-                                     activeEvent.type === 'XP_BOOST' ? 'border-yellow-400 text-yellow-400' :
-                                     activeEvent.type === 'TOURNAMENT' ? 'border-purple-400 text-purple-400' :
-                                     activeEvent.type === 'SPECIAL_QUEST' ? 'border-green-400 text-green-400' :
-                                     'border-blue-400 text-blue-400'
-                                 }`}>
-                                     {activeEvent.type === 'XP_BOOST' && <Zap size={20} className="animate-pulse"/>}
-                                     {activeEvent.type === 'TOURNAMENT' && <Trophy size={20} className="animate-bounce"/>}
-                                     {activeEvent.type === 'SPECIAL_QUEST' && <Star size={20} className="animate-spin-slow"/>}
-                                     {activeEvent.type === 'COMMUNITY' && <Users size={20} className="animate-pulse"/>}
-                                 </div>
-                                 <div className="flex flex-col">
-                                     <span className="text-[10px] font-black tracking-[0.2em] opacity-80 uppercase flex items-center gap-1">
-                                         {activeEvent.type.replace('_', ' ')}
-                                         {activeEvent.multiplier && activeEvent.multiplier > 1 && <span className="text-yellow-300 animate-pulse ml-1">x{activeEvent.multiplier} COINS</span>}
-                                     </span>
-                                     <span className="font-black text-lg uppercase leading-tight drop-shadow-md">{activeEvent.title}</span>
-                                 </div>
+                     <div className={`w-full mt-4 p-4 rounded-xl border-2 flex items-center justify-between shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 ${
+                         activeEvent.type === 'XP_BOOST' ? 'bg-yellow-900/60 border-yellow-400 text-yellow-100 shadow-yellow-500/20' :
+                         activeEvent.type === 'TOURNAMENT' ? 'bg-purple-900/60 border-purple-400 text-purple-100 shadow-purple-500/20' :
+                         activeEvent.type === 'SPECIAL_QUEST' ? 'bg-green-900/60 border-green-400 text-green-100 shadow-green-500/20' :
+                         'bg-blue-900/60 border-blue-400 text-blue-100 shadow-blue-500/20'
+                     } backdrop-blur-md`}>
+                         <div className="flex items-center gap-4">
+                             <div className={`p-2 rounded-full border-2 bg-black/30 ${
+                                 activeEvent.type === 'XP_BOOST' ? 'border-yellow-400 text-yellow-400' :
+                                 activeEvent.type === 'TOURNAMENT' ? 'border-purple-400 text-purple-400' :
+                                 activeEvent.type === 'SPECIAL_QUEST' ? 'border-green-400 text-green-400' :
+                                 'border-blue-400 text-blue-400'
+                             }`}>
+                                 {activeEvent.type === 'XP_BOOST' && <Zap size={24} className="animate-pulse"/>}
+                                 {activeEvent.type === 'TOURNAMENT' && <Trophy size={24} className="animate-bounce"/>}
+                                 {activeEvent.type === 'SPECIAL_QUEST' && <Star size={24} className="animate-spin-slow"/>}
+                                 {activeEvent.type === 'COMMUNITY' && <Users size={24} className="animate-pulse"/>}
                              </div>
-                             <div className="flex flex-col items-end gap-1">
-                                <div className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-black tracking-wider animate-pulse border border-white/30">EN COURS</div>
-                                <EventCountdown endDate={activeEvent.endDate} />
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] font-black tracking-[0.2em] opacity-80 uppercase">{activeEvent.type.replace('_', ' ')}</span>
+                                 <span className="font-black text-lg uppercase leading-tight drop-shadow-md">{activeEvent.title}</span>
                              </div>
                          </div>
-                         
-                         <p className="text-xs opacity-90 leading-snug bg-black/20 p-2 rounded relative z-10 border border-white/5">{activeEvent.description}</p>
+                         <div className="px-3 py-1 bg-white/20 rounded-lg text-xs font-black tracking-wider animate-pulse border border-white/30">EN COURS</div>
                      </div>
                  )}
 
                  {/* CARTE DE PROFIL COMPACTE */}
 <div {...bindGlow('rgba(200, 230, 255, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
-    {/* ... (Profile Card Content Unchanged) ... */}
     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
     
     {/* Logout */}
@@ -591,7 +487,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 </div>
 
                  {/* --- DAILY QUESTS PANEL --- */}
-                 {/* ... (Quests Panel unchanged) ... */}
                  <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
                      {isAuthenticated && (<><div className="absolute -right-6 -top-6 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full pointer-events-none"></div><div className="absolute -left-6 -bottom-6 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full pointer-events-none"></div></>)}
                      <div onClick={() => isAuthenticated && setIsQuestsExpanded(!isQuestsExpanded)} className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}>
@@ -788,7 +683,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     })}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.8 • EVENTS UPDATE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.7 • SKYJO ADDED</div>
              </div>
         </div>
     );
