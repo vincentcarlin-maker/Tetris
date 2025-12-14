@@ -6,7 +6,7 @@ import {
     Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone, 
     Edit2, Settings, Flag, Megaphone, FileText, Rocket, Lock, Save, Download, 
     RefreshCw, Moon, Sun, Volume2, Battery, Globe, ToggleLeft, ToggleRight,
-    LogOut, TrendingUp, PieChart, MessageSquare, Gift
+    LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -17,6 +17,16 @@ interface AdminDashboardProps {
     onBack: () => void;
     mp: ReturnType<typeof useMultiplayer>;
     onlineUsers: OnlineUser[];
+}
+
+interface AdminEvent {
+    id: string;
+    title: string;
+    description: string;
+    type: 'XP_BOOST' | 'TOURNAMENT' | 'SPECIAL_QUEST' | 'COMMUNITY';
+    startDate: string;
+    endDate: string;
+    active: boolean;
 }
 
 // --- CONFIGURATION ---
@@ -96,6 +106,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 global_chat: true
             };
         }
+    });
+
+    // Events State
+    const [adminEvents, setAdminEvents] = useState<AdminEvent[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_admin_events') || '[]'); } catch { return []; }
+    });
+    const [showEventModal, setShowEventModal] = useState(false);
+    const [currentEvent, setCurrentEvent] = useState<AdminEvent>({
+        id: '', title: '', description: '', type: 'XP_BOOST', startDate: '', endDate: '', active: true
     });
 
     useEffect(() => {
@@ -198,6 +217,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         linkElement.setAttribute('href', dataUri);
         linkElement.setAttribute('download', 'neon_arcade_backup.json');
         linkElement.click();
+    };
+
+    // --- EVENT HANDLERS ---
+    const handleSaveEvent = () => {
+        let newEvents = [...adminEvents];
+        if (currentEvent.id) {
+            // Edit
+            newEvents = newEvents.map(e => e.id === currentEvent.id ? currentEvent : e);
+        } else {
+            // Create
+            newEvents.push({ ...currentEvent, id: Date.now().toString() });
+        }
+        setAdminEvents(newEvents);
+        localStorage.setItem('neon_admin_events', JSON.stringify(newEvents));
+        setShowEventModal(false);
+        
+        if (currentEvent.active) {
+            mp.sendAdminBroadcast(`Nouvel Événement : ${currentEvent.title}`, 'info');
+        }
+    };
+
+    const handleDeleteEvent = (id: string) => {
+        const newEvents = adminEvents.filter(e => e.id !== id);
+        setAdminEvents(newEvents);
+        localStorage.setItem('neon_admin_events', JSON.stringify(newEvents));
+    };
+
+    const openEventModal = (event?: AdminEvent) => {
+        if (event) {
+            setCurrentEvent(event);
+        } else {
+            setCurrentEvent({
+                id: '', 
+                title: '', 
+                description: '', 
+                type: 'XP_BOOST', 
+                startDate: new Date().toISOString().split('T')[0], 
+                endDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0], 
+                active: true
+            });
+        }
+        setShowEventModal(true);
     };
 
     // --- HELPER ---
@@ -422,6 +483,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+
+    const renderEvents = () => (
+        <div className="animate-in fade-in">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Calendar className="text-green-400"/> ÉVÉNEMENTS & SAISONS</h3>
+                <button onClick={() => openEventModal()} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold flex items-center gap-2 text-sm shadow-lg hover:scale-105 transition-all">
+                    <Plus size={16}/> CRÉER
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {adminEvents.length === 0 && (
+                    <div className="col-span-full text-center py-12 bg-gray-800/50 rounded-xl border border-white/5 border-dashed text-gray-500">
+                        Aucun événement planifié.
+                    </div>
+                )}
+                {adminEvents.map(evt => {
+                    const isPast = new Date(evt.endDate) < new Date();
+                    const isActive = evt.active && !isPast;
+                    
+                    let typeColor = 'text-gray-400 border-gray-500';
+                    let Icon = Calendar;
+                    if (evt.type === 'XP_BOOST') { typeColor = 'text-yellow-400 border-yellow-500'; Icon = Zap; }
+                    if (evt.type === 'TOURNAMENT') { typeColor = 'text-purple-400 border-purple-500'; Icon = Trophy; }
+                    if (evt.type === 'SPECIAL_QUEST') { typeColor = 'text-green-400 border-green-500'; Icon = Star; }
+                    if (evt.type === 'COMMUNITY') { typeColor = 'text-blue-400 border-blue-500'; Icon = Users; }
+
+                    return (
+                        <div key={evt.id} className={`p-4 rounded-xl border flex flex-col gap-2 relative group transition-all ${isActive ? 'bg-gray-800 border-white/20' : 'bg-gray-900 border-white/5 opacity-70'}`}>
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg border ${typeColor} bg-black/30`}>
+                                        <Icon size={20}/>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-white text-sm">{evt.title}</h4>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${typeColor} bg-opacity-10`}>{evt.type.replace('_', ' ')}</span>
+                                    </div>
+                                </div>
+                                <div className={`px-2 py-1 rounded text-[10px] font-bold ${isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                    {isActive ? 'ACTIF' : isPast ? 'TERMINÉ' : 'INACTIF'}
+                                </div>
+                            </div>
+                            
+                            <p className="text-xs text-gray-400 line-clamp-2 mt-2 bg-black/20 p-2 rounded">{evt.description}</p>
+                            
+                            <div className="flex items-center gap-4 text-[10px] text-gray-500 font-mono mt-1">
+                                <span className="flex items-center gap-1"><Clock size={10}/> {new Date(evt.startDate).toLocaleDateString()}</span>
+                                <span>➔</span>
+                                <span className="flex items-center gap-1"><Clock size={10}/> {new Date(evt.endDate).toLocaleDateString()}</span>
+                            </div>
+
+                            <div className="flex gap-2 mt-3 pt-3 border-t border-white/5">
+                                <button onClick={() => openEventModal(evt)} className="flex-1 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded text-xs font-bold transition-colors">ÉDITER</button>
+                                <button onClick={() => handleDeleteEvent(evt.id)} className="flex-1 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded text-xs font-bold transition-colors">SUPPRIMER</button>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -773,11 +896,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     {activeSection === 'CONFIG' && renderConfig()}
                     {activeSection === 'FLAGS' && renderFeatureFlags()}
                     {activeSection === 'CONTENT' && renderContent()}
+                    {activeSection === 'EVENTS' && renderEvents()}
                     {activeSection === 'LOGS' && renderLogs()}
                     {activeSection === 'DATA' && renderData()}
                     
                     {/* Placeholder for other sections */}
-                    {['APPEARANCE', 'EVENTS', 'SECURITY', 'FUTURE'].includes(activeSection) && (
+                    {['APPEARANCE', 'SECURITY', 'FUTURE'].includes(activeSection) && (
                         <div className="flex flex-col items-center justify-center h-64 text-gray-500 opacity-50">
                             <Lock size={48} className="mb-4"/>
                             <p className="font-bold">SECTION EN DÉVELOPPEMENT</p>
@@ -785,6 +909,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     )}
                 </div>
             </div>
+
+            {/* EVENTS MODAL */}
+            {showEventModal && (
+                <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-gray-900 w-full max-w-md rounded-2xl border border-white/20 shadow-2xl p-6 relative">
+                        <button onClick={() => setShowEventModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X/></button>
+                        <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2"><Edit2 className="text-green-400"/> {currentEvent.id ? 'ÉDITER' : 'CRÉER'} ÉVÉNEMENT</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold block mb-1">TITRE</label>
+                                <input type="text" value={currentEvent.title} onChange={e => setCurrentEvent({...currentEvent, title: e.target.value})} className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-green-500 outline-none" placeholder="Ex: Week-end XP" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs text-gray-400 font-bold block mb-1">TYPE</label>
+                                    <select value={currentEvent.type} onChange={e => setCurrentEvent({...currentEvent, type: e.target.value as any})} className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-green-500 outline-none">
+                                        <option value="XP_BOOST">Boost XP/Coins</option>
+                                        <option value="TOURNAMENT">Tournoi</option>
+                                        <option value="SPECIAL_QUEST">Quête Spéciale</option>
+                                        <option value="COMMUNITY">Communauté</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-end">
+                                    <label className="flex items-center gap-2 cursor-pointer bg-gray-800 p-2 rounded-lg border border-white/10 w-full justify-center hover:bg-gray-700">
+                                        <input type="checkbox" checked={currentEvent.active} onChange={e => setCurrentEvent({...currentEvent, active: e.target.checked})} className="accent-green-500 w-4 h-4" />
+                                        <span className="text-sm font-bold text-white">ACTIF</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs text-gray-400 font-bold block mb-1">DÉBUT</label>
+                                    <input type="date" value={currentEvent.startDate} onChange={e => setCurrentEvent({...currentEvent, startDate: e.target.value})} className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-green-500 outline-none text-xs" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 font-bold block mb-1">FIN</label>
+                                    <input type="date" value={currentEvent.endDate} onChange={e => setCurrentEvent({...currentEvent, endDate: e.target.value})} className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-green-500 outline-none text-xs" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 font-bold block mb-1">DESCRIPTION</label>
+                                <textarea value={currentEvent.description} onChange={e => setCurrentEvent({...currentEvent, description: e.target.value})} className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-green-500 outline-none h-20 resize-none text-sm" placeholder="Détails de l'événement..." />
+                            </div>
+                            
+                            <button onClick={handleSaveEvent} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 mt-2 shadow-lg">
+                                <Save size={18}/> SAUVEGARDER
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* GAME EDIT MODAL */}
             {editingGame && (
