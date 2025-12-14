@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Users, X, MessageSquare, Send, Copy, Plus, Bell, Globe, UserPlus, CheckCircle, XCircle, Trash2, Activity, Play, Bot, Wifi, Radar, Zap, Trophy, Gamepad2, CloudOff, Cloud, Settings, Save, RefreshCw, BarChart2, Clock, Inbox, User, ChevronRight } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
@@ -558,20 +558,47 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         }
     };
 
-    const displayedCommunity = [
-        ...onlineUsers.filter(u => u.id !== mp.peerId),
-        ...MOCK_COMMUNITY_PLAYERS
-    ].filter(p => !friends.some(f => f.id === p.id))
-    .filter((p, index, self) => index === self.findIndex((t) => t.id === p.id))
-    .sort((a, b) => {
-        const aIsBot = a.id.startsWith('bot_');
-        const bIsBot = b.id.startsWith('bot_');
-        if (aIsBot && !bIsBot) return 1;
-        if (!aIsBot && bIsBot) return -1;
-        if (a.status === 'online' && b.status !== 'online') return -1;
-        if (a.status !== 'online' && b.status === 'online') return 1;
-        return 0;
-    });
+    const displayedCommunity = useMemo(() => {
+        const rawList = [
+            ...onlineUsers.filter(u => u.id !== mp.peerId),
+            ...MOCK_COMMUNITY_PLAYERS
+        ];
+
+        // 1. Remove friends
+        const nonFriends = rawList.filter(p => !friends.some(f => f.id === p.id));
+
+        // 2. Deduplicate by ID
+        const uniqueById = nonFriends.filter((p, index, self) => 
+            index === self.findIndex((t) => t.id === p.id)
+        );
+
+        // 3. Deduplicate by Name (Keep best version: Online > Recent)
+        uniqueById.sort((a, b) => {
+            if (a.status === 'online' && b.status !== 'online') return -1;
+            if (a.status !== 'online' && b.status === 'online') return 1;
+            return (b.lastSeen || 0) - (a.lastSeen || 0);
+        });
+
+        const uniqueByName = uniqueById.filter((p, index, self) => 
+            index === self.findIndex((t) => t.name === p.name)
+        );
+
+        // 4. Final Display Sort
+        return uniqueByName.sort((a, b) => {
+            const aIsBot = a.id.startsWith('bot_');
+            const bIsBot = b.id.startsWith('bot_');
+            
+            // Online first
+            if (a.status === 'online' && b.status !== 'online') return -1;
+            if (a.status !== 'online' && b.status === 'online') return 1;
+            
+            // Real users before bots
+            if (!aIsBot && bIsBot) return -1;
+            if (aIsBot && !bIsBot) return 1;
+            
+            return (b.lastSeen || 0) - (a.lastSeen || 0);
+        });
+    }, [onlineUsers, mp.peerId, friends]);
 
     const getFrameClass = (frameId?: string) => framesCatalog.find(f => f.id === frameId)?.cssClass || 'border-white/10';
     const hasOnlineFriends = friends.some(f => !f.id.startsWith('bot_') && onlineUsers.some(ou => ou.id === f.id && ou.status === 'online'));
