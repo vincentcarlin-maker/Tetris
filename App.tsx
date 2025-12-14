@@ -174,18 +174,43 @@ const App: React.FC = () => {
                 if (!message) return; // Silent sync if no message
             }
 
+            // Handle User Specific Updates (Gifts, etc.)
+            if (type === 'user_update') {
+                if (data && data.targetUser === currency.username) {
+                    if (data.action === 'ADD_COINS') {
+                        // Apply locally first
+                        currency.addCoins(data.amount);
+                        audio.playVictory();
+                        
+                        // FORCE immediate cloud sync to acknowledge receipt and prevent overwrite
+                        // We delay slightly to let state update
+                        setTimeout(() => {
+                             syncProfileToCloud(currency.username, buildSavePayload());
+                        }, 1000);
+                    }
+                }
+            }
+
             // Handle Text Alerts (Display the banner)
             if (message) {
-                setGlobalAlert({ message, type: type === 'game_config' ? 'info' : type });
-                if (type === 'warning') audio.playGameOver(); 
-                else audio.playVictory();
-                
-                setTimeout(() => setGlobalAlert(null), 5000);
+                 // For personal updates, show specific alert only to target
+                if (type === 'user_update') {
+                    if (data && data.targetUser === currency.username) {
+                         setGlobalAlert({ message, type: 'info' });
+                         setTimeout(() => setGlobalAlert(null), 5000);
+                    }
+                } else {
+                    setGlobalAlert({ message, type: type === 'game_config' ? 'info' : type });
+                    if (type === 'warning') audio.playGameOver(); 
+                    else audio.playVictory();
+                    
+                    setTimeout(() => setGlobalAlert(null), 5000);
+                }
             }
         };
         window.addEventListener('neon_admin_event', handleAdminEvent as EventListener);
         return () => window.removeEventListener('neon_admin_event', handleAdminEvent as EventListener);
-    }, [audio, currentView, currency.username, currency.adminModeActive]);
+    }, [audio, currentView, currency.username, currency.adminModeActive, currency.addCoins, syncProfileToCloud]);
 
     useEffect(() => {
         const storedName = localStorage.getItem('neon-username');

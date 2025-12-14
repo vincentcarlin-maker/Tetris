@@ -221,16 +221,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     const handleGiftCoins = async () => {
         if (!selectedUser) return;
-        const newAmount = (selectedUser.data.coins || 0) + giftAmount;
-        if (isSupabaseConfigured) await DB.updateUserData(selectedUser.username, { coins: newAmount });
-        // Local Mirror
+        const currentCoins = selectedUser.data?.coins || 0;
+        const newAmount = currentCoins + giftAmount;
+        
+        // 1. Update DB (Source of Truth)
+        if (isSupabaseConfigured) {
+            await DB.updateUserData(selectedUser.username, { coins: newAmount });
+        }
+        
+        // 2. Broadcast to user (if online) to update their local state instantly
+        // This prevents the user's next auto-save from overwriting the DB with old coin values
+        mp.sendAdminBroadcast(
+            `🎁 Cadeau Admin : +${giftAmount} Pièces !`, 
+            'user_update', 
+            { 
+                targetUser: selectedUser.username, 
+                action: 'ADD_COINS', 
+                amount: giftAmount 
+            }
+        );
+
+        // 3. Local Dashboard Mirror Update (Visual Feedback for Admin)
         const userDataStr = localStorage.getItem('neon_data_' + selectedUser.username);
         if (userDataStr) {
             const d = JSON.parse(userDataStr); d.coins = newAmount;
             localStorage.setItem('neon_data_' + selectedUser.username, JSON.stringify(d));
         }
+        
         setProfiles(p => p.map(u => u.username === selectedUser.username ? { ...u, data: { ...u.data, coins: newAmount } } : u));
         setSelectedUser((prev: any) => ({ ...prev, data: { ...prev.data, coins: newAmount } }));
+        alert(`Envoyé ! Nouveau solde pour ${selectedUser.username} : ${newAmount}`);
     };
 
     const handleBan = async () => {
