@@ -45,6 +45,11 @@ const App: React.FC = () => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
 
+    // Global Events State
+    const [globalEvents, setGlobalEvents] = useState<any[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_global_events') || '[]'); } catch { return []; }
+    });
+
     const audio = useGameAudio();
     const currency = useCurrency();
     const mp = useMultiplayer(); 
@@ -133,6 +138,15 @@ const App: React.FC = () => {
                         setCurrentView('menu');
                         setGlobalAlert({ message: "Ce jeu a été désactivé par l'administrateur.", type: 'warning' });
                     }
+                }
+                return;
+            }
+
+            // Handle Event Sync
+            if (type === 'sync_events') {
+                if (Array.isArray(data)) {
+                    setGlobalEvents(data);
+                    localStorage.setItem('neon_global_events', JSON.stringify(data));
                 }
                 return;
             }
@@ -259,6 +273,14 @@ const App: React.FC = () => {
         reportQuestProgress(gameId, eventType, value);
     }, [reportQuestProgress]);
 
+    // Calculate Active Event
+    const currentActiveEvent = globalEvents.find(e => {
+        const now = new Date();
+        const start = new Date(e.startDate);
+        const end = new Date(e.endDate);
+        return e.active && now >= start && now <= end;
+    });
+
     return (
         <>
             {globalAlert && (
@@ -340,8 +362,8 @@ const App: React.FC = () => {
                         allCompletedBonusClaimed
                     }}
                     onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
-                    // Passing current disabled games for render logic
                     disabledGamesList={disabledGames}
+                    activeEvent={currentActiveEvent}
                 />
             )}
         </>

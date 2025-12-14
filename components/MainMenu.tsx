@@ -28,7 +28,14 @@ interface MainMenuProps {
         allCompletedBonusClaimed: boolean;
     };
     onlineUsers: OnlineUser[]; 
-    disabledGamesList?: string[]; // Received from App state
+    disabledGamesList?: string[]; 
+    activeEvent?: {
+        id: string;
+        title: string;
+        description: string;
+        type: 'XP_BOOST' | 'TOURNAMENT' | 'SPECIAL_QUEST' | 'COMMUNITY';
+        active: boolean;
+    };
 }
 
 // Custom Tetris Icon (T-Piece)
@@ -198,7 +205,7 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, disabledGamesList = [] }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, disabledGamesList = [], activeEvent }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog, currentMalletId } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
@@ -345,6 +352,28 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  <ArcadeLogo />
+
+                 {/* EVENT BANNER */}
+                 {activeEvent && (
+                     <div className={`w-full p-3 rounded-xl border flex items-center justify-between animate-pulse shadow-lg ${
+                         activeEvent.type === 'XP_BOOST' ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-300' :
+                         activeEvent.type === 'TOURNAMENT' ? 'bg-purple-900/40 border-purple-500/50 text-purple-300' :
+                         activeEvent.type === 'SPECIAL_QUEST' ? 'bg-green-900/40 border-green-500/50 text-green-300' :
+                         'bg-blue-900/40 border-blue-500/50 text-blue-300'
+                     }`}>
+                         <div className="flex items-center gap-3">
+                             {activeEvent.type === 'XP_BOOST' && <Zap size={24}/>}
+                             {activeEvent.type === 'TOURNAMENT' && <Trophy size={24}/>}
+                             {activeEvent.type === 'SPECIAL_QUEST' && <Star size={24}/>}
+                             {activeEvent.type === 'COMMUNITY' && <Users size={24}/>}
+                             <div className="flex flex-col">
+                                 <span className="text-xs font-bold tracking-widest opacity-80">{activeEvent.type.replace('_', ' ')}</span>
+                                 <span className="font-black uppercase">{activeEvent.title}</span>
+                             </div>
+                         </div>
+                         <div className="px-2 py-1 bg-black/40 rounded text-[10px] font-bold">ACTIF</div>
+                     </div>
+                 )}
 
                  {/* CARTE DE PROFIL COMPACTE */}
 <div {...bindGlow('rgba(200, 230, 255, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">

@@ -260,6 +260,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         localStorage.setItem('neon_admin_events', JSON.stringify(newEvents));
         setShowEventModal(false);
         
+        // Broadcast FULL list to sync all clients immediately
+        mp.sendAdminBroadcast("Sync Events", "sync_events", newEvents);
+        
         if (currentEvent.active) {
             mp.sendAdminBroadcast(`Nouvel Événement : ${currentEvent.title}`, 'info');
         }
@@ -269,6 +272,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         const newEvents = adminEvents.filter(e => e.id !== id);
         setAdminEvents(newEvents);
         localStorage.setItem('neon_admin_events', JSON.stringify(newEvents));
+        
+        // Broadcast update
+        mp.sendAdminBroadcast("Sync Events", "sync_events", newEvents);
     };
 
     const openEventModal = (event?: AdminEvent) => {
