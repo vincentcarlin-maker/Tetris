@@ -20,7 +20,7 @@ import { StackGame } from './components/stack/StackGame';
 import { ArenaClashGame } from './components/arenaclash/ArenaClashGame'; 
 import { SkyjoGame } from './components/skyjo/SkyjoGame';
 import { Shop } from './components/Shop';
-import { AdminDashboard } from './components/AdminDashboard';
+import { AdminDashboard, AdminEvent } from './components/AdminDashboard';
 import { SocialOverlay } from './components/SocialOverlay';
 import { LoginScreen } from './components/LoginScreen';
 import { useGameAudio } from './hooks/useGameAudio';
@@ -30,7 +30,7 @@ import { useDailySystem } from './hooks/useDailySystem';
 import { useHighScores } from './hooks/useHighScores';
 import { useSupabase } from './hooks/useSupabase';
 import { DB } from './lib/supabaseClient';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, Zap, Trophy, Gift } from 'lucide-react';
 
 
 type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'shop' | 'admin_dashboard';
@@ -40,17 +40,24 @@ const App: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
+    const [coinMultiplierEvent, setCoinMultiplierEvent] = useState<number | null>(null);
+    const [eventProgressUpdate, setEventProgressUpdate] = useState<{ progress: number, target: number } | null>(null);
     
-    // Global Disabled Games State (Loaded from LS first, then updated via Broadcast)
+    // Global Disabled Games State
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
 
     // Global Events State
-    const [globalEvents, setGlobalEvents] = useState<any[]>(() => {
+    const [globalEvents, setGlobalEvents] = useState<AdminEvent[]>(() => {
         try { 
             return JSON.parse(localStorage.getItem('neon_admin_events') || '[]');
         } catch { return []; }
+    });
+
+    // Local Event Progress State
+    const [eventProgress, setEventProgress] = useState<Record<string, number>>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_event_progress') || '{}'); } catch { return {}; }
     });
 
     const audio = useGameAudio();
@@ -88,7 +95,6 @@ const App: React.FC = () => {
 
     const saveTimeoutRef = useRef<any>(null);
 
-    // Initial Load of System Config (Ensure all players have the latest rules)
     useEffect(() => {
         const loadSystemConfig = async () => {
             if (!isConnectedToSupabase) return;
@@ -125,7 +131,8 @@ const App: React.FC = () => {
             highScores: highScores,
             quests: quests,
             streak: streak,
-            lastLogin: localStorage.getItem('neon_last_login')
+            lastLogin: localStorage.getItem('neon_last_login'),
+            eventProgress: eventProgress // Save event progress to cloud
         };
         
         if (cachedPassword) {
@@ -134,52 +141,42 @@ const App: React.FC = () => {
         return payload;
     };
 
-    // Auto-Save
+    // Auto-Save including Event Progress
     useEffect(() => {
         if (!isAuthenticated || !currency.username) return;
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             syncProfileToCloud(currency.username, buildSavePayload());
         }, 2000); 
-    }, [currency.coins, currency.currentAvatarId, highScores, quests, streak]);
+    }, [currency.coins, currency.currentAvatarId, highScores, quests, streak, eventProgress]);
 
-    // Admin Global Listener (Alerts AND Config Updates)
+    // Admin Global Listener
     useEffect(() => {
         const handleAdminEvent = (e: CustomEvent) => {
             const { message, type, data } = e.detail;
             
-            // Handle Config Updates
-            if (type === 'game_config') {
-                if (Array.isArray(data)) {
-                    setDisabledGames(data);
-                    localStorage.setItem('neon_disabled_games', JSON.stringify(data));
-                    
-                    // If user is currently playing a disabled game, kick them out (unless admin/immune)
-                    const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
-                    if (data.includes(currentView) && !isImmune && currentView !== 'menu' && currentView !== 'shop') {
-                        setCurrentView('menu');
-                        setGlobalAlert({ message: "Ce jeu a été désactivé par l'administrateur.", type: 'warning' });
-                        setTimeout(() => setGlobalAlert(null), 5000);
-                        return; // Stop further processing to prioritize kick
-                    }
+            if (type === 'game_config' && Array.isArray(data)) {
+                setDisabledGames(data);
+                localStorage.setItem('neon_disabled_games', JSON.stringify(data));
+                
+                const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
+                if (data.includes(currentView) && !isImmune && currentView !== 'menu' && currentView !== 'shop') {
+                    setCurrentView('menu');
+                    setGlobalAlert({ message: "Ce jeu a été désactivé par l'administrateur.", type: 'warning' });
+                    setTimeout(() => setGlobalAlert(null), 5000);
+                    return;
                 }
             }
 
-            // Handle Event Sync
-            if (type === 'sync_events') {
-                if (Array.isArray(data)) {
-                    setGlobalEvents(data);
-                    localStorage.setItem('neon_admin_events', JSON.stringify(data));
-                }
-                if (!message) return; // Silent sync if no message
+            if (type === 'sync_events' && Array.isArray(data)) {
+                setGlobalEvents(data);
+                localStorage.setItem('neon_admin_events', JSON.stringify(data));
             }
 
-            // Handle Text Alerts (Display the banner)
             if (message) {
                 setGlobalAlert({ message, type: type === 'game_config' ? 'info' : type });
                 if (type === 'warning') audio.playGameOver(); 
                 else audio.playVictory();
-                
                 setTimeout(() => setGlobalAlert(null), 5000);
             }
         };
@@ -201,6 +198,7 @@ const App: React.FC = () => {
         return () => mp.disconnect();
     }, [isAuthenticated]);
 
+    // Wallpaper Effect
     useEffect(() => {
         const bgElement = document.getElementById('app-background');
         if (bgElement) {
@@ -237,11 +235,42 @@ const App: React.FC = () => {
         };
     }, [currentView]);
 
+    // Calculate Active Event
+    const currentActiveEvent = globalEvents.find(e => {
+        if (!e.active) return false;
+        const now = new Date();
+        const start = new Date(e.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(e.endDate);
+        end.setHours(23, 59, 59, 999);
+        return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
+    });
+
+    const isGameTargetedByEvent = (gameId: string) => {
+        if (!currentActiveEvent) return false;
+        if (!currentActiveEvent.targetGameIds || currentActiveEvent.targetGameIds.length === 0) return true; // All games
+        return currentActiveEvent.targetGameIds.includes(gameId);
+    };
+
     const addCoinsWithSoundAndQuest = (amount: number) => {
         if (amount > 0) {
-            currency.addCoins(amount);
+            let finalAmount = amount;
+            // Apply Multiplier ONLY if game matches (passed via context implicitly or handled here if generic)
+            // Note: This function handles Generic Coin Gain. Specific game multipliers happen inside `handleGameEvent` logic for rewards?
+            // Actually, game components call this for direct rewards. We should check active view.
+            
+            // NOTE: currentView reflects the game being played when coins are added
+            if (currentActiveEvent && currentActiveEvent.multiplier && currentActiveEvent.multiplier > 1) {
+                if (isGameTargetedByEvent(currentView)) {
+                    finalAmount = Math.ceil(amount * currentActiveEvent.multiplier);
+                    setCoinMultiplierEvent(finalAmount);
+                    setTimeout(() => setCoinMultiplierEvent(null), 2000);
+                }
+            }
+
+            currency.addCoins(finalAmount);
             audio.playCoin();
-            reportQuestProgress('any', 'coins', amount);
+            reportQuestProgress('any', 'coins', finalAmount);
         }
     };
 
@@ -255,7 +284,6 @@ const App: React.FC = () => {
             return;
         }
         
-        // Security check for disabled games (redundant with MainMenu but safe)
         const isRestricted = disabledGames.includes(game);
         const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
         
@@ -277,9 +305,8 @@ const App: React.FC = () => {
         currency.updateUsername(username);
         if (cloudData) {
             currency.importData(cloudData);
-            if (cloudData.highScores) {
-                importScores(cloudData.highScores);
-            }
+            if (cloudData.highScores) importScores(cloudData.highScores);
+            if (cloudData.eventProgress) setEventProgress(cloudData.eventProgress); // Restore progress
             syncProfileToCloud(username, cloudData);
         } else {
             currency.refreshData(); 
@@ -294,21 +321,54 @@ const App: React.FC = () => {
         mp.disconnect();
     };
 
+    // Central Game Event Handler
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
+        // 1. Daily Quests
         reportQuestProgress(gameId, eventType, value);
-    }, [reportQuestProgress]);
 
-    // Calculate Active Event (Fix Date Logic)
-    const currentActiveEvent = globalEvents.find(e => {
-        if (!e.active) return false;
-        const now = new Date();
-        // Convert dates to timestamps for safer comparison
-        const start = new Date(e.startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(e.endDate);
-        end.setHours(23, 59, 59, 999);
-        return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
-    });
+        // 2. Global Event Objective Logic
+        if (currentActiveEvent && currentActiveEvent.goalType && currentActiveEvent.goalType !== 'NONE') {
+            // Check if this game contributes to the event
+            if (isGameTargetedByEvent(gameId)) {
+                let contributes = false;
+                
+                // Map Game Event to Goal Type
+                if (currentActiveEvent.goalType === 'SCORE' && eventType === 'score') contributes = true;
+                if (currentActiveEvent.goalType === 'PLAY_COUNT' && eventType === 'play') contributes = true;
+                if (currentActiveEvent.goalType === 'WIN_COUNT' && eventType === 'win') contributes = true;
+
+                if (contributes) {
+                    const eventKey = currentActiveEvent.id;
+                    const currentVal = eventProgress[eventKey] || 0;
+                    const target = currentActiveEvent.goalTarget || 0;
+
+                    // If already completed, do nothing
+                    if (currentVal >= target) return;
+
+                    const newVal = currentVal + value;
+                    
+                    // Update State & LocalStorage
+                    const newProgress = { ...eventProgress, [eventKey]: newVal };
+                    setEventProgress(newProgress);
+                    localStorage.setItem('neon_event_progress', JSON.stringify(newProgress));
+
+                    // Show Progress Notification
+                    setEventProgressUpdate({ progress: newVal, target });
+                    setTimeout(() => setEventProgressUpdate(null), 2000);
+
+                    // Check Completion
+                    if (newVal >= target) {
+                        const reward = currentActiveEvent.completionReward || 0;
+                        if (reward > 0) {
+                            currency.addCoins(reward);
+                            setGlobalAlert({ message: `OBJECTIF ÉVÉNEMENT ATTEINT ! +${reward} PIÈCES`, type: 'info' });
+                            audio.playVictory();
+                        }
+                    }
+                }
+            }
+        }
+    }, [reportQuestProgress, currentActiveEvent, eventProgress, currency, audio]);
 
     return (
         <>
@@ -320,6 +380,30 @@ const App: React.FC = () => {
                             <h4 className="font-black text-sm uppercase tracking-widest mb-1">{globalAlert.type === 'warning' ? 'ALERTE SYSTÈME' : 'MESSAGE ADMIN'}</h4>
                             <p className="font-bold text-lg leading-tight text-white">{globalAlert.message}</p>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* BONUS COIN POPUP */}
+            {coinMultiplierEvent && (
+                <div className="fixed top-20 right-6 z-[250] pointer-events-none animate-in slide-in-from-right-10 fade-out zoom-out duration-1000">
+                    <div className="flex items-center gap-2 bg-yellow-500 text-black font-black px-4 py-2 rounded-full shadow-[0_0_20px_gold] animate-bounce">
+                        <Zap size={20} fill="black"/>
+                        <span className="text-xl">+{coinMultiplierEvent}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* EVENT PROGRESS POPUP */}
+            {eventProgressUpdate && (
+                <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[250] pointer-events-none animate-in slide-in-from-bottom-10 fade-out duration-2000">
+                    <div className="bg-gray-900/90 border border-blue-500/50 rounded-full px-6 py-2 flex items-center gap-3 shadow-lg backdrop-blur-md">
+                        <Trophy size={18} className="text-blue-400" />
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">PROGRESSION ÉVÉNEMENT</span>
+                            <span className="text-sm font-black text-white font-mono">{eventProgressUpdate.progress} / {eventProgressUpdate.target}</span>
+                        </div>
+                        {eventProgressUpdate.progress >= eventProgressUpdate.target && <Gift size={20} className="text-yellow-400 animate-bounce"/>}
                     </div>
                 </div>
             )}
@@ -351,7 +435,7 @@ const App: React.FC = () => {
                 <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={onlineUsers} />
             )}
 
-            {/* Game Components */}
+            {/* Game Components with Event Hooks */}
             {currentView === 'tetris' && isAuthenticated && <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('tetris', metric, val)} />}
             {currentView === 'connect4' && isAuthenticated && <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('connect4', metric, val)} />}
             {currentView === 'sudoku' && isAuthenticated && <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('sudoku', metric, val)} />}
@@ -393,6 +477,7 @@ const App: React.FC = () => {
                     onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
                     disabledGamesList={disabledGames}
                     activeEvent={currentActiveEvent}
+                    eventProgress={eventProgress}
                 />
             )}
         </>
