@@ -173,8 +173,6 @@ export const MALLETS_CATALOG: Mallet[] = [
 
 export const useCurrency = () => {
     // --- STATE INITIALIZATION WITH LOCALSTORAGE LAZY LOADING ---
-    // This ensures state is correct from the very first render, preventing "flashes" of default values.
-    
     const [coins, setCoins] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
     const [inventory, setInventory] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
@@ -280,7 +278,6 @@ export const useCurrency = () => {
             localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets));
         }
         
-        // Also restore generic items like daily quests state if in blob
         if (data.quests) localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
         if (data.streak) localStorage.setItem('neon_streak', data.streak.toString());
         if (data.lastLogin) localStorage.setItem('neon_last_login', data.lastLogin);
@@ -322,7 +319,6 @@ export const useCurrency = () => {
         if (storedMallet) setCurrentMalletId(storedMallet);
         if (storedOwnedMallets) setOwnedMallets(JSON.parse(storedOwnedMallets));
 
-        // Sync admin mode on refresh, especially for login
         if (storedName === 'Vincent') {
             const savedMode = localStorage.getItem('neon-admin-mode');
             setAdminModeActive(savedMode !== null ? JSON.parse(savedMode) : true);
@@ -344,7 +340,6 @@ export const useCurrency = () => {
     }, []);
 
     const buyBadge = useCallback((badgeId: string, cost: number) => {
-        if (isAdmin) return; // Admin has everything already
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -360,7 +355,7 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, [isAdmin]);
+    }, []);
 
     const updateUsername = useCallback((name: string) => {
         setUsername(name);
@@ -368,7 +363,6 @@ export const useCurrency = () => {
     }, []);
 
     const buyAvatar = useCallback((avatarId: string, cost: number) => {
-        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -383,17 +377,16 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, [isAdmin]);
+    }, []);
 
     const selectAvatar = useCallback((avatarId: string) => {
-        if (isAdmin || ownedAvatars.includes(avatarId)) {
+        if (ownedAvatars.includes(avatarId)) {
             setCurrentAvatarId(avatarId);
             localStorage.setItem('neon-avatar', avatarId);
         }
-    }, [ownedAvatars, isAdmin]);
+    }, [ownedAvatars]);
 
     const buyFrame = useCallback((frameId: string, cost: number) => {
-        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -408,17 +401,16 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, [isAdmin]);
+    }, []);
 
     const selectFrame = useCallback((frameId: string) => {
-        if (isAdmin || ownedFrames.includes(frameId)) {
+        if (ownedFrames.includes(frameId)) {
             setCurrentFrameId(frameId);
             localStorage.setItem('neon-frame', frameId);
         }
-    }, [ownedFrames, isAdmin]);
+    }, [ownedFrames]);
 
     const buyWallpaper = useCallback((wallpaperId: string, cost: number) => {
-        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -433,17 +425,16 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, [isAdmin]);
+    }, []);
 
     const selectWallpaper = useCallback((wallpaperId: string) => {
-        if (isAdmin || ownedWallpapers.includes(wallpaperId)) {
+        if (ownedWallpapers.includes(wallpaperId)) {
             setCurrentWallpaperId(wallpaperId);
             localStorage.setItem('neon-wallpaper', wallpaperId);
         }
-    }, [ownedWallpapers, isAdmin]);
+    }, [ownedWallpapers]);
 
     const buyTitle = useCallback((titleId: string, cost: number) => {
-        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -458,17 +449,16 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, [isAdmin]);
+    }, []);
 
     const selectTitle = useCallback((titleId: string) => {
-        if (isAdmin || ownedTitles.includes(titleId)) {
+        if (ownedTitles.includes(titleId)) {
             setCurrentTitleId(titleId);
             localStorage.setItem('neon-title', titleId);
         }
-    }, [ownedTitles, isAdmin]);
+    }, [ownedTitles]);
 
     const buyMallet = useCallback((malletId: string, cost: number) => {
-        if (isAdmin) return;
         setCoins(prev => {
             if (prev >= cost) {
                 const newBalance = prev - cost;
@@ -483,16 +473,15 @@ export const useCurrency = () => {
             }
             return prev;
         });
-    }, [isAdmin]);
+    }, []);
 
     const selectMallet = useCallback((malletId: string) => {
-        if (isAdmin || ownedMallets.includes(malletId)) {
+        if (ownedMallets.includes(malletId)) {
             setCurrentMalletId(malletId);
             localStorage.setItem('neon-mallet', malletId);
         }
-    }, [ownedMallets, isAdmin]);
+    }, [ownedMallets]);
 
-    // Système de Rangs basé sur le nombre de badges
     const playerRank = useMemo(() => {
         if (isSuperUser) return { title: 'ADMINISTRATEUR', color: 'text-red-500', glow: 'shadow-red-500/50' };
         
@@ -505,14 +494,13 @@ export const useCurrency = () => {
     }, [inventory, isSuperUser]);
 
     return { 
-        // Admin Overrides applied here ONLY IF isAdmin is true (Vincent + Toggle On)
-        coins: isAdmin ? 99999999 : coins, 
-        inventory: isAdmin ? BADGES_CATALOG.map(b => b.id) : inventory,
-        ownedAvatars: isAdmin ? AVATARS_CATALOG.map(a => a.id) : ownedAvatars,
-        ownedFrames: isAdmin ? FRAMES_CATALOG.map(f => f.id) : ownedFrames,
-        ownedWallpapers: isAdmin ? WALLPAPERS_CATALOG.map(w => w.id) : ownedWallpapers,
-        ownedTitles: isAdmin ? TITLES_CATALOG.map(t => t.id) : ownedTitles,
-        ownedMallets: isAdmin ? MALLETS_CATALOG.map(m => m.id) : ownedMallets,
+        coins, 
+        inventory,
+        ownedAvatars,
+        ownedFrames,
+        ownedWallpapers,
+        ownedTitles,
+        ownedMallets,
         
         // Expose Admin state control
         isSuperUser,
