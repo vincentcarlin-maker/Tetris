@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, 
@@ -6,7 +5,8 @@ import {
     Trash2, Ban, AlertTriangle, Check, Radio, Plus, Zap, Eye, Smartphone, 
     Edit2, Settings, Flag, Megaphone, FileText, Rocket, Lock, Save, Download, 
     RefreshCw, Moon, Sun, Volume2, Battery, Globe, ToggleLeft, ToggleRight,
-    LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, Copy, Layers, Bell, RefreshCcw
+    LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, Copy, Layers, Bell, RefreshCcw,
+    CreditCard, ShoppingCart, DollarSign, AlertOctagon, History, User
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -54,8 +54,8 @@ interface AdminEvent {
 // --- CONFIGURATION ---
 const SECTIONS = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutGrid },
+    { id: 'ECONOMY', label: 'Économie', icon: Coins }, // NEW SECTION
     { id: 'GAMES', label: 'Gestion Jeux', icon: Gamepad2 },
-    { id: 'APPEARANCE', label: 'Apparence', icon: Eye },
     { id: 'USERS', label: 'Utilisateurs', icon: Users },
     { id: 'STATS', label: 'Statistiques', icon: BarChart2 },
     { id: 'CONFIG', label: 'Configuration', icon: Settings },
@@ -65,7 +65,6 @@ const SECTIONS = [
     { id: 'LOGS', label: 'Logs', icon: FileText },
     { id: 'DATA', label: 'Données', icon: Database },
     { id: 'SECURITY', label: 'Sécurité', icon: Shield },
-    { id: 'FUTURE', label: 'Roadmap', icon: Rocket },
 ];
 
 const GAMES_LIST = [
@@ -98,6 +97,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const [giftAmount, setGiftAmount] = useState(500);
     const [broadcastMsg, setBroadcastMsg] = useState('');
     
+    // Economy Sub-tabs
+    const [economyTab, setEconomyTab] = useState<'OVERVIEW' | 'TRANSACTIONS' | 'REWARDS' | 'ABUSE'>('OVERVIEW');
+    const [dailyRewardBase, setDailyRewardBase] = useState(50);
+    const [dailyRewardBonus, setDailyRewardBonus] = useState(20);
+
     // Config Persistence
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
@@ -136,7 +140,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     });
     const [showEventModal, setShowEventModal] = useState(false);
     const [eventTab, setEventTab] = useState<'GENERAL' | 'OBJECTIVES' | 'REWARDS' | 'THEME'>('GENERAL');
-    const [showEventAnalytics, setShowEventAnalytics] = useState<string | null>(null); // ID of event to show stats for
+    const [showEventAnalytics, setShowEventAnalytics] = useState<string | null>(null);
 
     const [currentEvent, setCurrentEvent] = useState<AdminEvent>({
         id: '', title: '', description: '', type: 'XP_BOOST', startDate: '', endDate: '', active: true,
@@ -178,16 +182,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setLoading(false);
     };
 
+    // --- ECONOMY HELPERS ---
+    const suspiciousUsers = useMemo(() => {
+        return profiles.filter(p => {
+            const coins = p.data?.coins || 0;
+            // Suspicious if > 50k coins OR huge scores in specific games
+            if (coins > 50000) return true;
+            if (p.data?.highScores?.tetris > 1000000) return true;
+            return false;
+        });
+    }, [profiles]);
+
+    const transactionLogs = useMemo(() => {
+        // Mocking a transaction log based on profile states
+        // In a real app, this would query a 'transactions' table
+        const logs: any[] = [];
+        profiles.slice(0, 20).forEach(p => {
+            if (p.data?.inventory && p.data.inventory.length > 0) {
+                p.data.inventory.forEach((item: string) => {
+                    logs.push({
+                        id: Math.random(),
+                        user: p.username,
+                        type: 'PURCHASE',
+                        item: item,
+                        amount: -500, // Avg price
+                        date: new Date(p.updated_at).getTime() - Math.random() * 86400000 * 5
+                    });
+                });
+            }
+            if (p.data?.coins > 1000) {
+                 logs.push({
+                        id: Math.random(),
+                        user: p.username,
+                        type: 'REWARD',
+                        item: 'Daily Bonus',
+                        amount: +150,
+                        date: new Date(p.updated_at).getTime() - Math.random() * 86400000
+                    });
+            }
+        });
+        return logs.sort((a, b) => b.date - a.date);
+    }, [profiles]);
+
+    const saveEconomyConfig = () => {
+        const config = {
+            dailyRewardBase,
+            dailyRewardBonus
+        };
+        // Save to system config in DB
+        if (isSupabaseConfigured) {
+            DB.saveSystemConfig({ economyConfig: config });
+        }
+        // Broadcast update
+        mp.sendAdminBroadcast("Mise à jour économie", "game_config", { economy: config });
+        alert("Configuration économie sauvegardée !");
+    };
+
     // --- ACTIONS ---
     const toggleGame = (gameId: string) => {
         const newArr = disabledGames.includes(gameId) ? disabledGames.filter(id => id !== gameId) : [...disabledGames, gameId];
         setDisabledGames(newArr);
         localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
-        
-        // Broadcast - Pass array directly
         mp.sendAdminBroadcast(disabledGames.includes(gameId) ? 'Jeu réactivé' : 'Jeu en maintenance', 'game_config', newArr);
-        
-        // Save to Cloud Config
         if (isSupabaseConfigured) {
             DB.saveSystemConfig({ disabledGames: newArr });
         }
@@ -197,15 +253,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setFeatureFlags(prev => {
             const newState = { ...prev, [key]: !prev[key] };
             localStorage.setItem('neon_feature_flags', JSON.stringify(newState));
-            
-            // Broadcast the change (clients listen to 'game_config' looking for 'flags' prop)
             mp.sendAdminBroadcast(`Feature Flag Updated: ${key.toUpperCase()} -> ${newState[key] ? 'ON' : 'OFF'}`, 'game_config', { flags: newState });
-            
-            // Persist to Cloud
             if (isSupabaseConfigured) {
                 DB.saveSystemConfig({ featureFlags: newState });
             }
-            
             return newState;
         });
     };
@@ -234,13 +285,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         if (!selectedUser) return;
         const currentCoins = selectedUser.data?.coins || 0;
         const newAmount = currentCoins + giftAmount;
-        
-        // 1. Update DB (Source of Truth)
         if (isSupabaseConfigured) {
             await DB.updateUserData(selectedUser.username, { coins: newAmount });
         }
-        
-        // 2. Broadcast to user (if online) to update their local state instantly
         mp.sendAdminBroadcast(
             `🎁 Cadeau Admin : +${giftAmount} Pièces !`, 
             'user_update', 
@@ -250,14 +297,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 amount: giftAmount 
             }
         );
-
-        // 3. Local Dashboard Mirror Update (Visual Feedback for Admin)
         const userDataStr = localStorage.getItem('neon_data_' + selectedUser.username);
         if (userDataStr) {
             const d = JSON.parse(userDataStr); d.coins = newAmount;
             localStorage.setItem('neon_data_' + selectedUser.username, JSON.stringify(d));
         }
-        
         setProfiles(p => p.map(u => u.username === selectedUser.username ? { ...u, data: { ...u.data, coins: newAmount } } : u));
         setSelectedUser((prev: any) => ({ ...prev, data: { ...prev.data, coins: newAmount } }));
         alert(`Envoyé ! Nouveau solde pour ${selectedUser.username} : ${newAmount}`);
@@ -278,18 +322,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     
     const handleDeleteUser = async () => {
         if (!selectedUser) return;
-        
         const confirmDelete = window.confirm(`Êtes-vous sûr de vouloir SUPPRIMER DÉFINITIVEMENT le compte de ${selectedUser.username} ? Cette action est irréversible.`);
         if (!confirmDelete) return;
-
         const username = selectedUser.username;
-
-        // 1. Supabase deletion
-        if (isSupabaseConfigured) {
-            await DB.deleteUser(username);
-        }
-
-        // 2. Local Storage deletion
+        if (isSupabaseConfigured) await DB.deleteUser(username);
         const usersDbStr = localStorage.getItem('neon_users_db');
         if (usersDbStr) {
             const usersDb = JSON.parse(usersDbStr);
@@ -297,65 +333,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             localStorage.setItem('neon_users_db', JSON.stringify(usersDb));
         }
         localStorage.removeItem('neon_data_' + username);
-
-        // 3. Update State
         setProfiles(prev => prev.filter(p => p.username !== username));
         setSelectedUser(null);
     };
 
     const handleResetVincent = async () => {
         if (!confirm("ATTENTION: Réinitialiser TOTALEMENT le compte Vincent ? (0 pièces, 0 items)")) return;
-        
         const freshData = {
-            coins: 0,
-            inventory: [],
-            avatarId: 'av_bot',
-            ownedAvatars: ['av_bot', 'av_human'],
-            frameId: 'fr_none',
-            ownedFrames: ['fr_none'],
-            wallpaperId: 'bg_brick',
-            ownedWallpapers: ['bg_brick'],
-            titleId: 't_none',
-            ownedTitles: ['t_none'],
-            malletId: 'm_classic',
-            ownedMallets: ['m_classic'],
-            highScores: {
-                tetris: 0, breaker: 0, pacman: 0, snake: 0, invaders: 0, 
-                runner: 0, stack: 0, arenaclash: 0, sudoku: {}, 
-                memory: 0, mastermind: 0, uno: 0, game2048: 0, watersort: 1, skyjo: 0
-            },
-            streak: 0,
-            quests: [],
-            banned: false
+            coins: 0, inventory: [], avatarId: 'av_bot', ownedAvatars: ['av_bot', 'av_human'],
+            frameId: 'fr_none', ownedFrames: ['fr_none'], wallpaperId: 'bg_brick', ownedWallpapers: ['bg_brick'],
+            titleId: 't_none', ownedTitles: ['t_none'], malletId: 'm_classic', ownedMallets: ['m_classic'],
+            highScores: { tetris: 0, breaker: 0, pacman: 0, snake: 0, invaders: 0, runner: 0, stack: 0, arenaclash: 0, sudoku: {}, memory: 0, mastermind: 0, uno: 0, game2048: 0, watersort: 1, skyjo: 0 },
+            streak: 0, quests: [], banned: false
         };
-
-        // 1. Update Cloud
-        if (isSupabaseConfigured) {
-            await DB.updateUserData('Vincent', freshData);
-        }
-
-        // 2. Update Local Storage Mirror
+        if (isSupabaseConfigured) await DB.updateUserData('Vincent', freshData);
         localStorage.setItem('neon_data_Vincent', JSON.stringify(freshData));
-
-        // 3. If currently logged in as Vincent, reset active session keys immediately
         const currentUser = localStorage.getItem('neon-username');
         if (currentUser === 'Vincent') {
-            localStorage.setItem('neon-coins', '0');
-            localStorage.setItem('neon-inventory', '[]');
-            localStorage.setItem('neon-avatar', 'av_bot');
-            localStorage.setItem('neon-owned-avatars', JSON.stringify(['av_bot', 'av_human']));
+            localStorage.setItem('neon-coins', '0'); localStorage.setItem('neon-inventory', '[]');
+            localStorage.setItem('neon-avatar', 'av_bot'); localStorage.setItem('neon-owned-avatars', JSON.stringify(['av_bot', 'av_human']));
             localStorage.setItem('neon-highscores', JSON.stringify(freshData.highScores));
-            // Force reset of other cosmetic keys to defaults
-            localStorage.setItem('neon-frame', 'fr_none');
-            localStorage.setItem('neon-owned-frames', JSON.stringify(['fr_none']));
-            localStorage.setItem('neon-wallpaper', 'bg_brick');
-            localStorage.setItem('neon-owned-wallpapers', JSON.stringify(['bg_brick']));
-            localStorage.setItem('neon-title', 't_none');
-            localStorage.setItem('neon-owned-titles', JSON.stringify(['t_none']));
-            localStorage.setItem('neon-mallet', 'm_classic');
-            localStorage.setItem('neon-owned-mallets', JSON.stringify(['m_classic']));
         }
-        
         alert("Compte Vincent réinitialisé ! La page va se recharger.");
         window.location.reload();
     };
@@ -373,30 +371,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const handleSaveEvent = () => {
         let newEvents = [...adminEvents];
         const eventToSave = { ...currentEvent };
-        
         if (eventToSave.id) {
-            // Edit
             newEvents = newEvents.map(e => e.id === eventToSave.id ? eventToSave : e);
         } else {
-            // Create
             eventToSave.id = Date.now().toString();
             newEvents.push(eventToSave);
         }
         setAdminEvents(newEvents);
         localStorage.setItem('neon_admin_events', JSON.stringify(newEvents));
         setShowEventModal(false);
-        
-        // Broadcast FULL list to sync all clients immediately
         mp.sendAdminBroadcast("Sync Events", "sync_events", newEvents);
-        
-        // Save to Cloud Config
-        if (isSupabaseConfigured) {
-            DB.saveSystemConfig({ events: newEvents });
-        }
-        
-        if (eventToSave.active) {
-            mp.sendAdminBroadcast(`Nouvel Événement : ${eventToSave.title}`, 'info');
-        }
+        if (isSupabaseConfigured) DB.saveSystemConfig({ events: newEvents });
+        if (eventToSave.active) mp.sendAdminBroadcast(`Nouvel Événement : ${eventToSave.title}`, 'info');
     };
 
     const handleDuplicateEvent = (event: AdminEvent) => {
@@ -409,13 +395,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         const newEvents = adminEvents.filter(e => e.id !== id);
         setAdminEvents(newEvents);
         localStorage.setItem('neon_admin_events', JSON.stringify(newEvents));
-        
-        // Broadcast update
         mp.sendAdminBroadcast("Sync Events", "sync_events", newEvents);
-        
-        if (isSupabaseConfigured) {
-            DB.saveSystemConfig({ events: newEvents });
-        }
+        if (isSupabaseConfigured) DB.saveSystemConfig({ events: newEvents });
     };
 
     const openEventModal = (event?: AdminEvent) => {
@@ -424,13 +405,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             setCurrentEvent(event);
         } else {
             setCurrentEvent({
-                id: '', 
-                title: '', 
-                description: '', 
-                type: 'XP_BOOST', 
-                startDate: new Date().toISOString().split('T')[0], 
-                endDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0], 
-                active: true,
+                id: '', title: '', description: '', type: 'XP_BOOST', startDate: new Date().toISOString().split('T')[0], endDate: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0], active: true,
                 objectives: [{ type: 'PLAY_GAMES', target: 5, gameIds: [] }],
                 rewards: { coins: 100 },
                 theme: { primaryColor: '#00f3ff' },
@@ -440,14 +415,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setShowEventModal(true);
     };
 
-    // --- HELPER ---
     const getGameData = (game: typeof GAMES_LIST[0]) => {
         const override = gameOverrides[game.id];
         return override ? { ...game, ...override } : game;
     };
 
     // --- AGGREGATES ---
-    // Calcul de la masse monétaire en excluant Vincent si le God Mode est activé
     const totalCoins = profiles.reduce((acc, p) => {
         if (p.username === 'Vincent') {
             const isGodMode = localStorage.getItem('neon-admin-mode') === 'true';
@@ -456,7 +429,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         return acc + (p.data?.coins || 0);
     }, 0);
 
-    // Calcul du nombre de joueurs comptabilisés (pour la moyenne)
     const economyPlayersCount = profiles.reduce((acc, p) => {
         if (p.username === 'Vincent') {
              const isGodMode = localStorage.getItem('neon-admin-mode') === 'true';
@@ -467,7 +439,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     const activeUsers = onlineUsers.filter(u => u.status === 'online').length;
 
-    // --- CALCULATED STATS ---
     const gamePopularity = useMemo(() => {
         const stats: Record<string, number> = {};
         profiles.forEach(p => {
@@ -478,7 +449,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 }
             });
         });
-        // Convert to array and sort
         return Object.entries(stats)
             .map(([id, count]) => {
                 const gameName = GAMES_LIST.find(g => g.id === id)?.name || id;
@@ -494,6 +464,171 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     }, [profiles]);
 
     // --- RENDERERS ---
+
+    const renderEconomy = () => (
+        <div className="h-full flex flex-col animate-in fade-in">
+            <div className="flex bg-gray-900 rounded-xl p-1 gap-1 mb-4 border border-white/10 shrink-0">
+                <button onClick={() => setEconomyTab('OVERVIEW')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${economyTab === 'OVERVIEW' ? 'bg-yellow-500 text-black shadow' : 'text-gray-400 hover:text-white'}`}>VUE D'ENSEMBLE</button>
+                <button onClick={() => setEconomyTab('TRANSACTIONS')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${economyTab === 'TRANSACTIONS' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>TRANSACTIONS</button>
+                <button onClick={() => setEconomyTab('REWARDS')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${economyTab === 'REWARDS' ? 'bg-green-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>RÉCOMPENSES</button>
+                <button onClick={() => setEconomyTab('ABUSE')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${economyTab === 'ABUSE' ? 'bg-red-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>RISQUE & SÉCURITÉ</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {economyTab === 'OVERVIEW' && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-gray-800 p-6 rounded-xl border border-white/10 shadow-lg">
+                                <h4 className="text-gray-400 text-xs font-bold uppercase mb-2">Masse Monétaire</h4>
+                                <div className="flex items-center gap-2">
+                                    <Coins size={32} className="text-yellow-400"/>
+                                    <span className="text-4xl font-black text-white">{totalCoins.toLocaleString()}</span>
+                                </div>
+                                <div className="text-xs text-green-400 mt-2 flex items-center gap-1"><TrendingUp size={12}/> Circulation stable</div>
+                            </div>
+                            <div className="bg-gray-800 p-6 rounded-xl border border-white/10 shadow-lg">
+                                <h4 className="text-gray-400 text-xs font-bold uppercase mb-2">Richesse Moyenne</h4>
+                                <div className="flex items-center gap-2">
+                                    <User size={32} className="text-blue-400"/>
+                                    <span className="text-4xl font-black text-white">
+                                        {economyPlayersCount > 0 ? Math.round(totalCoins / economyPlayersCount).toLocaleString() : 0}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="bg-gray-800 p-6 rounded-xl border border-white/10 shadow-lg">
+                                <h4 className="text-gray-400 text-xs font-bold uppercase mb-2">Inflation (Est.)</h4>
+                                <div className="flex items-center gap-2">
+                                    <Activity size={32} className="text-purple-400"/>
+                                    <span className="text-4xl font-black text-white">2.4%</span>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-2">Basée sur les gains/dépenses</div>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                            <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Trophy className="text-yellow-400"/> CLASSEMENT FORTUNE</h4>
+                            <div className="space-y-2">
+                                {richList.map((p, i) => (
+                                    <div key={p.username} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg border border-white/5 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setSelectedUser(p)}>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`font-black font-mono text-lg w-8 text-center ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-orange-400':'text-gray-600'}`}>#{i+1}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-white">{p.username}</span>
+                                                <span className="text-[10px] text-gray-500">{new Date(p.updated_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-yellow-400 font-mono font-bold">
+                                            {p.data?.coins?.toLocaleString() || 0} <Coins size={14}/>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {economyTab === 'TRANSACTIONS' && (
+                    <div className="bg-gray-800 rounded-xl border border-white/10 overflow-hidden flex flex-col h-full">
+                        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-gray-900/50">
+                            <h4 className="font-bold text-white flex items-center gap-2"><History size={18}/> FLUX RÉCENTS</h4>
+                            <span className="text-xs text-gray-500">Dernières 24h (Simulé)</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                            {transactionLogs.map((log) => (
+                                <div key={log.id} className="flex items-center justify-between p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors text-xs">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-lg ${log.type === 'PURCHASE' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                            {log.type === 'PURCHASE' ? <ShoppingCart size={14}/> : <Gift size={14}/>}
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-white block">{log.item}</span>
+                                            <span className="text-gray-500">{log.user} • {new Date(log.date).toLocaleTimeString()}</span>
+                                        </div>
+                                    </div>
+                                    <span className={`font-mono font-bold ${log.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {log.amount > 0 ? '+' : ''}{log.amount}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {economyTab === 'REWARDS' && (
+                    <div className="max-w-2xl mx-auto space-y-6">
+                        <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
+                            <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Calendar className="text-green-400"/> BONUS QUOTIDIEN</h4>
+                            <p className="text-xs text-gray-400 mb-6">Configurez les montants distribués aux joueurs chaque jour.</p>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs text-gray-500 font-bold block mb-1">MONTANT DE BASE</label>
+                                    <div className="flex items-center gap-2">
+                                        <input type="number" value={dailyRewardBase} onChange={(e) => setDailyRewardBase(parseInt(e.target.value))} className="bg-black border border-white/20 rounded p-2 text-white w-full font-mono text-lg" />
+                                        <Coins className="text-yellow-500"/>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-500 font-bold block mb-1">BONUS PAR JOUR (STREAK)</label>
+                                    <div className="flex items-center gap-2">
+                                        <input type="number" value={dailyRewardBonus} onChange={(e) => setDailyRewardBonus(parseInt(e.target.value))} className="bg-black border border-white/20 rounded p-2 text-white w-full font-mono text-lg" />
+                                        <Coins className="text-yellow-500"/>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mt-1">Ex: Jour 1 = Base, Jour 2 = Base + Bonus, etc.</p>
+                                </div>
+                                <button onClick={saveEconomyConfig} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg mt-4">
+                                    <Save size={18}/> APPLIQUER LA CONFIGURATION
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {economyTab === 'ABUSE' && (
+                    <div className="space-y-4">
+                        <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-xl flex items-center gap-4">
+                            <AlertOctagon size={32} className="text-red-500"/>
+                            <div>
+                                <h4 className="text-red-100 font-bold">Système Anti-Fraude</h4>
+                                <p className="text-xs text-red-300">Les comptes ci-dessous présentent des anomalies (Solde > 50k ou Scores impossibles).</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-800 rounded-xl border border-white/10 overflow-hidden">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-gray-900 text-gray-400 font-bold uppercase text-[10px]">
+                                    <tr>
+                                        <th className="p-4">Utilisateur</th>
+                                        <th className="p-4 text-center">Solde</th>
+                                        <th className="p-4 text-center">Raison</th>
+                                        <th className="p-4 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {suspiciousUsers.length === 0 ? (
+                                        <tr><td colSpan={4} className="p-8 text-center text-gray-500 italic">Aucune activité suspecte détectée.</td></tr>
+                                    ) : (
+                                        suspiciousUsers.map(p => (
+                                            <tr key={p.username} className="hover:bg-white/5">
+                                                <td className="p-4 font-bold text-white">{p.username}</td>
+                                                <td className="p-4 text-center font-mono text-yellow-400">{p.data?.coins}</td>
+                                                <td className="p-4 text-center text-xs text-red-300 bg-red-900/20 rounded">
+                                                    {p.data?.coins > 50000 ? "Richesse Excessive" : "Score Suspect"}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <button onClick={() => setSelectedUser(p)} className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold transition-colors">EXAMINER</button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 
     const renderDashboard = () => (
         <div className="space-y-6 animate-in fade-in">
@@ -1050,6 +1185,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     </h2>
 
                     {activeSection === 'DASHBOARD' && renderDashboard()}
+                    {activeSection === 'ECONOMY' && renderEconomy()}
                     {activeSection === 'STATS' && renderStats()}
                     {activeSection === 'GAMES' && renderGamesManager()}
                     {activeSection === 'USERS' && renderUsers()}
