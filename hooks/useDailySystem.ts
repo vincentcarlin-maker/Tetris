@@ -21,36 +21,41 @@ const QUEST_TEMPLATES: { difficulty: QuestDifficulty, templates: Omit<DailyQuest
     {
         difficulty: 'EASY',
         templates: [
-            { description: "Jouer une partie de Tetris", gameId: 'tetris', metric: 'play', target: 1, reward: 50 },
-            { description: "Manger 5 pommes au Snake", gameId: 'snake', metric: 'action', target: 5, reward: 50 },
-            { description: "Gagner 50 pièces", gameId: 'any', metric: 'coins', target: 50, reward: 50 },
-            { description: "Jouer au Casse-Briques", gameId: 'breaker', metric: 'play', target: 1, reward: 50 },
-            { description: "Faire 5 paires au Memory", gameId: 'memory', metric: 'action', target: 5, reward: 50 },
-            { description: "Finir 1 niveau Neon Mix", gameId: 'watersort', metric: 'win', target: 1, reward: 50 },
+            { description: "Jouer 2 parties de Tetris", gameId: 'tetris', metric: 'play', target: 2, reward: 50 },
+            { description: "Manger 10 pommes (Snake)", gameId: 'snake', metric: 'action', target: 10, reward: 50 },
+            { description: "Gagner 100 pièces", gameId: 'any', metric: 'coins', target: 100, reward: 50 },
+            { description: "Casser 20 briques (Breaker)", gameId: 'breaker', metric: 'score', target: 200, reward: 50 }, // Score roughly maps to bricks
+            { description: "Faire 3 paires (Memory)", gameId: 'memory', metric: 'action', target: 3, reward: 50 },
+            { description: "Survivre 30 sec (Pacman)", gameId: 'pacman', metric: 'action', target: 30, reward: 50 },
             { description: "Jouer une partie de Dames", gameId: 'checkers', metric: 'play', target: 1, reward: 50 },
+            { description: "Faire 5 sauts (Runner)", gameId: 'runner', metric: 'action', target: 5, reward: 50 },
         ]
     },
     {
         difficulty: 'MEDIUM',
         templates: [
-            { description: "Score 2000 points à Tetris", gameId: 'tetris', metric: 'score', target: 2000, reward: 100 },
-            { description: "Atteindre le niveau 3 à Breaker", gameId: 'breaker', metric: 'action', target: 3, reward: 100 },
-            { description: "Gagner une partie de Uno", gameId: 'uno', metric: 'win', target: 1, reward: 100 },
-            { description: "Couler 2 navires (Bataille)", gameId: 'battleship', metric: 'action', target: 2, reward: 100 },
-            { description: "Gagner 150 pièces", gameId: 'any', metric: 'coins', target: 150, reward: 100 },
-            { description: "Gagner une partie de Dames", gameId: 'checkers', metric: 'win', target: 1, reward: 100 },
-            { description: "Gagner à l'Air Hockey", gameId: 'airhockey', metric: 'win', target: 1, reward: 100 },
+            { description: "Score 5000 points (Tetris)", gameId: 'tetris', metric: 'score', target: 5000, reward: 100 },
+            { description: "Atteindre niveau 3 (Breaker)", gameId: 'breaker', metric: 'action', target: 3, reward: 100 },
+            { description: "Gagner à Uno", gameId: 'uno', metric: 'win', target: 1, reward: 100 },
+            { description: "Couler 3 navires (Bataille)", gameId: 'battleship', metric: 'action', target: 3, reward: 100 },
+            { description: "Gagner 300 pièces", gameId: 'any', metric: 'coins', target: 300, reward: 100 },
+            { description: "Gagner aux Dames", gameId: 'checkers', metric: 'win', target: 1, reward: 100 },
+            { description: "Finir un niveau Neon Mix", gameId: 'watersort', metric: 'win', target: 1, reward: 100 },
+            { description: "Empiler 15 blocs (Stack)", gameId: 'stack', metric: 'score', target: 15, reward: 100 },
+            { description: "Survivre 2 minutes (Arena)", gameId: 'arenaclash', metric: 'play', target: 1, reward: 100 },
         ]
     },
     {
         difficulty: 'HARD',
         templates: [
-            { description: "Score 10000 points à Tetris", gameId: 'tetris', metric: 'score', target: 10000, reward: 250 },
-            { description: "Survivre 2 min à Pacman", gameId: 'pacman', metric: 'action', target: 120, reward: 250 }, // 120 sec
+            { description: "Score 15000 points (Tetris)", gameId: 'tetris', metric: 'score', target: 15000, reward: 250 },
+            { description: "Manger un fantôme (Pacman)", gameId: 'pacman', metric: 'score', target: 200, reward: 250 },
             { description: "Gagner 3 parties en ligne", gameId: 'any', metric: 'win', target: 3, reward: 300 },
-            { description: "Finir un Sudoku (Moyen)", gameId: 'sudoku', metric: 'win', target: 1, reward: 250 },
-            { description: "Score 500 points au Snake", gameId: 'snake', metric: 'score', target: 500, reward: 250 },
+            { description: "Finir Sudoku (Moyen)", gameId: 'sudoku', metric: 'win', target: 1, reward: 250 },
+            { description: "Score 1000 points (Snake)", gameId: 'snake', metric: 'score', target: 1000, reward: 250 },
             { description: "Finir 3 niveaux Neon Mix", gameId: 'watersort', metric: 'win', target: 3, reward: 250 },
+            { description: "Gagner à Skyjo (Solo)", gameId: 'skyjo', metric: 'win', target: 1, reward: 250 },
+            { description: "Atteindre 500m (Runner)", gameId: 'runner', metric: 'score', target: 500, reward: 250 },
         ]
     }
 ];

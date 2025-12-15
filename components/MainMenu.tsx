@@ -334,7 +334,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         }
     };
 
-    const allQuestsCompleted = quests.every(q => q.isCompleted);
+    const allQuestsCompleted = quests.length > 0 && quests.every(q => q.isCompleted);
 
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto">
@@ -363,23 +363,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  <ArcadeLogo />
 
-                 {/* EVENT BANNER - CLICKABLE FOR DETAILS */}
+                 {/* EVENT BANNER */}
                  {activeEvent && (
                      <div 
                         onClick={() => setShowEventInfo(true)}
                         className={`w-full mt-4 p-4 rounded-xl border-2 flex items-center justify-between shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 backdrop-blur-md cursor-pointer relative overflow-hidden group hover:scale-[1.02] transition-transform`}
                         style={{
-                            borderColor: activeEvent.theme?.primaryColor || (
-                                activeEvent.type === 'XP_BOOST' ? '#facc15' :
-                                activeEvent.type === 'TOURNAMENT' ? '#a855f7' :
-                                activeEvent.type === 'SPECIAL_QUEST' ? '#4ade80' : '#3b82f6'
-                            ),
-                            background: activeEvent.theme?.backgroundImage ? `${activeEvent.theme.backgroundImage}` : (
-                                activeEvent.type === 'XP_BOOST' ? 'rgba(133, 77, 14, 0.6)' :
-                                activeEvent.type === 'TOURNAMENT' ? 'rgba(88, 28, 135, 0.6)' :
-                                activeEvent.type === 'SPECIAL_QUEST' ? 'rgba(20, 83, 45, 0.6)' :
-                                'rgba(30, 58, 138, 0.6)'
-                            )
+                            borderColor: activeEvent.theme?.primaryColor || '#fff',
+                            background: activeEvent.theme?.backgroundImage ? `${activeEvent.theme.backgroundImage}` : 'rgba(30, 58, 138, 0.6)'
                         }}
                      >
                          <div className="flex items-center gap-4 z-10">
@@ -398,12 +389,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                              <Info size={12} /> DÉTAILS
                          </div>
                          
-                         {/* Shine Effect */}
                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"></div>
                      </div>
                  )}
 
-                 {/* EVENT DETAILS MODAL */}
+                 {/* EVENT MODAL */}
                  {showEventInfo && activeEvent && (
                      <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowEventInfo(false)}>
                          <div className="bg-gray-900 w-full max-w-md rounded-2xl border-2 shadow-2xl overflow-hidden flex flex-col relative" style={{ borderColor: activeEvent.theme?.primaryColor || '#fff' }} onClick={e => e.stopPropagation()}>
@@ -476,109 +466,106 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      </div>
                  )}
 
-                 {/* CARTE DE PROFIL COMPACTE */}
-<div {...bindGlow('rgba(200, 230, 255, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
-    <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
-    
-    {/* Logout */}
-    {isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title="Se déconnecter"><LogOut size={14} /></button>}
+                 {/* CARTE DE PROFIL */}
+                 <div {...bindGlow('rgba(200, 230, 255, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
+                    
+                    {isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title="Se déconnecter"><LogOut size={14} /></button>}
 
-    <div className="flex items-center w-full gap-3 z-10">
-        <div onClick={() => isAuthenticated ? onSelectGame('shop') : onLoginRequest && onLoginRequest()} className="relative cursor-pointer hover:scale-105 transition-transform shrink-0">
-            {isAuthenticated ? (
-                <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative z-10 border-2 ${currentFrame.cssClass}`}>
-                    <div className="w-full h-full bg-black/40 rounded-[8px] flex items-center justify-center backdrop-blur-sm">
-                        <AvatarIcon size={32} className={currentAvatar.color} />
-                    </div>
-                </div>
-            ) : (
-                <div className="w-16 h-16 rounded-xl bg-gray-800 border-2 border-white/20 flex items-center justify-center relative z-10">
-                    <Lock size={24} className="text-gray-500" />
-                </div>
-            )}
-            {isAuthenticated && <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[8px] text-white px-1.5 py-0.5 rounded-full border border-white/20 z-20 font-bold shadow-sm">EDIT</div>}
-        </div>
+                    <div className="flex items-center w-full gap-3 z-10">
+                        <div onClick={() => isAuthenticated ? onSelectGame('shop') : onLoginRequest && onLoginRequest()} className="relative cursor-pointer hover:scale-105 transition-transform shrink-0">
+                            {isAuthenticated ? (
+                                <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative z-10 border-2 ${currentFrame.cssClass}`}>
+                                    <div className="w-full h-full bg-black/40 rounded-[8px] flex items-center justify-center backdrop-blur-sm">
+                                        <AvatarIcon size={32} className={currentAvatar.color} />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="w-16 h-16 rounded-xl bg-gray-800 border-2 border-white/20 flex items-center justify-center relative z-10">
+                                    <Lock size={24} className="text-gray-500" />
+                                </div>
+                            )}
+                            {isAuthenticated && <div className="absolute -bottom-1 -right-1 bg-gray-900 text-[8px] text-white px-1.5 py-0.5 rounded-full border border-white/20 z-20 font-bold shadow-sm">EDIT</div>}
+                        </div>
 
-        <div className="flex-1 flex flex-col justify-center min-w-0">
-            {isAuthenticated ? (
-                <>
-                    <div className="flex items-center gap-2">
-                        {isEditingName ? (
-                            <form onSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
-                                <input ref={inputRef} type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={() => handleNameSubmit()} maxLength={12} className="bg-black/50 border border-neon-blue rounded px-2 py-0.5 text-white font-bold text-base w-full outline-none focus:ring-1 ring-neon-blue/50" />
-                                <button type="submit" className="text-green-400"><Check size={16} /></button>
-                            </form>
-                        ) : (
-                            <button onClick={() => { setTempName(username); setIsEditingName(true); }} className="flex items-center gap-2 group/edit truncate">
-                                <h2 className="text-lg font-black text-white italic tracking-wide truncate">{username}</h2>
-                                <Edit2 size={12} className="text-gray-500 group-hover/edit:text-white transition-colors opacity-0 group-hover/edit:opacity-100" />
-                            </button>
-                        )}
+                        <div className="flex-1 flex flex-col justify-center min-w-0">
+                            {isAuthenticated ? (
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        {isEditingName ? (
+                                            <form onSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
+                                                <input ref={inputRef} type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={() => handleNameSubmit()} maxLength={12} className="bg-black/50 border border-neon-blue rounded px-2 py-0.5 text-white font-bold text-base w-full outline-none focus:ring-1 ring-neon-blue/50" />
+                                                <button type="submit" className="text-green-400"><Check size={16} /></button>
+                                            </form>
+                                        ) : (
+                                            <button onClick={() => { setTempName(username); setIsEditingName(true); }} className="flex items-center gap-2 group/edit truncate">
+                                                <h2 className="text-lg font-black text-white italic tracking-wide truncate">{username}</h2>
+                                                <Edit2 size={12} className="text-gray-500 group-hover/edit:text-white transition-colors opacity-0 group-hover/edit:opacity-100" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                        {currentTitle && currentTitle.id !== 't_none' && (
+                                            <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>
+                                                {currentTitle.name}
+                                            </span>
+                                        )}
+                                        <span className={`text-[9px] font-bold tracking-wider uppercase ${playerRank.color}`}>
+                                            {playerRank.title}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                        <div className="flex items-center gap-1 text-[9px] text-yellow-500 font-bold bg-yellow-900/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
+                                            <Calendar size={10} /> J{streak}
+                                        </div>
+                                        {ownedBadges.length > 0 && (
+                                            <div className="flex items-center gap-1 text-[9px] text-blue-400 font-bold bg-blue-900/10 px-1.5 py-0.5 rounded border border-blue-500/20">
+                                                <Trophy size={10} /> {ownedBadges.length}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col gap-1 items-start">
+                                    <h2 className="text-base font-bold text-gray-400 italic">Mode Visiteur</h2>
+                                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-[0_0_10px_rgba(0,243,255,0.3)]">
+                                        SE CONNECTER / CRÉER
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                        {currentTitle && currentTitle.id !== 't_none' && (
-                            <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>
-                                {currentTitle.name}
-                            </span>
-                        )}
-                        <span className={`text-[9px] font-bold tracking-wider uppercase ${playerRank.color}`}>
-                            {playerRank.title}
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-1.5">
-                        <div className="flex items-center gap-1 text-[9px] text-yellow-500 font-bold bg-yellow-900/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
-                            <Calendar size={10} /> J{streak}
+                    {isAuthenticated && currency.isSuperUser && (
+                        <div className="w-full flex gap-1 mt-1">
+                            <button onClick={currency.toggleAdminMode} className={`flex-1 py-1.5 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1 transition-all border ${currency.adminModeActive ? 'bg-red-900/50 text-red-400 border-red-500/50' : 'bg-green-900/50 text-green-400 border-green-500/50'}`}>
+                                {currency.adminModeActive ? <><ShieldAlert size={10}/> GOD: ON</> : <><Shield size={10}/> GOD: OFF</>}
+                            </button>
+                            {currency.adminModeActive && (
+                                <button onClick={() => onSelectGame('admin_dashboard')} className="flex-1 py-1.5 bg-purple-900/50 text-purple-400 border border-purple-500/50 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1">
+                                    <BarChart2 size={10}/> DASHBOARD
+                                </button>
+                            )}
                         </div>
-                        {ownedBadges.length > 0 && (
-                            <div className="flex items-center gap-1 text-[9px] text-blue-400 font-bold bg-blue-900/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                                <Trophy size={10} /> {ownedBadges.length}
-                            </div>
-                        )}
-                    </div>
-                </>
-            ) : (
-                <div className="flex flex-col gap-1 items-start">
-                    <h2 className="text-base font-bold text-gray-400 italic">Mode Visiteur</h2>
-                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-[0_0_10px_rgba(0,243,255,0.3)]">
-                        SE CONNECTER / CRÉER
-                    </button>
+                    )}
+
+                    {isAuthenticated && ownedBadges.length > 0 && (
+                        <div className="w-full bg-black/20 rounded-lg p-1.5 flex gap-2 overflow-x-auto no-scrollbar border border-white/5 mt-1">
+                            {ownedBadges.slice().reverse().map(badge => { 
+                                const Icon = badge.icon; 
+                                return (
+                                    <div key={badge.id} className="relative shrink-0 group/badge" title={badge.name}>
+                                        <div className="w-7 h-7 bg-gray-800/80 rounded border border-white/10 flex items-center justify-center shadow-sm group-hover/badge:border-white/30 transition-colors">
+                                            <Icon size={14} className={badge.color} />
+                                        </div>
+                                    </div>
+                                ); 
+                            })}
+                        </div>
+                    )}
                 </div>
-            )}
-        </div>
-    </div>
-    
-    {isAuthenticated && currency.isSuperUser && (
-        <div className="w-full flex gap-1 mt-1">
-            <button onClick={currency.toggleAdminMode} className={`flex-1 py-1.5 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1 transition-all border ${currency.adminModeActive ? 'bg-red-900/50 text-red-400 border-red-500/50' : 'bg-green-900/50 text-green-400 border-green-500/50'}`}>
-                {currency.adminModeActive ? <><ShieldAlert size={10}/> GOD: ON</> : <><Shield size={10}/> GOD: OFF</>}
-            </button>
-            {currency.adminModeActive && (
-                <>
-                    <button onClick={() => onSelectGame('admin_dashboard')} className="flex-1 py-1.5 bg-purple-900/50 text-purple-400 border border-purple-500/50 rounded-md font-black text-[9px] tracking-widest flex items-center justify-center gap-1">
-                        <BarChart2 size={10}/> DASHBOARD
-                    </button>
-                </>
-            )}
-        </div>
-    )}
-
-    {isAuthenticated && ownedBadges.length > 0 && (
-        <div className="w-full bg-black/20 rounded-lg p-1.5 flex gap-2 overflow-x-auto no-scrollbar border border-white/5 mt-1">
-            {ownedBadges.slice().reverse().map(badge => { 
-                const Icon = badge.icon; 
-                return (
-                    <div key={badge.id} className="relative shrink-0 group/badge" title={badge.name}>
-                        <div className="w-7 h-7 bg-gray-800/80 rounded border border-white/10 flex items-center justify-center shadow-sm group-hover/badge:border-white/30 transition-colors">
-                            <Icon size={14} className={badge.color} />
-                        </div>
-                    </div>
-                ); 
-            })}
-        </div>
-    )}
-</div>
 
                  {/* --- DAILY QUESTS PANEL --- */}
                  <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
@@ -624,8 +611,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                              )}
                                          </div>
                                          {/* Progress Bar */}
-                                         <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/5">
-                                             <div className={`h-full transition-all duration-500 ${quest.isCompleted ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${progressPercent}%` }}></div>
+                                         <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/5 relative">
+                                             {/* Background Glow for active progress */}
+                                             <div className={`h-full transition-all duration-500 relative ${quest.isCompleted ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gradient-to-r from-blue-600 to-cyan-400'}`} style={{ width: `${progressPercent}%` }}>
+                                                 {!quest.isCompleted && <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]"></div>}
+                                             </div>
                                          </div>
                                      </div>
                                  );
@@ -777,7 +767,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     })}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.7 • SKYJO ADDED</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.8 • QUESTS 2.0</div>
              </div>
         </div>
     );

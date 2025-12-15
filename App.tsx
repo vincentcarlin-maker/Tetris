@@ -386,8 +386,9 @@ const App: React.FC = () => {
              return;
         }
 
-        reportQuestProgress(game, 'play', 1);
-        updateEventProgress(game, 'play', 1);
+        // BUG FIX: Removed automatic quest reporting here. 
+        // Quests are now only updated when the game actually starts inside the component.
+        
         setCurrentView(game as ViewState);
     };
 
