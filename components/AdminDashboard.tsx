@@ -8,7 +8,7 @@ import {
     RefreshCw, Moon, Sun, Volume2, Battery, Globe, ToggleLeft, ToggleRight,
     LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, 
     Copy, Layers, Bell, RefreshCcw, CreditCard, ShoppingCart, History, AlertOctagon,
-    Banknote, Percent, User, BookOpen, Sliders, TrendingDown
+    Banknote, Percent, User, BookOpen, Sliders, TrendingDown, MicOff, Key, Crown
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -67,7 +67,6 @@ const SECTIONS = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutGrid },
     { id: 'ECONOMY', label: 'Économie', icon: Coins },
     { id: 'GAMES', label: 'Gestion Jeux', icon: Gamepad2 },
-    { id: 'APPEARANCE', label: 'Apparence', icon: Eye },
     { id: 'USERS', label: 'Utilisateurs', icon: Users },
     { id: 'STATS', label: 'Statistiques', icon: BarChart2 },
     { id: 'CONFIG', label: 'Configuration', icon: Settings },
@@ -110,6 +109,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const [giftAmount, setGiftAmount] = useState(500);
     const [broadcastMsg, setBroadcastMsg] = useState('');
     
+    // User Management State
+    const [userFilter, setUserFilter] = useState<'ALL' | 'ONLINE' | 'BANNED' | 'STAFF'>('ALL');
+    const [userDetailTab, setUserDetailTab] = useState<'GENERAL' | 'HISTORY' | 'ADMIN'>('GENERAL');
+
     // Economy State
     const [ecoTab, setEcoTab] = useState<'OVERVIEW' | 'CONFIG' | 'TRANSACTIONS' | 'ABUSE'>('OVERVIEW');
     const [abuseThreshold, setAbuseThreshold] = useState(100000);
@@ -306,19 +309,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         alert(`Envoyé ! Nouveau solde pour ${selectedUser.username} : ${newAmount}`);
     };
 
-    const handleBan = async () => {
+    const handleUpdateUserProp = async (prop: string, value: any) => {
         if (!selectedUser) return;
-        const isBanned = !selectedUser.data.banned;
-        if (isSupabaseConfigured) await DB.updateUserData(selectedUser.username, { banned: isBanned });
+        const newData = { ...selectedUser.data, [prop]: value };
+        
+        if (isSupabaseConfigured) await DB.updateUserData(selectedUser.username, { [prop]: value });
+        
         const userDataStr = localStorage.getItem('neon_data_' + selectedUser.username);
         if (userDataStr) {
-            const d = JSON.parse(userDataStr); d.banned = isBanned;
+            const d = JSON.parse(userDataStr); d[prop] = value;
             localStorage.setItem('neon_data_' + selectedUser.username, JSON.stringify(d));
         }
-        setProfiles(p => p.map(u => u.username === selectedUser.username ? { ...u, data: { ...u.data, banned: isBanned } } : u));
-        setSelectedUser((prev: any) => ({ ...prev, data: { ...prev.data, banned: isBanned } }));
+        
+        setProfiles(p => p.map(u => u.username === selectedUser.username ? { ...u, data: newData } : u));
+        setSelectedUser((prev: any) => ({ ...prev, data: newData }));
+        
+        // Notify if sanction
+        if (prop === 'banned' || prop === 'muted' || prop === 'role') {
+            mp.sendAdminBroadcast("Mise à jour de votre compte", "user_update", { targetUser: selectedUser.username, action: 'UPDATE_PROP', prop, value });
+        }
     };
-    
+
+    const handleBan = () => {
+        if (!selectedUser) return;
+        const isBanned = selectedUser.data?.banned;
+        if (!isBanned && !window.confirm(`Voulez-vous vraiment bannir l'utilisateur ${selectedUser.username} ?`)) return;
+        handleUpdateUserProp('banned', !isBanned);
+    };
+
     const handleDeleteUser = async () => {
         if (!selectedUser) return;
         
@@ -1196,59 +1214,95 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         </div>
     );
 
-    const renderUsers = () => (
-        <div className="animate-in fade-in h-full flex flex-col">
-            <div className="flex gap-4 mb-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-                    <input 
-                        type="text" 
-                        placeholder="Rechercher un joueur..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-gray-800 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 outline-none"
-                    />
+    const renderUsers = () => {
+        // Filter Logic
+        const filteredUsers = profiles.filter(p => {
+            const matchesSearch = p.username.toLowerCase().includes(searchTerm.toLowerCase());
+            if (!matchesSearch) return false;
+            
+            const isOnline = onlineUsers.some(u => u.id === p.username && u.status === 'online');
+            
+            if (userFilter === 'ONLINE') return isOnline;
+            if (userFilter === 'BANNED') return p.data?.banned;
+            if (userFilter === 'STAFF') return p.data?.role === 'ADMIN' || p.data?.role === 'MOD';
+            
+            return true;
+        });
+
+        return (
+            <div className="animate-in fade-in h-full flex flex-col">
+                <div className="flex flex-col md:flex-row gap-4 mb-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                        <input 
+                            type="text" 
+                            placeholder="Rechercher un joueur (ID, Nom)..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-gray-800 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 outline-none"
+                        />
+                    </div>
+                    <div className="flex bg-gray-900 rounded-lg p-1 border border-white/10">
+                        <button onClick={() => setUserFilter('ALL')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${userFilter === 'ALL' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>TOUS</button>
+                        <button onClick={() => setUserFilter('ONLINE')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${userFilter === 'ONLINE' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}>EN LIGNE</button>
+                        <button onClick={() => setUserFilter('BANNED')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${userFilter === 'BANNED' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'}`}>BANNIS</button>
+                        <button onClick={() => setUserFilter('STAFF')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${userFilter === 'STAFF' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>STAFF</button>
+                    </div>
+                </div>
+
+                <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col">
+                    <div className="overflow-y-auto custom-scrollbar flex-1">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-gray-800 text-gray-400 font-bold uppercase text-[10px] sticky top-0 z-10">
+                                <tr>
+                                    <th className="p-4">Utilisateur</th>
+                                    <th className="p-4 text-center">Rôle</th>
+                                    <th className="p-4 text-center">Statut</th>
+                                    <th className="p-4 text-center">Solde</th>
+                                    <th className="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {filteredUsers.map(p => {
+                                    const isOnline = onlineUsers.some(u => u.id === p.username && u.status === 'online');
+                                    const role = p.data?.role || 'USER';
+                                    
+                                    return (
+                                        <tr key={p.username} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => { setSelectedUser(p); setUserDetailTab('GENERAL'); }}>
+                                            <td className="p-4 font-bold text-white flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-xs border border-white/10">
+                                                    {p.username.substring(0,2).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div>{p.username}</div>
+                                                    <div className="text-[10px] text-gray-500 font-normal font-mono">{p.updated_at ? new Date(p.updated_at).toLocaleDateString() : 'Jamais'}</div>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${role === 'ADMIN' ? 'bg-red-900/30 text-red-400 border-red-500/30' : role === 'MOD' ? 'bg-purple-900/30 text-purple-400 border-purple-500/30' : 'bg-gray-800 text-gray-400 border-white/10'}`}>
+                                                    {role}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold ${isOnline ? 'bg-green-500/20 text-green-400' : p.data?.banned ? 'bg-red-500/20 text-red-400' : 'bg-gray-700 text-gray-400'}`}>
+                                                    {p.data?.banned ? 'BANNI' : isOnline ? 'EN LIGNE' : 'HORS LIGNE'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-center font-mono text-yellow-400">{p.data?.coins || 0}</td>
+                                            <td className="p-4 text-right"><div className="p-2 hover:bg-white/10 rounded-full inline-block"><ChevronRight size={16} className="text-gray-500"/></div></td>
+                                        </tr>
+                                    );
+                                })}
+                                {filteredUsers.length === 0 && (
+                                    <tr><td colSpan={5} className="p-8 text-center text-gray-500 italic">Aucun utilisateur trouvé.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col">
-                <div className="overflow-y-auto custom-scrollbar flex-1">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-800 text-gray-400 font-bold uppercase text-[10px] sticky top-0 z-10">
-                            <tr>
-                                <th className="p-4">Utilisateur</th>
-                                <th className="p-4 text-center">Statut</th>
-                                <th className="p-4 text-center">Pièces</th>
-                                <th className="p-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {profiles.filter(p => p.username.toLowerCase().includes(searchTerm.toLowerCase())).map(p => {
-                                const isOnline = onlineUsers.some(u => u.id === p.username && u.status === 'online');
-                                return (
-                                    <tr key={p.username} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setSelectedUser(p)}>
-                                        <td className="p-4 font-bold text-white flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded bg-gray-700 flex items-center justify-center text-xs">{p.username.substring(0,2).toUpperCase()}</div>
-                                            <div>
-                                                <div>{p.username}</div>
-                                                <div className="text-[10px] text-gray-500 font-normal">{new Date(p.updated_at).toLocaleDateString()}</div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${isOnline ? 'bg-green-500/20 text-green-400' : p.data?.banned ? 'bg-red-500/20 text-red-400' : 'bg-gray-700 text-gray-400'}`}>
-                                                {p.data?.banned ? 'BANNI' : isOnline ? 'EN LIGNE' : 'HORS LIGNE'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-center font-mono text-yellow-400">{p.data?.coins || 0}</td>
-                                        <td className="p-4 text-right"><Edit2 size={16} className="text-gray-500 hover:text-white inline-block"/></td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
+        );
+    };
 
     const renderConfig = () => (
         <div className="animate-in fade-in space-y-6 max-w-3xl">
@@ -1318,7 +1372,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             <div className="w-64 bg-gray-900 border-r border-white/10 flex flex-col shrink-0 hidden md:flex">
                 <div className="p-6 border-b border-white/10">
                     <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">ADMIN PANEL</h1>
-                    <p className="text-[10px] text-gray-500 font-mono mt-1">v3.1.0 • SYSTEM: ONLINE</p>
+                    <p className="text-[10px] text-gray-500 font-mono mt-1">v3.2.0 • SYSTEM: ONLINE</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
                     {SECTIONS.map(s => (
@@ -1408,7 +1462,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 </div>
             )}
 
-            {/* GAME EDIT MODAL (THE NEW PART) */}
+            {/* GAME EDIT MODAL */}
             {editingGame && (
                 <div className="fixed inset-0 z-[160] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setEditingGame(null)}>
                     <div className="bg-gray-900 w-full max-w-lg rounded-2xl border border-white/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
@@ -1581,50 +1635,187 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 </div>
             )}
 
-            {/* USER DETAIL MODAL (Existing logic maintained) */}
+            {/* NEW ENHANCED USER DETAIL MODAL */}
             {selectedUser && (
                 <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setSelectedUser(null)}>
-                    <div className="bg-gray-900 w-full max-w-md rounded-2xl border border-white/20 shadow-2xl p-6 relative" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setSelectedUser(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X/></button>
+                    <div className="bg-gray-900 w-full max-w-2xl rounded-2xl border border-white/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                         
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-bold">
-                                {selectedUser.username.substring(0,2).toUpperCase()}
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-black text-white">{selectedUser.username}</h3>
-                                <p className="text-xs text-gray-400 font-mono">ID: {selectedUser.username}</p>
-                                {selectedUser.data?.banned && <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold">BANNI</span>}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-black/30 p-3 rounded-lg border border-white/5">
-                                <p className="text-[10px] text-gray-500 font-bold">PIÈCES</p>
-                                <p className="text-xl font-mono text-yellow-400">{selectedUser.data?.coins || 0}</p>
-                            </div>
-                            <div className="bg-black/30 p-3 rounded-lg border border-white/5">
-                                <p className="text-[10px] text-gray-500 font-bold">DERNIÈRE VUE</p>
-                                <p className="text-xs text-white">{new Date(selectedUser.updated_at).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div className="bg-gray-800 p-3 rounded-lg border border-white/5">
-                                <label className="text-xs text-gray-400 font-bold block mb-2">GIFT DE PIÈCES</label>
-                                <div className="flex gap-2">
-                                    <input type="number" value={giftAmount} onChange={e => setGiftAmount(Number(e.target.value))} className="bg-black border border-white/10 rounded px-2 py-1 text-white w-24 text-sm" />
-                                    <button onClick={handleGiftCoins} className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white text-xs font-bold rounded transition-colors">ENVOYER</button>
+                        {/* Header Profile */}
+                        <div className="p-6 border-b border-white/10 bg-gradient-to-r from-gray-900 to-gray-800 relative">
+                            <button onClick={() => setSelectedUser(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X/></button>
+                            <div className="flex items-center gap-6">
+                                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-black text-white shadow-lg border-2 border-white/20">
+                                    {selectedUser.username.substring(0,2).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-black text-white tracking-tight">{selectedUser.username}</h2>
+                                    <div className="flex items-center gap-3 mt-1 text-sm">
+                                        <span className="font-mono text-gray-400 bg-black/30 px-2 py-0.5 rounded">ID: {selectedUser.username}</span>
+                                        {(() => {
+                                            const isOnline = onlineUsers.some(u => u.id === selectedUser.username && u.status === 'online');
+                                            return (
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${isOnline ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-gray-700/50 text-gray-400'}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
+                                                    {isOnline ? 'EN LIGNE' : 'HORS LIGNE'}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                    <div className="flex gap-2 mt-2">
+                                        {selectedUser.data?.role === 'ADMIN' && <span className="text-[10px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-500/30 font-bold flex items-center gap-1"><Shield size={10}/> ADMIN</span>}
+                                        {selectedUser.data?.role === 'MOD' && <span className="text-[10px] bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded border border-purple-500/30 font-bold flex items-center gap-1"><Shield size={10}/> MODÉRATEUR</span>}
+                                        {selectedUser.data?.banned && <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded font-bold flex items-center gap-1"><Ban size={10}/> BANNI</span>}
+                                        {selectedUser.data?.muted && <span className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded border border-orange-500/30 font-bold flex items-center gap-1"><MicOff size={10}/> MUET</span>}
+                                    </div>
                                 </div>
                             </div>
-                            
-                            <button onClick={handleBan} className={`w-full py-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 ${selectedUser.data?.banned ? 'bg-green-600 text-white' : 'bg-red-600/20 text-red-500 border border-red-500/50'}`}>
-                                {selectedUser.data?.banned ? <><Check size={14}/> DÉBANNIR</> : <><Ban size={14}/> BANNIR L'UTILISATEUR</>}
-                            </button>
+                        </div>
 
-                            <button onClick={handleDeleteUser} className="w-full py-3 rounded-lg font-bold text-xs flex items-center justify-center gap-2 bg-red-950 text-red-500 border border-red-900 hover:bg-red-900 transition-colors mt-2">
-                                <Trash2 size={14}/> SUPPRIMER LE COMPTE DÉFINITIVEMENT
-                            </button>
+                        {/* Tabs */}
+                        <div className="flex bg-black/20 p-2 gap-2 border-b border-white/5">
+                            <button onClick={() => setUserDetailTab('GENERAL')} className={`flex-1 py-2 text-xs font-bold rounded transition-colors ${userDetailTab === 'GENERAL' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>PROFIL</button>
+                            <button onClick={() => setUserDetailTab('HISTORY')} className={`flex-1 py-2 text-xs font-bold rounded transition-colors ${userDetailTab === 'HISTORY' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>PERFORMANCES</button>
+                            <button onClick={() => setUserDetailTab('ADMIN')} className={`flex-1 py-2 text-xs font-bold rounded transition-colors ${userDetailTab === 'ADMIN' ? 'bg-red-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>SANCTIONS & RÔLES</button>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-gray-900">
+                            
+                            {/* TAB: GENERAL */}
+                            {userDetailTab === 'GENERAL' && (
+                                <div className="space-y-6 animate-in slide-in-from-right-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-gray-800 p-4 rounded-xl border border-white/10">
+                                            <p className="text-gray-500 text-xs font-bold uppercase mb-2 flex items-center gap-2"><Coins size={14}/> SOLDE ACTUEL</p>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-3xl font-mono text-yellow-400 font-bold">{selectedUser.data?.coins || 0}</span>
+                                                <button onClick={handleGiftCoins} className="text-[10px] bg-yellow-600 hover:bg-yellow-500 text-white px-2 py-1 rounded font-bold transition-colors">AJOUTER</button>
+                                            </div>
+                                            {giftAmount > 0 && <input type="number" value={giftAmount} onChange={e => setGiftAmount(Number(e.target.value))} className="mt-2 w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-xs text-white" placeholder="Montant"/>}
+                                        </div>
+                                        <div className="bg-gray-800 p-4 rounded-xl border border-white/10">
+                                            <p className="text-gray-500 text-xs font-bold uppercase mb-2 flex items-center gap-2"><Clock size={14}/> DERNIÈRE ACTIVITÉ</p>
+                                            <span className="text-xl font-bold text-white">{new Date(selectedUser.updated_at).toLocaleDateString()}</span>
+                                            <p className="text-xs text-gray-500">{new Date(selectedUser.updated_at).toLocaleTimeString()}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-800 p-4 rounded-xl border border-white/10">
+                                        <p className="text-gray-500 text-xs font-bold uppercase mb-3">INVENTAIRE (Aperçu)</p>
+                                        <div className="flex gap-2 flex-wrap">
+                                            <div className="px-3 py-1 bg-black/30 rounded border border-white/10 text-xs text-gray-300">
+                                                Avatars: <span className="text-white font-bold">{selectedUser.data?.ownedAvatars?.length || 0}</span>
+                                            </div>
+                                            <div className="px-3 py-1 bg-black/30 rounded border border-white/10 text-xs text-gray-300">
+                                                Cadres: <span className="text-white font-bold">{selectedUser.data?.ownedFrames?.length || 0}</span>
+                                            </div>
+                                            <div className="px-3 py-1 bg-black/30 rounded border border-white/10 text-xs text-gray-300">
+                                                Badges: <span className="text-white font-bold">{selectedUser.data?.inventory?.length || 0}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB: HISTORY (High Scores) */}
+                            {userDetailTab === 'HISTORY' && (
+                                <div className="space-y-4 animate-in slide-in-from-right-4">
+                                    <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-2">RECORDS PAR JEU</h3>
+                                    <div className="bg-gray-800 rounded-xl border border-white/10 overflow-hidden">
+                                        <table className="w-full text-left text-sm">
+                                            <thead className="bg-gray-900/50 text-gray-400 font-bold uppercase text-[10px]">
+                                                <tr>
+                                                    <th className="p-3">Jeu</th>
+                                                    <th className="p-3 text-right">Meilleur Score</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-white/5">
+                                                {GAMES_LIST.map(game => {
+                                                    const score = selectedUser.data?.highScores?.[game.id];
+                                                    // Handle Sudoku complexity (object)
+                                                    const displayScore = (game.id === 'sudoku' && typeof score === 'object') ? score?.medium : score;
+                                                    
+                                                    if (displayScore === undefined || displayScore === 0) return null;
+
+                                                    return (
+                                                        <tr key={game.id} className="hover:bg-white/5">
+                                                            <td className="p-3 font-bold text-gray-300">{game.name}</td>
+                                                            <td className="p-3 text-right font-mono text-cyan-400 font-bold">{displayScore}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {Object.keys(selectedUser.data?.highScores || {}).length === 0 && (
+                                                    <tr><td colSpan={2} className="p-6 text-center text-gray-500 italic">Aucune partie jouée.</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB: ADMIN (Sanctions & Roles) */}
+                            {userDetailTab === 'ADMIN' && (
+                                <div className="space-y-6 animate-in slide-in-from-right-4">
+                                    
+                                    {/* ROLE MANAGEMENT */}
+                                    <div className="bg-purple-900/10 border border-purple-500/20 p-4 rounded-xl">
+                                        <h4 className="text-purple-300 font-bold text-sm mb-4 flex items-center gap-2"><Crown size={16}/> GESTION DU RÔLE</h4>
+                                        <div className="flex gap-2">
+                                            {['USER', 'MOD', 'ADMIN'].map((role) => (
+                                                <button
+                                                    key={role}
+                                                    onClick={() => handleUpdateUserProp('role', role)}
+                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${selectedUser.data?.role === role || (!selectedUser.data?.role && role === 'USER') 
+                                                        ? 'bg-purple-600 text-white border-purple-400 shadow-[0_0_10px_rgba(147,51,234,0.4)]' 
+                                                        : 'bg-gray-800 text-gray-400 border-transparent hover:border-white/20'}`}
+                                                >
+                                                    {role === 'USER' ? 'JOUEUR' : role === 'MOD' ? 'MODÉRATEUR' : 'ADMINISTRATEUR'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* SANCTIONS */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-red-300 font-bold text-sm mb-2 flex items-center gap-2"><Shield size={16}/> SANCTIONS</h4>
+                                        
+                                        {/* MUTE */}
+                                        <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-white/5">
+                                            <div>
+                                                <div className="font-bold text-white text-sm flex items-center gap-2"><MicOff size={14}/> MUTE (CHAT)</div>
+                                                <div className="text-xs text-gray-500">Empêche l'utilisateur de parler dans le chat global.</div>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleUpdateUserProp('muted', !selectedUser.data?.muted)}
+                                                className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${selectedUser.data?.muted ? 'bg-orange-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                            >
+                                                {selectedUser.data?.muted ? 'DÉMUT' : 'MUTE'}
+                                            </button>
+                                        </div>
+
+                                        {/* BAN */}
+                                        <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-white/5">
+                                            <div>
+                                                <div className="font-bold text-white text-sm flex items-center gap-2"><Ban size={14}/> BANNISSEMENT</div>
+                                                <div className="text-xs text-gray-500">Bloque l'accès complet au jeu.</div>
+                                            </div>
+                                            <button 
+                                                onClick={handleBan}
+                                                className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${selectedUser.data?.banned ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
+                                            >
+                                                {selectedUser.data?.banned ? 'DÉBANNIR' : 'BANNIR'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* DANGER ZONE */}
+                                    <div className="pt-4 border-t border-red-500/20 mt-4">
+                                        <button onClick={handleDeleteUser} className="w-full py-3 bg-red-950/50 hover:bg-red-900 border border-red-900 text-red-500 font-bold rounded-lg transition-colors flex items-center justify-center gap-2 text-xs">
+                                            <Trash2 size={14}/> SUPPRIMER LE COMPTE DÉFINITIVEMENT
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
