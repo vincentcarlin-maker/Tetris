@@ -90,8 +90,8 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 setOnlineStep('lobby');
             }
             
-            // If disconnected/kicked to lobby, reset local game state if in game
-            if (menuPhase === 'GAME') setMenuPhase('MENU');
+            // Logic removed: if (menuPhase === 'GAME') setMenuPhase('MENU');
+            // This was causing the "double tap" bug by kicking user back to menu when connecting to lobby.
 
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
