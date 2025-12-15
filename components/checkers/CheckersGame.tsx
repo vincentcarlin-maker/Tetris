@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle, HelpCircle, MousePointer2, ArrowUp } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle, HelpCircle, MousePointer2, ArrowUp, Ban, LogOut } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -324,7 +324,8 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             }
             if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
-                setWinner(mp.amIP1 ? 'white' : 'red');
+                // Force winner state to prevent board interaction, but opponentLeft flag handles the UI overlay
+                setWinner(mp.amIP1 ? 'white' : 'red'); 
             }
             if (data.type === 'REMATCH_START') {
                 if (mp.isHost) {
@@ -570,7 +571,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             </div>
 
             {/* Turn Indicator */}
-            {!winner && (
+            {!winner && !opponentLeft && (
                 <div className={`mb-4 px-6 py-2 rounded-full border border-white/10 font-bold text-sm shadow-lg transition-colors ${turn === 'white' ? 'bg-cyan-900/50 text-cyan-400' : 'bg-pink-900/50 text-pink-500'}`}>
                     {gameMode === 'ONLINE' 
                         ? ((mp.amIP1 && turn === 'white') || (!mp.amIP1 && turn === 'red') ? "C'EST TON TOUR" : "L'ADVERSAIRE JOUE...") 
@@ -597,16 +598,60 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
             {renderBoard()}
 
-            {winner && (
-                <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in zoom-in p-6">
-                    <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
-                    <h2 className="text-5xl font-black italic text-white mb-2">{winner === 'white' ? 'CYAN' : 'ROSE'} GAGNE !</h2>
-                    {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
-                    <div className="flex gap-4">
-                        <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : resetGame} className="px-8 py-4 bg-white text-black font-black tracking-widest rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
-                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
-                        <button onClick={handleLocalBack} className="px-8 py-4 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
-                    </div>
+            {(winner || opponentLeft) && (
+                <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in zoom-in p-6 text-center">
+                    {opponentLeft ? (
+                        <>
+                            <LogOut size={64} className="text-red-500 mb-4" />
+                            <h2 className="text-3xl font-black italic text-white mb-2">ADVERSAIRE PARTI</h2>
+                            <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                                 <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            {(() => {
+                                let isVictory = false;
+                                if (gameMode === 'ONLINE') {
+                                    isVictory = (mp.amIP1 && winner === 'white') || (!mp.amIP1 && winner === 'red');
+                                } else if (gameMode === 'SOLO') {
+                                    isVictory = winner === 'white';
+                                } else {
+                                    // Local multiplayer
+                                    return (
+                                        <>
+                                            <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
+                                            <h2 className="text-5xl font-black italic text-white mb-2">{winner === 'white' ? 'CYAN' : 'ROSE'} GAGNE !</h2>
+                                        </>
+                                    );
+                                }
+
+                                if (isVictory) {
+                                    return (
+                                        <>
+                                            <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
+                                            <h2 className="text-5xl font-black italic text-white mb-2">VICTOIRE !</h2>
+                                            <p className="text-green-400 font-bold mb-6">ADVERSAIRE ÉLIMINÉ</p>
+                                            {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
+                                        </>
+                                    );
+                                } else {
+                                    return (
+                                        <>
+                                            <Ban size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
+                                            <h2 className="text-5xl font-black italic text-white mb-4">DÉFAITE...</h2>
+                                        </>
+                                    );
+                                }
+                            })()}
+                            
+                            <div className="flex gap-4 w-full max-w-[280px]">
+                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"><RefreshCw size={18} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                                {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 text-sm">QUITTER</button>}
+                            </div>
+                            {gameMode !== 'ONLINE' && <button onClick={handleLocalBack} className="w-full max-w-[280px] mt-2 py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>}
+                        </>
+                    )}
                 </div>
             )}
         </div>
