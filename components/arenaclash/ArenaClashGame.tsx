@@ -384,11 +384,16 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         });
     }, []);
 
-    const startGame = useCallback(() => {
+    const startGame = useCallback((modeOverride?: 'SOLO' | 'ONLINE') => {
+        const currentMode = modeOverride || gameMode;
         if (showTutorial) return;
         playerRef.current = spawnCharacter('player', 'VOUS', true);
         
-        botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
+        if (currentMode === 'SOLO') {
+            botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
+        } else {
+            botsRef.current = [];
+        }
         
         bulletsRef.current = [];
         powerUpsRef.current = [];
@@ -404,7 +409,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         resumeAudio();
         if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
         lastTimeRef.current = Date.now();
-    }, [spawnCharacter, resumeAudio, showTutorial]);
+    }, [spawnCharacter, resumeAudio, showTutorial, gameMode]);
 
     // --- GAME LOOP HELPERS ---
     const fireBullet = (char: Character, boosted: boolean) => {
@@ -968,7 +973,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
                     
                     <div className="flex flex-col gap-4 w-full max-w-[260px]">
-                        <button onClick={() => { setGameMode('SOLO'); startGame(); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                        <button onClick={() => { setGameMode('SOLO'); startGame('SOLO'); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
                             <User size={24} className="text-neon-blue"/> SOLO (BOTS)
                         </button>
                         <button onClick={() => setGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
