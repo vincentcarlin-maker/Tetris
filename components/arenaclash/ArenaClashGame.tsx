@@ -911,9 +911,9 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
                     {/* MOBILE CONTROLS (Only visible when Playing) */}
                     {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
-                        <div className="h-48 w-full grid grid-cols-2 gap-4 shrink-0 sm:hidden z-40 p-4 pointer-events-auto">
+                        <div className="h-48 w-full grid grid-cols-2 gap-4 shrink-0 z-40 p-4 pointer-events-auto">
                             {/* LEFT STICK - MOVE */}
-                            <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
+                            <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
                                 <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
                                     <div className="w-20 h-20 rounded-full border-2 border-cyan-500"></div>
                                 </div>
@@ -924,7 +924,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                             </div>
 
                             {/* RIGHT STICK - AIM/SHOOT */}
-                            <div ref={rightZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
+                            <div ref={rightZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
                                 <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
                                     <div className="w-20 h-20 rounded-full border-2 border-red-500"></div>
                                 </div>
