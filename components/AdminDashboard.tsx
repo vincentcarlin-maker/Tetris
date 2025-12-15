@@ -8,7 +8,8 @@ import {
     RefreshCw, Moon, Sun, Volume2, Battery, Globe, ToggleLeft, ToggleRight,
     LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, 
     Copy, Layers, Bell, RefreshCcw, CreditCard, ShoppingCart, History, AlertOctagon,
-    Banknote, Percent, User, BookOpen, Sliders, TrendingDown, MicOff, Key, Crown
+    Banknote, Percent, User, BookOpen, Sliders, TrendingDown, MicOff, Key, Crown,
+    Mail, Inbox, Send, Smartphone as PhoneIcon
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -65,18 +66,15 @@ interface GameConfigOverride {
 // --- CONFIGURATION ---
 const SECTIONS = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutGrid },
+    { id: 'NOTIFICATIONS', label: 'Communication', icon: Bell },
     { id: 'ECONOMY', label: 'Économie', icon: Coins },
     { id: 'GAMES', label: 'Gestion Jeux', icon: Gamepad2 },
     { id: 'USERS', label: 'Utilisateurs', icon: Users },
     { id: 'STATS', label: 'Statistiques', icon: BarChart2 },
     { id: 'CONFIG', label: 'Configuration', icon: Settings },
     { id: 'FLAGS', label: 'Feature Flags', icon: Flag },
-    { id: 'CONTENT', label: 'Contenu', icon: Megaphone },
     { id: 'EVENTS', label: 'Événements', icon: Calendar },
-    { id: 'LOGS', label: 'Logs', icon: FileText },
     { id: 'DATA', label: 'Données', icon: Database },
-    { id: 'SECURITY', label: 'Sécurité', icon: Shield },
-    { id: 'FUTURE', label: 'Roadmap', icon: Rocket },
 ];
 
 const GAMES_LIST = [
@@ -112,6 +110,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     // User Management State
     const [userFilter, setUserFilter] = useState<'ALL' | 'ONLINE' | 'BANNED' | 'STAFF'>('ALL');
     const [userDetailTab, setUserDetailTab] = useState<'GENERAL' | 'HISTORY' | 'ADMIN'>('GENERAL');
+
+    // Notifications State
+    const [notifTab, setNotifTab] = useState<'INAPP' | 'PUSH' | 'EMAIL'>('INAPP');
+    const [notifHistory, setNotifHistory] = useState<{id: number, type: string, target: string, content: string, time: number}[]>([]);
+    
+    // Push State
+    const [pushTitle, setPushTitle] = useState('');
+    const [pushBody, setPushBody] = useState('');
+    const [pushTarget, setPushTarget] = useState('ALL');
+
+    // Email State
+    const [emailSubject, setEmailSubject] = useState('');
+    const [emailBody, setEmailBody] = useState('');
 
     // Economy State
     const [ecoTab, setEcoTab] = useState<'OVERVIEW' | 'CONFIG' | 'TRANSACTIONS' | 'ABUSE'>('OVERVIEW');
@@ -268,12 +279,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         mp.sendAdminBroadcast(`Mise à jour configuration : ${editingGame.config.name}`, 'info');
     };
 
-    const handleBroadcast = (e: React.FormEvent) => {
+    const handleBroadcast = (e: React.FormEvent, type: 'info' | 'warning' = 'info') => {
         e.preventDefault();
         if (!broadcastMsg.trim()) return;
-        mp.sendAdminBroadcast(broadcastMsg, 'info');
-        alert('Envoyé !');
+        mp.sendAdminBroadcast(broadcastMsg, type);
+        
+        setNotifHistory(prev => [{
+            id: Date.now(),
+            type: 'IN-APP',
+            target: 'GLOBAL',
+            content: broadcastMsg,
+            time: Date.now()
+        }, ...prev]);
+
+        alert('Message In-App envoyé !');
         setBroadcastMsg('');
+    };
+
+    const handleSendPush = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!pushTitle.trim() || !pushBody.trim()) return;
+        
+        // Simulation d'envoi Push
+        setNotifHistory(prev => [{
+            id: Date.now(),
+            type: 'PUSH',
+            target: pushTarget,
+            content: `${pushTitle} - ${pushBody}`,
+            time: Date.now()
+        }, ...prev]);
+
+        alert(`Notification Push envoyée à ${pushTarget} ! (Simulation)`);
+        setPushTitle('');
+        setPushBody('');
+    };
+
+    const handleSendEmail = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!emailSubject.trim() || !emailBody.trim()) return;
+
+        // Simulation d'envoi Email
+        setNotifHistory(prev => [{
+            id: Date.now(),
+            type: 'EMAIL',
+            target: 'ALL_USERS',
+            content: `${emailSubject}`,
+            time: Date.now()
+        }, ...prev]);
+
+        alert('Campagne Email lancée ! (Simulation)');
+        setEmailSubject('');
+        setEmailBody('');
     };
 
     const handleGiftCoins = async () => {
@@ -618,6 +674,159 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     }, [profiles]);
 
     // --- RENDERERS ---
+
+    const renderNotifications = () => (
+        <div className="animate-in fade-in h-full flex flex-col">
+            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
+                <button onClick={() => setNotifTab('INAPP')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${notifTab === 'INAPP' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                    <Megaphone size={14}/> IN-APP BROADCAST
+                </button>
+                <button onClick={() => setNotifTab('PUSH')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${notifTab === 'PUSH' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                    <PhoneIcon size={14}/> NOTIFICATIONS PUSH
+                </button>
+                <button onClick={() => setNotifTab('EMAIL')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${notifTab === 'EMAIL' ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                    <Mail size={14}/> EMAILING
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+                
+                {/* LEFT: ACTION FORM */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10 flex flex-col overflow-y-auto">
+                    {notifTab === 'INAPP' && (
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-bold text-blue-400 flex items-center gap-2"><Radio size={20}/> MESSAGE EN DIRECT</h3>
+                            <p className="text-xs text-gray-400">Envoie un message instantané à tous les joueurs connectés en ce moment.</p>
+                            
+                            <div>
+                                <label className="text-xs text-gray-300 font-bold block mb-1">CONTENU DU MESSAGE</label>
+                                <textarea 
+                                    value={broadcastMsg}
+                                    onChange={e => setBroadcastMsg(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-blue-500 outline-none h-32 resize-none"
+                                    placeholder="Ex: Maintenance serveur dans 5 minutes..."
+                                />
+                            </div>
+
+                            <div className="flex gap-2">
+                                <button onClick={(e) => handleBroadcast(e, 'info')} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
+                                    <Radio size={18}/> INFO
+                                </button>
+                                <button onClick={(e) => handleBroadcast(e, 'warning')} className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
+                                    <AlertTriangle size={18}/> ALERTE
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {notifTab === 'PUSH' && (
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-bold text-purple-400 flex items-center gap-2"><Smartphone size={20}/> NOTIFICATION MOBILE</h3>
+                            <p className="text-xs text-gray-400">Envoie une notification native aux appareils (PWA/Mobile).</p>
+                            
+                            <div>
+                                <label className="text-xs text-gray-300 font-bold block mb-1">TITRE</label>
+                                <input 
+                                    type="text" 
+                                    value={pushTitle} 
+                                    onChange={e => setPushTitle(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-purple-500 outline-none"
+                                    placeholder="Ex: Bonus de Connexion !"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="text-xs text-gray-300 font-bold block mb-1">MESSAGE</label>
+                                <textarea 
+                                    value={pushBody}
+                                    onChange={e => setPushBody(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-purple-500 outline-none h-24 resize-none"
+                                    placeholder="Ex: Revenez jouer pour gagner 500 pièces..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-300 font-bold block mb-1">CIBLE</label>
+                                <select 
+                                    value={pushTarget} 
+                                    onChange={e => setPushTarget(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white outline-none"
+                                >
+                                    <option value="ALL">Tous les utilisateurs</option>
+                                    <option value="ACTIVE_7D">Actifs (7 jours)</option>
+                                    <option value="INACTIVE_30D">Inactifs (30 jours)</option>
+                                    <option value="ANDROID">Android</option>
+                                    <option value="IOS">iOS</option>
+                                </select>
+                            </div>
+
+                            <button onClick={handleSendPush} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 mt-4">
+                                <Send size={18}/> ENVOYER PUSH
+                            </button>
+                        </div>
+                    )}
+
+                    {notifTab === 'EMAIL' && (
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-bold text-yellow-400 flex items-center gap-2"><Mail size={20}/> CAMPAGNE E-MAIL</h3>
+                            <p className="text-xs text-gray-400">Newsletter ou annonces importantes.</p>
+                            
+                            <div>
+                                <label className="text-xs text-gray-300 font-bold block mb-1">SUJET</label>
+                                <input 
+                                    type="text" 
+                                    value={emailSubject} 
+                                    onChange={e => setEmailSubject(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-yellow-500 outline-none"
+                                    placeholder="Ex: Nouveautés de la semaine"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="text-xs text-gray-300 font-bold block mb-1">CONTENU (HTML/Text)</label>
+                                <textarea 
+                                    value={emailBody}
+                                    onChange={e => setEmailBody(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-yellow-500 outline-none h-40 resize-none font-mono"
+                                    placeholder="<h1>Bonjour %username% !</h1>..."
+                                />
+                            </div>
+
+                            <button onClick={handleSendEmail} className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 mt-4">
+                                <Send size={18}/> ENVOYER EMAILS
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* RIGHT: HISTORY LOG */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10 flex flex-col overflow-hidden">
+                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><History size={20}/> HISTORIQUE D'ENVOI</h3>
+                    
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+                        {notifHistory.length === 0 && <p className="text-gray-500 text-sm italic text-center mt-10">Aucun historique récent.</p>}
+                        
+                        {notifHistory.map(log => (
+                            <div key={log.id} className="bg-black/30 p-3 rounded-lg border border-white/5 relative">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                        log.type === 'IN-APP' ? 'bg-blue-900/30 text-blue-400 border-blue-500/30' :
+                                        log.type === 'PUSH' ? 'bg-purple-900/30 text-purple-400 border-purple-500/30' :
+                                        'bg-yellow-900/30 text-yellow-400 border-yellow-500/30'
+                                    }`}>
+                                        {log.type}
+                                    </span>
+                                    <span className="text-[10px] text-gray-500">{new Date(log.time).toLocaleString()}</span>
+                                </div>
+                                <p className="text-xs text-gray-300 font-bold mb-1">Cible: <span className="text-white">{log.target}</span></p>
+                                <p className="text-sm text-white break-words">{log.content}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
     const renderDashboard = () => (
         <div className="space-y-6 animate-in fade-in">
@@ -1101,7 +1310,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     <div className="flex items-center gap-2">
                         <Gamepad2 size={24} className="text-cyan-400"/>
                         <span className="text-3xl font-black text-white">
-                            {gamePopularity.reduce((acc, g) => acc + g.count, 0)}
+                            {totalItemsSold.toLocaleString()}
                         </span>
                     </div>
                 </div>
@@ -1321,22 +1530,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         </div>
     );
 
-    const renderContent = () => (
-        <div className="animate-in fade-in space-y-6 max-w-2xl">
-            <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
-                <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2"><Megaphone size={20}/> DIFFUSION SYSTÈME</h3>
-                <textarea 
-                    value={broadcastMsg}
-                    onChange={e => setBroadcastMsg(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 outline-none h-32 resize-none mb-4"
-                    placeholder="Message à envoyer à tous les joueurs connectés..."
-                />
-                <button onClick={handleBroadcast} className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"><Radio size={18}/> ENVOYER MAINTENANT</button>
-            </div>
-        </div>
-    );
-
-    const renderLogs = () => <div className="animate-in fade-in">Logs système...</div>;
     const renderData = () => (
         <div className="animate-in fade-in max-w-xl">
             <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><Database size={20} className="text-green-400"/> DONNÉES & SAUVEGARDES</h3>
@@ -1361,8 +1554,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             </div>
         </div>
     );
-    const renderSecurity = () => <div className="animate-in fade-in">Paramètres de sécurité...</div>;
-    const renderFuture = () => <div className="animate-in fade-in">Roadmap...</div>;
 
     // --- MAIN LAYOUT ---
     return (
@@ -1372,7 +1563,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             <div className="w-64 bg-gray-900 border-r border-white/10 flex flex-col shrink-0 hidden md:flex">
                 <div className="p-6 border-b border-white/10">
                     <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">ADMIN PANEL</h1>
-                    <p className="text-[10px] text-gray-500 font-mono mt-1">v3.2.0 • SYSTEM: ONLINE</p>
+                    <p className="text-[10px] text-gray-500 font-mono mt-1">v3.3.0 • SYSTEM: ONLINE</p>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
                     {SECTIONS.map(s => (
@@ -1416,39 +1607,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     </h2>
 
                     {activeSection === 'DASHBOARD' && renderDashboard()}
+                    {activeSection === 'NOTIFICATIONS' && renderNotifications()}
                     {activeSection === 'ECONOMY' && renderEconomy()}
                     {activeSection === 'STATS' && renderStats()}
                     {activeSection === 'GAMES' && renderGamesManager()}
                     {activeSection === 'USERS' && renderUsers()}
                     {activeSection === 'CONFIG' && renderConfig()}
                     {activeSection === 'FLAGS' && renderFeatureFlags()}
-                    {activeSection === 'CONTENT' && renderContent()}
                     {activeSection === 'EVENTS' && renderEvents()}
-                    {activeSection === 'LOGS' && renderLogs()}
                     {activeSection === 'DATA' && renderData()}
-                    {activeSection === 'SECURITY' && renderSecurity()}
-                    {activeSection === 'FUTURE' && renderFuture()}
-                    
-                    {['APPEARANCE'].includes(activeSection) && (
-                        <div className="flex flex-col items-center justify-center h-64 text-gray-500 opacity-50">
-                            <Lock size={48} className="mb-4"/>
-                            <p className="font-bold">SECTION EN DÉVELOPPEMENT</p>
-                        </div>
-                    )}
                 </div>
             </div>
 
-            {/* EVENTS MODAL (UNCHANGED, but needs to be here for context) */}
+            {/* EVENTS MODAL */}
             {showEventModal && (
                 <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
                     <div className="bg-gray-900 w-full max-w-lg rounded-2xl border border-white/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                        {/* ... Event Modal Content (Simplified for brevity as it was correct previously) ... */}
                         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
                             <h3 className="text-xl font-black text-white flex items-center gap-2"><Edit2 className="text-green-400"/> GESTION ÉVÉNEMENT</h3>
                             <button onClick={() => setShowEventModal(false)} className="text-gray-400 hover:text-white"><X/></button>
                         </div>
                         <div className="p-6">
-                            {/* Basic Event Form Logic Placeholder to ensure no regression */}
                             <button onClick={handleSaveEvent} className="w-full py-3 bg-green-600 text-white font-bold rounded-lg">SAUVEGARDER (SIMULATION)</button>
                         </div>
                     </div>
