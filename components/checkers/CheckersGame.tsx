@@ -47,20 +47,15 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
     // Online State
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
-    const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(false);
+    const [isWaitingForHost, setIsWaitingForHost] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
 
     const handleDataRef = useRef<(data: any) => void>(null);
-    const handshakeIntervalRef = useRef<any>(null);
 
     // --- SETUP ---
     useEffect(() => {
         // Tag user as playing "Checkers" for the lobby filter
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Checkers');
-        
-        return () => {
-            if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
-        };
     }, [username, currentAvatarId, mp.updateSelfInfo]);
 
     // Check localStorage for tutorial seen
@@ -83,46 +78,42 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         return () => mp.disconnect();
     }, [gameMode]);
 
+    // --- ONLINE STATE MANAGEMENT ---
     useEffect(() => {
         const isHosting = mp.isHost || mp.players.find(p => p.id === mp.peerId)?.status === 'hosting';
+        
         if (mp.mode === 'lobby') {
             if (isHosting) {
                 setOnlineStep('game');
-                if (menuPhase === 'MENU') {
-                    initGame('ONLINE');
-                }
+                if (menuPhase === 'MENU') initGame('ONLINE');
+            } else {
+                setOnlineStep('lobby');
             }
-            else setOnlineStep('lobby');
             
-            if (menuPhase === 'GAME' && (winner || whiteCount < 20 || redCount < 20)) {
-                setMenuPhase('MENU');
-            }
+            // If disconnected/kicked to lobby, reset local game state if in game
+            if (menuPhase === 'GAME') setMenuPhase('MENU');
+
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
             
-            // Transition to Game Phase if not already
             if (menuPhase === 'MENU') {
                 setMenuPhase('GAME');
-                resetGame();
             }
 
-            // --- SYMMETRIC HANDSHAKE ---
-            // Both sides start waiting and broadcasting their presence
-            if (!isWaitingForOpponent && !winner && whiteCount === 20 && redCount === 20) {
-                setIsWaitingForOpponent(true);
-                
-                if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
-                
-                // Broadcast presence every 1s
-                const signalType = mp.isHost ? 'CHECKERS_HOST_HERE' : 'CHECKERS_GUEST_HERE';
-                mp.sendData({ type: signalType }); // Send immediately
-                handshakeIntervalRef.current = setInterval(() => {
-                    mp.sendData({ type: signalType });
+            // --- INITIALIZATION PROTOCOL ---
+            if (mp.isHost) {
+                // Host logic: Reset and Send Init
+                resetGame();
+                setTimeout(() => {
+                    mp.sendData({ type: 'CHECKERS_INIT' });
                 }, 1000);
+            } else {
+                // Guest logic: Wait for Host
+                setIsWaitingForHost(true);
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, menuPhase, isWaitingForOpponent, winner, whiteCount, redCount]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
     // --- LOGIC ---
 
@@ -138,7 +129,6 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const resetGame = () => {
-        if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
         const initial = createInitialBoard();
         setBoard(initial);
         setTurn('white');
@@ -150,7 +140,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         setEarnedCoins(0);
         setMustJumpPos(null);
         setOpponentLeft(false);
-        setIsWaitingForOpponent(false); // Reset wait state
+        setIsWaitingForHost(false); 
         
         if (onReportProgress) onReportProgress('play', 1);
     };
@@ -163,9 +153,8 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             setMenuPhase('DIFFICULTY');
         } else {
             setMenuPhase('GAME');
-            resetGame();
-            if (mode === 'ONLINE') {
-                setIsWaitingForOpponent(false); // Let the handshake effect trigger it
+            if (mode !== 'ONLINE') {
+                resetGame();
             }
         }
     };
@@ -241,10 +230,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     };
 
     const handleCellClick = (r: number, c: number) => {
-        if (winner || isWaitingForOpponent || showTutorial) return;
+        if (winner || isWaitingForHost || showTutorial) return;
         
         // Online Turn Check
         if (gameMode === 'ONLINE') {
+            if (!mp.gameOpponent) return; // Wait for opponent to exist
             const isMyTurn = (mp.amIP1 && turn === 'white') || (!mp.amIP1 && turn === 'red');
             if (!isMyTurn) return;
         }
@@ -325,23 +315,10 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     // --- ONLINE HANDLER ---
     useEffect(() => {
         handleDataRef.current = (data: any) => {
-            // Handshake Logic
-            if (data.type === 'CHECKERS_HOST_HERE') {
-                // If I am guest and I see host is here, I stop waiting
-                if (!mp.isHost && isWaitingForOpponent) {
-                    setIsWaitingForOpponent(false);
-                    if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
-                }
+            if (data.type === 'CHECKERS_INIT') {
+                resetGame();
+                setIsWaitingForHost(false); // Guest receives start signal
             }
-            if (data.type === 'CHECKERS_GUEST_HERE') {
-                // If I am host and I see guest is here, I stop waiting
-                if (mp.isHost && isWaitingForOpponent) {
-                    setIsWaitingForOpponent(false);
-                    if (handshakeIntervalRef.current) clearInterval(handshakeIntervalRef.current);
-                }
-            }
-
-            // Game Logic
             if (data.type === 'CHECKERS_MOVE') {
                 performMove(data.move);
             }
@@ -350,18 +327,18 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 setWinner(mp.amIP1 ? 'white' : 'red');
             }
             if (data.type === 'REMATCH_START') {
-                resetGame();
-                // Restart handshake
-                setIsWaitingForOpponent(true);
-                const signalType = mp.isHost ? 'CHECKERS_HOST_HERE' : 'CHECKERS_GUEST_HERE';
-                handshakeIntervalRef.current = setInterval(() => {
-                    mp.sendData({ type: signalType });
-                }, 1000);
+                if (mp.isHost) {
+                    resetGame();
+                    setTimeout(() => {
+                        mp.sendData({ type: 'CHECKERS_INIT' });
+                    }, 1000);
+                } else {
+                    setIsWaitingForHost(true);
+                }
             }
         };
     });
 
-    // Fix: Depend on mp.subscribe to avoid race conditions during state updates
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (handleDataRef.current) handleDataRef.current(data);
@@ -601,11 +578,11 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 </div>
             )}
 
-            {isWaitingForOpponent && gameMode === 'ONLINE' && (
+            {isWaitingForHost && gameMode === 'ONLINE' && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center">
                     <Loader2 size={48} className="text-cyan-400 animate-spin mb-4"/>
-                    <p className="font-bold">EN ATTENTE DU JOUEUR...</p>
-                    <button onClick={mp.cancelHosting} className="mt-4 px-4 py-2 bg-red-600 rounded text-sm font-bold">ANNULER</button>
+                    <p className="font-bold">EN ATTENTE DE L'HÔTE...</p>
+                    <button onClick={mp.leaveGame} className="mt-4 px-4 py-2 bg-red-600 rounded text-sm font-bold">QUITTER</button>
                 </div>
             )}
             
