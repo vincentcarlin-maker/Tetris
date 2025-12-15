@@ -180,6 +180,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         isDraggingRef.current = false;
     }, []);
 
+    const handleMarkAllRead = async () => {
+        setUnreadCount(0);
+        if (isConnectedToSupabase && username) {
+            await DB.markAllAsRead(username);
+        }
+    };
+
     // Listen for admin events to update activity log AND global chat
     useEffect(() => {
         const handleAdminEvent = (e: CustomEvent) => {
@@ -248,7 +255,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
         
         if (isConnectedToSupabase && username) {
             DB.getUnreadCount(username).then(count => {
-                setUnreadCount(prev => prev + count);
+                setUnreadCount(count);
             });
         }
         
@@ -683,6 +690,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                 <div className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
                     <div className="bg-gray-900 w-full max-w-md h-[650px] max-h-full rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden relative">
                         <div className="p-4 border-b border-white/10 flex items-center justify-center bg-black/40 relative">
+                            {unreadCount > 0 && (
+                                <button onClick={handleMarkAllRead} className="absolute left-4 p-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white rounded-full transition-colors" title="Tout marquer comme lu">
+                                    <CheckCircle size={16} />
+                                </button>
+                            )}
                             <h2 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-2"><Users className="text-blue-400" /> SOCIAL</h2>
                             <button onClick={() => setShowSocial(false)} className="absolute right-4 p-2 hover:bg-white/10 rounded-full transition-colors"><X size={24} className="text-gray-400 hover:text-white" /></button>
                         </div>

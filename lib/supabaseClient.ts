@@ -300,5 +300,18 @@ export const DB = {
         } catch (e) {
             return 0;
         }
+    },
+
+    markAllAsRead: async (receiverId: string) => {
+        if (!supabase) return;
+        try {
+            await supabase
+                .from('messages')
+                .update({ read: true })
+                .eq('receiver_id', receiverId)
+                .eq('read', false);
+        } catch (e) {
+            console.error("Error marking all as read:", e);
+        }
     }
 };
