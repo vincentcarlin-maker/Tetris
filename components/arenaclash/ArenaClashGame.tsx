@@ -187,7 +187,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         }
         
         // Sync Identity
-        mp.updateSelfInfo(username, currentAvatarId);
+        mp.updateSelfInfo(username, currentAvatarId, undefined, 'Arena Clash');
 
         return () => cancelAnimationFrame(animationFrameRef.current);
     }, [username, currentAvatarId, mp]);
@@ -778,7 +778,9 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     const renderLobby = () => {
         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
-        return (
+        const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+        
+         return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
                  <div className="flex flex-col gap-3 mb-4">
                      <h3 className="text-xl font-black text-center text-purple-300 tracking-wider drop-shadow-md">LOBBY ARENA</h3>
@@ -806,6 +808,25 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         </>
                     )}
                     {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                    
+                    {otherPlayers.length > 0 && (
+                        <>
+                             <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
+                             {otherPlayers.map(player => {
+                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                 const AvatarIcon = avatar.icon;
+                                 return (
+                                     <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/30 rounded-lg border border-white/5 opacity-70">
+                                         <div className="flex items-center gap-3">
+                                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                             <span className="font-bold text-gray-400">{player.name}</span>
+                                         </div>
+                                         <span className="text-xs font-bold text-gray-500">{player.status === 'in_game' ? "EN JEU" : "INACTIF"}</span>
+                                     </div>
+                                 );
+                             })}
+                        </>
+                    )}
                 </div>
              </div>
          );
