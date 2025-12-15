@@ -78,19 +78,17 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
     };
 
     useEffect(() => {
-        const today = getTodayString();
         const storedLastLogin = localStorage.getItem('neon_last_login');
-        const storedRewardDate = localStorage.getItem('neon_reward_date'); // NEW LOCK KEY
         const storedStreak = parseInt(localStorage.getItem('neon_streak') || '0', 10);
         const storedQuests = localStorage.getItem('neon_daily_quests');
         const storedDate = localStorage.getItem('neon_quests_date');
         const storedBonus = localStorage.getItem('neon_bonus_claimed');
 
+        const today = getTodayString();
+
         // --- LOGIN BONUS LOGIC ---
-        // Only trigger if we haven't given a reward for this specific date yet
-        if (storedRewardDate !== today) {
+        if (storedLastLogin !== today) {
             let newStreak = 1;
-            
             if (storedLastLogin) {
                 // Parse dates manually to avoid timezone issues
                 const lastDate = new Date(storedLastLogin);
@@ -107,29 +105,18 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
                     if (newStreak > 7) {
                         newStreak = 1;
                     }
-                } else if (diffDays === 0) {
-                    // Same day (should be caught by storedRewardDate, but safe fallback)
-                    newStreak = storedStreak; 
                 }
-                // Else (diffDays > 1) -> Streak reset to 1 (default)
             }
             
             setStreak(newStreak);
             const baseReward = 50;
             const bonus = newStreak * 20;
             setTodaysReward(baseReward + bonus);
+            setShowDailyModal(true);
             
-            // Only show modal if it's truly a new reward event (diffDays != 0 or just reset)
-            if (storedLastLogin !== today) {
-                setShowDailyModal(true);
-            }
-            
-            // LOCK IT IMMEDIATELY
-            localStorage.setItem('neon_reward_date', today);
             localStorage.setItem('neon_last_login', today);
             localStorage.setItem('neon_streak', newStreak.toString());
         } else {
-            // Already claimed/generated for today, just restore state
             setStreak(storedStreak);
         }
 

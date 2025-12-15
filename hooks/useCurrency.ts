@@ -279,8 +279,26 @@ export const useCurrency = () => {
         }
         
         if (data.quests) localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
-        if (data.streak) localStorage.setItem('neon_streak', data.streak.toString());
-        if (data.lastLogin) localStorage.setItem('neon_last_login', data.lastLogin);
+        
+        // PROTECTION FIX: Daily Bonus Overwrite
+        // Calculate "Today" locally
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        const localLastLogin = localStorage.getItem('neon_last_login');
+        
+        // We only overwrite streak/lastLogin if the local data IS NOT from today 
+        // OR if the cloud data IS from today (syncing between devices on same day).
+        // If Local = Today and Cloud = Old, we keep Local (we just claimed bonus).
+        const isLocalFresh = localLastLogin === todayStr && data.lastLogin !== todayStr;
+
+        if (!isLocalFresh) {
+            if (data.streak) localStorage.setItem('neon_streak', data.streak.toString());
+            if (data.lastLogin) localStorage.setItem('neon_last_login', data.lastLogin);
+        }
     }, []);
 
     const refreshData = useCallback(() => {
