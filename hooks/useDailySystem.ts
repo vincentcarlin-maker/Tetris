@@ -62,8 +62,15 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
     const [quests, setQuests] = useState<DailyQuest[]>([]);
     const [allCompletedBonusClaimed, setAllCompletedBonusClaimed] = useState(false);
 
-    // Helper to get today's date string YYYY-MM-DD
-    const getTodayString = () => new Date().toISOString().split('T')[0];
+    // Helper to get today's date string YYYY-MM-DD in LOCAL TIME
+    // Using simple Date methods avoids UTC/Local timezone conflicts causing infinite bonus loops
+    const getTodayString = () => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     useEffect(() => {
         const storedLastLogin = localStorage.getItem('neon_last_login');
@@ -78,20 +85,30 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         if (storedLastLogin !== today) {
             let newStreak = 1;
             if (storedLastLogin) {
+                // Parse dates manually to avoid timezone issues
                 const lastDate = new Date(storedLastLogin);
                 const currDate = new Date(today);
+                
+                // Calculate difference in days (ignoring hours/minutes)
                 const diffTime = Math.abs(currDate.getTime() - lastDate.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
 
                 if (diffDays === 1) {
-                    newStreak = Math.min(storedStreak + 1, 7);
+                    // Consecutive day
+                    newStreak = storedStreak + 1;
+                    // Reset to Day 1 after Day 7 (Cycle)
+                    if (newStreak > 7) {
+                        newStreak = 1;
+                    }
                 }
             }
+            
             setStreak(newStreak);
             const baseReward = 50;
             const bonus = newStreak * 20;
             setTodaysReward(baseReward + bonus);
             setShowDailyModal(true);
+            
             localStorage.setItem('neon_last_login', today);
             localStorage.setItem('neon_streak', newStreak.toString());
         } else {
