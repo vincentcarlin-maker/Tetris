@@ -9,13 +9,16 @@ export interface HighScores {
   invaders: number;
   runner: number; 
   stack: number;
-  arenaclash: number; // Added Arena Clash
+  arenaclash: number; 
+  lumen: number; // Added Lumen Order
   sudoku: { [difficulty: string]: number }; 
   memory: number; 
   mastermind?: number; 
   uno?: number; 
   game2048?: number; 
   watersort?: number; 
+  skyjo?: number;
+  rush?: number;
 }
 
 const initialHighScores: HighScores = {
@@ -27,12 +30,15 @@ const initialHighScores: HighScores = {
   runner: 0,
   stack: 0,
   arenaclash: 0,
+  lumen: 0,
   sudoku: {},
   memory: 0,
   mastermind: 0,
   uno: 0,
   game2048: 0,
-  watersort: 1
+  watersort: 1,
+  skyjo: 0,
+  rush: 1
 };
 
 const HIGHSCORES_KEY = 'neon-highscores';
@@ -54,11 +60,14 @@ export const useHighScores = () => {
         if (!parsed.runner) parsed.runner = 0;
         if (!parsed.stack) parsed.stack = 0;
         if (!parsed.arenaclash) parsed.arenaclash = 0;
+        if (!parsed.lumen) parsed.lumen = 0;
         if (!parsed.memory) parsed.memory = 0;
         if (!parsed.mastermind) parsed.mastermind = 0;
         if (!parsed.uno) parsed.uno = 0;
         if (!parsed.game2048) parsed.game2048 = 0;
         if (!parsed.watersort) parsed.watersort = 1;
+        if (!parsed.skyjo) parsed.skyjo = 0;
+        if (!parsed.rush) parsed.rush = 1;
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -75,7 +84,7 @@ export const useHighScores = () => {
       const newScores = JSON.parse(JSON.stringify(prev)); // Deep copy
       let shouldUpdate = false;
 
-      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort' || game === 'runner' || game === 'stack' || game === 'arenaclash') {
+      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort' || game === 'runner' || game === 'stack' || game === 'arenaclash' || game === 'lumen' || game === 'rush') {
         // Higher is better
         if (value > (prev[game] as number || 0)) {
           newScores[game] = value;
@@ -103,6 +112,20 @@ export const useHighScores = () => {
             newScores.mastermind = value;
             shouldUpdate = true;
         }
+      } else if (game === 'skyjo') {
+          // Lower is better. 0 is valid score? No, usually positive.
+          // Skyjo logic: Try to get lowest score. 
+          // Let's assume we store the "Best Low Score".
+          // If current is 0 (unplayed), update.
+          // Careful: Skyjo scores can be negative. 
+          // For simplicity in this arcade version, we track WINS or lowest positive score?
+          // Let's track lowest score achieved.
+          // Initialize with a high number if 0
+          const current = prev.skyjo === 0 && value !== 0 ? 999 : prev.skyjo;
+          if (value < (current || 999)) {
+              newScores.skyjo = value;
+              shouldUpdate = true;
+          }
       } else if (game === 'uno') {
           // Accumulate Score
           newScores.uno = (prev.uno || 0) + value;

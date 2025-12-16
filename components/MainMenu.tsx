@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle, Hexagon } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -128,6 +128,7 @@ const StackIcon = ({ size, className }: { size?: number | string, className?: st
 );
 
 const GAMES_CONFIG = [
+    { id: 'lumen', category: 'PUZZLE', name: 'LUMEN ORDER', icon: Hexagon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS' },
     { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: Grid3X3, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: true }, reward: 'GAINS' },
     { id: 'arenaclash', category: 'ARCADE', name: 'ARENA CLASH', icon: Crosshair, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: true }, reward: 'GAINS' },
     { id: 'stack', category: 'ARCADE', name: 'STACK', icon: StackIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
@@ -157,6 +158,7 @@ const CATEGORIES = [
 ];
 
 const LEADERBOARD_GAMES = [
+    { id: 'lumen', label: 'LUMEN', unit: 'pts', type: 'high', color: 'text-cyan-400' },
     { id: 'arenaclash', label: 'ARENA', unit: '', type: 'high', color: 'text-red-500' },
     { id: 'skyjo', label: 'SKYJO', unit: 'pts', type: 'low', color: 'text-purple-400' },
     { id: 'stack', label: 'STACK', unit: '', type: 'high', color: 'text-indigo-400' },
@@ -767,7 +769,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     })}
                  </div>
                  
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.8 • QUESTS 2.0</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v2.9 • LUMEN ORDER</div>
              </div>
         </div>
     );

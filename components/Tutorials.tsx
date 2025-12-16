@@ -5,7 +5,7 @@ import {
     MousePointer2, Target, Shield, Hash, Brain, Palette, Search, BrainCircuit,
     LayoutGrid, Zap, CheckCircle, Crosshair, Anchor, Ghost, Skull, MoveHorizontal,
     MousePointerClick, Layers, Megaphone, ArrowDown, Check, ArrowUp, Crown,
-    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross, Grid3X3, AlertTriangle
+    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross, Grid3X3, AlertTriangle, Eye
 } from 'lucide-react';
 
 interface Step {
@@ -176,6 +176,15 @@ const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
             { icon: MousePointer2, color: "text-cyan-400", title: "JOUER", desc: "Piochez ou prenez la défausse pour échanger avec une carte de votre grille." },
             { icon: Layers, color: "text-green-400", title: "COMBO", desc: "3 cartes identiques en colonne s'annulent (0 pts)." },
             { icon: AlertTriangle, color: "text-red-500", title: "DANGER", desc: "Si vous finissez 1er sans le score le plus bas, vos points doublent !" }
+        ]
+    },
+    lumen: {
+        titleColor: "text-cyan-400",
+        steps: [
+            { icon: Eye, color: "text-cyan-400", title: "OBSERVER", desc: "Regardez la séquence de formes lumineuses." },
+            { icon: Brain, color: "text-purple-400", title: "MÉMORISER", desc: "Retenez l'ordre exact d'apparition." },
+            { icon: MousePointerClick, color: "text-yellow-400", title: "RÉPÉTER", desc: "Reproduisez la séquence sans erreur." },
+            { icon: Zap, color: "text-red-500", title: "DANGER", desc: "Une seule erreur et c'est la fin." }
         ]
     }
 };
