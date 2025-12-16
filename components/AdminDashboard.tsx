@@ -95,7 +95,8 @@ const GAMES_LIST = [
     { id: 'runner', name: 'Neon Run', version: '2.5' },
     { id: 'stack', name: 'Stack', version: '1.2' },
     { id: 'arenaclash', name: 'Arena Clash', version: '1.0' },
-    { id: 'skyjo', name: 'Skyjo', version: '1.0' }
+    { id: 'skyjo', name: 'Skyjo', version: '1.0' },
+    { id: 'lumen', name: 'Lumen Order', version: '1.0' }
 ];
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onlineUsers }) => {
