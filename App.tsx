@@ -177,9 +177,32 @@ const App: React.FC = () => {
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
-            syncProfileToCloud(currency.username, buildSavePayload());
+            const payload = buildSavePayload();
+            syncProfileToCloud(currency.username, payload);
+            
+            // FIX: Save to local user slot for offline backup/persistence (Important for Admin/Vincent account)
+            localStorage.setItem(`neon_data_${currency.username}`, JSON.stringify(payload));
+            
         }, 2000); 
-    }, [currency.coins, currency.currentAvatarId, highScores, quests, streak, isConnectedToSupabase, isCloudSynced]);
+    }, [
+        currency.coins, 
+        currency.currentAvatarId, 
+        currency.currentFrameId,
+        currency.currentWallpaperId,
+        currency.currentTitleId,
+        currency.currentMalletId,
+        currency.inventory,
+        currency.ownedAvatars,
+        currency.ownedFrames,
+        currency.ownedWallpapers,
+        currency.ownedTitles,
+        currency.ownedMallets,
+        highScores, 
+        quests, 
+        streak, 
+        isConnectedToSupabase, 
+        isCloudSynced
+    ]);
 
     // Admin Global Listener (Alerts AND Config Updates)
     useEffect(() => {
@@ -228,7 +251,9 @@ const App: React.FC = () => {
                         // FORCE immediate cloud sync to acknowledge receipt and prevent overwrite
                         setIsCloudSynced(true);
                         setTimeout(() => {
-                             syncProfileToCloud(currency.username, buildSavePayload());
+                             const payload = buildSavePayload();
+                             syncProfileToCloud(currency.username, payload);
+                             localStorage.setItem(`neon_data_${currency.username}`, JSON.stringify(payload));
                         }, 1000);
                     }
                 }
@@ -406,6 +431,8 @@ const App: React.FC = () => {
             }
             setIsCloudSynced(true); // Mark as synced
             syncProfileToCloud(username, cloudData);
+            // Ensure local slot is up to date immediately on login
+            localStorage.setItem(`neon_data_${username}`, JSON.stringify(cloudData));
         } else {
             currency.refreshData(); 
         }
