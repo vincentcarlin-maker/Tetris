@@ -9,7 +9,7 @@ import {
     LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, 
     Copy, Layers, Bell, RefreshCcw, CreditCard, ShoppingCart, History, AlertOctagon,
     Banknote, Percent, User, BookOpen, Sliders, TrendingDown, MicOff, Key, Crown,
-    Mail, Inbox, Send, Smartphone as PhoneIcon, Loader2
+    Mail, Inbox, Send, Smartphone as PhoneIcon, Loader2, Info
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -1777,22 +1777,112 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             </div>
                             <button onClick={() => setEditingGame(null)} className="text-gray-400 hover:text-white"><X/></button>
                         </div>
-                        {/* ... Tab Logic ... */}
+                        
                         <div className="flex bg-black/20 p-2 gap-2 border-b border-white/5">
                             <button onClick={() => setGameEditTab('GENERAL')} className={`flex-1 py-2 text-xs font-bold rounded ${gameEditTab === 'GENERAL' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>GÉNÉRAL</button>
                             <button onClick={() => setGameEditTab('RULES')} className={`flex-1 py-2 text-xs font-bold rounded ${gameEditTab === 'RULES' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>RÈGLES</button>
                             <button onClick={() => setGameEditTab('PARAMS')} className={`flex-1 py-2 text-xs font-bold rounded ${gameEditTab === 'PARAMS' ? 'bg-yellow-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>PARAMÈTRES</button>
                             <button onClick={() => setGameEditTab('STATS')} className={`flex-1 py-2 text-xs font-bold rounded ${gameEditTab === 'STATS' ? 'bg-green-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>STATS</button>
                         </div>
-                        {/* ... Content ... */}
+                        
                         <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
-                             {/* Simplified for brevity - logic exists above in original file */}
                              {gameEditTab === 'GENERAL' && (
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-xs text-gray-400 font-bold block mb-1">NOM DU JEU</label>
                                         <input type="text" value={editingGame.config.name} onChange={e => setEditingGame({...editingGame, config: {...editingGame.config, name: e.target.value}})} className="w-full bg-black border border-white/20 rounded-lg p-3 text-white focus:border-blue-500 outline-none font-bold" />
                                     </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">VERSION</label>
+                                        <input type="text" value={editingGame.config.version} onChange={e => setEditingGame({...editingGame, config: {...editingGame.config, version: e.target.value}})} className="w-full bg-black border border-white/20 rounded-lg p-3 text-white focus:border-blue-500 outline-none font-mono" />
+                                    </div>
+                                </div>
+                             )}
+
+                             {gameEditTab === 'RULES' && (
+                                <div className="space-y-4 animate-in fade-in">
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">DESCRIPTION & RÈGLES</label>
+                                        <textarea 
+                                            value={editingGame.config.rules} 
+                                            onChange={e => setEditingGame({...editingGame, config: {...editingGame.config, rules: e.target.value}})}
+                                            className="w-full bg-black border border-white/20 rounded-lg p-3 text-white focus:border-purple-500 outline-none h-40 resize-none custom-scrollbar"
+                                            placeholder="Ex: Alignez 4 jetons pour gagner..."
+                                        />
+                                    </div>
+                                    <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg text-xs text-purple-200 flex items-center">
+                                        <Info className="inline mr-2" size={14}/>
+                                        Ces règles s'affichent dans le tutoriel du jeu si activé.
+                                    </div>
+                                </div>
+                             )}
+
+                             {gameEditTab === 'PARAMS' && (
+                                <div className="space-y-4 animate-in fade-in">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs text-gray-400 font-bold block mb-1">NIVEAU MAX</label>
+                                            <input type="number" value={editingGame.config.maxLevel} onChange={e => setEditingGame({...editingGame, config: {...editingGame.config, maxLevel: parseInt(e.target.value)}})} className="w-full bg-black border border-white/20 rounded-lg p-3 text-white focus:border-yellow-500 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-400 font-bold block mb-1">RÉCOMPENSE BASE</label>
+                                            <div className="relative">
+                                                <input type="number" value={editingGame.config.baseReward} onChange={e => setEditingGame({...editingGame, config: {...editingGame.config, baseReward: parseInt(e.target.value)}})} className="w-full bg-black border border-white/20 rounded-lg p-3 pl-10 text-white focus:border-yellow-500 outline-none" />
+                                                <Coins size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-yellow-400"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">DIFFICULTÉ PAR DÉFAUT</label>
+                                        <select 
+                                            value={editingGame.config.difficulty} 
+                                            onChange={e => setEditingGame({...editingGame, config: {...editingGame.config, difficulty: e.target.value as any}})}
+                                            className="w-full bg-black border border-white/20 rounded-lg p-3 text-white focus:border-yellow-500 outline-none"
+                                        >
+                                            <option value="EASY">Facile</option>
+                                            <option value="MEDIUM">Moyen</option>
+                                            <option value="HARD">Difficile</option>
+                                            <option value="ADAPTIVE">Adaptative</option>
+                                        </select>
+                                    </div>
+                                </div>
+                             )}
+
+                             {gameEditTab === 'STATS' && (
+                                <div className="space-y-4 animate-in fade-in">
+                                    {(() => {
+                                        const stats = getGameDetailedStats(editingGame.id);
+                                        return (
+                                            <>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="bg-black/40 p-4 rounded-xl border border-white/10 text-center">
+                                                        <p className="text-xs text-gray-500 font-bold uppercase">Joueurs Uniques</p>
+                                                        <p className="text-2xl font-black text-white">{stats.activePlayers}</p>
+                                                    </div>
+                                                    <div className="bg-black/40 p-4 rounded-xl border border-white/10 text-center">
+                                                        <p className="text-xs text-gray-500 font-bold uppercase">Total Sessions</p>
+                                                        <p className="text-2xl font-black text-green-400">{stats.totalPlays}</p>
+                                                    </div>
+                                                    <div className="bg-black/40 p-4 rounded-xl border border-white/10 text-center">
+                                                        <p className="text-xs text-gray-500 font-bold uppercase">Score Moyen</p>
+                                                        <p className="text-2xl font-black text-yellow-400">{stats.avgScore}</p>
+                                                    </div>
+                                                    <div className="bg-black/40 p-4 rounded-xl border border-white/10 text-center">
+                                                        <p className="text-xs text-gray-500 font-bold uppercase">Taux Abandon</p>
+                                                        <p className="text-2xl font-black text-red-400">{stats.abandonRate}%</p>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-xl">
+                                                    <h4 className="text-sm font-bold text-green-300 mb-2 flex items-center gap-2"><Activity size={16}/> TENDANCE (7J)</h4>
+                                                    <div className="h-24 flex items-end justify-between gap-1 px-2">
+                                                        {[30, 45, 60, 40, 70, 85, 65].map((h, i) => (
+                                                            <div key={i} className="w-full bg-green-500/40 rounded-t hover:bg-green-400 transition-colors" style={{ height: `${h}%` }}></div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                              )}
                         </div>
