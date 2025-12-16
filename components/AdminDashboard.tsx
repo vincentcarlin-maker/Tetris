@@ -1627,8 +1627,201 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             <h3 className="text-xl font-black text-white flex items-center gap-2"><Edit2 className="text-green-400"/> GESTION ÉVÉNEMENT</h3>
                             <button onClick={() => setShowEventModal(false)} className="text-gray-400 hover:text-white"><X/></button>
                         </div>
-                        <div className="p-6">
-                            <button onClick={handleSaveEvent} className="w-full py-3 bg-green-600 text-white font-bold rounded-lg">SAUVEGARDER (SIMULATION)</button>
+                        
+                        <div className="flex bg-black/20 p-2 gap-2 border-b border-white/5">
+                            {['GENERAL', 'OBJECTIVES', 'REWARDS', 'THEME'].map(tab => (
+                                <button 
+                                    key={tab}
+                                    onClick={() => setEventTab(tab as any)}
+                                    className={`flex-1 py-2 text-xs font-bold rounded transition-colors ${eventTab === tab ? 'bg-green-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}
+                                >
+                                    {tab === 'GENERAL' ? 'INFO' : tab === 'OBJECTIVES' ? 'OBJ' : tab === 'REWARDS' ? 'LOOT' : 'STYLE'}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+                            {eventTab === 'GENERAL' && (
+                                <>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">TITRE</label>
+                                        <input 
+                                            type="text" 
+                                            value={currentEvent.title} 
+                                            onChange={e => setCurrentEvent({...currentEvent, title: e.target.value})}
+                                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-white focus:border-green-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">DESCRIPTION</label>
+                                        <textarea 
+                                            value={currentEvent.description} 
+                                            onChange={e => setCurrentEvent({...currentEvent, description: e.target.value})}
+                                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-white h-20 resize-none focus:border-green-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs text-gray-400 font-bold block mb-1">TYPE</label>
+                                            <select 
+                                                value={currentEvent.type}
+                                                onChange={e => setCurrentEvent({...currentEvent, type: e.target.value as any})}
+                                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-white outline-none"
+                                            >
+                                                <option value="XP_BOOST">XP Boost</option>
+                                                <option value="TOURNAMENT">Tournoi</option>
+                                                <option value="SPECIAL_QUEST">Quête Spéciale</option>
+                                                <option value="COMMUNITY">Communauté</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-end">
+                                            <button 
+                                                onClick={() => setCurrentEvent({...currentEvent, active: !currentEvent.active})}
+                                                className={`w-full py-2 rounded-lg font-bold border transition-colors ${currentEvent.active ? 'bg-green-500/20 text-green-400 border-green-500' : 'bg-red-500/20 text-red-400 border-red-500'}`}
+                                            >
+                                                {currentEvent.active ? 'ACTIF' : 'INACTIF'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs text-gray-400 font-bold block mb-1">DÉBUT</label>
+                                            <input 
+                                                type="date" 
+                                                value={currentEvent.startDate} 
+                                                onChange={e => setCurrentEvent({...currentEvent, startDate: e.target.value})}
+                                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-400 font-bold block mb-1">FIN</label>
+                                            <input 
+                                                type="date" 
+                                                value={currentEvent.endDate} 
+                                                onChange={e => setCurrentEvent({...currentEvent, endDate: e.target.value})}
+                                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {eventTab === 'OBJECTIVES' && (
+                                <>
+                                    <div className="bg-blue-900/20 p-3 rounded-lg border border-blue-500/30 mb-4">
+                                        <p className="text-xs text-blue-200">Définissez les conditions pour réussir l'événement.</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">TYPE D'OBJECTIF</label>
+                                        <select 
+                                            value={currentEvent.objectives?.[0]?.type || 'PLAY_GAMES'}
+                                            onChange={e => {
+                                                const newObjs = [...(currentEvent.objectives || [])];
+                                                if (!newObjs[0]) newObjs[0] = { type: 'PLAY_GAMES', target: 10, gameIds: [] };
+                                                newObjs[0].type = e.target.value as any;
+                                                setCurrentEvent({...currentEvent, objectives: newObjs});
+                                            }}
+                                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-white mb-4 outline-none"
+                                        >
+                                            <option value="PLAY_GAMES">Jouer des parties</option>
+                                            <option value="REACH_SCORE">Atteindre un score</option>
+                                            <option value="EARN_COINS">Gagner des pièces</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">CIBLE (Quantité/Score)</label>
+                                        <input 
+                                            type="number" 
+                                            value={currentEvent.objectives?.[0]?.target || 0}
+                                            onChange={e => {
+                                                const newObjs = [...(currentEvent.objectives || [])];
+                                                if (!newObjs[0]) newObjs[0] = { type: 'PLAY_GAMES', target: 10, gameIds: [] };
+                                                newObjs[0].target = parseInt(e.target.value);
+                                                setCurrentEvent({...currentEvent, objectives: newObjs});
+                                            }}
+                                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-white font-mono outline-none"
+                                        />
+                                    </div>
+                                    <div className="mt-4">
+                                        <label className="text-xs text-gray-400 font-bold block mb-2">JEUX CONCERNÉS (Laisser vide pour tous)</label>
+                                        <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto custom-scrollbar p-2 border border-white/10 rounded-lg">
+                                            {GAMES_LIST.map(g => {
+                                                const isSelected = currentEvent.objectives?.[0]?.gameIds.includes(g.id);
+                                                return (
+                                                    <button
+                                                        key={g.id}
+                                                        onClick={() => {
+                                                            const newObjs = [...(currentEvent.objectives || [])];
+                                                            if (!newObjs[0]) newObjs[0] = { type: 'PLAY_GAMES', target: 10, gameIds: [] };
+                                                            const currentIds = newObjs[0].gameIds;
+                                                            if (isSelected) newObjs[0].gameIds = currentIds.filter(id => id !== g.id);
+                                                            else newObjs[0].gameIds = [...currentIds, g.id];
+                                                            setCurrentEvent({...currentEvent, objectives: newObjs});
+                                                        }}
+                                                        className={`text-[10px] py-1 px-2 rounded border ${isSelected ? 'bg-green-600 text-white border-green-400' : 'bg-gray-800 text-gray-400 border-white/10'}`}
+                                                    >
+                                                        {g.name}
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {eventTab === 'REWARDS' && (
+                                <>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">PIÈCES (COINS)</label>
+                                        <div className="flex items-center bg-black border border-white/20 rounded-lg px-2">
+                                            <Coins size={16} className="text-yellow-400 mr-2"/>
+                                            <input 
+                                                type="number" 
+                                                value={currentEvent.rewards?.coins || 0}
+                                                onChange={e => setCurrentEvent({...currentEvent, rewards: { ...currentEvent.rewards, coins: parseInt(e.target.value) }})}
+                                                className="w-full bg-transparent py-2 text-white font-mono outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 p-4 bg-gray-800/50 rounded-lg border border-white/5 text-center">
+                                        <p className="text-xs text-gray-500 mb-2">Récompenses cosmétiques (Badges/Skins)</p>
+                                        <div className="text-[10px] text-yellow-500 bg-yellow-900/20 inline-block px-2 py-1 rounded border border-yellow-500/20">À VENIR DANS LA v3.4</div>
+                                    </div>
+                                </>
+                            )}
+
+                            {eventTab === 'THEME' && (
+                                <>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">COULEUR PRIMAIRE</label>
+                                        <div className="flex gap-4 items-center">
+                                            <input 
+                                                type="color" 
+                                                value={currentEvent.theme?.primaryColor || '#00f3ff'}
+                                                onChange={e => setCurrentEvent({...currentEvent, theme: { ...currentEvent.theme, primaryColor: e.target.value }})}
+                                                className="w-12 h-12 rounded-lg border-0 cursor-pointer bg-transparent"
+                                            />
+                                            <span className="font-mono text-xs">{currentEvent.theme?.primaryColor}</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 font-bold block mb-1">IMAGE DE FOND (URL OPTIONNELLE)</label>
+                                        <input 
+                                            type="text" 
+                                            value={currentEvent.theme?.backgroundImage || ''}
+                                            onChange={e => setCurrentEvent({...currentEvent, theme: { ...currentEvent.theme, backgroundImage: e.target.value }})}
+                                            placeholder="url('...')"
+                                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-white text-xs font-mono focus:border-purple-500 outline-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-white/10 bg-black/40">
+                            <button onClick={handleSaveEvent} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
+                                <Save size={18}/> SAUVEGARDER L'ÉVÉNEMENT
+                            </button>
                         </div>
                     </div>
                 </div>
