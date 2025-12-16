@@ -10,7 +10,7 @@ export interface HighScores {
   runner: number; 
   stack: number;
   arenaclash: number; 
-  lumen: number; // Added Lumen Order
+  lumen: number; 
   sudoku: { [difficulty: string]: number }; 
   memory: number; 
   mastermind?: number; 
@@ -84,52 +84,41 @@ export const useHighScores = () => {
       const newScores = JSON.parse(JSON.stringify(prev)); // Deep copy
       let shouldUpdate = false;
 
-      if (game === 'tetris' || game === 'breaker' || game === 'pacman' || game === 'snake' || game === 'invaders' || game === 'game2048' || game === 'watersort' || game === 'runner' || game === 'stack' || game === 'arenaclash' || game === 'lumen' || game === 'rush') {
-        // Higher is better
-        if (value > (prev[game] as number || 0)) {
-          newScores[game] = value;
+      // Logic for Higher is Better
+      if (['tetris', 'breaker', 'pacman', 'snake', 'invaders', 'game2048', 'watersort', 'runner', 'stack', 'arenaclash', 'lumen', 'rush'].includes(game)) {
+         // @ts-ignore
+         const current = prev[game] || 0;
+         if (value > current) {
+             // @ts-ignore
+             newScores[game] = value;
+             shouldUpdate = true;
+         }
+      } 
+      // Logic for Uno (Accumulative)
+      else if (game === 'uno') {
+          newScores.uno = (prev.uno || 0) + value;
           shouldUpdate = true;
-        }
-      } else if (game === 'sudoku' && subkey !== undefined) {
+      }
+      // Logic for Lower is Better (Time/Moves/Mistakes)
+      else if (game === 'sudoku' && subkey !== undefined) {
         const key = String(subkey).toLowerCase();
-        // Lower is better for sudoku
-        if (value < (prev.sudoku?.[key] || Infinity)) {
+        const current = prev.sudoku?.[key] || 0;
+        // For Sudoku mistakes/difficulty, we assume we track best performance (lowest mistakes or completion)
+        // If current is 0 (unset), allow update. Else if lower, update.
+        if (current === 0 || value < current) {
            if (!newScores.sudoku) newScores.sudoku = {};
            newScores.sudoku[key] = value;
            shouldUpdate = true;
         }
-      } else if (game === 'memory') {
-        // Lower is better for memory. 0 means unset.
-        const current = prev.memory || 0;
+      } else if (game === 'memory' || game === 'mastermind' || game === 'skyjo') {
+        // @ts-ignore
+        const current = prev[game] || 0;
+        // 0 implies no score yet
         if (current === 0 || value < current) {
-            newScores.memory = value;
+            // @ts-ignore
+            newScores[game] = value;
             shouldUpdate = true;
         }
-      } else if (game === 'mastermind') {
-        // Lower is better for mastermind. 0 means unset.
-        const current = prev.mastermind || 0;
-        if (current === 0 || value < current) {
-            newScores.mastermind = value;
-            shouldUpdate = true;
-        }
-      } else if (game === 'skyjo') {
-          // Lower is better. 0 is valid score? No, usually positive.
-          // Skyjo logic: Try to get lowest score. 
-          // Let's assume we store the "Best Low Score".
-          // If current is 0 (unplayed), update.
-          // Careful: Skyjo scores can be negative. 
-          // For simplicity in this arcade version, we track WINS or lowest positive score?
-          // Let's track lowest score achieved.
-          // Initialize with a high number if 0
-          const current = prev.skyjo === 0 && value !== 0 ? 999 : prev.skyjo;
-          if (value < (current || 999)) {
-              newScores.skyjo = value;
-              shouldUpdate = true;
-          }
-      } else if (game === 'uno') {
-          // Accumulate Score
-          newScores.uno = (prev.uno || 0) + value;
-          shouldUpdate = true;
       }
 
       if (shouldUpdate) {
@@ -141,12 +130,62 @@ export const useHighScores = () => {
     });
   }, []);
 
-  // Sync from Cloud
-  const importScores = useCallback((scores: HighScores) => {
-      if (scores) {
-          setHighScores(scores);
-          localStorage.setItem(HIGHSCORES_KEY, JSON.stringify(scores));
-      }
+  // Sync from Cloud - SMART MERGE
+  const importScores = useCallback((cloudScores: HighScores) => {
+      if (!cloudScores) return;
+
+      setHighScores(prev => {
+          const merged = JSON.parse(JSON.stringify(prev));
+          let changed = false;
+
+          const keys = Object.keys(initialHighScores) as Array<keyof HighScores>;
+          
+          keys.forEach(key => {
+              // @ts-ignore
+              const localVal = prev[key];
+              // @ts-ignore
+              const cloudVal = cloudScores[key];
+
+              if (key === 'sudoku') {
+                  const cloudSudoku = cloudScores.sudoku || {};
+                  if (!merged.sudoku) merged.sudoku = {};
+                  
+                  Object.keys(cloudSudoku).forEach(diff => {
+                      const l = merged.sudoku[diff] || 0;
+                      const c = cloudSudoku[diff];
+                      // Lower is better, 0 is unset
+                      if (l === 0 || (c !== 0 && c < l)) {
+                          merged.sudoku[diff] = c;
+                          changed = true;
+                      }
+                  });
+              } 
+              // Lower is better games
+              else if (['memory', 'mastermind', 'skyjo'].includes(key)) {
+                  // 0 is unset
+                  if ((localVal === 0 && cloudVal !== 0) || (cloudVal !== 0 && cloudVal < localVal)) {
+                      // @ts-ignore
+                      merged[key] = cloudVal;
+                      changed = true;
+                  }
+              }
+              // Higher is better games (default)
+              else {
+                  if (cloudVal > (localVal || 0)) {
+                      // @ts-ignore
+                      merged[key] = cloudVal;
+                      changed = true;
+                  }
+              }
+          });
+
+          if (changed) {
+              console.log("☁️ Merged High Scores from Cloud (kept best)");
+              localStorage.setItem(HIGHSCORES_KEY, JSON.stringify(merged));
+              return merged;
+          }
+          return prev;
+      });
   }, []);
 
   return { highScores, updateHighScore, importScores };
