@@ -48,42 +48,14 @@ const isLevelSolved = (tubes: Tube[]) => {
 export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const { playMove, playLand, playVictory, playPaddleHit, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
-    const { coins } = useCurrency(); // Get current balance
+    const { coins } = useCurrency(); 
     
     // View State
     const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
     const [showTutorial, setShowTutorial] = useState(false);
 
-    // Initialize maxUnlockedLevel synchronously from localStorage to ensure navigation works immediately
-    const [maxUnlockedLevel, setMaxUnlockedLevel] = useState<number>(() => {
-        try {
-            const stored = localStorage.getItem('neon-highscores');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                const saved = parseInt(parsed.watersort, 10);
-                return (!isNaN(saved) && saved > 0) ? saved : 1;
-            }
-        } catch (e) {
-            console.warn("Error loading max level:", e);
-        }
-        return 1;
-    });
-
-    // Sync with hook updates
-    useEffect(() => {
-        if (highScores.watersort > maxUnlockedLevel) {
-            setMaxUnlockedLevel(highScores.watersort);
-        }
-    }, [highScores.watersort, maxUnlockedLevel]);
-
-    // Check localStorage for tutorial seen
-    useEffect(() => {
-        const hasSeen = localStorage.getItem('neon_watersort_tutorial_seen');
-        if (!hasSeen) {
-            setShowTutorial(true);
-            localStorage.setItem('neon_watersort_tutorial_seen', 'true');
-        }
-    }, []);
+    // Single source of truth for progression: HighScores context
+    const maxUnlockedLevel = Math.max(1, highScores.watersort || 1);
 
     // Current level being played
     const [currentLevel, setCurrentLevel] = useState<number>(maxUnlockedLevel);
@@ -111,6 +83,22 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
     
     const tubeRefs = useRef<(HTMLDivElement | null)[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Check localStorage for tutorial seen
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_watersort_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_watersort_tutorial_seen', 'true');
+        }
+    }, []);
+
+    // Sync current level if max level increases (e.g. cloud sync) and we aren't mid-game
+    useEffect(() => {
+        if (view === 'LEVEL_SELECT' && maxUnlockedLevel > currentLevel) {
+            setCurrentLevel(maxUnlockedLevel);
+        }
+    }, [maxUnlockedLevel, view]);
 
     const generateLevel = (lvl: number) => {
         setHistory([]);
@@ -330,7 +318,6 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         
         if (currentLevel === maxUnlockedLevel) {
             const nextMax = maxUnlockedLevel + 1;
-            setMaxUnlockedLevel(nextMax);
             updateHighScore('watersort', nextMax);
         }
         

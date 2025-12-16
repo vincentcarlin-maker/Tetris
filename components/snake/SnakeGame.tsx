@@ -82,10 +82,15 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     const gameLoopRef = useRef<any>(null);
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null); // For particles overlay
+    
+    // Critical: Score Ref to avoid stale closures in Game Over handler
+    const scoreRef = useRef(0);
 
     const { playCoin, playGameOver, playVictory, playWallHit, playPowerUpCollect, playExplosion, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.snake || 0;
+
+    useEffect(() => { scoreRef.current = score; }, [score]);
 
     // Check localStorage for tutorial seen
     useEffect(() => {
@@ -222,14 +227,12 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
             setBombs([]);
         }
         
-        // Delay food gen slightly to ensure obstacles state is set? 
-        // Better: pass empty arrays for Classic or pre-calc for Neon.
-        // We'll trust the state updates or just generate a simple safe food first.
         setFood({ x: 15, y: 10, type: 'NORMAL' }); 
 
         setDirection('RIGHT');
         setNextDirection('RIGHT');
         setScore(0);
+        scoreRef.current = 0; // Reset ref
         setGameOver(false);
         setIsPlaying(true);
         setIsPaused(false);
@@ -253,7 +256,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
             // Trigger map regeneration
             generateLevel(score, snake);
         }
-    }, [score, gameMode, isPlaying, generateLevel]); // snake dependency might trigger often, but logic gates it to score%50
+    }, [score, gameMode, isPlaying, generateLevel]); 
 
     const stopLoop = () => {
         if (gameLoopRef.current) {
@@ -280,9 +283,14 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
         setIsPlaying(false);
         playGameOver();
         stopLoop();
-        updateHighScore('snake', score);
-        if (onReportProgress) onReportProgress('score', score);
-        const coins = Math.floor(score / 10);
+        
+        // Use Ref for current score to avoid stale closure
+        const finalScore = scoreRef.current;
+        updateHighScore('snake', finalScore);
+        
+        if (onReportProgress) onReportProgress('score', finalScore);
+        
+        const coins = Math.floor(finalScore / 10);
         if (coins > 0) {
             addCoins(coins);
             setEarnedCoins(coins);
