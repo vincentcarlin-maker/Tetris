@@ -83,35 +83,58 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         // --- ADMIN CHECK (Vincent) ---
         if (username === 'Vincent' && password === '12/05/2008') {
             let loginData = null;
+            
+            // 1. Attempt Cloud Sync
             try {
                 const cloudProfile = await onAttemptLogin('Vincent');
                 if (cloudProfile && cloudProfile.data) {
-                    loginData = cloudProfile.data; // Sync from Cloud
-                } else {
-                    loginData = saveCurrentDataToUserSlot('Vincent'); // Create/Use local
+                    loginData = cloudProfile.data; // Cloud priority
                 }
             } catch(e) {
+                console.warn("Cloud sync failed for Admin, checking local storage...");
+            }
+
+            // 2. Attempt Local Storage Specific Slot (Prevent overwriting with 0 if cloud fails)
+            if (!loginData) {
+                const localBackup = localStorage.getItem(DATA_PREFIX + 'Vincent');
+                if (localBackup) {
+                    try {
+                        loginData = JSON.parse(localBackup);
+                    } catch {}
+                }
+            }
+
+            // 3. Fallback: Snapshot current session (Only if absolutely no data found anywhere)
+            if (!loginData) {
                 loginData = saveCurrentDataToUserSlot('Vincent');
             }
+
             handleSuccess('Vincent', password, loginData);
             return;
         }
 
         // --- CHLOÉ CHECK ---
         if (username === 'Chloé' && password === 'pocky61') {
-            // Try fetch Cloud data first to ensure sync, otherwise initialize with local progress
             let loginData = null;
+            
             try {
                 const cloudProfile = await onAttemptLogin('Chloé');
                 if (cloudProfile && cloudProfile.data) {
-                    loginData = cloudProfile.data; // Found in cloud!
-                } else {
-                    // Not in cloud yet, capture local progress to create it
-                    loginData = saveCurrentDataToUserSlot('Chloé'); 
+                    loginData = cloudProfile.data;
                 }
-            } catch(e) {
+            } catch(e) {}
+
+            if (!loginData) {
+                const localBackup = localStorage.getItem(DATA_PREFIX + 'Chloé');
+                if (localBackup) {
+                    try { loginData = JSON.parse(localBackup); } catch {}
+                }
+            }
+
+            if (!loginData) {
                 loginData = saveCurrentDataToUserSlot('Chloé');
             }
+
             handleSuccess('Chloé', password, loginData);
             return;
         }
