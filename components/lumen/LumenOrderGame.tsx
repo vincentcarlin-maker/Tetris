@@ -405,7 +405,7 @@ export const LumenOrderGame: React.FC<LumenOrderGameProps> = ({ onBack, audio, a
                 <div className="w-24 h-24 rounded-full border-4 border-cyan-400 flex items-center justify-center mb-6 shadow-[0_0_30px_#00f3ff] animate-pulse">
                     <Eye size={48} className="text-cyan-400" />
                 </div>
-                <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee]">LUMEN ORDER</h1>
+                <h1 className="text-4xl sm:text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee] text-center">LUMEN ORDER</h1>
                 <p className="text-gray-400 text-sm mb-8 max-w-xs text-center">Mémorisez la séquence lumineuse qui émerge du néant.</p>
                 
                 <button onClick={startGame} className="px-8 py-4 bg-cyan-600 border-2 border-cyan-400 text-white font-bold rounded-xl hover:bg-cyan-500 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95 group">
