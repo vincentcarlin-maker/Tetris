@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Crosshair, Play, HelpCircle, Skull, Zap, Clock, Shield, Activity, Target, User, Globe, Users, Loader2, ArrowLeft, LogOut } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Crosshair, Play, HelpCircle, Skull, Zap, Clock, Shield, Activity, Target, User, Globe, Users, Loader2, ArrowLeft, LogOut, ChevronLeft, ChevronRight, Map } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -30,8 +30,6 @@ const COLORS = {
     player: '#00d9ff',   // Cyan
     enemy: '#ff2df5',    // Pink
     bullet: '#ffff00',   // Yellow
-    wall: '#b000ff',     // Purple
-    grid: 'rgba(0, 217, 255, 0.1)',
     powerup: {
         health: '#ef4444',
         shield: '#3b82f6',
@@ -41,6 +39,65 @@ const COLORS = {
 };
 
 const BOT_NAMES = ["Neo", "Glitch", "Viper", "Ghost", "Cyborg", "Pixel", "Byte", "Kilo", "Mega", "Tera"];
+
+// --- MAP GENERATION ---
+interface Obstacle {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+interface MapConfig {
+    id: string;
+    name: string;
+    colors: {
+        bg: string;
+        grid: string;
+        wall: string;
+        wallBorder: string;
+    };
+    obstacles: Obstacle[];
+}
+
+const MAPS: MapConfig[] = [
+    {
+        id: 'city',
+        name: 'NÉON CITY',
+        colors: { bg: '#050510', grid: 'rgba(0, 217, 255, 0.1)', wall: 'rgba(176, 0, 255, 0.2)', wallBorder: '#b000ff' },
+        obstacles: [
+            { x: 200, y: 200, w: 100, h: 100 }, { x: 900, y: 200, w: 100, h: 100 },
+            { x: 200, y: 900, w: 100, h: 100 }, { x: 900, y: 900, w: 100, h: 100 },
+            { x: 550, y: 550, w: 100, h: 100 }, { x: 500, y: 100, w: 200, h: 50 },
+            { x: 500, y: 1050, w: 200, h: 50 }, { x: 100, y: 500, w: 50, h: 200 },
+            { x: 1050, y: 500, w: 50, h: 200 },
+        ]
+    },
+    {
+        id: 'forest',
+        name: 'CYBER FOREST',
+        colors: { bg: '#020f02', grid: 'rgba(34, 197, 94, 0.1)', wall: 'rgba(34, 197, 94, 0.2)', wallBorder: '#22c55e' },
+        obstacles: [
+            { x: 300, y: 300, w: 80, h: 80 }, { x: 820, y: 300, w: 80, h: 80 },
+            { x: 300, y: 820, w: 80, h: 80 }, { x: 820, y: 820, w: 80, h: 80 },
+            { x: 560, y: 560, w: 80, h: 80 }, { x: 100, y: 100, w: 150, h: 150 },
+            { x: 950, y: 950, w: 150, h: 150 }, { x: 950, y: 100, w: 150, h: 150 },
+            { x: 100, y: 950, w: 150, h: 150 }, { x: 580, y: 200, w: 40, h: 200 },
+            { x: 580, y: 800, w: 40, h: 200 },
+        ]
+    },
+    {
+        id: 'desert',
+        name: 'SOLAR DUST',
+        colors: { bg: '#1a0c00', grid: 'rgba(249, 115, 22, 0.1)', wall: 'rgba(234, 179, 8, 0.2)', wallBorder: '#facc15' },
+        obstacles: [
+            { x: 400, y: 400, w: 400, h: 50 }, { x: 400, y: 750, w: 400, h: 50 },
+            { x: 400, y: 450, w: 50, h: 300 }, { x: 750, y: 450, w: 50, h: 300 },
+            { x: 150, y: 150, w: 100, h: 100 }, { x: 950, y: 950, w: 100, h: 100 },
+            { x: 150, y: 950, w: 100, h: 100 }, { x: 950, y: 150, w: 100, h: 100 },
+        ]
+    }
+];
 
 // --- TYPES ---
 interface Entity {
@@ -83,13 +140,6 @@ interface PowerUp extends Entity {
     type: PowerUpType;
 }
 
-interface Obstacle {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-}
-
 interface Particle {
     x: number;
     y: number;
@@ -107,19 +157,6 @@ interface KillEvent {
     victim: string;
     time: number;
 }
-
-// --- MAP GENERATION ---
-const OBSTACLES: Obstacle[] = [
-    { x: 200, y: 200, w: 100, h: 100 },
-    { x: 900, y: 200, w: 100, h: 100 },
-    { x: 200, y: 900, w: 100, h: 100 },
-    { x: 900, y: 900, w: 100, h: 100 },
-    { x: 550, y: 550, w: 100, h: 100 },
-    { x: 500, y: 100, w: 200, h: 50 },
-    { x: 500, y: 1050, w: 200, h: 50 },
-    { x: 100, y: 500, w: 50, h: 200 },
-    { x: 1050, y: 500, w: 50, h: 200 },
-];
 
 export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -149,6 +186,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const [leaderboard, setLeaderboard] = useState<{name: string, score: number, isMe: boolean}[]>([]);
     const [showTutorial, setShowTutorial] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [selectedMapIndex, setSelectedMapIndex] = useState(0);
     
     // Online State
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
@@ -166,6 +204,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const lastUiTimeRef = useRef(MATCH_DURATION); // Optimization: avoid state dependency
     const onReportProgressRef = useRef(onReportProgress);
     const cameraRef = useRef({ x: 0, y: 0 });
+    const selectedMapIndexRef = useRef(0);
     
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
@@ -178,6 +217,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
     useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
     useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
+    useEffect(() => { selectedMapIndexRef.current = selectedMapIndex; }, [selectedMapIndex]);
 
     // --- INITIALIZATION ---
     useEffect(() => {
@@ -226,17 +266,19 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     const spawnCharacter = useCallback((id: string, name: string, isPlayer: boolean, isRemote: boolean = false): Character => {
         let x, y, safe;
+        const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
+        
         do {
             x = 50 + Math.random() * (CANVAS_WIDTH - 100);
             y = 50 + Math.random() * (CANVAS_HEIGHT - 100);
             safe = true;
-            for (const obs of OBSTACLES) {
+            for (const obs of obstacles) {
                 if (x > obs.x - 30 && x < obs.x + obs.w + 30 && y > obs.y - 30 && y < obs.y + obs.h + 30) safe = false;
             }
         } while (!safe);
 
         return {
-            id, name, x, y, radius: 18,
+            id, name, x, y, radius: 20, // Tank radius slightly larger
             color: isPlayer ? COLORS.player : COLORS.enemy,
             hp: 100, maxHp: 100,
             angle: 0, vx: 0, vy: 0, speed: isPlayer || isRemote ? 5 : 3.5,
@@ -250,11 +292,13 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const spawnPowerUp = useCallback(() => {
         if (powerUpsRef.current.length > 5) return;
         let x, y, safe;
+        const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
+        
         do {
             x = 50 + Math.random() * (CANVAS_WIDTH - 100);
             y = 50 + Math.random() * (CANVAS_HEIGHT - 100);
             safe = true;
-            for (const obs of OBSTACLES) {
+            for (const obs of obstacles) {
                 if (x > obs.x - 20 && x < obs.x + obs.w + 20 && y > obs.y - 20 && y < obs.y + obs.h + 20) safe = false;
             }
         } while (!safe);
@@ -275,6 +319,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     // --- NETWORK DATA HANDLER ---
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
+            if (data.type === 'ARENA_INIT_MAP') {
+                setSelectedMapIndex(data.mapIndex);
+                selectedMapIndexRef.current = data.mapIndex;
+            }
+
             if (data.type === 'ARENA_UPDATE') {
                 const remoteData = data.player;
                 if (remoteData.id === mp.peerId) return;
@@ -337,6 +386,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const currentMode = modeOverride || gameMode;
         if (showTutorial) return;
         
+        // If Host online, broadcast map choice
+        if (currentMode === 'ONLINE' && mp.isHost) {
+            mp.sendData({ type: 'ARENA_INIT_MAP', mapIndex: selectedMapIndex });
+        }
+
         // My Player
         playerRef.current = spawnCharacter(mp.peerId || 'player', username, true);
         
@@ -366,7 +420,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         resumeAudio();
         if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
         lastTimeRef.current = Date.now();
-    }, [spawnCharacter, resumeAudio, showTutorial, gameMode, username, mp.peerId, mp.gameOpponent]);
+    }, [spawnCharacter, resumeAudio, showTutorial, gameMode, username, mp.peerId, mp.gameOpponent, selectedMapIndex]);
 
     // --- GAME LOOP HELPERS ---
     const fireBullet = (char: Character, boosted: boolean) => {
@@ -374,15 +428,18 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const speed = BULLET_SPEED;
         const color = boosted ? '#ff00ff' : char.id === (mp.peerId || 'player') ? COLORS.player : COLORS.bullet;
         
+        // Barrel offset for tank
+        const barrelLen = 30; 
+        
         bulletsRef.current.push({
             id: `b_${Date.now()}_${Math.random()}`,
-            x: char.x + Math.cos(char.angle) * 20, y: char.y + Math.sin(char.angle) * 20,
+            x: char.x + Math.cos(char.angle) * barrelLen, y: char.y + Math.sin(char.angle) * barrelLen,
             vx: Math.cos(char.angle) * speed, vy: Math.sin(char.angle) * speed,
             radius: 4, color, ownerId: char.id, damage, life: 2000
         });
         char.lastShot = Date.now();
         playLaserShoot();
-        if (char.id === (mp.peerId || 'player')) shakeRef.current = 2;
+        if (char.id === (mp.peerId || 'player')) shakeRef.current = 3;
     };
 
     const spawnParticles = (x: number, y: number, color: string, count: number, explosion = false) => {
@@ -446,6 +503,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const update = useCallback((dt: number) => {
         const now = Date.now();
         const player = playerRef.current;
+        const currentObstacles = MAPS[selectedMapIndexRef.current].obstacles;
         
         // If no player initiated, return
         if (!player) return;
@@ -589,7 +647,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             // COLLISION (Calculated Locally for Smoothness)
             char.x = Math.max(char.radius, Math.min(CANVAS_WIDTH - char.radius, char.x));
             char.y = Math.max(char.radius, Math.min(CANVAS_HEIGHT - char.radius, char.y));
-            OBSTACLES.forEach(obs => {
+            currentObstacles.forEach(obs => {
                 const closestX = Math.max(obs.x, Math.min(char.x, obs.x + obs.w));
                 const closestY = Math.max(obs.y, Math.min(char.y, obs.y + obs.h));
                 const dx = char.x - closestX;
@@ -624,7 +682,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             let hit = false;
             if (b.x < 0 || b.x > CANVAS_WIDTH || b.y < 0 || b.y > CANVAS_HEIGHT) hit = true;
             if (!hit) {
-                for (const obs of OBSTACLES) {
+                for (const obs of currentObstacles) {
                     if (b.x > obs.x && b.x < obs.x + obs.w && b.y > obs.y && b.y < obs.y + obs.h) {
                         hit = true; spawnParticles(b.x, b.y, b.color, 3); break;
                     }
@@ -678,21 +736,85 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         setLeaderboard(sorted.map(c => ({ name: c.name, score: c.score, isMe: c.id === player.id })));
     }, [spawnCharacter, spawnPowerUp, endGame, gameMode, mp]);
 
-    const draw = useCallback((ctx: CanvasRenderingContext2D) => {
-        ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+    // --- DRAWING FUNCTIONS ---
+    
+    // Draw Tank Function
+    const drawTank = (ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string, radius: number) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        // 1. Treads (Chenilles)
+        ctx.fillStyle = '#111';
+        ctx.fillRect(-radius - 2, -radius, 6, radius * 2); // Left track
+        ctx.fillRect(radius - 4, -radius, 6, radius * 2);  // Right track
         
-        // Always draw the arena, even if player isn't spawned yet (Menu background effect)
+        // Track details
+        ctx.fillStyle = '#333';
+        for(let i=0; i<4; i++) {
+            ctx.fillRect(-radius - 1, -radius + 2 + (i*8), 4, 4);
+            ctx.fillRect(radius - 3, -radius + 2 + (i*8), 4, 4);
+        }
+
+        // 2. Body
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.fillRect(-radius + 2, -radius + 2, radius * 2 - 4, radius * 2 - 4);
+        ctx.shadowBlur = 0; // Reset shadow for details
+
+        // Body Details
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(-radius + 6, -radius + 6, radius - 4, radius * 1.5);
+
+        // 3. Turret
+        ctx.fillStyle = '#222';
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 4. Barrel (Canon)
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, -4, radius * 1.6, 8); // Barrel sticking out
+        ctx.strokeStyle = '#555';
+        ctx.strokeRect(0, -4, radius * 1.6, 8);
+        
+        // Barrel Tip
+        ctx.fillStyle = '#000';
+        ctx.fillRect(radius * 1.6, -5, 4, 10);
+
+        ctx.restore();
+    };
+
+    const draw = useCallback((ctx: CanvasRenderingContext2D) => {
+        const map = MAPS[selectedMapIndexRef.current];
+        
+        // Background
+        ctx.fillStyle = map.colors.bg; 
+        ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+        
         const cam = cameraRef.current;
         ctx.save(); ctx.translate(-cam.x, -cam.y);
 
-        ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 2;
+        // Grid
+        ctx.strokeStyle = map.colors.grid; ctx.lineWidth = 2;
         for (let x = 0; x <= CANVAS_WIDTH; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); }
         for (let y = 0; y <= CANVAS_HEIGHT; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); }
 
-        ctx.shadowColor = COLORS.wall; ctx.shadowBlur = 15; ctx.strokeStyle = COLORS.wall; ctx.fillStyle = 'rgba(176, 0, 255, 0.1)';
-        OBSTACLES.forEach(obs => { ctx.fillRect(obs.x, obs.y, obs.w, obs.h); ctx.strokeRect(obs.x, obs.y, obs.w, obs.h); });
+        // Obstacles
+        ctx.shadowColor = map.colors.wallBorder; ctx.shadowBlur = 15; 
+        ctx.strokeStyle = map.colors.wallBorder; ctx.lineWidth = 2;
+        ctx.fillStyle = map.colors.wall;
+        map.obstacles.forEach(obs => { 
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h); 
+            ctx.strokeRect(obs.x, obs.y, obs.w, obs.h); 
+        });
         ctx.shadowBlur = 0;
 
+        // PowerUps
         powerUpsRef.current.forEach(pu => {
             let color = '#fff';
             if (pu.type === 'HEALTH') color = COLORS.powerup.health;
@@ -704,12 +826,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px sans-serif'; ctx.fillText(pu.type[0], pu.x, pu.y);
         });
 
+        // Particles
         particlesRef.current.forEach(p => {
             ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
         });
         ctx.globalAlpha = 1;
 
+        // Bullets
         bulletsRef.current.forEach(b => {
             ctx.shadowColor = b.color; ctx.shadowBlur = 10; ctx.fillStyle = b.color;
             ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
@@ -718,21 +842,24 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const player = playerRef.current;
         const allChars = player ? [player, ...botsRef.current] : [];
 
+        // Characters (Tanks)
         allChars.forEach(char => {
             if (!char || char.isDead) return;
+            
+            // Shield Effect
             if (char.shield > 0) {
                 ctx.strokeStyle = COLORS.powerup.shield; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.arc(char.x, char.y, char.radius + 5, 0, Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(char.x, char.y, char.radius + 8, 0, Math.PI*2); ctx.stroke();
             }
-            ctx.save(); ctx.translate(char.x, char.y); ctx.rotate(char.angle);
-            ctx.fillStyle = char.color; ctx.shadowColor = char.color; ctx.shadowBlur = 15;
-            ctx.beginPath(); ctx.arc(0, 0, char.radius, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.fillRect(char.radius - 5, -3, 10, 6);
-            ctx.restore();
+
+            // Draw Tank
+            drawTank(ctx, char.x, char.y, char.angle, char.color, char.radius);
+            
+            // HP Bar & Name
             const hpPct = char.hp / char.maxHp;
-            ctx.fillStyle = '#000'; ctx.fillRect(char.x - 15, char.y - 30, 30, 4);
-            ctx.fillStyle = hpPct > 0.5 ? '#0f0' : '#f00'; ctx.fillRect(char.x - 15, char.y - 30, 30 * hpPct, 4);
-            ctx.fillStyle = '#fff'; ctx.font = '10px Rajdhani'; ctx.textAlign = 'center'; ctx.fillText(char.name, char.x, char.y - 35);
+            ctx.fillStyle = '#000'; ctx.fillRect(char.x - 15, char.y - 35, 30, 4);
+            ctx.fillStyle = hpPct > 0.5 ? '#0f0' : '#f00'; ctx.fillRect(char.x - 15, char.y - 35, 30 * hpPct, 4);
+            ctx.fillStyle = '#fff'; ctx.font = '10px Rajdhani'; ctx.textAlign = 'center'; ctx.fillText(char.name, char.x, char.y - 40);
         });
         ctx.restore();
     }, []);
@@ -1111,6 +1238,20 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
                     <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
                     
+                    {/* Map Selection */}
+                    <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/50 p-2 rounded-xl border border-white/10">
+                        <button onClick={() => setSelectedMapIndex((prev) => (prev - 1 + MAPS.length) % MAPS.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                            <ChevronLeft size={24} className="text-gray-400"/>
+                        </button>
+                        <div className="text-center w-40">
+                            <p className="text-[10px] text-gray-500 font-bold mb-1 flex items-center justify-center gap-1"><Map size={10}/> CARTE</p>
+                            <p className="text-white font-black italic text-lg" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
+                        </div>
+                        <button onClick={() => setSelectedMapIndex((prev) => (prev + 1) % MAPS.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                            <ChevronRight size={24} className="text-gray-400"/>
+                        </button>
+                    </div>
+
                     <div className="flex flex-col gap-4 w-full max-w-[260px]">
                         <button onClick={() => { setGameMode('SOLO'); startGame('SOLO'); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
                             <User size={24} className="text-neon-blue"/> SOLO (BOTS)
