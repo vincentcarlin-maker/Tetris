@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
 import { Connect4Game } from './components/connect4/Connect4Game';
@@ -23,6 +23,7 @@ import { LumenOrderGame } from './components/lumen/LumenOrderGame';
 import { Shop } from './components/Shop';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SocialOverlay } from './components/SocialOverlay';
+import { SettingsMenu } from './components/SettingsMenu';
 import { LoginScreen } from './components/LoginScreen';
 import { BottomNav } from './components/BottomNav';
 import { useGameAudio } from './hooks/useGameAudio';
@@ -35,7 +36,7 @@ import { DB } from './lib/supabaseClient';
 import { AlertTriangle, Info, Construction } from 'lucide-react';
 
 
-type ViewState = 'menu' | 'social' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'shop' | 'admin_dashboard';
+type ViewState = 'menu' | 'social' | 'settings' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'shop' | 'admin_dashboard';
 type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
 
 const App: React.FC = () => {
@@ -82,7 +83,7 @@ const App: React.FC = () => {
         claimDailyBonus, 
         quests, 
         reportQuestProgress, 
-        claimQuestReward,
+        claimQuestReward, 
         claimAllBonus,
         allCompletedBonusClaimed,
         updateQuestsState
@@ -426,7 +427,8 @@ const App: React.FC = () => {
     const handleLogout = () => {
         setIsAuthenticated(false);
         mp.disconnect();
-        setIsCloudSynced(false); 
+        setIsCloudSynced(false);
+        setCurrentView('menu');
     };
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
@@ -451,7 +453,7 @@ const App: React.FC = () => {
         );
     }
 
-    const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social'].includes(currentView);
+    const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social', 'settings'].includes(currentView);
 
     const handleOpenSocial = (tab: SocialTab) => {
         if (!isAuthenticated) {
@@ -462,7 +464,7 @@ const App: React.FC = () => {
         setCurrentView('social');
     };
 
-    // La barre de navigation doit être visible sur les pages de navigation (menu, shop, admin, social)
+    // La barre de navigation doit être visible sur les pages de navigation (menu, shop, admin, social, settings)
     const shouldShowBottomNav = !isGameActive;
 
     return (
@@ -501,6 +503,15 @@ const App: React.FC = () => {
                         onRequestsChange={setPendingRequests}
                         activeTabOverride={activeSocialTab}
                         onTabChangeOverride={setActiveSocialTab}
+                    />
+                )}
+
+                {currentView === 'settings' && isAuthenticated && (
+                    <SettingsMenu 
+                        onBack={handleBackToMenu}
+                        onLogout={handleLogout}
+                        audio={audio}
+                        currency={currency}
                     />
                 )}
 

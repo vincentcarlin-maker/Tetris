@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, Users, ShoppingBag, MessageSquare } from 'lucide-react';
+import { Home, Users, ShoppingBag, MessageSquare, Settings } from 'lucide-react';
 
 interface BottomNavProps {
     currentView: string;
@@ -23,6 +23,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
     const isMenu = currentView === 'menu';
     const isShop = currentView === 'shop';
+    const isSettings = currentView === 'settings';
 
     const NavButton = ({ 
         icon: Icon, 
@@ -67,7 +68,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
     return (
         <div className="fixed bottom-0 left-0 right-0 z-[350] px-4 pb-4 pointer-events-none">
-            <div className="max-w-md mx-auto w-full bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] flex items-center justify-around p-1 pointer-events-auto ring-1 ring-white/5">
+            <div className="max-w-md mx-auto w-full bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] flex items-center justify-between p-1 pointer-events-auto ring-1 ring-white/5">
                 <NavButton 
                     icon={Home} 
                     label="Accueil" 
@@ -79,7 +80,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 />
                 <NavButton 
                     icon={MessageSquare} 
-                    label="Messages" 
+                    label="Chat" 
                     active={showSocial && (activeSocialTab === 'FRIENDS' || activeSocialTab === 'CHAT')} 
                     onClick={() => onOpenSocial('FRIENDS')} 
                     badge={unreadMessages}
@@ -105,6 +106,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     activeColor="text-neon-yellow"
                     glowColor="#ffe600"
                     bgActiveClass="bg-neon-yellow/10"
+                />
+                <NavButton 
+                    icon={Settings} 
+                    label="Réglages" 
+                    active={isSettings && !showSocial} 
+                    onClick={() => onNavigate('settings')} 
+                    activeColor="text-purple-400"
+                    glowColor="#c026d3"
+                    bgActiveClass="bg-purple-900/20"
                 />
             </div>
         </div>
