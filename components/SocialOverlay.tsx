@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock } from 'lucide-react';
+import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -79,7 +79,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const setSocialTab = onTabChangeOverride || setLocalTab;
 
     const [friends, setFriends] = useState<Friend[]>([]);
-    // const [requests, setRequests] = useState<FriendRequest[]>([]); // Géré par App.tsx
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [chatInput, setChatInput] = useState('');
@@ -87,6 +86,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const [selectedPlayer, setSelectedPlayer] = useState<Friend | null>(null);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Community Search State
+    const [communitySearch, setCommunitySearch] = useState('');
+    const [searchResults, setSearchResults] = useState<Friend[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
     
     const [notificationPreview, setNotificationPreview] = useState<{ senderId: string, senderName: string, text: string } | null>(null);
     
@@ -100,7 +104,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const isMessagingCategory = socialTab === 'FRIENDS' || socialTab === 'CHAT';
 
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
-    // useEffect(() => { if (onRequestsChange) onRequestsChange(requests.length); }, [requests.length, onRequestsChange]);
 
     // Charger les amis depuis le LocalStorage
     useEffect(() => {
@@ -113,10 +116,20 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }
         if (isConnectedToSupabase && username) {
             DB.getUnreadCount(username).then(count => setUnreadCount(count));
+            
+            // CHARGER LES REQUÊTES EN ATTENTE (DB)
+            DB.getPendingRequests(username).then(reqs => {
+                // Merge with existing requests (avoid duplicates)
+                setFriendRequests(prev => {
+                    const existingIds = new Set(prev.map(r => r.id));
+                    const newReqs = reqs.filter((r: any) => !existingIds.has(r.id));
+                    return [...prev, ...newReqs];
+                });
+            });
         }
-    }, [isConnectedToSupabase, username]);
+    }, [isConnectedToSupabase, username, setFriendRequests]);
 
-    // Écouter les messages privés (Base de données)
+    // Écouter les messages privés (Base de données) - INCLUT LES DEMANDES D'AMIS
     useEffect(() => {
         if (!isConnectedToSupabase || !supabase || !username) return;
         const channel = supabase.channel(`msg_${username}`)
@@ -124,6 +137,27 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 const newMsg = payload.new;
                 if (newMsg.receiver_id !== username) return;
                 
+                // INTERCEPTION: Est-ce une demande d'ami système ?
+                if (newMsg.text === 'CMD:FRIEND_REQUEST') {
+                    // Charger le profil pour avoir l'avatar
+                    DB.getUserProfile(newMsg.sender_id).then(profile => {
+                        const newReq = {
+                            id: newMsg.sender_id,
+                            name: newMsg.sender_id,
+                            avatarId: profile?.data?.avatarId || 'av_bot',
+                            frameId: profile?.data?.frameId,
+                            timestamp: Date.now()
+                        };
+                        setFriendRequests(prev => {
+                            if (prev.some(r => r.id === newReq.id)) return prev;
+                            playCoin();
+                            return [...prev, newReq];
+                        });
+                    });
+                    return; // Ne pas traiter comme un message chat
+                }
+                
+                // Traitement message Chat normal
                 const senderUsername = newMsg.sender_id;
                 const senderId = stateRef.current.onlineUsers.find(u => u.name === senderUsername)?.id || senderUsername;
                 
@@ -142,9 +176,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 }
             }).subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [isConnectedToSupabase, username, playCoin]);
+    }, [isConnectedToSupabase, username, playCoin, setFriendRequests]);
 
-    // Écouter les événements temps réel (ACCEPTATIONS UNIQUEMENT ICI - REQUETES GEREES PAR APP.TSX)
+    // Écouter les événements temps réel (ACCEPTATIONS)
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any, conn: any) => {
             // RECEPTION D'UNE ACCEPTATION D'AMI
@@ -241,8 +275,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     // --- GESTION DES AMIS ---
 
-    const sendFriendRequest = () => {
-        if (!selectedPlayer || !mp.peerId) return;
+    const sendFriendRequest = async () => {
+        if (!selectedPlayer) return;
         
         // 1. Check if already friend
         if (friends.some(f => f.id === selectedPlayer.id)) {
@@ -250,18 +284,23 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             return;
         }
 
-        // 2. Check if request already pending? (Optional)
+        // 2. Send Realtime Signal (Fast update if online)
+        if (mp.peerId) {
+            mp.sendTo(selectedPlayer.id, {
+                type: 'FRIEND_REQUEST',
+                sender: { 
+                    id: mp.peerId, 
+                    name: username, 
+                    avatarId: currentAvatarId, 
+                    frameId: currentFrameId 
+                }
+            });
+        }
 
-        // 3. Send Realtime Signal
-        mp.sendTo(selectedPlayer.id, {
-            type: 'FRIEND_REQUEST',
-            sender: { 
-                id: mp.peerId, 
-                name: username, 
-                avatarId: currentAvatarId, 
-                frameId: currentFrameId 
-            }
-        });
+        // 3. PERSISTENCE : Send to Database (So they get it if offline)
+        if (isConnectedToSupabase) {
+            await DB.sendFriendRequestDB(username, selectedPlayer.name);
+        }
 
         alert(`Demande d'ami envoyée à ${selectedPlayer.name} !`);
         setSelectedPlayer(null);
@@ -286,8 +325,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
         // 2. Remove request (Utilise le setter global)
         setFriendRequests(prev => prev.filter(r => r.id !== req.id));
+        
+        // 3. Update DB to mark request as read
+        if (isConnectedToSupabase) {
+            DB.acceptFriendRequestDB(username, req.id);
+        }
 
-        // 3. Notify sender they are accepted
+        // 4. Notify sender they are accepted (Realtime)
         if (mp.peerId) {
             mp.sendTo(req.id, {
                 type: 'FRIEND_ACCEPT',
@@ -304,6 +348,30 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     const declineRequest = (reqId: string) => {
         setFriendRequests(prev => prev.filter(r => r.id !== reqId));
+        // Mark as read in DB to stop showing up
+        if (isConnectedToSupabase) {
+             DB.acceptFriendRequestDB(username, reqId); 
+        }
+    };
+    
+    // --- GESTION RECHERCHE COMMUNAUTÉ ---
+    const handleCommunitySearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!communitySearch.trim() || !isConnectedToSupabase) return;
+        
+        setIsSearching(true);
+        const results = await DB.searchUsers(communitySearch);
+        
+        // Filter out myself and existing friends
+        const filtered = results.filter((u: any) => 
+            u.id !== username && !friends.some(f => f.id === u.id)
+        ).map((u: any) => ({
+            ...u,
+            status: onlineUsers.some(o => o.id === u.id) ? 'online' : 'offline'
+        }));
+        
+        setSearchResults(filtered);
+        setIsSearching(false);
     };
 
     const getFrameClass = (fid?: string) => framesCatalog.find(f => f.id === fid)?.cssClass || 'border-white/10';
@@ -318,26 +386,28 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     }, [friends, searchTerm]);
 
     const displayedCommunity = useMemo(() => {
+        // If search results exist, show them
+        if (searchResults.length > 0) return searchResults;
+        
+        // Otherwise show random online users
         const allPotential = [...onlineUsers, ...MOCK_COMMUNITY_PLAYERS];
         const filtered = allPotential.filter(p => {
             if (p.id === mp.peerId || p.name === username) return false;
             if (friends.some(f => f.id === p.id || f.name === p.name)) return false;
             return true;
         });
+        // Deduplicate
         const seenIds = new Set<string>();
-        const seenNames = new Set<string>();
         const unique = filtered.filter(p => {
-            if (seenIds.has(p.id) || seenNames.has(p.name)) return false;
+            if (seenIds.has(p.id)) return false;
             seenIds.add(p.id);
-            seenNames.add(p.name);
             return true;
         });
         return unique.sort((a, b) => {
             if (a.status === 'online' && b.status !== 'online') return -1;
-            if (a.status !== 'online' && b.status === 'online') return 1;
             return 0;
         });
-    }, [onlineUsers, mp.peerId, friends, username]);
+    }, [onlineUsers, mp.peerId, friends, username, searchResults]);
 
     const activeFriend = useMemo(() => friends.find(f => f.id === activeChatId) || MOCK_COMMUNITY_PLAYERS.find(b => b.id === activeChatId), [activeChatId, friends]);
 
@@ -508,7 +578,47 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             </div>
                             <button onClick={() => { if(mp.peerId) { navigator.clipboard.writeText(mp.peerId); alert('Code copié !'); } }} className="p-2 bg-purple-900/30 text-purple-400 rounded-xl border border-purple-500/30 hover:bg-purple-600 hover:text-white transition-all"><Copy size={18}/></button>
                         </div>
-                        <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2 mt-6">Joueurs suggérés</h3>
+
+                        {/* GLOBAL SEARCH */}
+                        <form onSubmit={handleCommunitySearch} className="flex gap-2">
+                            <input 
+                                type="text" 
+                                value={communitySearch}
+                                onChange={e => setCommunitySearch(e.target.value)}
+                                placeholder="Rechercher un joueur (ID)..."
+                                className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-purple-500 outline-none"
+                            />
+                            <button type="submit" disabled={isSearching} className="bg-purple-600 text-white px-4 rounded-xl font-bold active:scale-95 transition-all">
+                                {isSearching ? <RefreshCw className="animate-spin" size={18}/> : <Search size={18}/>}
+                            </button>
+                        </form>
+                        
+                        {searchResults.length > 0 && (
+                             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
+                                 <h4 className="text-[10px] text-purple-400 font-bold uppercase tracking-widest mb-2 px-2">Résultats de recherche</h4>
+                                 {searchResults.map(player => {
+                                      const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                      const AvIcon = avatar.icon;
+                                      const isFriend = friends.some(f => f.id === player.id);
+                                      return (
+                                          <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-xl border border-white/10 mb-2">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvIcon size={20} className={avatar.color} /></div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-sm text-white">{player.name}</span>
+                                                    <span className="text-[9px] text-gray-500">{player.status === 'online' ? 'En ligne' : 'Hors ligne'}</span>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => setSelectedPlayer(player as Friend)} className={`p-2 rounded-xl transition-all ${isFriend ? 'bg-purple-500/20 text-purple-400' : 'bg-green-600 text-white hover:bg-green-500'}`}>
+                                                {isFriend ? <MessageSquare size={16}/> : <UserPlus size={16}/>}
+                                            </button>
+                                          </div>
+                                      );
+                                 })}
+                             </div>
+                        )}
+
+                        <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2 mt-2">Joueurs suggérés</h3>
                         <div className="space-y-2">
                             {displayedCommunity.map(player => {
                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];

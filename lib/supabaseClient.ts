@@ -241,6 +241,33 @@ export const DB = {
         }
     },
 
+    // Rechercher des utilisateurs (pour les demandes d'amis)
+    searchUsers: async (query: string) => {
+        if (!supabase || query.length < 2) return [];
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('username, data, updated_at')
+                .ilike('username', `%${query}%`)
+                .neq('username', 'SYSTEM_CONFIG')
+                .limit(10);
+            
+            if (error || !data) return [];
+            
+            return data.map((row: any) => ({
+                id: row.username, // Username is key in DB
+                name: row.username,
+                avatarId: row.data?.avatarId || 'av_bot',
+                frameId: row.data?.frameId,
+                status: 'offline', // Default, realtime handles online
+                lastSeen: new Date(row.updated_at).getTime(),
+                stats: row.data?.highScores || {}
+            }));
+        } catch (e) {
+            return [];
+        }
+    },
+
     getMessages: async (user1: string, user2: string) => {
         if (!supabase) return [];
         try {
@@ -252,7 +279,39 @@ export const DB = {
                 .limit(50);
 
             if (error) throw error;
-            return data || [];
+            // Filtrer les commandes système (demandes d'amis) pour ne pas polluer le chat
+            return (data || []).filter((m: any) => !m.text.startsWith('CMD:'));
+        } catch (e) {
+            return [];
+        }
+    },
+
+    // Récupérer les demandes d'amis en attente (stockées comme messages spéciaux)
+    getPendingRequests: async (username: string) => {
+        if (!supabase) return [];
+        try {
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('receiver_id', username)
+                .like('text', 'CMD:FRIEND_REQUEST%')
+                .eq('read', false); // Non lues = En attente
+            
+            if (error) return [];
+            
+            // Pour chaque demande, on doit récupérer le profil de l'envoyeur pour afficher son avatar
+            const requests = await Promise.all(data.map(async (msg: any) => {
+                const profile = await DB.getUserProfile(msg.sender_id);
+                return {
+                    id: msg.sender_id,
+                    name: msg.sender_id,
+                    avatarId: profile?.data?.avatarId || 'av_bot',
+                    frameId: profile?.data?.frameId,
+                    timestamp: new Date(msg.created_at).getTime()
+                };
+            }));
+            
+            return requests;
         } catch (e) {
             return [];
         }
@@ -274,6 +333,13 @@ export const DB = {
         }
     },
 
+    // Envoyer une demande d'ami persistante (via table messages)
+    sendFriendRequestDB: async (senderId: string, receiverId: string) => {
+        if (!supabase) return null;
+        // Format spécial : CMD:FRIEND_REQUEST
+        return await DB.sendMessage(senderId, receiverId, 'CMD:FRIEND_REQUEST');
+    },
+
     markMessagesAsRead: async (senderId: string, receiverId: string) => {
         if (!supabase) return;
         try {
@@ -286,6 +352,25 @@ export const DB = {
         }
     },
 
+    // Accepter une demande (marque le message comme lu + envoie confirm)
+    acceptFriendRequestDB: async (accepterId: string, requesterId: string) => {
+        if (!supabase) return;
+        // 1. Marquer la demande (message) comme lue
+        try {
+             await supabase
+                .from('messages')
+                .update({ read: true })
+                .eq('sender_id', requesterId)
+                .eq('receiver_id', accepterId)
+                .like('text', 'CMD:FRIEND_REQUEST%');
+             
+             // 2. Envoyer un message de confirmation (Optionnel, ou via Realtime)
+             // On laisse le Realtime gérer la notif immédiate, ceci nettoie juste la DB.
+        } catch (e) {
+            console.error("Error accepting request:", e);
+        }
+    },
+
     getUnreadCount: async (userId: string) => {
         if (!supabase) return 0;
         try {
@@ -293,7 +378,8 @@ export const DB = {
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
                 .eq('receiver_id', userId)
-                .eq('read', false);
+                .eq('read', false)
+                .not('text', 'like', 'CMD:%'); // Exclure les commandes système du badge chat
             
             if (error) return 0;
             return count || 0;
