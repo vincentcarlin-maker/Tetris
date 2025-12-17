@@ -29,20 +29,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         label, 
         active, 
         onClick, 
-        badge 
+        badge,
+        activeColor,
+        glowColor,
+        bgActiveClass
     }: { 
         icon: any, 
         label: string, 
         active: boolean, 
         onClick: () => void,
-        badge?: number 
+        badge?: number,
+        activeColor: string,
+        glowColor: string,
+        bgActiveClass: string
     }) => (
         <button 
             onClick={onClick}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all relative ${active ? 'text-neon-blue' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all relative ${active ? activeColor : 'text-gray-500 hover:text-gray-300'}`}
         >
-            <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-neon-blue/10 shadow-[0_0_15px_rgba(0,243,255,0.2)]' : ''}`}>
-                <Icon size={24} className={active ? 'drop-shadow-[0_0_8px_#00f3ff]' : ''} />
+            <div className={`p-1.5 rounded-xl transition-all ${active ? bgActiveClass : ''}`}>
+                <Icon size={24} style={active ? { filter: `drop-shadow(0 0 8px ${glowColor})` } : {}} />
             </div>
             <span className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
             
@@ -53,7 +59,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             )}
             
             {active && (
-                <div className="absolute -bottom-1 w-12 h-1 bg-neon-blue rounded-full shadow-[0_0_10px_#00f3ff] animate-in slide-in-from-bottom-1 duration-300"></div>
+                <div className={`absolute -bottom-1 w-12 h-1 rounded-full animate-in slide-in-from-bottom-1 duration-300`} 
+                     style={{ backgroundColor: glowColor, boxShadow: `0 0 10px ${glowColor}` }}></div>
             )}
         </button>
     );
@@ -66,6 +73,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     label="Accueil" 
                     active={isMenu && !showSocial} 
                     onClick={() => onNavigate('menu')} 
+                    activeColor="text-neon-blue"
+                    glowColor="#00f3ff"
+                    bgActiveClass="bg-neon-blue/10"
                 />
                 <NavButton 
                     icon={MessageSquare} 
@@ -73,6 +83,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     active={showSocial && (activeSocialTab === 'FRIENDS' || activeSocialTab === 'CHAT')} 
                     onClick={() => onOpenSocial('FRIENDS')} 
                     badge={unreadMessages}
+                    activeColor="text-neon-pink"
+                    glowColor="#ff00ff"
+                    bgActiveClass="bg-neon-pink/10"
                 />
                 <NavButton 
                     icon={Users} 
@@ -80,12 +93,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     active={showSocial && (activeSocialTab === 'COMMUNITY' || activeSocialTab === 'REQUESTS')} 
                     onClick={() => onOpenSocial('COMMUNITY')} 
                     badge={pendingRequests}
+                    activeColor="text-neon-green"
+                    glowColor="#00ff9d"
+                    bgActiveClass="bg-neon-green/10"
                 />
                 <NavButton 
                     icon={ShoppingBag} 
                     label="Shop" 
                     active={isShop && !showSocial} 
                     onClick={() => onNavigate('shop')} 
+                    activeColor="text-neon-yellow"
+                    glowColor="#ffe600"
+                    bgActiveClass="bg-neon-yellow/10"
                 />
             </div>
         </div>
