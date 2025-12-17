@@ -564,6 +564,8 @@ const App: React.FC = () => {
                             allCompletedBonusClaimed
                         }}
                         onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
+                        liveUsers={onlineUsers} // On passe la liste live séparément pour le compteur
+                        onOpenSocial={handleOpenSocial} // Handler pour le bouton
                         disabledGamesList={disabledGames}
                         activeEvent={currentActiveEvent}
                         eventProgress={eventProgress}

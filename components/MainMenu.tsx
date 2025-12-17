@@ -28,6 +28,8 @@ interface MainMenuProps {
         allCompletedBonusClaimed: boolean;
     };
     onlineUsers: OnlineUser[]; 
+    liveUsers?: OnlineUser[]; // Liste spécifique pour la présence en temps réel
+    onOpenSocial?: (tab: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS') => void; // Handler pour ouvrir le social
     disabledGamesList?: string[]; 
     activeEvent?: {
         id: string;
@@ -195,7 +197,7 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, disabledGamesList = [], activeEvent, eventProgress }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, liveUsers, onOpenSocial, disabledGamesList = [], activeEvent, eventProgress }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog, currentMalletId } = currency;
     const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
@@ -214,6 +216,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [animatingQuestId, setAnimatingQuestId] = useState<string | null>(null);
     const [flyingCoins, setFlyingCoins] = useState<{id: number, startX: number, startY: number, targetX: number, targetY: number, delay: number}[]>([]);
     const coinBalanceRef = useRef<HTMLDivElement>(null);
+    
+    // Calcul des utilisateurs en ligne (Live Users si dispo, sinon fallback)
+    const onlineCount = (liveUsers || onlineUsers).filter(u => u.status === 'online' && u.id !== mp.peerId).length;
 
     const bindGlow = (color: string) => ({
         onMouseEnter: () => setActiveGlow(color),
@@ -331,6 +336,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     <button onClick={onLoginRequest} className="flex items-center gap-2 bg-neon-blue/20 backdrop-blur-md px-4 py-2 rounded-full border border-neon-blue/50 hover:bg-neon-blue/40 transition-colors animate-pulse"><User className="text-neon-blue" size={20} /><span className="text-neon-blue font-bold text-sm">SE CONNECTER</span></button>
                 )}
                 <div className="flex gap-3">
+                    {isAuthenticated && onOpenSocial && (
+                        <button 
+                            onClick={() => onOpenSocial('COMMUNITY')} 
+                            className="flex items-center gap-2 px-3 py-2 bg-green-900/40 text-green-400 rounded-full border border-green-500/30 font-bold text-xs hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.2)] active:scale-95"
+                            title="Amis connectés"
+                        >
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_#22c55e]"></div>
+                            <Users size={16} />
+                            <span>{onlineCount}</span>
+                        </button>
+                    )}
                     {installPrompt && <button onClick={handleReload} className="p-2 bg-neon-pink/20 rounded-full text-neon-pink hover:bg-neon-pink hover:text-white border border-neon-pink/50 backdrop-blur-sm active:scale-95 transition-all animate-pulse shadow-[0_0_10px_rgba(255,0,255,0.4)]" title="Installer l'application"><Download size={20} /></button>}
                     <button onClick={handleReload} className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform" title="Actualiser"><RefreshCw size={20} /></button>
                     <button onClick={audio.toggleVibration} className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform">{audio.isVibrationEnabled ? <Vibrate size={20} /> : <VibrateOff size={20} />}</button>
