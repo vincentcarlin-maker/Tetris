@@ -24,7 +24,7 @@ const QUEST_TEMPLATES: { difficulty: QuestDifficulty, templates: Omit<DailyQuest
             { description: "Jouer 2 parties de Tetris", gameId: 'tetris', metric: 'play', target: 2, reward: 50 },
             { description: "Manger 10 pommes (Snake)", gameId: 'snake', metric: 'action', target: 10, reward: 50 },
             { description: "Gagner 100 pièces", gameId: 'any', metric: 'coins', target: 100, reward: 50 },
-            { description: "Casser 20 briques (Breaker)", gameId: 'breaker', metric: 'score', target: 200, reward: 50 }, // Score roughly maps to bricks
+            { description: "Casser 20 briques (Breaker)", gameId: 'breaker', metric: 'score', target: 200, reward: 50 },
             { description: "Faire 3 paires (Memory)", gameId: 'memory', metric: 'action', target: 3, reward: 50 },
             { description: "Survivre 30 sec (Pacman)", gameId: 'pacman', metric: 'action', target: 30, reward: 50 },
             { description: "Jouer une partie de Dames", gameId: 'checkers', metric: 'play', target: 1, reward: 50 },
@@ -67,8 +67,6 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
     const [quests, setQuests] = useState<DailyQuest[]>([]);
     const [allCompletedBonusClaimed, setAllCompletedBonusClaimed] = useState(false);
 
-    // Helper to get today's date string YYYY-MM-DD in LOCAL TIME
-    // Using simple Date methods avoids UTC/Local timezone conflicts causing infinite bonus loops
     const getTodayString = () => {
         const d = new Date();
         const year = d.getFullYear();
@@ -76,6 +74,11 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     };
+
+    const updateQuestsState = useCallback((newQuests: DailyQuest[]) => {
+        setQuests(newQuests);
+        localStorage.setItem('neon_daily_quests', JSON.stringify(newQuests));
+    }, []);
 
     useEffect(() => {
         const storedLastLogin = localStorage.getItem('neon_last_login');
@@ -86,25 +89,17 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
 
         const today = getTodayString();
 
-        // --- LOGIN BONUS LOGIC ---
         if (storedLastLogin !== today) {
             let newStreak = 1;
             if (storedLastLogin) {
-                // Parse dates manually to avoid timezone issues
                 const lastDate = new Date(storedLastLogin);
                 const currDate = new Date(today);
-                
-                // Calculate difference in days (ignoring hours/minutes)
                 const diffTime = Math.abs(currDate.getTime() - lastDate.getTime());
                 const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
 
                 if (diffDays === 1) {
-                    // Consecutive day
                     newStreak = storedStreak + 1;
-                    // Reset to Day 1 after Day 7 (Cycle)
-                    if (newStreak > 7) {
-                        newStreak = 1;
-                    }
+                    if (newStreak > 7) newStreak = 1;
                 }
             }
             
@@ -120,7 +115,6 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
             setStreak(storedStreak);
         }
 
-        // --- DAILY QUESTS GENERATION ---
         let parsedQuests: DailyQuest[] = [];
         try {
             if (storedQuests) parsedQuests = JSON.parse(storedQuests);
@@ -128,29 +122,20 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
             parsedQuests = [];
         }
 
-        // Generate new if: Date mismatch OR No quests stored OR Stored array is empty
         if (storedDate !== today || !storedQuests || parsedQuests.length === 0) {
             const newQuests: DailyQuest[] = [];
-            
-            // 1 Easy
             const easyPool = QUEST_TEMPLATES.find(g => g.difficulty === 'EASY')!.templates;
-            const easy = easyPool[Math.floor(Math.random() * easyPool.length)];
-            newQuests.push({ ...easy, id: `q_${Date.now()}_e`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'EASY' });
-
-            // 1 Medium
             const medPool = QUEST_TEMPLATES.find(g => g.difficulty === 'MEDIUM')!.templates;
-            const med = medPool[Math.floor(Math.random() * medPool.length)];
-            newQuests.push({ ...med, id: `q_${Date.now()}_m`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'MEDIUM' });
-
-            // 1 Hard
             const hardPool = QUEST_TEMPLATES.find(g => g.difficulty === 'HARD')!.templates;
-            const hard = hardPool[Math.floor(Math.random() * hardPool.length)];
-            newQuests.push({ ...hard, id: `q_${Date.now()}_h`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'HARD' });
+
+            newQuests.push({ ...easyPool[Math.floor(Math.random() * easyPool.length)], id: `q_${Date.now()}_e`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'EASY' });
+            newQuests.push({ ...medPool[Math.floor(Math.random() * medPool.length)], id: `q_${Date.now()}_m`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'MEDIUM' });
+            newQuests.push({ ...hardPool[Math.floor(Math.random() * hardPool.length)], id: `q_${Date.now()}_h`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'HARD' });
 
             setQuests(newQuests);
             setAllCompletedBonusClaimed(false);
             localStorage.setItem('neon_daily_quests', JSON.stringify(newQuests));
-            localStorage.setItem('neon_quests_date', today); // FORCE SYNC DATE
+            localStorage.setItem('neon_quests_date', today);
             localStorage.setItem('neon_bonus_claimed', 'false');
         } else {
             setQuests(parsedQuests);
@@ -163,10 +148,6 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         setShowDailyModal(false);
     };
 
-    // --- UNIVERSAL PROGRESS REPORTER ---
-    // gameId: 'tetris', 'snake', etc.
-    // metric: 'score', 'play', 'win', 'action' (generic for specific game events like lines cleared)
-    // value: amount to add (usually) or set
     const reportQuestProgress = useCallback((gameId: string, metric: QuestMetric, value: number = 1) => {
         setQuests(prev => {
             let changed = false;
@@ -176,21 +157,16 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
                 let shouldUpdate = false;
                 let newProgress = q.progress;
 
-                // Coin Quests (Global)
                 if (q.metric === 'coins' && metric === 'coins') {
                     shouldUpdate = true;
                     newProgress += value;
-                }
-                // Specific Game Quests
-                else if (q.gameId === gameId || q.gameId === 'any') {
+                } else if (q.gameId === gameId || q.gameId === 'any') {
                     if (q.metric === metric) {
                         shouldUpdate = true;
-                        // Score is usually "Reach X", so we verify if value > target, or accumulate if it's actions
                         if (metric === 'score') {
                             if (value >= q.target) newProgress = q.target;
                             else newProgress = Math.max(q.progress, value); 
                         } else {
-                            // Actions, Plays, Wins, Coins are cumulative
                             newProgress += value;
                         }
                     }
@@ -214,10 +190,6 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         });
     }, []);
 
-    // Backward compatibility wrappers
-    const checkGameQuest = useCallback((gameId: string) => reportQuestProgress(gameId, 'play', 1), [reportQuestProgress]);
-    const checkCoinQuest = useCallback((amount: number) => reportQuestProgress('any', 'coins', amount), [reportQuestProgress]);
-
     const claimQuestReward = (questId: string) => {
         const quest = quests.find(q => q.id === questId);
         if (quest && quest.isCompleted && !quest.isClaimed) {
@@ -230,7 +202,7 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
 
     const claimAllBonus = () => {
         if (!allCompletedBonusClaimed && quests.every(q => q.isCompleted)) {
-            addCoins(200); // Grand Slam Bonus
+            addCoins(200); 
             setAllCompletedBonusClaimed(true);
             localStorage.setItem('neon_bonus_claimed', 'true');
         }
@@ -242,11 +214,10 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         todaysReward,
         claimDailyBonus,
         quests,
-        checkGameQuest, 
-        checkCoinQuest, 
         reportQuestProgress, 
         claimQuestReward,
         claimAllBonus,
-        allCompletedBonusClaimed
+        allCompletedBonusClaimed,
+        updateQuestsState
     };
 };

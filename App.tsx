@@ -43,26 +43,22 @@ const App: React.FC = () => {
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [isCloudSynced, setIsCloudSynced] = useState(false);
     
-    // Global Disabled Games State (Loaded from LS first, then updated via Broadcast)
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
 
-    // Feature Flags (Maintenance, etc.)
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
         try { 
             return JSON.parse(localStorage.getItem('neon_feature_flags') || '{}');
         } catch { return {}; }
     });
 
-    // Global Events State
     const [globalEvents, setGlobalEvents] = useState<any[]>(() => {
         try { 
             return JSON.parse(localStorage.getItem('neon_admin_events') || '[]');
         } catch { return []; }
     });
 
-    // Event Progress State
     const [eventProgress, setEventProgress] = useState<Record<string, number>>(() => {
         try { return JSON.parse(localStorage.getItem('neon_event_progress') || '{}'); } catch { return {}; }
     });
@@ -81,7 +77,8 @@ const App: React.FC = () => {
         reportQuestProgress,
         claimQuestReward,
         claimAllBonus,
-        allCompletedBonusClaimed
+        allCompletedBonusClaimed,
+        updateQuestsState
     } = useDailySystem(currency.addCoins);
 
     const { 
@@ -102,7 +99,6 @@ const App: React.FC = () => {
 
     const saveTimeoutRef = useRef<any>(null);
 
-    // Initial Load of System Config (Ensure all players have the latest rules)
     useEffect(() => {
         const loadSystemConfig = async () => {
             if (!isConnectedToSupabase) return;
@@ -125,7 +121,6 @@ const App: React.FC = () => {
         loadSystemConfig();
     }, [isConnectedToSupabase]);
 
-    // Sync latest data from cloud on startup/reconnect to prevent overwriting gifts/updates
     useEffect(() => {
         if (isAuthenticated && isConnectedToSupabase && !isCloudSynced && currency.username) {
             loginAndFetchProfile(currency.username).then(profile => {
@@ -135,11 +130,14 @@ const App: React.FC = () => {
                     if (profile.data.highScores) {
                         importScores(profile.data.highScores);
                     }
+                    if (profile.data.quests) {
+                        updateQuestsState(profile.data.quests);
+                    }
                 }
                 setIsCloudSynced(true);
             });
         }
-    }, [isAuthenticated, isConnectedToSupabase, isCloudSynced, currency.username, loginAndFetchProfile, currency.importData, importScores]);
+    }, [isAuthenticated, isConnectedToSupabase, isCloudSynced, currency.username, loginAndFetchProfile, currency.importData, importScores, updateQuestsState]);
 
     const buildSavePayload = () => {
         const cachedPassword = localStorage.getItem('neon_current_password');
@@ -158,7 +156,7 @@ const App: React.FC = () => {
             ownedMallets: currency.ownedMallets,
             highScores: highScores,
             quests: quests,
-            questsDate: localStorage.getItem('neon_quests_date'), // Fix: Sync Quest Date
+            questsDate: localStorage.getItem('neon_quests_date'),
             streak: streak,
             lastLogin: localStorage.getItem('neon_last_login')
         };
@@ -169,21 +167,15 @@ const App: React.FC = () => {
         return payload;
     };
 
-    // Auto-Save
     useEffect(() => {
         if (!isAuthenticated || !currency.username) return;
-        
-        // Prevent overwriting cloud data with stale local data before initial sync
         if (isConnectedToSupabase && !isCloudSynced) return;
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             const payload = buildSavePayload();
             syncProfileToCloud(currency.username, payload);
-            
-            // FIX: Save to local user slot for offline backup/persistence (Important for Admin/Vincent account)
             localStorage.setItem(`neon_data_${currency.username}`, JSON.stringify(payload));
-            
         }, 2000); 
     }, [
         currency.coins, 
@@ -205,19 +197,14 @@ const App: React.FC = () => {
         isCloudSynced
     ]);
 
-    // Admin Global Listener (Alerts AND Config Updates)
     useEffect(() => {
         const handleAdminEvent = (e: CustomEvent) => {
             const { message, type, data } = e.detail;
             
-            // Handle Config Updates
             if (type === 'game_config') {
                 if (Array.isArray(data)) {
-                    // It's a disabled games list update
                     setDisabledGames(data);
                     localStorage.setItem('neon_disabled_games', JSON.stringify(data));
-                    
-                    // If user is currently playing a disabled game, kick them out (unless admin/immune)
                     const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
                     if (data.includes(currentView) && !isImmune && currentView !== 'menu' && currentView !== 'shop') {
                         setCurrentView('menu');
@@ -226,30 +213,24 @@ const App: React.FC = () => {
                         return;
                     }
                 } else if (data && data.flags) {
-                    // It's a feature flags update
                     setFeatureFlags(data.flags);
                     localStorage.setItem('neon_feature_flags', JSON.stringify(data.flags));
                 }
             }
 
-            // Handle Event Sync
             if (type === 'sync_events') {
                 if (Array.isArray(data)) {
                     setGlobalEvents(data);
                     localStorage.setItem('neon_admin_events', JSON.stringify(data));
                 }
-                if (!message) return; // Silent sync if no message
+                if (!message) return;
             }
 
-            // Handle User Specific Updates (Gifts, etc.)
             if (type === 'user_update') {
                 if (data && data.targetUser === currency.username) {
                     if (data.action === 'ADD_COINS') {
-                        // Apply locally first
                         currency.addCoins(data.amount);
                         audio.playVictory();
-                        
-                        // FORCE immediate cloud sync to acknowledge receipt and prevent overwrite
                         setIsCloudSynced(true);
                         setTimeout(() => {
                              const payload = buildSavePayload();
@@ -260,9 +241,7 @@ const App: React.FC = () => {
                 }
             }
 
-            // Handle Text Alerts (Display the banner)
             if (message) {
-                 // For personal updates, show specific alert only to target
                 if (type === 'user_update') {
                     if (data && data.targetUser === currency.username) {
                          setGlobalAlert({ message, type: 'info' });
@@ -272,7 +251,6 @@ const App: React.FC = () => {
                     setGlobalAlert({ message, type: type === 'game_config' ? 'info' : type });
                     if (type === 'warning') audio.playGameOver(); 
                     else audio.playVictory();
-                    
                     setTimeout(() => setGlobalAlert(null), 5000);
                 }
             }
@@ -331,11 +309,9 @@ const App: React.FC = () => {
         };
     }, [currentView]);
 
-    // Calculate Active Event (Fix Date Logic)
     const currentActiveEvent = globalEvents.find(e => {
         if (!e.active) return false;
         const now = new Date();
-        // Convert dates to timestamps for safer comparison
         const start = new Date(e.startDate);
         start.setHours(0, 0, 0, 0);
         const end = new Date(e.endDate);
@@ -403,7 +379,6 @@ const App: React.FC = () => {
             return;
         }
         
-        // Security check for disabled games (redundant with MainMenu but safe)
         const isRestricted = disabledGames.includes(game);
         const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
         
@@ -413,9 +388,6 @@ const App: React.FC = () => {
              return;
         }
 
-        // BUG FIX: Removed automatic quest reporting here. 
-        // Quests are now only updated when the game actually starts inside the component.
-        
         setCurrentView(game as ViewState);
     };
 
@@ -430,9 +402,11 @@ const App: React.FC = () => {
             if (cloudData.highScores) {
                 importScores(cloudData.highScores);
             }
-            setIsCloudSynced(true); // Mark as synced
+            if (cloudData.quests) {
+                updateQuestsState(cloudData.quests);
+            }
+            setIsCloudSynced(true);
             syncProfileToCloud(username, cloudData);
-            // Ensure local slot is up to date immediately on login
             localStorage.setItem(`neon_data_${username}`, JSON.stringify(cloudData));
         } else {
             currency.refreshData(); 
@@ -445,7 +419,7 @@ const App: React.FC = () => {
     const handleLogout = () => {
         setIsAuthenticated(false);
         mp.disconnect();
-        setIsCloudSynced(false); // Reset sync state
+        setIsCloudSynced(false); 
     };
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
@@ -453,7 +427,6 @@ const App: React.FC = () => {
         updateEventProgress(gameId, eventType, value);
     }, [reportQuestProgress, updateEventProgress]);
 
-    // --- MAINTENANCE MODE CHECK ---
     const isMaintenance = featureFlags.maintenance_mode;
     const isImmune = currency.username === 'Vincent' || currency.adminModeActive;
     
@@ -512,7 +485,6 @@ const App: React.FC = () => {
                 <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={onlineUsers} />
             )}
 
-            {/* Game Components */}
             {currentView === 'tetris' && isAuthenticated && <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('tetris', metric, val)} />}
             {currentView === 'connect4' && isAuthenticated && <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('connect4', metric, val)} />}
             {currentView === 'sudoku' && isAuthenticated && <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('sudoku', metric, val)} />}
