@@ -349,8 +349,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     )}
                     {installPrompt && <button onClick={handleReload} className="p-2 bg-neon-pink/20 rounded-full text-neon-pink hover:bg-neon-pink hover:text-white border border-neon-pink/50 backdrop-blur-sm active:scale-95 transition-all animate-pulse shadow-[0_0_10px_rgba(255,0,255,0.4)]" title="Installer l'application"><Download size={20} /></button>}
                     <button onClick={handleReload} className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform" title="Actualiser"><RefreshCw size={20} /></button>
-                    <button onClick={audio.toggleVibration} className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform">{audio.isVibrationEnabled ? <Vibrate size={20} /> : <VibrateOff size={20} />}</button>
-                    <button onClick={audio.toggleMute} className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform">{audio.isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
                 </div>
             </div>
 
