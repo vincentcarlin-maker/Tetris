@@ -7,6 +7,14 @@ import { useMultiplayer } from '../hooks/useMultiplayer';
 import { DB, supabase } from '../lib/supabaseClient';
 import { OnlineUser } from '../hooks/useSupabase';
 
+export interface FriendRequest {
+    id: string;
+    name: string;
+    avatarId: string;
+    frameId?: string;
+    timestamp: number;
+}
+
 interface SocialOverlayProps {
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
@@ -15,7 +23,11 @@ interface SocialOverlayProps {
     isConnectedToSupabase: boolean;
     isSupabaseConfigured: boolean;
     onUnreadChange?: (count: number) => void;
-    onRequestsChange?: (count: number) => void;
+    
+    // Props pour la gestion centralisée des requêtes
+    friendRequests: FriendRequest[];
+    setFriendRequests: React.Dispatch<React.SetStateAction<FriendRequest[]>>;
+
     activeTabOverride?: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
     onTabChangeOverride?: (tab: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS') => void;
 }
@@ -41,14 +53,6 @@ interface PrivateMessage {
     pending?: boolean;
 }
 
-interface FriendRequest {
-    id: string;
-    name: string;
-    avatarId: string;
-    frameId?: string;
-    timestamp: number;
-}
-
 const MOCK_COMMUNITY_PLAYERS: Friend[] = [
     { id: 'bot_1', name: 'NeonStriker', avatarId: 'av_rocket', status: 'online', lastSeen: Date.now(), gameActivity: 'tetris' },
     { id: 'bot_2', name: 'PixelQueen', avatarId: 'av_cat', frameId: 'fr_neon_pink', status: 'online', lastSeen: Date.now(), gameActivity: 'pacman' },
@@ -65,7 +69,7 @@ const GAME_NAMES: Record<string, string> = {
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ 
     audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured, 
-    onUnreadChange, onRequestsChange, activeTabOverride, onTabChangeOverride 
+    onUnreadChange, friendRequests, setFriendRequests, activeTabOverride, onTabChangeOverride 
 }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     const { playCoin, playVictory } = audio;
@@ -75,7 +79,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const setSocialTab = onTabChangeOverride || setLocalTab;
 
     const [friends, setFriends] = useState<Friend[]>([]);
-    const [requests, setRequests] = useState<FriendRequest[]>([]);
+    // const [requests, setRequests] = useState<FriendRequest[]>([]); // Géré par App.tsx
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [chatInput, setChatInput] = useState('');
@@ -96,7 +100,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const isMessagingCategory = socialTab === 'FRIENDS' || socialTab === 'CHAT';
 
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
-    useEffect(() => { if (onRequestsChange) onRequestsChange(requests.length); }, [requests.length, onRequestsChange]);
+    // useEffect(() => { if (onRequestsChange) onRequestsChange(requests.length); }, [requests.length, onRequestsChange]);
 
     // Charger les amis depuis le LocalStorage
     useEffect(() => {
@@ -140,21 +144,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         return () => { supabase.removeChannel(channel); };
     }, [isConnectedToSupabase, username, playCoin]);
 
-    // Écouter les événements temps réel (Demandes d'amis, etc.) via Multiplayer
+    // Écouter les événements temps réel (ACCEPTATIONS UNIQUEMENT ICI - REQUETES GEREES PAR APP.TSX)
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any, conn: any) => {
-            // RECEPTION D'UNE DEMANDE D'AMI
-            if (data.type === 'FRIEND_REQUEST') {
-                const sender = data.sender;
-                // Vérifier si déjà ami ou déjà en demande
-                if (friends.some(f => f.id === sender.id)) return;
-                setRequests(prev => {
-                    if (prev.some(r => r.id === sender.id)) return prev;
-                    playCoin();
-                    return [...prev, { ...sender, timestamp: Date.now() }];
-                });
-            }
-
             // RECEPTION D'UNE ACCEPTATION D'AMI
             if (data.type === 'FRIEND_ACCEPT') {
                 const sender = data.sender;
@@ -292,8 +284,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             return newList;
         });
 
-        // 2. Remove request
-        setRequests(prev => prev.filter(r => r.id !== req.id));
+        // 2. Remove request (Utilise le setter global)
+        setFriendRequests(prev => prev.filter(r => r.id !== req.id));
 
         // 3. Notify sender they are accepted
         if (mp.peerId) {
@@ -311,7 +303,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const declineRequest = (reqId: string) => {
-        setRequests(prev => prev.filter(r => r.id !== reqId));
+        setFriendRequests(prev => prev.filter(r => r.id !== reqId));
     };
 
     const getFrameClass = (fid?: string) => framesCatalog.find(f => f.id === fid)?.cssClass || 'border-white/10';
@@ -379,7 +371,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>COMMUNAUTÉ</button>
                             <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all relative ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>
                                 REQUÊTES
-                                {requests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{requests.length}</span>}
+                                {friendRequests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{friendRequests.length}</span>}
                             </button>
                         </>
                     )}
@@ -545,13 +537,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
                 {socialTab === 'REQUESTS' && (
                     <div className="p-4 space-y-3 animate-in fade-in">
-                        {requests.length === 0 ? (
+                        {friendRequests.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-gray-600">
                                 <Inbox size={48} className="opacity-10 mb-4" />
                                 <p className="text-sm font-bold">Aucune demande en attente</p>
                             </div>
                         ) : (
-                            requests.map(req => {
+                            friendRequests.map(req => {
                                 const avatar = avatarsCatalog.find(a => a.id === req.avatarId) || avatarsCatalog[0];
                                 const AvIcon = avatar.icon;
                                 return (

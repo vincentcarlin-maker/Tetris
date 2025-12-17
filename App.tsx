@@ -22,7 +22,7 @@ import { SkyjoGame } from './components/skyjo/SkyjoGame';
 import { LumenOrderGame } from './components/lumen/LumenOrderGame';
 import { Shop } from './components/Shop';
 import { AdminDashboard } from './components/AdminDashboard';
-import { SocialOverlay } from './components/SocialOverlay';
+import { SocialOverlay, FriendRequest } from './components/SocialOverlay';
 import { SettingsMenu } from './components/SettingsMenu';
 import { LoginScreen } from './components/LoginScreen';
 import { BottomNav } from './components/BottomNav';
@@ -49,7 +49,8 @@ const App: React.FC = () => {
     // Social UI State
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
-    const [pendingRequests, setPendingRequests] = useState(0);
+    const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); // New state for global request handling
+    const pendingRequests = friendRequests.length;
     
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
@@ -106,6 +107,32 @@ const App: React.FC = () => {
     );
 
     const saveTimeoutRef = useRef<any>(null);
+
+    // GLOBAL LISTENER FOR FRIEND REQUESTS
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (data.type === 'FRIEND_REQUEST') {
+                const sender = data.sender;
+                
+                setFriendRequests(prev => {
+                    // 1. Check duplicate request
+                    if (prev.some(r => r.id === sender.id)) return prev;
+                    
+                    // 2. Check if already friend (from localStorage mirror)
+                    const storedFriends = localStorage.getItem('neon_friends');
+                    let friends = [];
+                    if (storedFriends) {
+                        try { friends = JSON.parse(storedFriends); } catch {}
+                    }
+                    if (friends.some((f: any) => f.id === sender.id)) return prev;
+
+                    audio.playCoin(); // Notification sound
+                    return [...prev, { ...sender, timestamp: Date.now() }];
+                });
+            }
+        });
+        return () => unsubscribe();
+    }, [mp, audio]);
 
     useEffect(() => {
         const loadSystemConfig = async () => {
@@ -244,7 +271,7 @@ const App: React.FC = () => {
                              const payload = buildSavePayload();
                              syncProfileToCloud(currency.username, payload);
                              localStorage.setItem(`neon_data_${currency.username}`, JSON.stringify(payload));
-                        }, 1000);
+                        }, 1000); 
                     }
                 }
             }
@@ -500,7 +527,8 @@ const App: React.FC = () => {
                         isConnectedToSupabase={isConnectedToSupabase}
                         isSupabaseConfigured={isSupabaseConfigured}
                         onUnreadChange={setUnreadMessages}
-                        onRequestsChange={setPendingRequests}
+                        friendRequests={friendRequests}
+                        setFriendRequests={setFriendRequests}
                         activeTabOverride={activeSocialTab}
                         onTabChangeOverride={setActiveSocialTab}
                     />
