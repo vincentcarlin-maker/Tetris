@@ -46,7 +46,6 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
 
     // Refs pour les contrôles gestuels
     const touchStartRef = useRef<{ x: number, y: number, time: number } | null>(null);
-    const lastTapTimeRef = useRef<number>(0);
     const lastXMoveRef = useRef<number>(0);
     const gameAreaRef = useRef<HTMLDivElement>(null);
 
@@ -213,23 +212,12 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
         const deltaY = clientY - touchStartRef.current.y;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-        // 1. Détection du Tap ou Double-Tap
-        if (duration < 250 && distance < 20) {
-            const now = Date.now();
-            const timeSinceLastTap = now - lastTapTimeRef.current;
-
-            if (timeSinceLastTap < 300) {
-                // DOUBLE TAP -> Hard Drop
-                hardDrop();
-                lastTapTimeRef.current = 0; // Reset pour éviter les triples taps
-            } else {
-                // SINGLE TAP -> Rotate
-                playerRotate(board, 1);
-                playRotate();
-                lastTapTimeRef.current = now;
-            }
+        // 1. Détection du Tap (Clic rapide sans grand mouvement) -> Rotation
+        if (duration < 250 && distance < 15) {
+            playerRotate(board, 1);
+            playRotate();
         }
-        // 2. Détection du Glissement vers le bas (Flick down) -> Hard Drop (on garde en bonus)
+        // 2. Détection du Glissement vers le bas (Flick down) -> Hard Drop
         else if (deltaY > 80 && Math.abs(deltaY) > Math.abs(deltaX)) {
             hardDrop();
         }
