@@ -68,7 +68,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     onUnreadChange, onRequestsChange, activeTabOverride, onTabChangeOverride 
 }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
-    const { playCoin } = audio;
+    const { playCoin, playVictory } = audio;
     
     const [localTab, setLocalTab] = useState<'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
     const socialTab = activeTabOverride || localTab;
@@ -98,6 +98,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
     useEffect(() => { if (onRequestsChange) onRequestsChange(requests.length); }, [requests.length, onRequestsChange]);
 
+    // Charger les amis depuis le LocalStorage
     useEffect(() => {
         const storedFriends = localStorage.getItem('neon_friends');
         if (storedFriends) {
@@ -111,6 +112,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }
     }, [isConnectedToSupabase, username]);
 
+    // Écouter les messages privés (Base de données)
     useEffect(() => {
         if (!isConnectedToSupabase || !supabase || !username) return;
         const channel = supabase.channel(`msg_${username}`)
@@ -138,11 +140,51 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         return () => { supabase.removeChannel(channel); };
     }, [isConnectedToSupabase, username, playCoin]);
 
+    // Écouter les événements temps réel (Demandes d'amis, etc.) via Multiplayer
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any, conn: any) => {
+            // RECEPTION D'UNE DEMANDE D'AMI
+            if (data.type === 'FRIEND_REQUEST') {
+                const sender = data.sender;
+                // Vérifier si déjà ami ou déjà en demande
+                if (friends.some(f => f.id === sender.id)) return;
+                setRequests(prev => {
+                    if (prev.some(r => r.id === sender.id)) return prev;
+                    playCoin();
+                    return [...prev, { ...sender, timestamp: Date.now() }];
+                });
+            }
+
+            // RECEPTION D'UNE ACCEPTATION D'AMI
+            if (data.type === 'FRIEND_ACCEPT') {
+                const sender = data.sender;
+                playVictory();
+                setNotificationPreview({ senderId: sender.id, senderName: sender.name, text: "A accepté votre demande d'ami !" });
+                setTimeout(() => setNotificationPreview(null), 5000);
+                
+                // Ajouter aux amis localement
+                const newFriend: Friend = { 
+                    id: sender.id, 
+                    name: sender.name, 
+                    avatarId: sender.avatarId, 
+                    frameId: sender.frameId, 
+                    status: 'online', 
+                    lastSeen: Date.now() 
+                };
+                
+                setFriends(prev => {
+                    const newList = [...prev, newFriend];
+                    localStorage.setItem('neon_friends', JSON.stringify(newList));
+                    return newList;
+                });
+            }
+        });
+        return () => unsubscribe();
+    }, [mp, friends, playCoin, playVictory]);
+
     useEffect(() => {
         setFriends(prev => prev.map(f => {
             const onlineEntry = onlineUsers.find(u => u.id === f.id);
-            // CORRECTION IMPORTANTE : On vérifie explicitement si le statut est 'online'.
-            // La liste onlineUsers contient l'historique complet (donc aussi les joueurs offline).
             const isReallyOnline = onlineEntry && onlineEntry.status === 'online';
             
             return isReallyOnline 
@@ -203,6 +245,73 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 setMessages(prev => ({ ...prev, [activeChatId]: (prev[activeChatId] || []).map(m => m.id === tempId ? { ...m, id: res.id.toString(), pending: false } : m) }));
             }
         }
+    };
+
+    // --- GESTION DES AMIS ---
+
+    const sendFriendRequest = () => {
+        if (!selectedPlayer || !mp.peerId) return;
+        
+        // 1. Check if already friend
+        if (friends.some(f => f.id === selectedPlayer.id)) {
+            openChat(selectedPlayer);
+            return;
+        }
+
+        // 2. Check if request already pending? (Optional)
+
+        // 3. Send Realtime Signal
+        mp.sendTo(selectedPlayer.id, {
+            type: 'FRIEND_REQUEST',
+            sender: { 
+                id: mp.peerId, 
+                name: username, 
+                avatarId: currentAvatarId, 
+                frameId: currentFrameId 
+            }
+        });
+
+        alert(`Demande d'ami envoyée à ${selectedPlayer.name} !`);
+        setSelectedPlayer(null);
+    };
+
+    const acceptRequest = (req: FriendRequest) => {
+        // 1. Add to local friends
+        const newFriend: Friend = { 
+            id: req.id, 
+            name: req.name, 
+            avatarId: req.avatarId, 
+            frameId: req.frameId, 
+            status: 'online', 
+            lastSeen: Date.now() 
+        };
+        
+        setFriends(prev => {
+            const newList = [...prev, newFriend];
+            localStorage.setItem('neon_friends', JSON.stringify(newList));
+            return newList;
+        });
+
+        // 2. Remove request
+        setRequests(prev => prev.filter(r => r.id !== req.id));
+
+        // 3. Notify sender they are accepted
+        if (mp.peerId) {
+            mp.sendTo(req.id, {
+                type: 'FRIEND_ACCEPT',
+                sender: { 
+                    id: mp.peerId, 
+                    name: username, 
+                    avatarId: currentAvatarId, 
+                    frameId: currentFrameId 
+                }
+            });
+        }
+        playVictory();
+    };
+
+    const declineRequest = (reqId: string) => {
+        setRequests(prev => prev.filter(r => r.id !== reqId));
     };
 
     const getFrameClass = (fid?: string) => framesCatalog.find(f => f.id === fid)?.cssClass || 'border-white/10';
@@ -412,6 +521,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             {displayedCommunity.map(player => {
                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                 const AvIcon = avatar.icon;
+                                const isFriend = friends.some(f => f.id === player.id);
                                 return (
                                     <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-2xl border border-white/5 hover:bg-gray-800 transition-all group">
                                         <div className="flex items-center gap-3">
@@ -423,7 +533,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                                 <span className="text-[10px] text-gray-500 flex items-center gap-1">{player.status === 'online' ? <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div> En ligne</> : 'Hors-ligne'}</span>
                                             </div>
                                         </div>
-                                        <button onClick={() => setSelectedPlayer(player as Friend)} className="p-2 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-white hover:text-black transition-all"><UserPlus size={18}/></button>
+                                        <button onClick={() => setSelectedPlayer(player as Friend)} className={`p-2 rounded-xl transition-all ${isFriend ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-300 hover:bg-white hover:text-black'}`}>
+                                            {isFriend ? <MessageSquare size={18}/> : <UserPlus size={18}/>}
+                                        </button>
                                     </div>
                                 );
                             })}
@@ -439,18 +551,22 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                 <p className="text-sm font-bold">Aucune demande en attente</p>
                             </div>
                         ) : (
-                            requests.map(req => (
-                                <div key={req.id} className="flex items-center justify-between p-4 bg-gray-800/60 rounded-2xl border border-white/5 shadow-lg">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center border border-white/10"><UserPlus size={20} className="text-gray-400"/></div>
-                                        <span className="font-bold text-white text-sm">{req.name}</span>
+                            requests.map(req => {
+                                const avatar = avatarsCatalog.find(a => a.id === req.avatarId) || avatarsCatalog[0];
+                                const AvIcon = avatar.icon;
+                                return (
+                                    <div key={req.id} className="flex items-center justify-between p-4 bg-gray-800/60 rounded-2xl border border-white/5 shadow-lg">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border border-white/10`}><AvIcon size={20} className={avatar.color}/></div>
+                                            <span className="font-bold text-white text-sm">{req.name}</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => acceptRequest(req)} className="p-2 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-500 transition-colors"><CheckCircle size={20}/></button>
+                                            <button onClick={() => declineRequest(req.id)} className="p-2 bg-red-600/20 text-red-500 rounded-xl border border-red-500/20 hover:bg-red-600 hover:text-white transition-colors"><XCircle size={20}/></button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button className="p-2 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-500 transition-colors"><CheckCircle size={20}/></button>
-                                        <button className="p-2 bg-red-600/20 text-red-500 rounded-xl border border-red-500/20 hover:bg-red-600 hover:text-white transition-colors"><XCircle size={20}/></button>
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 )}
@@ -469,7 +585,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             <h2 className="text-2xl font-black text-white italic">{selectedPlayer.name}</h2>
                             <span className="text-xs font-mono text-gray-500 mt-1 uppercase tracking-widest">ID: {selectedPlayer.id}</span>
                             <div className="w-full flex flex-col gap-3 mt-8">
-                                <button onClick={() => { if(friends.some(f => f.id === selectedPlayer.id)) openChat(selectedPlayer); else alert('Demande envoyée !'); setSelectedPlayer(null); }} className="py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">
+                                <button onClick={() => { if(friends.some(f => f.id === selectedPlayer.id)) openChat(selectedPlayer); else sendFriendRequest(); }} className="py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">
                                     {friends.some(f => f.id === selectedPlayer.id) ? <MessageSquare size={18}/> : <UserPlus size={18}/>} 
                                     {friends.some(f => f.id === selectedPlayer.id) ? 'MESSAGE' : 'AJOUTER'}
                                 </button>
