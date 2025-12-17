@@ -53,18 +53,12 @@ interface PrivateMessage {
     pending?: boolean;
 }
 
-const MOCK_COMMUNITY_PLAYERS: Friend[] = [
-    { id: 'bot_1', name: 'NeonStriker', avatarId: 'av_rocket', status: 'online', lastSeen: Date.now(), gameActivity: 'tetris' },
-    { id: 'bot_2', name: 'PixelQueen', avatarId: 'av_cat', frameId: 'fr_neon_pink', status: 'online', lastSeen: Date.now(), gameActivity: 'pacman' },
-    { id: 'bot_3', name: 'CyberWolf', avatarId: 'av_skull', frameId: 'fr_glitch', status: 'online', lastSeen: Date.now(), gameActivity: 'menu' },
-];
-
 const GAME_NAMES: Record<string, string> = {
     'tetris': 'Tetris', 'connect4': 'Connect 4', 'sudoku': 'Sudoku', 'breaker': 'Breaker',
     'pacman': 'Pacman', 'memory': 'Memory', 'battleship': 'Bataille', 'snake': 'Snake',
     'invaders': 'Invaders', 'airhockey': 'Air Hockey', 'mastermind': 'Mastermind',
     'uno': 'Uno', 'watersort': 'Neon Mix', 'checkers': 'Dames', 'runner': 'Neon Run',
-    'stack': 'Stack', 'arenaclash': 'Arena Clash', 'skyjo': 'Skyjo', 'shop': 'Boutique', 'menu': 'Menu'
+    'stack': 'Stack', 'arenaclash': 'Arena Clash', 'skyjo': 'Skyjo', 'lumen': 'Lumen', 'shop': 'Boutique', 'menu': 'Menu'
 };
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ 
@@ -389,13 +383,15 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         // If search results exist, show them
         if (searchResults.length > 0) return searchResults;
         
-        // Otherwise show random online users
-        const allPotential = [...onlineUsers, ...MOCK_COMMUNITY_PLAYERS];
+        // Show ONLY online users, including friends (minus self)
+        const allPotential = onlineUsers;
+        
         const filtered = allPotential.filter(p => {
             if (p.id === mp.peerId || p.name === username) return false;
-            if (friends.some(f => f.id === p.id || f.name === p.name)) return false;
+            if (p.status !== 'online') return false; 
             return true;
         });
+
         // Deduplicate
         const seenIds = new Set<string>();
         const unique = filtered.filter(p => {
@@ -403,13 +399,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             seenIds.add(p.id);
             return true;
         });
-        return unique.sort((a, b) => {
-            if (a.status === 'online' && b.status !== 'online') return -1;
-            return 0;
-        });
-    }, [onlineUsers, mp.peerId, friends, username, searchResults]);
+        
+        return unique;
+    }, [onlineUsers, mp.peerId, username, searchResults]);
 
-    const activeFriend = useMemo(() => friends.find(f => f.id === activeChatId) || MOCK_COMMUNITY_PLAYERS.find(b => b.id === activeChatId), [activeChatId, friends]);
+    const activeFriend = useMemo(() => friends.find(f => f.id === activeChatId), [activeChatId, friends]);
 
     return (
         <div className="h-full w-full flex flex-col bg-black/20 font-sans text-white relative">
@@ -438,7 +432,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                         </>
                     ) : (
                         <>
-                            <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>COMMUNAUTÉ</button>
+                            <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>EN LIGNE</button>
                             <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all relative ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>
                                 REQUÊTES
                                 {friendRequests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{friendRequests.length}</span>}
@@ -618,8 +612,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                              </div>
                         )}
 
-                        <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2 mt-2">Joueurs suggérés</h3>
+                        <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2 mt-2">Joueurs Connectés ({displayedCommunity.length})</h3>
                         <div className="space-y-2">
+                            {displayedCommunity.length === 0 && <p className="text-center text-gray-500 text-xs italic py-4">Aucun joueur en ligne.</p>}
                             {displayedCommunity.map(player => {
                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                 const AvIcon = avatar.icon;
@@ -632,7 +627,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-sm text-white">{player.name}</span>
-                                                <span className="text-[10px] text-gray-500 flex items-center gap-1">{player.status === 'online' ? <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div> En ligne</> : 'Hors-ligne'}</span>
+                                                <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div> 
+                                                    {player.gameActivity && player.gameActivity !== 'menu' ? `Joue à ${GAME_NAMES[player.gameActivity] || player.gameActivity}` : 'En ligne'}
+                                                </span>
                                             </div>
                                         </div>
                                         <button onClick={() => setSelectedPlayer(player as Friend)} className={`p-2 rounded-xl transition-all ${isFriend ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-300 hover:bg-white hover:text-black'}`}>
