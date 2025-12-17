@@ -1,17 +1,18 @@
 
 import React from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 
 interface SettingsMenuProps {
     onBack: () => void;
     onLogout: () => void;
+    onOpenDashboard: () => void;
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
 }
 
-export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, audio, currency }) => {
+export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency }) => {
     return (
         <div className="flex flex-col h-full w-full bg-black/20 font-sans text-white p-4 overflow-y-auto">
             <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pt-6 pb-24">
@@ -106,9 +107,15 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, au
                                         <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${currency.adminModeActive ? 'left-7' : 'left-1'}`}></div>
                                     </button>
                                 </div>
-                                <p className="text-[10px] text-red-300/70">
+                                <p className="text-[10px] text-red-300/70 mb-3">
                                     Active l'accès à tous les jeux désactivés et les fonctionnalités de test.
                                 </p>
+                                <button 
+                                    onClick={onOpenDashboard}
+                                    className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all"
+                                >
+                                    <LayoutGrid size={14} /> OUVRIR LE DASHBOARD
+                                </button>
                             </div>
                         )}
                     </div>

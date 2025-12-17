@@ -510,6 +510,7 @@ const App: React.FC = () => {
                     <SettingsMenu 
                         onBack={handleBackToMenu}
                         onLogout={handleLogout}
+                        onOpenDashboard={() => setCurrentView('admin_dashboard')}
                         audio={audio}
                         currency={currency}
                     />
