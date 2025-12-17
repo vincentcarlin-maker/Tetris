@@ -35,7 +35,7 @@ import { DB } from './lib/supabaseClient';
 import { AlertTriangle, Info, Construction } from 'lucide-react';
 
 
-type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'shop' | 'admin_dashboard';
+type ViewState = 'menu' | 'social' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'shop' | 'admin_dashboard';
 type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
 
 const App: React.FC = () => {
@@ -46,7 +46,6 @@ const App: React.FC = () => {
     const [isCloudSynced, setIsCloudSynced] = useState(false);
     
     // Social UI State
-    const [showSocial, setShowSocial] = useState(false);
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
     const [pendingRequests, setPendingRequests] = useState(0);
@@ -93,7 +92,7 @@ const App: React.FC = () => {
         onlineUsers, 
         globalLeaderboard, 
         isConnectedToSupabase, 
-        isSupabaseConfigured,
+        isSupabaseConfigured, 
         loginAndFetchProfile,
         syncProfileToCloud
     } = useSupabase(
@@ -452,24 +451,19 @@ const App: React.FC = () => {
         );
     }
 
-    const isGameActive = !['menu', 'shop', 'admin_dashboard'].includes(currentView);
+    const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social'].includes(currentView);
 
     const handleOpenSocial = (tab: SocialTab) => {
         if (!isAuthenticated) {
             setShowLoginModal(true);
             return;
         }
-        if (showSocial && activeSocialTab === tab) {
-            setShowSocial(false);
-        } else {
-            setActiveSocialTab(tab);
-            setShowSocial(true);
-        }
+        setActiveSocialTab(tab);
+        setCurrentView('social');
     };
 
-    // La barre de navigation doit être visible sur les pages de navigation (menu, shop, admin)
-    // OU si l'overlay social est ouvert (car c'est une forme de navigation).
-    const shouldShowBottomNav = !isGameActive || showSocial;
+    // La barre de navigation doit être visible sur les pages de navigation (menu, shop, admin, social)
+    const shouldShowBottomNav = !isGameActive;
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -493,24 +487,23 @@ const App: React.FC = () => {
                 />
             )}
 
-            {isAuthenticated && (
-                <SocialOverlay 
-                    audio={audio} 
-                    currency={currency} 
-                    mp={mp} 
-                    onlineUsers={onlineUsers} 
-                    isConnectedToSupabase={isConnectedToSupabase}
-                    isSupabaseConfigured={isSupabaseConfigured}
-                    externalShow={showSocial}
-                    onExternalToggle={setShowSocial}
-                    onUnreadChange={setUnreadMessages}
-                    onRequestsChange={setPendingRequests}
-                    activeTabOverride={activeSocialTab}
-                    onTabChangeOverride={setActiveSocialTab}
-                />
-            )}
             
             <div className="flex-1 overflow-auto">
+                {currentView === 'social' && isAuthenticated && (
+                    <SocialOverlay 
+                        audio={audio} 
+                        currency={currency} 
+                        mp={mp} 
+                        onlineUsers={onlineUsers} 
+                        isConnectedToSupabase={isConnectedToSupabase}
+                        isSupabaseConfigured={isSupabaseConfigured}
+                        onUnreadChange={setUnreadMessages}
+                        onRequestsChange={setPendingRequests}
+                        activeTabOverride={activeSocialTab}
+                        onTabChangeOverride={setActiveSocialTab}
+                    />
+                )}
+
                 {currentView === 'shop' && isAuthenticated && (
                     <Shop onBack={handleBackToMenu} currency={currency} />
                 )}
@@ -571,7 +564,7 @@ const App: React.FC = () => {
                     currentView={currentView} 
                     onNavigate={(v) => setCurrentView(v)} 
                     onOpenSocial={handleOpenSocial}
-                    showSocial={showSocial}
+                    showSocial={currentView === 'social'}
                     activeSocialTab={activeSocialTab}
                     unreadMessages={unreadMessages}
                     pendingRequests={pendingRequests}
