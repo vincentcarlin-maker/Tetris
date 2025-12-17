@@ -17,6 +17,9 @@ interface SocialOverlayProps {
     externalShow?: boolean;
     onExternalToggle?: (val: boolean) => void;
     onUnreadChange?: (count: number) => void;
+    onRequestsChange?: (count: number) => void;
+    activeTabOverride?: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
+    onTabChangeOverride?: (tab: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS') => void;
 }
 
 interface PlayerStats {
@@ -110,7 +113,11 @@ const formatFullDate = (timestamp: number) => {
     });
 };
 
-export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured, externalShow, onExternalToggle, onUnreadChange }) => {
+export const SocialOverlay: React.FC<SocialOverlayProps> = ({ 
+    audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured, 
+    externalShow, onExternalToggle, onUnreadChange, onRequestsChange, 
+    activeTabOverride, onTabChangeOverride 
+}) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     const { playCoin, playVictory } = audio;
     
@@ -118,7 +125,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     const showSocial = externalShow !== undefined ? externalShow : localShow;
     const setShowSocial = onExternalToggle || setLocalShow;
 
-    const [socialTab, setSocialTab] = useState<'FRIENDS' | 'CHAT' | 'ADD' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
+    const [localTab, setLocalTab] = useState<'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
+    const socialTab = activeTabOverride || localTab;
+    const setSocialTab = onTabChangeOverride || setLocalTab;
+
     const [friends, setFriends] = useState<Friend[]>([]);
     const [requests, setRequests] = useState<FriendRequest[]>([]);
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
@@ -150,6 +160,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
     useEffect(() => {
         if (onUnreadChange) onUnreadChange(unreadCount);
     }, [unreadCount, onUnreadChange]);
+
+    useEffect(() => {
+        if (onRequestsChange) onRequestsChange(requests.length);
+    }, [requests.length, onRequestsChange]);
 
     const handleMarkAllRead = async () => {
         setUnreadCount(0);
@@ -204,7 +218,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                     let senderDisplayName = senderUsername;
                     const friend = stateRef.current.friends.find(f => f.name === senderUsername);
                     if (friend) { chatKey = friend.id; senderDisplayName = friend.name; } 
-                    else { const onlineUser = stateRef.current.onlineUsers.find(u => u.name === senderUsername); if (onlineUser) { chatKey = onlineUser.id; senderDisplayName = onlineUser.name; } }
+                    else { const onlineUser = stateRef.current.onlineUsers.find(u => u.id === senderUsername); if (onlineUser) { chatKey = onlineUser.id; senderDisplayName = onlineUser.name; } }
                     setMessages(prev => {
                         const existingChat = prev[chatKey] || [];
                         if (existingChat.find(m => m.id === newMsg.id.toString())) return prev;
@@ -392,7 +406,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                             <h2 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-2"><Users className="text-blue-400" /> SOCIAL</h2>
                             <button onClick={() => setShowSocial(false)} className="absolute right-4 p-2 hover:bg-white/10 rounded-full transition-colors"><X size={24} className="text-gray-400 hover:text-white" /></button>
                         </div>
-                        <div className="flex p-2 gap-2 bg-black/20 overflow-x-auto">
+                        <div className="flex p-2 gap-2 bg-black/20 overflow-x-auto shrink-0">
                             <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'FRIENDS' ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>AMIS ({friends.length})</button>
                             <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>COMMUNAUTÉ</button>
                             <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 px-1 text-[10px] sm:text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white' : 'hover:bg-white/5 text-gray-400'}`}>REQUÊTES {requests.length > 0 && `(${requests.length})`}</button>
@@ -412,7 +426,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({ audio, currency, m
                                 <div className="space-y-2">{friends.length === 0 ? <div className="text-center text-gray-500 py-8 italic text-sm">Communauté vide.</div> : ( friends.map(friend => { const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0]; const AvIcon = avatar.icon; const isPlaying = friend.status === 'online' && friend.gameActivity && friend.gameActivity !== 'menu' && friend.gameActivity !== 'shop'; const gameName = getGameName(friend.gameActivity); return ( <div key={friend.id} onClick={() => setSelectedPlayer(friend)} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-xl border border-white/5 hover:bg-gray-800 transition-colors cursor-pointer group"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative`}><AvIcon size={20} className={avatar.color} />{friend.status === 'online' && <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>}</div><div className="flex flex-col"><span className="font-bold text-sm text-gray-200">{friend.name}</span><div className="flex items-center gap-2"><span className={`text-[10px] ${isPlaying ? 'text-pink-400 font-bold animate-pulse flex items-center gap-1' : 'text-gray-500'}`}>{isPlaying ? <><Gamepad2 size={10}/> {gameName}</> : friend.status === 'online' ? 'En ligne' : `${formatLastSeen(friend.lastSeen)}`}</span></div></div></div><button onClick={(e) => { e.stopPropagation(); openChat(friend.id); }} className="p-2 bg-purple-600/20 text-purple-400 rounded-full hover:bg-purple-600 hover:text-white transition-colors relative"><MessageSquare size={16} /></button></div> ); }) )}</div>
                             )}
                             {socialTab === 'REQUESTS' && (
-                                <div className="space-y-2">{requests.length === 0 ? <div className="text-center text-gray-500 py-8 italic text-sm">Aucun message.</div> : ( requests.map(req => { const avatar = avatarsCatalog.find(a => a.id === req.avatarId) || avatarsCatalog[0]; const AvIcon = avatar.icon; return ( <div key={req.id} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-xl border border-white/5"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvIcon size={20} className={avatar.color} /></div><span className="font-bold text-sm text-gray-200">{req.name}</span></div><div className="flex gap-2"><button onClick={() => acceptRequest(req)} className="p-1.5 bg-green-600/20 text-green-400 rounded hover:bg-green-600 hover:text-white transition-colors"><CheckCircle size={18} /></button><button onClick={() => setRequests(prev => prev.filter(r => r.id !== req.id))} className="p-1.5 bg-red-600/20 text-red-400 rounded hover:bg-red-600 hover:text-white transition-colors"><XCircle size={18} /></button></div></div> ); }) )}</div>
+                                <div className="space-y-2">{requests.length === 0 ? <div className="text-center text-gray-500 py-8 italic text-sm">Aucune message.</div> : ( requests.map(req => { const avatar = avatarsCatalog.find(a => a.id === req.avatarId) || avatarsCatalog[0]; const AvIcon = avatar.icon; return ( <div key={req.id} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-xl border border-white/5"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvIcon size={20} className={avatar.color} /></div><span className="font-bold text-sm text-gray-200">{req.name}</span></div><div className="flex gap-2"><button onClick={() => acceptRequest(req)} className="p-1.5 bg-green-600/20 text-green-400 rounded hover:bg-green-600 hover:text-white transition-colors"><CheckCircle size={18} /></button><button onClick={() => setRequests(prev => prev.filter(r => r.id !== req.id))} className="p-1.5 bg-red-600/20 text-red-400 rounded hover:bg-red-600 hover:text-white transition-colors"><XCircle size={18} /></button></div></div> ); }) )}</div>
                             )}
                             {socialTab === 'CHAT' && activeChatId && (
                                 <div className="flex flex-col h-full">{isLoadingHistory && <div className="flex justify-center p-2"><div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div></div>}<div className="flex-1 overflow-y-auto mb-4 space-y-2 pr-1 custom-scrollbar">{messages[activeChatId]?.length > 0 ? messages[activeChatId].map((msg, i) => ( <div key={i} className={`flex ${msg.senderId === username ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.senderId === username ? 'bg-purple-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-200 rounded-bl-none'} flex gap-2 items-end group relative`}><span>{msg.text}</span>{msg.pending && <Clock size={10} className="text-white/70 animate-pulse mb-0.5"/>}{!msg.pending && <span className="text-[8px] opacity-50 mb-0.5">{new Date(msg.timestamp).getHours()}:{String(new Date(msg.timestamp).getMinutes()).padStart(2, '0')}</span>}</div></div> )) : ( <div className="text-center text-gray-500 text-xs py-10 flex flex-col items-center"><Inbox size={32} className="mb-2 opacity-50"/>Dis bonjour !</div> )}<div ref={chatEndRef} /></div><form onSubmit={sendPrivateMessage} className="flex gap-2 mt-auto"><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ton message..." className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-purple-500 transition-colors" autoFocus /><button type="submit" disabled={!chatInput.trim()} className="p-2 bg-purple-600 text-white rounded-xl hover:bg-purple-500 transition-colors"><Send size={20} /></button></form></div>

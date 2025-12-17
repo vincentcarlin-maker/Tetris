@@ -36,6 +36,7 @@ import { AlertTriangle, Info, Construction } from 'lucide-react';
 
 
 type ViewState = 'menu' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'shop' | 'admin_dashboard';
+type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
@@ -43,8 +44,12 @@ const App: React.FC = () => {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [isCloudSynced, setIsCloudSynced] = useState(false);
+    
+    // Social UI State
     const [showSocial, setShowSocial] = useState(false);
+    const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
+    const [pendingRequests, setPendingRequests] = useState(0);
     
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
@@ -449,6 +454,20 @@ const App: React.FC = () => {
 
     const isGameActive = !['menu', 'shop', 'admin_dashboard'].includes(currentView);
 
+    const handleOpenSocial = (tab: SocialTab) => {
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
+        // Si l'overlay est déjà ouvert sur cet onglet, on ferme. Sinon on ouvre/change d'onglet.
+        if (showSocial && activeSocialTab === tab) {
+            setShowSocial(false);
+        } else {
+            setActiveSocialTab(tab);
+            setShowSocial(true);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full w-full">
             {globalAlert && (
@@ -482,6 +501,9 @@ const App: React.FC = () => {
                     externalShow={showSocial}
                     onExternalToggle={setShowSocial}
                     onUnreadChange={setUnreadMessages}
+                    onRequestsChange={setPendingRequests}
+                    activeTabOverride={activeSocialTab}
+                    onTabChangeOverride={setActiveSocialTab}
                 />
             )}
             
@@ -504,7 +526,7 @@ const App: React.FC = () => {
                 {currentView === 'snake' && isAuthenticated && <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('snake', metric, val)} />}
                 {currentView === 'invaders' && isAuthenticated && <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('invaders', metric, val)} />}
                 {currentView === 'airhockey' && isAuthenticated && <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('airhockey', metric, val)} />}
-                {currentView === 'mastermind' && isAuthenticated && <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('mastermind', metric, val)} />}
+                {currentView === 'mastermind' && isAuthenticated && <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('mastermind', metric, val)} />}
                 {currentView === 'uno' && isAuthenticated && <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('uno', metric, val)} />}
                 {currentView === 'watersort' && isAuthenticated && <WaterSortGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('watersort', metric, val)} />}
                 {currentView === 'checkers' && isAuthenticated && <CheckersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('checkers', metric, val)} />}
@@ -545,9 +567,11 @@ const App: React.FC = () => {
                 <BottomNav 
                     currentView={currentView} 
                     onNavigate={(v) => setCurrentView(v)} 
-                    onToggleSocial={() => setShowSocial(!showSocial)}
+                    onOpenSocial={handleOpenSocial}
                     showSocial={showSocial}
-                    unreadCount={unreadMessages}
+                    activeSocialTab={activeSocialTab}
+                    unreadMessages={unreadMessages}
+                    pendingRequests={pendingRequests}
                 />
             )}
         </div>

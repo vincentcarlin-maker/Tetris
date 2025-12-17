@@ -1,16 +1,26 @@
 
 import React from 'react';
-import { Home, Gamepad2, ShoppingBag, MessageSquare } from 'lucide-react';
+import { Home, Users, ShoppingBag, MessageSquare } from 'lucide-react';
 
 interface BottomNavProps {
     currentView: string;
     onNavigate: (view: any) => void;
-    onToggleSocial: () => void;
-    unreadCount: number;
+    onOpenSocial: (tab: 'FRIENDS' | 'COMMUNITY' | 'REQUESTS') => void;
+    unreadMessages: number;
+    pendingRequests: number;
     showSocial: boolean;
+    activeSocialTab: string;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate, onToggleSocial, unreadCount, showSocial }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ 
+    currentView, 
+    onNavigate, 
+    onOpenSocial, 
+    unreadMessages, 
+    pendingRequests, 
+    showSocial,
+    activeSocialTab
+}) => {
     const isMenu = currentView === 'menu';
     const isShop = currentView === 'shop';
 
@@ -35,11 +45,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate, o
                 <Icon size={24} className={active ? 'drop-shadow-[0_0_8px_#00f3ff]' : ''} />
             </div>
             <span className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
+            
             {badge !== undefined && badge > 0 && (
-                <div className="absolute top-1 right-[20%] bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-black animate-pulse">
+                <div className="absolute top-1 right-[20%] bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border border-black animate-pulse shadow-[0_0_5px_red]">
                     {badge > 9 ? '9+' : badge}
                 </div>
             )}
+            
             {active && (
                 <div className="absolute -bottom-1 w-12 h-1 bg-neon-blue rounded-full shadow-[0_0_10px_#00f3ff] animate-in slide-in-from-bottom-1 duration-300"></div>
             )}
@@ -53,26 +65,27 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentView, onNavigate, o
                     icon={Home} 
                     label="Accueil" 
                     active={isMenu && !showSocial} 
-                    onClick={() => { onNavigate('menu'); if(showSocial) onToggleSocial(); }} 
+                    onClick={() => onNavigate('menu')} 
                 />
                 <NavButton 
-                    icon={Gamepad2} 
-                    label="Le Hub" 
-                    active={isMenu && !showSocial} 
-                    onClick={() => { onNavigate('menu'); if(showSocial) onToggleSocial(); }} 
+                    icon={MessageSquare} 
+                    label="Messages" 
+                    active={showSocial && (activeSocialTab === 'FRIENDS' || activeSocialTab === 'CHAT')} 
+                    onClick={() => onOpenSocial('FRIENDS')} 
+                    badge={unreadMessages}
+                />
+                <NavButton 
+                    icon={Users} 
+                    label="Social" 
+                    active={showSocial && (activeSocialTab === 'COMMUNITY' || activeSocialTab === 'REQUESTS')} 
+                    onClick={() => onOpenSocial('COMMUNITY')} 
+                    badge={pendingRequests}
                 />
                 <NavButton 
                     icon={ShoppingBag} 
                     label="Shop" 
-                    active={isShop} 
-                    onClick={() => { onNavigate('shop'); if(showSocial) onToggleSocial(); }} 
-                />
-                <NavButton 
-                    icon={MessageSquare} 
-                    label="Social" 
-                    active={showSocial} 
-                    onClick={onToggleSocial} 
-                    badge={unreadCount}
+                    active={isShop && !showSocial} 
+                    onClick={() => onNavigate('shop')} 
                 />
             </div>
         </div>
