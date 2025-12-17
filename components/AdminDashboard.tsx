@@ -1455,7 +1455,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             const matchesSearch = p.username.toLowerCase().includes(searchTerm.toLowerCase());
             if (!matchesSearch) return false;
             
-            const isOnline = onlineUsers.some(u => u.id === p.username && u.status === 'online');
+            const isOnline = onlineUsers.some(u => u.name === p.username && u.status === 'online');
             
             if (userFilter === 'ONLINE') return isOnline;
             if (userFilter === 'BANNED') return p.data?.banned;
@@ -1499,7 +1499,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {filteredUsers.map(p => {
-                                    const isOnline = onlineUsers.some(u => u.id === p.username && u.status === 'online');
+                                    const isOnline = onlineUsers.some(u => u.name === p.username && u.status === 'online');
                                     const role = p.data?.role || 'USER';
                                     
                                     return (
@@ -1914,7 +1914,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                     <div className="flex items-center gap-3 mt-1 text-sm">
                                         <span className="font-mono text-gray-400 bg-black/30 px-2 py-0.5 rounded">ID: {selectedUser.username}</span>
                                         {(() => {
-                                            const isOnline = onlineUsers.some(u => u.id === selectedUser.username && u.status === 'online');
+                                            const isOnline = onlineUsers.some(u => u.name === selectedUser.username && u.status === 'online');
                                             return (
                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${isOnline ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-gray-700/50 text-gray-400'}`}>
                                                     <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
