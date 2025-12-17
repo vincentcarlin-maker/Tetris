@@ -279,8 +279,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }
 
         // 2. Send Realtime Signal (Fast update if online)
-        if (mp.peerId) {
-            mp.sendTo(selectedPlayer.id, {
+        // Note: selectedPlayer.id may be a Username (from DB search) or PeerID (from Online list).
+        // mp.sendTo expects PeerID. We try to find PeerID if we only have username.
+        let targetPeerId = selectedPlayer.id;
+        
+        // If ID looks like a username (not user_...), try to find live PeerID
+        if (!targetPeerId.startsWith('user_')) {
+            const liveUser = onlineUsers.find(u => u.name === selectedPlayer.name);
+            if (liveUser) targetPeerId = liveUser.id;
+        }
+
+        if (mp.peerId && targetPeerId.startsWith('user_')) {
+            mp.sendTo(targetPeerId, {
                 type: 'FRIEND_REQUEST',
                 sender: { 
                     id: mp.peerId, 
@@ -327,15 +337,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
         // 4. Notify sender they are accepted (Realtime)
         if (mp.peerId) {
-            mp.sendTo(req.id, {
-                type: 'FRIEND_ACCEPT',
-                sender: { 
-                    id: mp.peerId, 
-                    name: username, 
-                    avatarId: currentAvatarId, 
-                    frameId: currentFrameId 
-                }
-            });
+            // If sender is online, find their PeerID
+            const senderOnline = onlineUsers.find(u => u.name === req.name);
+            if (senderOnline) {
+                mp.sendTo(senderOnline.id, {
+                    type: 'FRIEND_ACCEPT',
+                    sender: { 
+                        id: mp.peerId, 
+                        name: username, 
+                        avatarId: currentAvatarId, 
+                        frameId: currentFrameId 
+                    }
+                });
+            }
         }
         playVictory();
     };
@@ -357,12 +371,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         const results = await DB.searchUsers(communitySearch);
         
         // Filter out myself and existing friends
+        // Mapped to check online status correctly by NAME not ID
         const filtered = results.filter((u: any) => 
-            u.id !== username && !friends.some(f => f.id === u.id)
-        ).map((u: any) => ({
-            ...u,
-            status: onlineUsers.some(o => o.id === u.id) ? 'online' : 'offline'
-        }));
+            u.name !== username && !friends.some(f => f.name === u.name)
+        ).map((u: any) => {
+            const onlineMatch = onlineUsers.find(o => o.name === u.name);
+            return {
+                ...u,
+                id: onlineMatch ? onlineMatch.id : u.id, // Prefer PeerID if online
+                status: onlineMatch ? 'online' : 'offline'
+            };
+        });
         
         setSearchResults(filtered);
         setIsSearching(false);
@@ -579,7 +598,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                 type="text" 
                                 value={communitySearch}
                                 onChange={e => setCommunitySearch(e.target.value)}
-                                placeholder="Rechercher un joueur (ID)..."
+                                placeholder="Rechercher par pseudo..."
                                 className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-purple-500 outline-none"
                             />
                             <button type="submit" disabled={isSearching} className="bg-purple-600 text-white px-4 rounded-xl font-bold active:scale-95 transition-all">
@@ -683,7 +702,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                 </div>
                             </div>
                             <h2 className="text-2xl font-black text-white italic">{selectedPlayer.name}</h2>
-                            <span className="text-xs font-mono text-gray-500 mt-1 uppercase tracking-widest">ID: {selectedPlayer.id}</span>
+                            <span className="text-xs font-mono text-gray-500 mt-1 uppercase tracking-widest">Pseudo: {selectedPlayer.name}</span>
                             <div className="w-full flex flex-col gap-3 mt-8">
                                 <button onClick={() => { if(friends.some(f => f.id === selectedPlayer.id)) openChat(selectedPlayer); else sendFriendRequest(); }} className="py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">
                                     {friends.some(f => f.id === selectedPlayer.id) ? <MessageSquare size={18}/> : <UserPlus size={18}/>} 
