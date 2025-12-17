@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle, HelpCircle, MousePointer2, ArrowUp, Ban, LogOut } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
@@ -246,8 +246,18 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
         // 1. Select a piece
         if (isMyPiece) {
+            // Respect forced jump rule (mustJumpPos) or Global Forced Jumps
             if (mustJumpPos) {
                 if (r !== mustJumpPos.r || c !== mustJumpPos.c) return;
+            } else {
+                // If there are ANY mandatory jumps on the board, user MUST click one of them
+                const forced = mandatoryJumpPositions.has(`${r},${c}`);
+                const hasAnyForcedMoves = mandatoryJumpPositions.size > 0;
+                
+                if (hasAnyForcedMoves && !forced) {
+                    // Cannot select a non-jumping piece if jumps exist
+                    return;
+                }
             }
 
             const allMoves = getValidMoves(board, turn, mustJumpPos || undefined);
@@ -347,6 +357,28 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         return () => unsubscribe();
     }, [mp.subscribe]);
 
+    // --- CALCULATE MANDATORY JUMPS FOR HIGHLIGHTING ---
+    const mandatoryJumpPositions = useMemo(() => {
+        if (winner || isWaitingForHost) return new Set<string>();
+
+        // If we are mid-combo (multijump), the only mandatory piece is the one currently moving
+        if (mustJumpPos) {
+            return new Set([`${mustJumpPos.r},${mustJumpPos.c}`]);
+        }
+
+        // Get all valid moves for current player
+        const allMoves = getValidMoves(board, turn);
+        
+        // If there are jumps (isJump=true), logic.ts ensures only jumps are returned in allMoves
+        // We just need to collect the unique start positions of these jumps
+        const positions = new Set<string>();
+        if (allMoves.length > 0 && allMoves[0].isJump) {
+            allMoves.forEach(m => positions.add(`${m.from.r},${m.from.c}`));
+        }
+        
+        return positions;
+    }, [board, turn, mustJumpPos, winner, isWaitingForHost]);
+
     // --- RENDER ---
 
     const renderBoard = () => {
@@ -363,8 +395,9 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                             const isSelected = selectedPos?.r === r && selectedPos?.c === c;
                             const isTarget = availableMoves.some(m => m.to.r === r && m.to.c === c);
                             
-                            // Highlight forced piece
-                            const isForced = mustJumpPos && mustJumpPos.r === r && mustJumpPos.c === c;
+                            // Highlight forced piece (Calculated via Memo)
+                            // Only highlight if it's the current player's turn to avoid spoiling CPU moves
+                            const isMandatory = mandatoryJumpPositions.has(`${r},${c}`) && (gameMode !== 'SOLO' || turn === 'white');
 
                             let bgClass = isPlayableSquare ? 'bg-black/40 shadow-inner' : 'bg-white/10';
                             if (isTarget) bgClass = 'bg-green-500/20 shadow-[inset_0_0_15px_#22c55e]';
@@ -385,7 +418,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                                                 ? 'text-cyan-400 shadow-[0_0_10px_#22d3ee]' 
                                                 : 'text-pink-500 shadow-[0_0_10px_#ec4899]'}
                                             ${isSelected ? 'scale-110 brightness-150 z-10' : ''}
-                                            ${isForced ? 'ring-2 ring-yellow-400 animate-pulse' : ''}
+                                            ${isMandatory ? 'ring-4 ring-yellow-400 shadow-[0_0_15px_#facc15] animate-pulse z-10' : ''}
                                             ${isFlipped ? 'rotate-180' : ''}
                                         `}>
                                             <div className={`absolute inset-0 rounded-full opacity-20 ${piece.player === 'white' ? 'bg-cyan-400' : 'bg-pink-500'}`}></div>
