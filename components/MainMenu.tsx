@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle, Hexagon } from 'lucide-react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle, Hexagon, ArrowRight } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores } from '../hooks/useHighScores';
@@ -590,8 +590,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  const diffColor = getDifficultyColor(quest.difficulty);
                                  const progressPercent = Math.min(100, Math.round((quest.progress / quest.target) * 100));
                                  
+                                 // Determine if clickable (navigate to game)
+                                 const isClickable = quest.gameId !== 'any';
+
                                  return (
-                                     <div key={quest.id} className={`relative flex flex-col p-3 rounded-lg border transition-all duration-300 ${quest.isCompleted ? 'bg-green-950/40 border-green-500/50 shadow-[inset_0_0_10px_rgba(34,197,94,0.1)]' : 'bg-gray-900/60 border-white/5 hover:border-white/20'}`}>
+                                     <div 
+                                        key={quest.id} 
+                                        onClick={() => {
+                                            if (isClickable) {
+                                                handleGameStart(quest.gameId);
+                                            }
+                                        }}
+                                        className={`relative flex flex-col p-3 rounded-lg border transition-all duration-300 ${quest.isCompleted ? 'bg-green-950/40 border-green-500/50 shadow-[inset_0_0_10px_rgba(34,197,94,0.1)]' : 'bg-gray-900/60 border-white/5 hover:border-white/20'} ${isClickable ? 'cursor-pointer hover:bg-white/5 active:scale-[0.98]' : ''} group/quest`}
+                                     >
                                          {animatingQuestId === quest.id && (<div className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none z-50"><div className="relative"><Coins size={40} className="text-yellow-400 absolute -top-4 -left-4 animate-ping opacity-75" /><div className="text-yellow-300 font-black text-xl absolute -top-8 -left-2 animate-bounce drop-shadow-[0_0_10px_gold]">+{quest.reward}</div></div></div>)}
                                          
                                          <div className="flex items-center justify-between mb-2">
@@ -600,7 +611,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                                      <GameIcon size={16} />
                                                  </div>
                                                  <div>
-                                                     <span className={`text-xs font-bold tracking-wide block ${quest.isCompleted ? 'text-green-100 line-through decoration-green-500/50' : 'text-gray-200'}`}>{quest.description}</span>
+                                                     <div className="flex items-center gap-2">
+                                                         <span className={`text-xs font-bold tracking-wide block ${quest.isCompleted ? 'text-green-100 line-through decoration-green-500/50' : 'text-gray-200'}`}>{quest.description}</span>
+                                                         {isClickable && !quest.isCompleted && <ArrowRight size={10} className="text-gray-500 opacity-0 group-hover/quest:opacity-100 transition-opacity" />}
+                                                     </div>
                                                      <span className="text-[9px] text-gray-500 font-mono">{quest.progress}/{quest.target}</span>
                                                  </div>
                                              </div>
