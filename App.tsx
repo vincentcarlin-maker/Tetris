@@ -24,6 +24,7 @@ import { Shop } from './components/Shop';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SocialOverlay } from './components/SocialOverlay';
 import { LoginScreen } from './components/LoginScreen';
+import { BottomNav } from './components/BottomNav';
 import { useGameAudio } from './hooks/useGameAudio';
 import { useCurrency } from './hooks/useCurrency';
 import { useMultiplayer } from './hooks/useMultiplayer';
@@ -42,6 +43,8 @@ const App: React.FC = () => {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [isCloudSynced, setIsCloudSynced] = useState(false);
+    const [showSocial, setShowSocial] = useState(false);
+    const [unreadMessages, setUnreadMessages] = useState(0);
     
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
@@ -428,9 +431,9 @@ const App: React.FC = () => {
     }, [reportQuestProgress, updateEventProgress]);
 
     const isMaintenance = featureFlags.maintenance_mode;
-    const isImmune = currency.username === 'Vincent' || currency.adminModeActive;
+    const isImmuneUser = currency.username === 'Vincent' || currency.adminModeActive;
     
-    if (isMaintenance && !isImmune) {
+    if (isMaintenance && !isImmuneUser) {
         return (
             <div className="flex flex-col items-center justify-center h-screen w-screen bg-black/90 p-4 text-center animate-in fade-in">
                 <div className="p-6 rounded-2xl bg-gray-900 border-2 border-yellow-500/50 shadow-[0_0_50px_rgba(234,179,8,0.3)] max-w-md">
@@ -444,8 +447,10 @@ const App: React.FC = () => {
         );
     }
 
+    const isGameActive = !['menu', 'shop', 'admin_dashboard'].includes(currentView);
+
     return (
-        <>
+        <div className="flex flex-col h-full w-full">
             {globalAlert && (
                 <div className="fixed top-0 left-0 right-0 z-[300] flex justify-center p-4 pointer-events-none animate-in slide-in-from-top-10 fade-in duration-500">
                     <div className={`bg-gray-900/90 backdrop-blur-md border-l-4 ${globalAlert.type === 'warning' ? 'border-red-500 text-red-200' : 'border-blue-500 text-blue-200'} rounded-r-lg p-4 shadow-2xl flex items-center gap-4 max-w-md w-full`}>
@@ -474,63 +479,78 @@ const App: React.FC = () => {
                     onlineUsers={onlineUsers} 
                     isConnectedToSupabase={isConnectedToSupabase}
                     isSupabaseConfigured={isSupabaseConfigured}
+                    externalShow={showSocial}
+                    onExternalToggle={setShowSocial}
+                    onUnreadChange={setUnreadMessages}
                 />
             )}
             
-            {currentView === 'shop' && isAuthenticated && (
-                <Shop onBack={handleBackToMenu} currency={currency} />
-            )}
+            <div className="flex-1 overflow-auto">
+                {currentView === 'shop' && isAuthenticated && (
+                    <Shop onBack={handleBackToMenu} currency={currency} />
+                )}
 
-            {currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser && (
-                <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={onlineUsers} />
-            )}
+                {currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser && (
+                    <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={onlineUsers} />
+                )}
 
-            {currentView === 'tetris' && isAuthenticated && <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('tetris', metric, val)} />}
-            {currentView === 'connect4' && isAuthenticated && <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('connect4', metric, val)} />}
-            {currentView === 'sudoku' && isAuthenticated && <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('sudoku', metric, val)} />}
-            {currentView === 'breaker' && isAuthenticated && <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('breaker', metric, val)} />}
-            {currentView === 'pacman' && isAuthenticated && <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('pacman', metric, val)} />}
-            {currentView === 'memory' && isAuthenticated && <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('memory', metric, val)} />}
-            {currentView === 'battleship' && isAuthenticated && <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('battleship', metric, val)} />}
-            {currentView === 'snake' && isAuthenticated && <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('snake', metric, val)} />}
-            {currentView === 'invaders' && isAuthenticated && <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('invaders', metric, val)} />}
-            {currentView === 'airhockey' && isAuthenticated && <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('airhockey', metric, val)} />}
-            {currentView === 'mastermind' && isAuthenticated && <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('mastermind', metric, val)} />}
-            {currentView === 'uno' && isAuthenticated && <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('uno', metric, val)} />}
-            {currentView === 'watersort' && isAuthenticated && <WaterSortGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('watersort', metric, val)} />}
-            {currentView === 'checkers' && isAuthenticated && <CheckersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('checkers', metric, val)} />}
-            {currentView === 'runner' && isAuthenticated && <RunnerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('runner', metric, val)} />}
-            {currentView === 'stack' && isAuthenticated && <StackGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('stack', metric, val)} />}
-            {currentView === 'arenaclash' && isAuthenticated && <ArenaClashGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('arenaclash', metric, val)} />}
-            {currentView === 'skyjo' && isAuthenticated && <SkyjoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('skyjo', metric, val)} />}
-            {currentView === 'lumen' && isAuthenticated && <LumenOrderGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('lumen', metric, val)} />}
+                {currentView === 'tetris' && isAuthenticated && <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('tetris', metric, val)} />}
+                {currentView === 'connect4' && isAuthenticated && <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('connect4', metric, val)} />}
+                {currentView === 'sudoku' && isAuthenticated && <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('sudoku', metric, val)} />}
+                {currentView === 'breaker' && isAuthenticated && <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('breaker', metric, val)} />}
+                {currentView === 'pacman' && isAuthenticated && <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('pacman', metric, val)} />}
+                {currentView === 'memory' && isAuthenticated && <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('memory', metric, val)} />}
+                {currentView === 'battleship' && isAuthenticated && <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('battleship', metric, val)} />}
+                {currentView === 'snake' && isAuthenticated && <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('snake', metric, val)} />}
+                {currentView === 'invaders' && isAuthenticated && <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('invaders', metric, val)} />}
+                {currentView === 'airhockey' && isAuthenticated && <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('airhockey', metric, val)} />}
+                {currentView === 'mastermind' && isAuthenticated && <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('mastermind', metric, val)} />}
+                {currentView === 'uno' && isAuthenticated && <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('uno', metric, val)} />}
+                {currentView === 'watersort' && isAuthenticated && <WaterSortGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('watersort', metric, val)} />}
+                {currentView === 'checkers' && isAuthenticated && <CheckersGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('checkers', metric, val)} />}
+                {currentView === 'runner' && isAuthenticated && <RunnerGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('runner', metric, val)} />}
+                {currentView === 'stack' && isAuthenticated && <StackGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('stack', metric, val)} />}
+                {currentView === 'arenaclash' && isAuthenticated && <ArenaClashGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('arenaclash', metric, val)} />}
+                {currentView === 'skyjo' && isAuthenticated && <SkyjoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('skyjo', metric, val)} />}
+                {currentView === 'lumen' && isAuthenticated && <LumenOrderGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('lumen', metric, val)} />}
 
-            {currentView === 'menu' && (
-                <MainMenu 
-                    onSelectGame={handleSelectGame} 
-                    audio={audio} 
-                    currency={currency} 
-                    mp={mp}
-                    onLogout={handleLogout}
-                    isAuthenticated={isAuthenticated}
-                    onLoginRequest={() => setShowLoginModal(true)}
-                    dailyData={{
-                        streak,
-                        showDailyModal,
-                        todaysReward,
-                        claimDailyBonus,
-                        quests,
-                        claimQuestReward,
-                        claimAllBonus,
-                        allCompletedBonusClaimed
-                    }}
-                    onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
-                    disabledGamesList={disabledGames}
-                    activeEvent={currentActiveEvent}
-                    eventProgress={eventProgress}
+                {currentView === 'menu' && (
+                    <MainMenu 
+                        onSelectGame={handleSelectGame} 
+                        audio={audio} 
+                        currency={currency} 
+                        mp={mp}
+                        onLogout={handleLogout}
+                        isAuthenticated={isAuthenticated}
+                        onLoginRequest={() => setShowLoginModal(true)}
+                        dailyData={{
+                            streak,
+                            showDailyModal,
+                            todaysReward,
+                            claimDailyBonus,
+                            quests,
+                            claimQuestReward,
+                            claimAllBonus,
+                            allCompletedBonusClaimed
+                        }}
+                        onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
+                        disabledGamesList={disabledGames}
+                        activeEvent={currentActiveEvent}
+                        eventProgress={eventProgress}
+                    />
+                )}
+            </div>
+
+            {isAuthenticated && !isGameActive && (
+                <BottomNav 
+                    currentView={currentView} 
+                    onNavigate={(v) => setCurrentView(v)} 
+                    onToggleSocial={() => setShowSocial(!showSocial)}
+                    showSocial={showSocial}
+                    unreadCount={unreadMessages}
                 />
             )}
-        </>
+        </div>
     );
 }
 
