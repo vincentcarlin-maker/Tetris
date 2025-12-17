@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw } from 'lucide-react';
+import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -307,6 +307,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }
 
         alert(`Demande d'ami envoyée à ${selectedPlayer.name} !`);
+        setSelectedPlayer(null);
+    };
+
+    const removeFriend = (friendId: string) => {
+        if (!window.confirm("Voulez-vous vraiment supprimer ce joueur de vos amis ?")) return;
+
+        setFriends(prev => {
+            const newList = prev.filter(f => f.id !== friendId);
+            localStorage.setItem('neon_friends', JSON.stringify(newList));
+            return newList;
+        });
         setSelectedPlayer(null);
     };
 
@@ -708,6 +719,16 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                     {friends.some(f => f.id === selectedPlayer.id) ? <MessageSquare size={18}/> : <UserPlus size={18}/>} 
                                     {friends.some(f => f.id === selectedPlayer.id) ? 'MESSAGE' : 'AJOUTER'}
                                 </button>
+                                
+                                {friends.some(f => f.id === selectedPlayer.id) && (
+                                    <button 
+                                        onClick={() => removeFriend(selectedPlayer.id)}
+                                        className="py-3 bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-500/30 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 active:scale-95"
+                                    >
+                                        <UserMinus size={18} /> SUPPRIMER
+                                    </button>
+                                )}
+
                                 <button onClick={() => setSelectedPlayer(null)} className="py-4 bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-2xl font-black text-sm transition-all border border-white/5 flex items-center justify-center gap-2 active:scale-95">ANNULER</button>
                             </div>
                         </div>
