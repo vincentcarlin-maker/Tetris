@@ -23,10 +23,8 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const gameLoopRef = useRef<number>(0);
     
-    // View State
     const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
     
-    // Progression State
     const [maxUnlockedLevel, setMaxUnlockedLevel] = useState<number>(() => {
         return parseInt(localStorage.getItem('breaker-max-level') || '1', 10);
     });
@@ -43,7 +41,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     
     const { playPaddleHit, playBlockHit, playWallHit, playLoseLife, playVictory, playGameOver, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, playMove, playLand, resumeAudio } = audio;
     
-    // Game objects refs
     const paddleRef = useRef<Paddle>({ x: (GAME_WIDTH / 2) - PADDLE_DEFAULT_WIDTH / 2, width: PADDLE_DEFAULT_WIDTH, height: 15, hasLasers: false });
     const ballsRef = useRef<Ball[]>([]);
     const blocksRef = useRef<Block[]>([]);
@@ -51,7 +48,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     const powerUpsRef = useRef<PowerUp[]>([]);
     const lasersRef = useRef<Laser[]>([]);
 
-    // Refs for power-up timers
     const paddleEffectTimeoutRef = useRef<any>(null);
     const ballSpeedEffectTimeoutRef = useRef<any>(null);
     const laserEffectTimeoutRef = useRef<any>(null);
@@ -59,15 +55,15 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     
     const lastLaserShotTime = useRef<number>(0);
 
-    // Check localStorage for tutorial seen
+    const onReportProgressRef = useRef(onReportProgress);
+    useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
+
     useEffect(() => {
         const hasSeen = localStorage.getItem('neon_breaker_tutorial_seen');
         if (!hasSeen) {
             setShowTutorial(true);
             localStorage.setItem('neon_breaker_tutorial_seen', 'true');
         }
-        
-        // Clear timeouts on unmount
         return () => {
             if (levelCompleteTimeoutRef.current) clearTimeout(levelCompleteTimeoutRef.current);
             if (paddleEffectTimeoutRef.current) clearTimeout(paddleEffectTimeoutRef.current);
@@ -78,7 +74,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     }, []);
 
     const resetBallAndPaddle = useCallback(() => {
-        // Clear any active power-up timers
         if (paddleEffectTimeoutRef.current) clearTimeout(paddleEffectTimeoutRef.current);
         if (ballSpeedEffectTimeoutRef.current) clearTimeout(ballSpeedEffectTimeoutRef.current);
         if (laserEffectTimeoutRef.current) clearTimeout(laserEffectTimeoutRef.current);
@@ -127,9 +122,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
     }, []);
 
     const startLevel = (lvl: number) => {
-        // Removed the showTutorial check here to allow view switching
         if (levelCompleteTimeoutRef.current) clearTimeout(levelCompleteTimeoutRef.current);
-        
         setCurrentLevel(lvl);
         setScore(0);
         setLives(3);
@@ -140,8 +133,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         setGameState('waitingToServe');
         setView('GAME');
         resumeAudio();
-        
-        if (onReportProgress) onReportProgress('play', 1);
+        if (onReportProgressRef.current) onReportProgressRef.current('play', 1);
     };
 
     const handleLevelSelect = (lvl: number) => {
@@ -150,41 +142,28 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         startLevel(lvl);
     };
 
-    const handleRestart = () => {
-        startLevel(currentLevel);
-    };
+    const handleRestart = () => { startLevel(currentLevel); };
 
     const handleLocalBack = () => {
         if (levelCompleteTimeoutRef.current) clearTimeout(levelCompleteTimeoutRef.current);
-        if (view === 'GAME') {
-            setView('LEVEL_SELECT');
-        } else {
-            onBack();
-        }
+        if (view === 'GAME') setView('LEVEL_SELECT');
+        else onBack();
     };
 
-    const serveBall = () => {
-        if (gameState === 'waitingToServe' && !showTutorial) {
-            setGameState('playing');
-        }
-    };
+    const serveBall = () => { if (gameState === 'waitingToServe' && !showTutorial) setGameState('playing'); };
 
     const spawnPowerUp = (x: number, y: number) => {
         const types: PowerUpType[] = ['PADDLE_GROW', 'PADDLE_SHRINK', 'MULTI_BALL', 'BALL_FAST', 'BALL_SLOW', 'EXTRA_LIFE', 'LASER_PADDLE'];
-        const weights = [3, 2, 2, 2, 3, 1, 2]; // Grow/Slow are more common, Life/Laser rare
+        const weights = [3, 2, 2, 2, 3, 1, 2];
         const weightedTypes: PowerUpType[] = [];
-        types.forEach((type, i) => {
-            for(let j=0; j<weights[i]; j++) weightedTypes.push(type);
-        });
-
+        types.forEach((type, i) => { for(let j=0; j<weights[i]; j++) weightedTypes.push(type); });
         const type = weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
         powerUpsRef.current.push({ x, y, width: 30, height: 15, type, dy: 2 });
-        playPowerUpSpawn(); // Play spawn sound
+        playPowerUpSpawn();
     };
     
     const activatePowerUp = (type: PowerUpType) => {
-        playPowerUpCollect(type); // Play collect sound
-
+        playPowerUpCollect(type);
         if (type === 'PADDLE_GROW' || type === 'PADDLE_SHRINK') {
             clearTimeout(paddleEffectTimeoutRef.current);
             paddleRef.current.width = type === 'PADDLE_GROW' ? 150 : 50;
@@ -193,9 +172,7 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             clearTimeout(ballSpeedEffectTimeoutRef.current);
             const speedFactor = type === 'BALL_FAST' ? 1.3 : 0.7;
             ballsRef.current.forEach(b => { 
-                if (b.status === 'normal') { // Prevents stacking effects
-                    b.dx *= speedFactor; b.dy *= speedFactor;
-                }
+                if (b.status === 'normal') { b.dx *= speedFactor; b.dy *= speedFactor; }
                 b.status = type === 'BALL_FAST' ? 'fast' : 'slow';
             });
             ballSpeedEffectTimeoutRef.current = setTimeout(() => {
@@ -219,7 +196,6 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         }
     };
 
-
     const gameTick = useCallback(() => {
         if (gameState !== 'playing' || showTutorial) return;
 
@@ -229,10 +205,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         const powerUps = powerUpsRef.current;
         const lasers = lasersRef.current;
 
-        // Laser Logic
         if (paddle.hasLasers) {
             const now = Date.now();
-            if (now - lastLaserShotTime.current > 500) { // Shoot every 500ms
+            if (now - lastLaserShotTime.current > 500) {
                 lasers.push({ x: paddle.x + 5, y: GAME_HEIGHT - 50, width: 4, height: 10, dy: -6, active: true });
                 lasers.push({ x: paddle.x + paddle.width - 5, y: GAME_HEIGHT - 50, width: 4, height: 10, dy: -6, active: true });
                 playLaserShoot();
@@ -240,23 +215,22 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             }
         }
         
-        // Move Lasers
         for (let i = lasers.length - 1; i >= 0; i--) {
             const l = lasers[i];
             l.y += l.dy;
-            if (l.y < 0) {
-                lasers.splice(i, 1);
-                continue;
-            }
-            // Check Collision with blocks
+            if (l.y < 0) { lasers.splice(i, 1); continue; }
             for (let j = blocks.length - 1; j >= 0; j--) {
                 const b = blocks[j];
                 if (l.x > b.x && l.x < b.x + b.width && l.y > b.y && l.y < b.y + b.height) {
-                    lasers.splice(i, 1); // Remove laser
+                    lasers.splice(i, 1);
                     playBlockHit();
                     if (!b.isIndestructible) {
                         b.health--;
-                        setScore(s => s + b.points);
+                        setScore(s => {
+                            const ns = s + b.points;
+                            if (onReportProgressRef.current) onReportProgressRef.current('score', ns);
+                            return ns;
+                        });
                         createParticles(particlesRef.current, l.x, l.y, b.color);
                          if (b.health <= 0) {
                              if (Math.random() < 0.25) spawnPowerUp(b.x + b.width / 2, b.y + b.height / 2);
@@ -270,16 +244,11 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             }
         }
 
-        // Move and check collisions for power-ups
         for (let i = powerUps.length - 1; i >= 0; i--) {
             const powerUp = powerUps[i];
             powerUp.y += powerUp.dy;
-
             const paddleY = GAME_HEIGHT - 40;
-            if (powerUp.y + powerUp.height / 2 > paddleY &&
-                powerUp.y - powerUp.height / 2 < paddleY + paddle.height &&
-                powerUp.x > paddle.x &&
-                powerUp.x < paddle.x + paddle.width) {
+            if (powerUp.y + powerUp.height / 2 > paddleY && powerUp.y - powerUp.height / 2 < paddleY + paddle.height && powerUp.x > paddle.x && powerUp.x < paddle.x + paddle.width) {
                 activatePowerUp(powerUp.type);
                 powerUps.splice(i, 1);
             } else if (powerUp.y - powerUp.height / 2 > GAME_HEIGHT) {
@@ -291,109 +260,57 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         balls.forEach((ball, ballIndex) => {
             ball.x += ball.dx;
             ball.y += ball.dy;
-
-            // Wall collision
-            if (ball.x + ball.radius >= GAME_WIDTH) { 
-                ball.x = GAME_WIDTH - ball.radius; // Push out
-                ball.dx = -Math.abs(ball.dx); // Force Left
-                playWallHit(); 
-            } else if (ball.x - ball.radius <= 0) { 
-                ball.x = ball.radius; // Push out
-                ball.dx = Math.abs(ball.dx); // Force Right
-                playWallHit(); 
-            }
-
-            if (ball.y - ball.radius <= 0) { 
-                ball.y = ball.radius; // Push out
-                ball.dy = Math.abs(ball.dy); // Force Down
-                playWallHit(); 
-            }
-
-            // Paddle collision
+            if (ball.x + ball.radius >= GAME_WIDTH) { ball.x = GAME_WIDTH - ball.radius; ball.dx = -Math.abs(ball.dx); playWallHit(); } 
+            else if (ball.x - ball.radius <= 0) { ball.x = ball.radius; ball.dx = Math.abs(ball.dx); playWallHit(); }
+            if (ball.y - ball.radius <= 0) { ball.y = ball.radius; ball.dy = Math.abs(ball.dy); playWallHit(); }
             const paddleY = GAME_HEIGHT - 40;
-            if (ball.dy > 0 && // Only check if ball is moving down
-                ball.y + ball.radius >= paddleY && 
-                ball.y - ball.radius < paddleY + paddle.height &&
-                ball.x >= paddle.x && 
-                ball.x <= paddle.x + paddle.width) {
-                
-                // Push out of paddle
+            if (ball.dy > 0 && ball.y + ball.radius >= paddleY && ball.y - ball.radius < paddleY + paddle.height && ball.x >= paddle.x && ball.x <= paddle.x + paddle.width) {
                 ball.y = paddleY - ball.radius;
-                ball.dy = -Math.abs(ball.dy); // Force Up
-
+                ball.dy = -Math.abs(ball.dy);
                 let collidePoint = ball.x - (paddle.x + paddle.width / 2);
                 ball.dx = collidePoint * 0.1;
                 playPaddleHit();
             }
-
-            // Block collision (Improved Logic)
             for (let i = blocks.length - 1; i >= 0; i--) {
                 const block = blocks[i];
-                
-                // Find closes point on the block to the ball center
                 const closestX = Math.max(block.x, Math.min(ball.x, block.x + block.width));
                 const closestY = Math.max(block.y, Math.min(ball.y, block.y + block.height));
-                
                 const distX = ball.x - closestX;
                 const distY = ball.y - closestY;
                 const distanceSquared = (distX * distX) + (distY * distY);
-                
                 if (distanceSquared < (ball.radius * ball.radius)) {
-                    // Collision Detected
                     playBlockHit();
-                    
-                    // Resolve Collision (Push out + Reflect)
-                    // Determine overlap on axes
                     const overlapX = (ball.radius + block.width / 2) - Math.abs(ball.x - (block.x + block.width / 2));
                     const overlapY = (ball.radius + block.height / 2) - Math.abs(ball.y - (block.y + block.height / 2));
-                    
                     if (overlapX < overlapY) {
-                         // Hit vertical side
-                         if (ball.x < block.x + block.width / 2) {
-                             ball.x = block.x - ball.radius; // Hit Left
-                         } else {
-                             ball.x = block.x + block.width + ball.radius; // Hit Right
-                         }
+                         if (ball.x < block.x + block.width / 2) ball.x = block.x - ball.radius; else ball.x = block.x + block.width + ball.radius;
                          ball.dx = -ball.dx;
                     } else {
-                        // Hit horizontal side
-                        if (ball.y < block.y + block.height / 2) {
-                            ball.y = block.y - ball.radius; // Hit Top
-                        } else {
-                            ball.y = block.y + block.height + ball.radius; // Hit Bottom
-                        }
+                        if (ball.y < block.y + block.height / 2) ball.y = block.y - ball.radius; else ball.y = block.y + block.height + ball.radius;
                         ball.dy = -ball.dy;
                     }
-
                     if (!block.isIndestructible) {
                         block.health--;
-                        setScore(s => s + block.points);
+                        setScore(s => {
+                            const ns = s + block.points;
+                            if (onReportProgressRef.current) onReportProgressRef.current('score', ns);
+                            return ns;
+                        });
                         createParticles(particlesRef.current, ball.x, ball.y, block.color);
                         if (block.health <= 0) {
-                            if (Math.random() < 0.25) { // 25% chance
-                                spawnPowerUp(block.x + block.width / 2, block.y + block.height / 2);
-                            }
+                            if (Math.random() < 0.25) spawnPowerUp(block.x + block.width / 2, block.y + block.height / 2);
                             blocks.splice(i, 1);
                         } else {
                             block.color = BLOCK_COLORS[String(block.health)];
                         }
                     }
-                    break; // Handle only one block collision per frame per ball
+                    break;
                 }
             }
-            
-            // Bottom wall (lose ball)
-            if (ball.y + ball.radius > GAME_HEIGHT) {
-                ballsToRemove.push(ballIndex);
-            }
+            if (ball.y + ball.radius > GAME_HEIGHT) ballsToRemove.push(ballIndex);
         });
         
-        // Remove lost balls
-        for (let i = ballsToRemove.length - 1; i >= 0; i--) {
-            balls.splice(ballsToRemove[i], 1);
-        }
-
-        // Check for life loss if all balls are gone
+        for (let i = ballsToRemove.length - 1; i >= 0; i--) balls.splice(ballsToRemove[i], 1);
         if (balls.length === 0) {
             playLoseLife();
             setLives(l => {
@@ -402,12 +319,9 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                     setGameState('gameOver');
                     playGameOver();
                     updateHighScore('breaker', score);
-                    if (onReportProgress) onReportProgress('score', score);
+                    if (onReportProgressRef.current) onReportProgressRef.current('score', score);
                     const coins = Math.floor(score / 100);
-                    if (coins > 0) {
-                        addCoins(coins);
-                        setEarnedCoins(coins);
-                    }
+                    if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
                 } else {
                     setGameState('waitingToServe');
                     resetBallAndPaddle();
@@ -415,24 +329,18 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 return newLives;
             });
         }
-        
-        // Level complete
         if (blocks.filter(b => !b.isIndestructible).length === 0) {
             playVictory();
             addCoins(50);
             setEarnedCoins(50);
-            if (onReportProgress) onReportProgress('action', currentLevel);
-            
             setGameState('levelComplete');
             levelCompleteTimeoutRef.current = setTimeout(() => {
                 const nextLevel = currentLevel + 1;
-                
-                // Unlock logic
                 if (nextLevel > maxUnlockedLevel) {
                     setMaxUnlockedLevel(nextLevel);
                     localStorage.setItem('breaker-max-level', nextLevel.toString());
                 }
-
+                if (onReportProgressRef.current) onReportProgressRef.current('action', nextLevel);
                 setCurrentLevel(nextLevel);
                 loadLevel(nextLevel);
                 resetBallAndPaddle();
@@ -440,36 +348,24 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 setGameState('waitingToServe');
             }, 3000); 
         }
+    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, maxUnlockedLevel, showTutorial]);
 
-    }, [gameState, playWallHit, playPaddleHit, playBlockHit, playLoseLife, playGameOver, playVictory, score, addCoins, updateHighScore, resetBallAndPaddle, loadLevel, currentLevel, playPowerUpSpawn, playPowerUpCollect, playLaserShoot, onReportProgress, maxUnlockedLevel, showTutorial]);
-
-    // Game Loop
     const gameTickRef = useRef(gameTick);
     useEffect(() => { gameTickRef.current = gameTick; }, [gameTick]);
 
     useEffect(() => {
         if (view !== 'GAME') return;
-
         let animationFrameId: number;
-        
         const startLoop = () => {
             const canvas = canvasRef.current;
-            if (!canvas) {
-                // Retry in next frame if canvas isn't ready yet (rare but possible with view switches)
-                animationFrameId = requestAnimationFrame(startLoop);
-                return;
-            }
-            
+            if (!canvas) { animationFrameId = requestAnimationFrame(startLoop); return; }
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
-
             const render = () => {
                 ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-                
                 ctx.strokeStyle = 'rgba(236, 72, 153, 0.07)';
                 for(let i=0; i<GAME_WIDTH; i+=20) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke(); }
                 for(let i=0; i<GAME_HEIGHT; i+=20) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
-
                 drawBlocks(ctx, blocksRef.current);
                 drawLasers(ctx, lasersRef.current);
                 drawPaddle(ctx, paddleRef.current, GAME_HEIGHT);
@@ -477,28 +373,22 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
                 powerUpsRef.current.forEach(powerUp => drawPowerUp(ctx, powerUp));
                 drawParticles(ctx, particlesRef.current);
             };
-
             const loop = () => {
                 if (gameTickRef.current) gameTickRef.current();
                 render();
                 gameLoopRef.current = requestAnimationFrame(loop);
             };
-            
             loop();
         };
-
         startLoop();
-
         return () => {
             if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
     }, [view]);
 
-    // Controls
     useEffect(() => {
         if (view !== 'GAME') return;
-
         const canvas = canvasRef.current;
         if (!canvas) return;
         const handleMouseMove = (e: MouseEvent) => {
@@ -516,14 +406,10 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             relativeX *= (GAME_WIDTH / rect.width);
             paddleRef.current.x = Math.max(0, Math.min(GAME_WIDTH - paddleRef.current.width, relativeX - paddleRef.current.width / 2));
         };
-        const handleClick = () => {
-            if (!showTutorial) serveBall();
-        };
-
+        const handleClick = () => { if (!showTutorial) serveBall(); };
         canvas.addEventListener('mousemove', handleMouseMove);
         canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
         canvas.addEventListener('click', handleClick);
-
         return () => {
             canvas.removeEventListener('mousemove', handleMouseMove);
             canvas.removeEventListener('touchmove', handleTouchMove);
@@ -531,31 +417,15 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
         };
     }, [serveBall, view, showTutorial]);
 
-
     const renderOverlay = () => {
         if (gameState === 'gameOver') {
             return (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in">
                     <h2 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-pink-600 mb-4 italic">FIN DE PARTIE</h2>
-                    <div className="text-center mb-4">
-                        <p className="text-gray-400 text-sm tracking-widest">SCORE</p>
-                        <p className="text-3xl font-mono">{score}</p>
-                    </div>
-                    {earnedCoins > 0 && (
-                        <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500">
-                            <Coins className="text-yellow-400" size={20} />
-                            <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
-                        </div>
-                    )}
-                    <button onClick={handleRestart} className="px-8 py-3 bg-neon-pink text-black font-black tracking-widest text-xl skew-x-[-10deg] hover:bg-white transition-colors">
-                        <span className="block skew-x-[10deg]">REJOUER</span>
-                    </button>
-                    <button
-                        onClick={handleLocalBack}
-                        className="mt-4 text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all"
-                    >
-                        CHOIX NIVEAU
-                    </button>
+                    <div className="text-center mb-4"><p className="text-gray-400 text-sm tracking-widest">SCORE</p><p className="text-3xl font-mono">{score}</p></div>
+                    {earnedCoins > 0 && <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
+                    <button onClick={handleRestart} className="px-8 py-3 bg-neon-pink text-black font-black tracking-widest text-xl skew-x-[-10deg] hover:bg-white transition-colors"><span className="block skew-x-[10deg]">REJOUER</span></button>
+                    <button onClick={handleLocalBack} className="mt-4 text-gray-400 hover:text-white text-xs tracking-widest border-b border-transparent hover:border-white transition-all">CHOIX NIVEAU</button>
                 </div>
             );
         }
@@ -571,110 +441,57 @@ export const BreakerGame: React.FC<BreakerGameProps> = ({ onBack, audio, addCoin
             );
         }
         if (gameState === 'waitingToServe' && !showTutorial) {
-             return (
-                <div className="absolute bottom-20 left-0 right-0 z-50 flex flex-col items-center justify-center text-white text-lg font-bold animate-pulse pointer-events-none">
-                   <p>TOUCHEZ POUR SERVIR</p>
-                </div>
-            );
+             return (<div className="absolute bottom-20 left-0 right-0 z-50 flex flex-col items-center justify-center text-white text-lg font-bold animate-pulse pointer-events-none"><p>TOUCHEZ POUR SERVIR</p></div>);
         }
         return null;
     };
 
-    // --- LEVEL SELECT VIEW ---
     if (view === 'LEVEL_SELECT') {
         const gridItems = Array.from({ length: Math.max(maxUnlockedLevel + 4, 20) });
-        
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
                 <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-pink-900/10 via-black to-transparent pointer-events-none"></div>
-
-                {/* Header */}
                 <div className="w-full max-w-lg flex items-center justify-between z-10 mb-6 shrink-0">
                     <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                     <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-purple-500 drop-shadow-[0_0_10px_rgba(236,72,153,0.5)] pr-2 pb-1">CHOIX NIVEAU</h1>
                     <div className="w-10"></div>
                 </div>
-
-                {/* Grid */}
                 <div className="flex-1 w-full max-w-lg overflow-y-auto custom-scrollbar z-10 pb-4">
                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 p-2">
                         {gridItems.map((_, i) => {
                             const lvl = i + 1;
                             const isUnlocked = lvl <= maxUnlockedLevel;
                             const isNext = lvl === maxUnlockedLevel + 1;
-                            
                             if (isUnlocked) {
-                                return (
-                                    <button 
-                                        key={lvl} 
-                                        onClick={() => handleLevelSelect(lvl)}
-                                        className={`
-                                            aspect-square rounded-xl border-2 flex flex-col items-center justify-center font-black text-lg transition-all shadow-lg active:scale-95
-                                            bg-pink-900/40 border-pink-500/50 text-neon-pink hover:bg-pink-800/60
-                                        `}
-                                    >
-                                        {lvl}
-                                        <div className="mt-1 w-1.5 h-1.5 bg-neon-pink rounded-full shadow-[0_0_5px_#ff00ff]"></div>
-                                    </button>
-                                );
+                                return (<button key={lvl} onClick={() => handleLevelSelect(lvl)} className="aspect-square rounded-xl border-2 flex flex-col items-center justify-center font-black text-lg transition-all shadow-lg active:scale-95 bg-pink-900/40 border-pink-500/50 text-neon-pink hover:bg-pink-800/60">{lvl}<div className="mt-1 w-1.5 h-1.5 bg-neon-pink rounded-full shadow-[0_0_5px_#ff00ff]"></div></button>);
                             } else {
-                                return (
-                                    <div key={lvl} className={`aspect-square rounded-xl border-2 flex items-center justify-center text-gray-600 ${isNext ? 'bg-gray-800 border-gray-600 border-dashed animate-pulse' : 'bg-gray-900/30 border-gray-800'}`}>
-                                        <Lock size={isNext ? 20 : 16} className={isNext ? "text-gray-400" : "text-gray-700"} />
-                                    </div>
-                                );
+                                return (<div key={lvl} className={`aspect-square rounded-xl border-2 flex items-center justify-center text-gray-600 ${isNext ? 'bg-gray-800 border-gray-600 border-dashed animate-pulse' : 'bg-gray-900/30 border-gray-800'}`}><Lock size={isNext ? 20 : 16} className={isNext ? "text-gray-400" : "text-gray-700"} /></div>);
                             }
                         })}
                     </div>
                 </div>
-                
-                <div className="mt-4 z-10 w-full max-w-lg">
-                    <button onClick={() => handleLevelSelect(maxUnlockedLevel)} className="w-full py-4 bg-neon-pink text-black font-black tracking-widest text-lg rounded-xl shadow-[0_0_20px_#ec4899] flex items-center justify-center gap-2 hover:scale-105 transition-transform">
-                        <Play size={24} fill="black"/> CONTINUER (NIV {maxUnlockedLevel})
-                    </button>
-                </div>
+                <div className="mt-4 z-10 w-full max-w-lg"><button onClick={() => handleLevelSelect(maxUnlockedLevel)} className="w-full py-4 bg-neon-pink text-black font-black tracking-widest text-lg rounded-xl shadow-[0_0_20px_#ec4899] flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Play size={24} fill="black"/> CONTINUER (NIV {maxUnlockedLevel})</button></div>
             </div>
         );
     }
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
-             {/* Ambient Light Reflection (MIX-BLEND-HARD-LIGHT pour révéler les briques) */}
              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
-
-            {/* TUTORIAL OVERLAY */}
             {showTutorial && <TutorialOverlay gameId="breaker" onClose={() => setShowTutorial(false)} />}
-
-            {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 relative gap-2">
-                {/* Left: Back Btn + Score */}
                 <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform">
-                        <Home size={20} />
-                    </button>
-                    <div className="flex flex-col">
-                         <div className="flex items-center gap-1 text-white text-sm font-bold"><Trophy size={14} className="text-yellow-400" /> {score}</div>
-                         <div className="text-gray-500 text-[10px]">RECORD: {highScore}</div>
-                    </div>
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <div className="flex flex-col"><div className="flex items-center gap-1 text-white text-sm font-bold"><Trophy size={14} className="text-yellow-400" /> {score}</div><div className="text-gray-500 text-[10px]">RECORD: {highScore}</div></div>
                 </div>
-
-                {/* Center: Level (No longer absolute to prevent overlap) */}
-                <div className="text-lg font-bold text-neon-pink drop-shadow-[0_0_8px_#ff00ff] whitespace-nowrap">
-                    NIVEAU {currentLevel}
-                </div>
-
-                {/* Right: Lives & Restart */}
+                <div className="text-lg font-bold text-neon-pink drop-shadow-[0_0_8px_#ff00ff] whitespace-nowrap">NIVEAU {currentLevel}</div>
                 <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-0.5 text-red-400 font-bold">
-                        {Array.from({ length: lives }).map((_, i) => <Heart key={i} size={16} fill="currentColor"/>)}
-                    </div>
+                    <div className="flex items-center gap-0.5 text-red-400 font-bold">{Array.from({ length: lives }).map((_, i) => <Heart key={i} size={16} fill="currentColor"/>)}</div>
                     <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-fuchsia-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
                     <button onClick={handleRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
                 </div>
             </div>
-
-            {/* Game Area */}
             <div className="relative w-full max-w-lg aspect-[2/3] shadow-2xl bg-black/80 border-2 border-white/10 rounded-lg overflow-hidden">
                 <canvas ref={canvasRef} width={GAME_WIDTH} height={GAME_HEIGHT} className="w-full h-full" />
                 {renderOverlay()}
