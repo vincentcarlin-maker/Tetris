@@ -71,7 +71,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     activeTabOverride, onTabChangeOverride 
 }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
-    const { playCoin, playVictory } = audio;
+    const { playCoin } = audio;
     
     const [localShow, setLocalShow] = useState(false);
     const showSocial = externalShow !== undefined ? externalShow : localShow;
@@ -91,7 +91,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     
-    const [globalChat, setGlobalChat] = useState<{id: number, text: string, sender: string, isSystem: boolean, type?: string}[]>([]);
     const [notificationPreview, setNotificationPreview] = useState<{ senderId: string, senderName: string, text: string } | null>(null);
     
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -101,15 +100,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         stateRef.current = { friends, activeChatId, showSocial, username, isConnectedToSupabase, onlineUsers };
     }, [friends, activeChatId, showSocial, username, isConnectedToSupabase, onlineUsers]);
 
+    // Déterminer la catégorie actuelle
+    const isMessagingCategory = socialTab === 'FRIENDS' || socialTab === 'CHAT';
+    const isSocialCategory = socialTab === 'COMMUNITY' || socialTab === 'REQUESTS';
+
     // Badge notification sync
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
     useEffect(() => { if (onRequestsChange) onRequestsChange(requests.length); }, [requests.length, onRequestsChange]);
-
-    // Mark messages read on open
-    const handleMarkAllRead = async () => {
-        setUnreadCount(0);
-        if (isConnectedToSupabase && username) await DB.markAllAsRead(username);
-    };
 
     // Load initial data
     useEffect(() => {
@@ -168,7 +165,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         setSocialTab('CHAT');
         setSelectedPlayer(null);
         
-        // Remove from unread count
         const unreadInChat = messages[friend.id]?.filter(m => !m.read && m.senderId !== username).length || 0;
         setUnreadCount(c => Math.max(0, c - unreadInChat));
 
@@ -227,6 +223,35 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             });
     }, [friends, searchTerm]);
 
+    // LOGIQUE DE NETTOYAGE DE LA COMMUNAUTÉ (ANTI-DOUBLONS)
+    const displayedCommunity = useMemo(() => {
+        const allPotential = [...onlineUsers, ...MOCK_COMMUNITY_PLAYERS];
+        
+        const filtered = allPotential.filter(p => {
+            // Supprimer soi-même
+            if (p.id === mp.peerId || p.name === username) return false;
+            // Supprimer les amis déjà existants
+            if (friends.some(f => f.id === p.id || f.name === p.name)) return false;
+            return true;
+        });
+
+        // Unicité stricte par ID ou NOM
+        const seenIds = new Set<string>();
+        const seenNames = new Set<string>();
+        const unique = filtered.filter(p => {
+            if (seenIds.has(p.id) || seenNames.has(p.name)) return false;
+            seenIds.add(p.id);
+            seenNames.add(p.name);
+            return true;
+        });
+
+        return unique.sort((a, b) => {
+            if (a.status === 'online' && b.status !== 'online') return -1;
+            if (a.status !== 'online' && b.status === 'online') return 1;
+            return 0;
+        });
+    }, [onlineUsers, mp.peerId, friends, username]);
+
     const activeFriend = useMemo(() => friends.find(f => f.id === activeChatId) || MOCK_COMMUNITY_PLAYERS.find(b => b.id === activeChatId), [activeChatId, friends]);
 
     return (
@@ -245,24 +270,30 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                         
                         {/* HEADER SOCIAL */}
                         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-black/40">
-                            <h2 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 flex items-center gap-2">
-                                {socialTab === 'CHAT' ? <MessageSquare size={20}/> : <Users size={20}/>} 
-                                {socialTab === 'CHAT' ? 'MESSAGES' : 'SOCIAL'}
+                            <h2 className={`text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>
+                                {isMessagingCategory ? <MessageSquare size={20}/> : <Globe size={20}/>} 
+                                {isMessagingCategory ? 'MESSAGERIE' : 'HUB SOCIAL'}
                             </h2>
                             <button onClick={() => setShowSocial(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400"><X size={24} /></button>
                         </div>
 
-                        {/* TABS SELECTOR (Hidden when in specific chat) */}
-                        {socialTab !== 'CHAT' && (
-                            <div className="flex p-2 gap-2 bg-black/20 shrink-0">
-                                <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all ${socialTab === 'FRIENDS' ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)]' : 'text-gray-400 hover:bg-white/5'}`}>MESSAGES</button>
-                                <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]' : 'text-gray-400 hover:bg-white/5'}`}>COMMUNAUTÉ</button>
-                                <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all relative ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white shadow-[0_0_15px_rgba(219,39,119,0.4)]' : 'text-gray-400 hover:bg-white/5'}`}>
-                                    REQUÊTES
-                                    {requests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{requests.length}</span>}
-                                </button>
-                            </div>
-                        )}
+                        {/* TABS SELECTOR (Filtré par catégorie) */}
+                        <div className="flex p-2 gap-2 bg-black/20 shrink-0">
+                            {isMessagingCategory ? (
+                                <>
+                                    <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all ${socialTab === 'FRIENDS' ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)]' : 'text-gray-400 hover:bg-white/5'}`}>DISCUSSIONS</button>
+                                    {activeChatId && <button onClick={() => setSocialTab('CHAT')} className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all ${socialTab === 'CHAT' ? 'bg-cyan-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)]' : 'text-gray-400 hover:bg-white/5'}`}>TCHAT ACTIF</button>}
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]' : 'text-gray-400 hover:bg-white/5'}`}>COMMUNAUTÉ</button>
+                                    <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 text-[11px] font-bold rounded-xl transition-all relative ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white shadow-[0_0_15px_rgba(219,39,119,0.4)]' : 'text-gray-400 hover:bg-white/5'}`}>
+                                        REQUÊTES
+                                        {requests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{requests.length}</span>}
+                                    </button>
+                                </>
+                            )}
+                        </div>
 
                         <div className="flex-1 overflow-y-auto flex flex-col bg-black/20 relative">
                             
@@ -274,7 +305,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                                             <input 
                                                 type="text" 
-                                                placeholder="Rechercher une discussion..." 
+                                                placeholder="Filtrer mes messages..." 
                                                 value={searchTerm}
                                                 onChange={e => setSearchTerm(e.target.value)}
                                                 className="w-full bg-gray-800 border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs text-white outline-none focus:border-cyan-500/50 transition-colors"
@@ -286,7 +317,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                             <div className="flex flex-col items-center justify-center py-20 text-gray-600">
                                                 <MessageSquare size={48} className="opacity-20 mb-4" />
                                                 <p className="text-sm font-bold">Aucune discussion active</p>
-                                                <button onClick={() => setSocialTab('COMMUNITY')} className="mt-4 text-xs text-cyan-400 font-bold hover:underline">Trouver des amis</button>
                                             </div>
                                         ) : (
                                             filteredFriends.map(friend => {
@@ -324,7 +354,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             {/* TAB: CHAT (DISCUSSION VIEW) */}
                             {socialTab === 'CHAT' && activeFriend && (
                                 <div className="flex flex-col h-full animate-in slide-in-from-right-4 bg-gray-900/40">
-                                    {/* CHAT HEADER */}
                                     <div className="px-4 py-3 bg-black/40 border-b border-white/10 flex items-center gap-3 backdrop-blur-md">
                                         <button onClick={() => setSocialTab('FRIENDS')} className="p-2 hover:bg-white/10 rounded-full text-gray-400 transition-colors"><ArrowLeft size={20}/></button>
                                         <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center border ${getFrameClass(activeFriend.frameId)}`}>
@@ -342,7 +371,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                         <button onClick={() => setSelectedPlayer(activeFriend)} className="p-2 hover:bg-white/10 rounded-full text-gray-400"><MoreVertical size={20}/></button>
                                     </div>
 
-                                    {/* MESSAGE LIST */}
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                                         {isLoadingHistory && <div className="flex justify-center py-4"><div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div></div>}
                                         {messages[activeChatId!]?.length === 0 && !isLoadingHistory && (
@@ -351,7 +379,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                                 <p className="text-xs italic">C'est le moment de dire bonjour !</p>
                                             </div>
                                         )}
-                                        {messages[activeChatId!]?.map((msg, i) => {
+                                        {messages[activeChatId!]?.map((msg) => {
                                             const isMe = msg.senderId === username;
                                             return (
                                                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
@@ -374,7 +402,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                         <div ref={chatEndRef} />
                                     </div>
 
-                                    {/* MESSAGE INPUT */}
                                     <div className="p-4 bg-black/40 border-t border-white/10 backdrop-blur-md">
                                         <form onSubmit={sendMessage} className="flex items-center gap-2">
                                             <div className="flex-1 bg-gray-800/80 border border-white/10 rounded-2xl px-4 py-2.5 flex items-center focus-within:border-cyan-500/50 transition-all shadow-inner">
@@ -390,7 +417,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                             <button 
                                                 type="submit" 
                                                 disabled={!chatInput.trim()}
-                                                className="w-10 h-10 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:grayscale"
+                                                className="w-10 h-10 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 disabled:opacity-50"
                                             >
                                                 <Send size={18} fill="currentColor"/>
                                             </button>
@@ -399,46 +426,41 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                 </div>
                             )}
 
-                            {/* TAB: COMMUNITY & REQUESTS (Unchanged in logic but visual cleanup) */}
+                            {/* TAB: COMMUNITY */}
                             {socialTab === 'COMMUNITY' && (
                                 <div className="p-4 space-y-4 animate-in fade-in">
-                                    <div className={`p-4 rounded-2xl border text-center flex items-center justify-center gap-3 transition-colors ${isConnectedToSupabase ? 'bg-green-900/20 border-green-500/30 text-green-400' : 'bg-red-900/10 border-red-500/20 text-red-400'}`}>
-                                        {isConnectedToSupabase ? <><Cloud size={20}/> <span className="font-bold text-xs">SERVICES CLOUD ACTIFS</span></> : <><CloudOff size={20}/> <span className="font-bold text-xs">MODE LOCAL SEULEMENT</span></>}
-                                    </div>
-                                    
                                     <div className="bg-gray-800/40 p-4 rounded-2xl border border-white/5 flex items-center justify-between shadow-lg">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Ton Code Ami</span>
-                                            <span className="text-sm font-mono font-black text-cyan-400 mt-1">{mp.peerId || '...'}</span>
+                                            <span className="text-sm font-mono font-black text-purple-400 mt-1">{mp.peerId || '...'}</span>
                                         </div>
-                                        <button onClick={() => { if(mp.peerId) { navigator.clipboard.writeText(mp.peerId); alert('Code copié !'); } }} className="p-2 bg-cyan-900/30 text-cyan-400 rounded-xl border border-cyan-500/30 hover:bg-cyan-600 hover:text-white transition-all"><Copy size={18}/></button>
+                                        <button onClick={() => { if(mp.peerId) { navigator.clipboard.writeText(mp.peerId); alert('Code copié !'); } }} className="p-2 bg-purple-900/30 text-purple-400 rounded-xl border border-purple-500/30 hover:bg-purple-600 hover:text-white transition-all"><Copy size={18}/></button>
                                     </div>
 
-                                    <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2 mt-6">Joueurs à proximité</h3>
+                                    <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2 mt-6">Joueurs suggérés</h3>
                                     <div className="space-y-2">
-                                        {[...onlineUsers.filter(u => u.id !== mp.peerId), ...MOCK_COMMUNITY_PLAYERS].filter((p, i, s) => s.findIndex(t => t.id === p.id) === i).map(player => {
-                                            const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
-                                            const AvIcon = avatar.icon;
-                                            const isFriend = friends.some(f => f.id === player.id);
-                                            return (
-                                                <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-2xl border border-white/5 hover:bg-gray-800 transition-all group">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border ${getFrameClass(player.frameId)}`}>
-                                                            <AvIcon size={22} className={avatar.color} />
+                                        {displayedCommunity.length === 0 ? (
+                                            <div className="text-center py-10 text-gray-600 text-sm italic">Personne de nouveau à proximité...</div>
+                                        ) : (
+                                            displayedCommunity.map(player => {
+                                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                                const AvIcon = avatar.icon;
+                                                return (
+                                                    <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-2xl border border-white/5 hover:bg-gray-800 transition-all group">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border ${getFrameClass(player.frameId)}`}>
+                                                                <AvIcon size={22} className={avatar.color} />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-sm text-white">{player.name}</span>
+                                                                <span className="text-[10px] text-gray-500 flex items-center gap-1">{player.status === 'online' ? <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div> En ligne</> : 'Hors-ligne'}</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-sm text-white">{player.name}</span>
-                                                            <span className="text-[10px] text-gray-500 flex items-center gap-1">{player.status === 'online' ? <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div> En ligne</> : 'Hors-ligne'}</span>
-                                                        </div>
-                                                    </div>
-                                                    {isFriend ? (
-                                                        <button onClick={() => openChat(player as Friend)} className="p-2 bg-cyan-600/20 text-cyan-400 rounded-xl border border-cyan-500/20 hover:bg-cyan-600 hover:text-white transition-all"><MessageSquare size={18}/></button>
-                                                    ) : (
                                                         <button onClick={() => setSelectedPlayer(player as Friend)} className="p-2 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-white hover:text-black transition-all"><UserPlus size={18}/></button>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -487,15 +509,15 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             <h2 className="text-2xl font-black text-white italic">{selectedPlayer.name}</h2>
                             <span className="text-xs font-mono text-gray-500 mt-1 uppercase tracking-widest">ID: {selectedPlayer.id}</span>
                             
-                            <div className="w-full grid grid-cols-2 gap-3 mt-8">
-                                <button onClick={() => openChat(selectedPlayer)} className="py-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">
-                                    <MessageSquare size={18}/> MESSAGE
+                            <div className="w-full flex flex-col gap-3 mt-8">
+                                <button onClick={() => { if(friends.some(f => f.id === selectedPlayer.id)) openChat(selectedPlayer); else alert('Demande envoyée !'); setSelectedPlayer(null); }} className="py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">
+                                    {friends.some(f => f.id === selectedPlayer.id) ? <MessageSquare size={18}/> : <UserPlus size={18}/>} 
+                                    {friends.some(f => f.id === selectedPlayer.id) ? 'MESSAGE' : 'AJOUTER'}
                                 </button>
-                                <button className="py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl font-black text-sm transition-all border border-white/5 flex items-center justify-center gap-2 active:scale-95">
-                                    <UserPlus size={18}/> AJOUTER
+                                <button onClick={() => setSelectedPlayer(null)} className="py-4 bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-2xl font-black text-sm transition-all border border-white/5 flex items-center justify-center gap-2 active:scale-95">
+                                    ANNULER
                                 </button>
                             </div>
-                            <button onClick={() => setSelectedPlayer(null)} className="mt-6 text-gray-500 font-bold hover:text-white transition-colors text-xs uppercase tracking-widest">Fermer</button>
                         </div>
                     </div>
                 </div>
