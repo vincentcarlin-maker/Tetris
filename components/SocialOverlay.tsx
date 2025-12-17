@@ -140,8 +140,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     useEffect(() => {
         setFriends(prev => prev.map(f => {
-            const online = onlineUsers.find(u => u.id === f.id);
-            return online ? { ...f, status: 'online', gameActivity: online.gameActivity, lastSeen: online.lastSeen } : { ...f, status: 'offline' };
+            const onlineEntry = onlineUsers.find(u => u.id === f.id);
+            // CORRECTION IMPORTANTE : On vérifie explicitement si le statut est 'online'.
+            // La liste onlineUsers contient l'historique complet (donc aussi les joueurs offline).
+            const isReallyOnline = onlineEntry && onlineEntry.status === 'online';
+            
+            return isReallyOnline 
+                ? { ...f, status: 'online', gameActivity: onlineEntry.gameActivity, lastSeen: onlineEntry.lastSeen } 
+                : { ...f, status: 'offline' };
         }));
     }, [onlineUsers]);
 
