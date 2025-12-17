@@ -1,8 +1,9 @@
 
-import React from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid } from 'lucide-react';
+import React, { useState } from 'react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
+import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 
 interface SettingsMenuProps {
     onBack: () => void;
@@ -13,8 +14,122 @@ interface SettingsMenuProps {
 }
 
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency }) => {
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [oldPassword, setOldPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [msg, setMsg] = useState<{text: string, type: 'error' | 'success'} | null>(null);
+
+    const handleSavePassword = async () => {
+        const currentStored = localStorage.getItem('neon_current_password');
+        
+        // Basic validation
+        if (oldPassword !== currentStored) {
+            setMsg({ text: "L'ancien mot de passe est incorrect.", type: 'error' });
+            return;
+        }
+        if (newPassword.length < 4) {
+            setMsg({ text: "Le nouveau mot de passe est trop court.", type: 'error' });
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setMsg({ text: "Les mots de passe ne correspondent pas.", type: 'error' });
+            return;
+        }
+
+        try {
+            // Update Local Auth DB
+            const usersDb = JSON.parse(localStorage.getItem('neon_users_db') || '{}');
+            usersDb[currency.username] = newPassword;
+            localStorage.setItem('neon_users_db', JSON.stringify(usersDb));
+
+            // Update Current Session
+            localStorage.setItem('neon_current_password', newPassword);
+
+            // Update Local Data Mirror
+            const localDataStr = localStorage.getItem(`neon_data_${currency.username}`);
+            if (localDataStr) {
+                const data = JSON.parse(localDataStr);
+                data.password = newPassword;
+                localStorage.setItem(`neon_data_${currency.username}`, JSON.stringify(data));
+            }
+
+            // Update Cloud
+            if (isSupabaseConfigured) {
+                await DB.updateUserData(currency.username, { password: newPassword });
+            }
+
+            setMsg({ text: "Mot de passe modifié avec succès !", type: 'success' });
+            setTimeout(() => {
+                setShowPasswordModal(false);
+                setMsg(null);
+                setOldPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+            }, 1500);
+        } catch (e) {
+            setMsg({ text: "Erreur lors de la sauvegarde.", type: 'error' });
+        }
+    };
+
     return (
         <div className="flex flex-col h-full w-full bg-black/20 font-sans text-white p-4 overflow-y-auto">
+            
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in">
+                    <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/10 p-6 shadow-2xl relative">
+                        <button onClick={() => setShowPasswordModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X/></button>
+                        
+                        <h3 className="text-xl font-black text-white italic mb-6 flex items-center gap-2">
+                            <Key className="text-neon-pink" size={24}/> CHANGER MOT DE PASSE
+                        </h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 block mb-1">ANCIEN MOT DE PASSE</label>
+                                <input 
+                                    type="password" 
+                                    value={oldPassword} 
+                                    onChange={e => setOldPassword(e.target.value)} 
+                                    className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-neon-pink outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 block mb-1">NOUVEAU MOT DE PASSE</label>
+                                <input 
+                                    type="password" 
+                                    value={newPassword} 
+                                    onChange={e => setNewPassword(e.target.value)} 
+                                    className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-neon-blue outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 block mb-1">CONFIRMER</label>
+                                <input 
+                                    type="password" 
+                                    value={confirmPassword} 
+                                    onChange={e => setConfirmPassword(e.target.value)} 
+                                    className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-neon-blue outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        {msg && (
+                            <div className={`mt-4 p-3 rounded-lg text-xs font-bold text-center ${msg.type === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
+                                {msg.text}
+                            </div>
+                        )}
+
+                        <button 
+                            onClick={handleSavePassword}
+                            className="w-full mt-6 py-3 bg-neon-blue text-black font-black tracking-widest rounded-xl hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,243,255,0.3)] flex items-center justify-center gap-2"
+                        >
+                            <Check size={18} strokeWidth={3}/> SAUVEGARDER
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pt-6 pb-24">
                 
                 {/* Header */}
@@ -93,9 +208,16 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             </button>
                         </div>
 
+                        <button 
+                            onClick={() => setShowPasswordModal(true)}
+                            className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 text-gray-300 hover:text-white"
+                        >
+                            <Lock size={16}/> CHANGER MOT DE PASSE
+                        </button>
+
                         {/* Admin Section */}
                         {currency.isSuperUser && (
-                            <div className="p-3 bg-red-900/10 rounded-xl border border-red-500/30">
+                            <div className="p-3 bg-red-900/10 rounded-xl border border-red-500/30 mt-2">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
                                         <Shield size={16}/> GOD MODE (ADMIN)
