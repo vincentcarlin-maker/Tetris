@@ -21,7 +21,13 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>(() => {
         try {
             const stored = localStorage.getItem(HISTORY_KEY);
-            return stored ? JSON.parse(stored) : [];
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                // FIX: Force everyone to offline on load. 
+                // Only the live 'sync' event from Supabase should mark users as 'online'.
+                return parsed.map((u: any) => ({ ...u, status: 'offline', gameActivity: undefined }));
+            }
+            return [];
         } catch (e) {
             return [];
         }
@@ -76,17 +82,22 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                 setOnlineUsers(prev => {
                     const mergedMap = new Map<string, OnlineUser>();
 
+                    // Mark everyone from previous state as offline first
                     prev.forEach(u => {
                         mergedMap.set(u.id, { ...u, status: 'offline', gameActivity: undefined });
                     });
 
+                    // Update with currently online users (this will overwrite status to 'online')
                     currentOnlineMap.forEach((u, key) => {
                         mergedMap.set(key, u);
                     });
 
                     const newList = Array.from(mergedMap.values());
-                    localStorage.setItem(HISTORY_KEY, JSON.stringify(newList));
-                    return newList;
+                    // Limit history size to prevent localStorage bloat
+                    const trimmedList = newList.sort((a, b) => b.lastSeen - a.lastSeen).slice(0, 50);
+                    
+                    localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmedList));
+                    return trimmedList;
                 });
             })
             .subscribe(async (status) => {
