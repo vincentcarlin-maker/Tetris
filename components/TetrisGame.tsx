@@ -44,6 +44,11 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.tetris || 0;
 
+    // Refs pour les contrôles gestuels
+    const touchStartRef = useRef<{ x: number, y: number, time: number } | null>(null);
+    const lastXMoveRef = useRef<number>(0);
+    const gameAreaRef = useRef<HTMLDivElement>(null);
+
     // Check localStorage for tutorial seen
     useEffect(() => {
         const hasSeen = localStorage.getItem('neon_tetris_tutorial_seen');
@@ -86,7 +91,6 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     const startGame = useCallback((startLevel: number = 0) => {
         if (showTutorial) return;
         setBoard(createBoard());
-        // Calcul de la vitesse initiale basée sur le niveau choisi
         const initialSpeed = Math.max(100, 1000 / (startLevel + 1) + 200);
         
         setDropTime(initialSpeed);
@@ -122,7 +126,6 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
                     onReportProgress('score', score);
                 }
 
-                // Calcul des gains
                 if (earnedCoins > 0) {
                     addCoins(earnedCoins);
                 }
@@ -134,14 +137,6 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     }, [board, level, player, updatePlayerPos, rows, playGameOver, playLand, score, addCoins, updateHighScore, earnedCoins, onReportProgress, showTutorial]);
     
     useGameLoop(drop, isPaused || gameOver || showTutorial ? null : dropTime);
-
-    const keyUp = (e: KeyboardEvent) => {
-        if (!gameOver && !showTutorial) {
-            if (e.keyCode === 40) { // down arrow
-                setDropTime(1000 / (level + 1) + 200);
-            }
-        }
-    };
 
     const dropPlayer = () => {
         if (showTutorial) return;
@@ -190,6 +185,46 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
         }
     };
 
+    // --- GESTURE HANDLERS ---
+    const handleGestureStart = (clientX: number, clientY: number) => {
+        if (gameOver || isPaused || showTutorial) return;
+        touchStartRef.current = { x: clientX, y: clientY, time: Date.now() };
+        lastXMoveRef.current = clientX;
+    };
+
+    const handleGestureMove = (clientX: number, clientY: number) => {
+        if (!touchStartRef.current || gameOver || isPaused || showTutorial) return;
+
+        const deltaX = clientX - lastXMoveRef.current;
+        const threshold = 30; // Sensibilité du déplacement latéral (en pixels)
+
+        if (Math.abs(deltaX) > threshold) {
+            movePlayer(deltaX > 0 ? 1 : -1);
+            lastXMoveRef.current = clientX;
+        }
+    };
+
+    const handleGestureEnd = (clientX: number, clientY: number) => {
+        if (!touchStartRef.current) return;
+
+        const duration = Date.now() - touchStartRef.current.time;
+        const deltaX = clientX - touchStartRef.current.x;
+        const deltaY = clientY - touchStartRef.current.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // 1. Détection du Tap (Clic rapide sans grand mouvement) -> Rotation
+        if (duration < 250 && distance < 15) {
+            playerRotate(board, 1);
+            playRotate();
+        }
+        // 2. Détection du Glissement vers le bas (Flick down) -> Hard Drop
+        else if (deltaY > 80 && Math.abs(deltaY) > Math.abs(deltaX)) {
+            hardDrop();
+        }
+
+        touchStartRef.current = null;
+    };
+
     useEffect(() => {
         if (gameOver || isPaused || showTutorial || !player.tetromino || player.tetromino.length <= 1) {
             setGhostPlayer(null);
@@ -214,23 +249,14 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
     }, [player, board, gameOver, isPaused, showTutorial]);
 
     const moveRef = useRef(move);
-    const keyUpRef = useRef(keyUp);
-
     useEffect(() => {
         moveRef.current = move;
-        keyUpRef.current = keyUp;
-    }, [move, keyUp]);
+    }, [move]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => moveRef.current && moveRef.current(e);
-        const handleKeyUp = (e: KeyboardEvent) => keyUpRef.current && keyUpRef.current(e);
-
         window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-        };
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const DirectionBtn = ({ onClick, icon, className, active = true }: { onClick: () => void, icon: React.ReactNode, className?: string, active?: boolean }) => (
@@ -269,7 +295,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
         >
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-blue/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
 
-            {/* TOP MENU BAR (Moved from bottom) */}
+            {/* TOP MENU BAR */}
             {!gameOver && (
                 <div className="w-full max-w-lg px-4 pt-4 pb-1 flex justify-between items-center z-30 shrink-0">
                     <MetaBtn onClick={onBack} icon={<Home size={18} className="text-gray-300"/>} label="MENU"/>
@@ -303,7 +329,17 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
             </div>
 
             <div className="flex-1 flex items-center justify-center w-full max-w-lg relative z-10 min-h-0 px-4 pb-2 overflow-hidden">
-                <div className="h-full max-h-full aspect-[10/20] relative shadow-2xl">
+                <div 
+                    ref={gameAreaRef}
+                    className="h-full max-h-full aspect-[10/20] relative shadow-2xl touch-none select-none"
+                    onMouseDown={(e) => handleGestureStart(e.clientX, e.clientY)}
+                    onMouseMove={(e) => handleGestureMove(e.clientX, e.clientY)}
+                    onMouseUp={(e) => handleGestureEnd(e.clientX, e.clientY)}
+                    onMouseLeave={(e) => handleGestureEnd(e.clientX, e.clientY)}
+                    onTouchStart={(e) => handleGestureStart(e.touches[0].clientX, e.touches[0].clientY)}
+                    onTouchMove={(e) => handleGestureMove(e.touches[0].clientX, e.touches[0].clientY)}
+                    onTouchEnd={(e) => handleGestureEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY)}
+                >
                      <Board board={board} />
 
                      {!gameOver && isPaused && !showTutorial && (
@@ -347,8 +383,6 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
 
             {!gameOver && (
                 <div className="w-full max-w-md px-4 pb-6 pt-2 flex flex-col justify-end gap-3 z-30 shrink-0 select-none">
-                    {/* Meta Buttons were moved to top */}
-
                     <div className="flex justify-between items-end w-full">
                         <div className="grid grid-cols-3 gap-2 w-36 h-36">
                              <div className="w-full h-full"/>
@@ -372,3 +406,4 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
         </div>
     );
 }
+
