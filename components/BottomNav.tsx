@@ -66,7 +66,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     );
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-[250] px-4 pb-4 pointer-events-none">
+        <div className="fixed bottom-0 left-0 right-0 z-[350] px-4 pb-4 pointer-events-none">
             <div className="max-w-md mx-auto w-full bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] flex items-center justify-around p-1 pointer-events-auto ring-1 ring-white/5">
                 <NavButton 
                     icon={Home} 

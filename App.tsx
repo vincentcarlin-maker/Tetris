@@ -82,7 +82,7 @@ const App: React.FC = () => {
         todaysReward, 
         claimDailyBonus, 
         quests, 
-        reportQuestProgress,
+        reportQuestProgress, 
         claimQuestReward,
         claimAllBonus,
         allCompletedBonusClaimed,
@@ -459,7 +459,6 @@ const App: React.FC = () => {
             setShowLoginModal(true);
             return;
         }
-        // Si l'overlay est déjà ouvert sur cet onglet, on ferme. Sinon on ouvre/change d'onglet.
         if (showSocial && activeSocialTab === tab) {
             setShowSocial(false);
         } else {
@@ -467,6 +466,10 @@ const App: React.FC = () => {
             setShowSocial(true);
         }
     };
+
+    // La barre de navigation doit être visible sur les pages de navigation (menu, shop, admin)
+    // OU si l'overlay social est ouvert (car c'est une forme de navigation).
+    const shouldShowBottomNav = !isGameActive || showSocial;
 
     return (
         <div className="flex flex-col h-full w-full">
@@ -563,7 +566,7 @@ const App: React.FC = () => {
                 )}
             </div>
 
-            {isAuthenticated && !isGameActive && (
+            {isAuthenticated && shouldShowBottomNav && (
                 <BottomNav 
                     currentView={currentView} 
                     onNavigate={(v) => setCurrentView(v)} 
