@@ -278,7 +278,9 @@ export const useCurrency = () => {
             localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets));
         }
         
+        // Quests Data
         if (data.quests) localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
+        if (data.questsDate) localStorage.setItem('neon_quests_date', data.questsDate);
         
         // PROTECTION FIX: Daily Bonus Overwrite
         // Calculate "Today" locally

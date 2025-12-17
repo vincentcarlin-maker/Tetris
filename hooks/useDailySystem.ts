@@ -121,7 +121,15 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         }
 
         // --- DAILY QUESTS GENERATION ---
-        if (storedDate !== today || !storedQuests) {
+        let parsedQuests: DailyQuest[] = [];
+        try {
+            if (storedQuests) parsedQuests = JSON.parse(storedQuests);
+        } catch (e) {
+            parsedQuests = [];
+        }
+
+        // Generate new if: Date mismatch OR No quests stored OR Stored array is empty
+        if (storedDate !== today || !storedQuests || parsedQuests.length === 0) {
             const newQuests: DailyQuest[] = [];
             
             // 1 Easy
@@ -142,10 +150,10 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
             setQuests(newQuests);
             setAllCompletedBonusClaimed(false);
             localStorage.setItem('neon_daily_quests', JSON.stringify(newQuests));
-            localStorage.setItem('neon_quests_date', today);
+            localStorage.setItem('neon_quests_date', today); // FORCE SYNC DATE
             localStorage.setItem('neon_bonus_claimed', 'false');
         } else {
-            setQuests(JSON.parse(storedQuests));
+            setQuests(parsedQuests);
             setAllCompletedBonusClaimed(storedBonus === 'true');
         }
     }, []);

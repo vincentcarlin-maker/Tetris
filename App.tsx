@@ -158,6 +158,7 @@ const App: React.FC = () => {
             ownedMallets: currency.ownedMallets,
             highScores: highScores,
             quests: quests,
+            questsDate: localStorage.getItem('neon_quests_date'), // Fix: Sync Quest Date
             streak: streak,
             lastLogin: localStorage.getItem('neon_last_login')
         };
