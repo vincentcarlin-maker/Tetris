@@ -16,11 +16,11 @@ interface SettingsMenuProps {
 }
 
 const ACCENT_COLORS = [
-    { name: 'Standard', hex: '#00f3ff' },
-    { name: 'Rose', hex: '#ff00ff' },
-    { name: 'Violet', hex: '#9d00ff' },
-    { name: 'Jaune', hex: '#ffe600' },
-    { name: 'Vert', hex: '#00ff9d' },
+    { name: 'Cyan', hex: '#00f3ff' },
+    { name: 'Pink', hex: '#ff00ff' },
+    { name: 'Purple', hex: '#9d00ff' },
+    { name: 'Yellow', hex: '#ffe600' },
+    { name: 'Green', hex: '#00ff9d' },
 ];
 
 const GAME_LABELS: Record<string, string> = {
@@ -176,7 +176,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                                 <button 
                                     key={c.hex} 
                                     onClick={() => currency.updateAccentColor(c.hex)}
-                                    title={c.name}
                                     className={`w-8 h-8 rounded-full border-2 transition-all ${currency.accentColor === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
                                     style={{ backgroundColor: c.hex, boxShadow: currency.accentColor === c.hex ? `0 0 10px ${c.hex}` : 'none' }}
                                 />
@@ -254,7 +253,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 {/* Section Danger */}
                 <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Trash2 size={16} /> ZONE DE DANGER</h3>
-                    <button handleHardReset onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
+                    <button onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
                         <RefreshCw size={14}/> RÉINITIALISER LES PRÉFÉRENCES LOCALES
                     </button>
                 </div>
