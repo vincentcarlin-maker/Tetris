@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X } from 'lucide-react';
+import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X, Trophy, Calendar, Zap } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -15,23 +15,6 @@ export interface FriendRequest {
     timestamp: number;
 }
 
-interface SocialOverlayProps {
-    audio: ReturnType<typeof useGameAudio>;
-    currency: ReturnType<typeof useCurrency>;
-    mp: ReturnType<typeof useMultiplayer>;
-    onlineUsers: OnlineUser[];
-    isConnectedToSupabase: boolean;
-    isSupabaseConfigured: boolean;
-    onUnreadChange?: (count: number) => void;
-    
-    // Props pour la gestion centralisée des requêtes
-    friendRequests: FriendRequest[];
-    setFriendRequests: React.Dispatch<React.SetStateAction<FriendRequest[]>>;
-
-    activeTabOverride?: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
-    onTabChangeOverride?: (tab: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS') => void;
-}
-
 interface Friend {
     id: string;
     name: string;
@@ -42,6 +25,21 @@ interface Friend {
     gameActivity?: string; 
     lastMessage?: string;
     lastMessageTime?: number;
+    stats?: any;
+}
+
+interface SocialOverlayProps {
+    audio: ReturnType<typeof useGameAudio>;
+    currency: ReturnType<typeof useCurrency>;
+    mp: ReturnType<typeof useMultiplayer>;
+    onlineUsers: OnlineUser[];
+    isConnectedToSupabase: boolean;
+    isSupabaseConfigured: boolean;
+    onUnreadChange?: (count: number) => void;
+    friendRequests: FriendRequest[];
+    setFriendRequests: React.Dispatch<React.SetStateAction<FriendRequest[]>>;
+    activeTabOverride?: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
+    onTabChangeOverride?: (tab: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS') => void;
 }
 
 interface PrivateMessage {
@@ -66,7 +64,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     onUnreadChange, friendRequests, setFriendRequests, activeTabOverride, onTabChangeOverride 
 }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
-    const { playCoin, playVictory } = audio;
+    const { playCoin, playVictory, playLand } = audio;
     
     const [localTab, setLocalTab] = useState<'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
     const socialTab = activeTabOverride || localTab;
@@ -81,7 +79,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // Community Search State
     const [communitySearch, setCommunitySearch] = useState('');
     const [searchResults, setSearchResults] = useState<Friend[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -99,7 +96,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
 
-    // Charger les amis depuis le LocalStorage
     useEffect(() => {
         const storedFriends = localStorage.getItem('neon_friends');
         if (storedFriends) {
@@ -110,8 +106,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }
         if (isConnectedToSupabase && username) {
             DB.getUnreadCount(username).then(count => setUnreadCount(count));
-            
-            // CHARGER LES REQUÊTES EN ATTENTE (DB)
             DB.getPendingRequests(username).then(reqs => {
                 setFriendRequests(prev => {
                     const existingIds = new Set(prev.map(r => r.id));
@@ -122,7 +116,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }
     }, [isConnectedToSupabase, username, setFriendRequests]);
 
-    // Écouter les messages privés (Base de données)
     useEffect(() => {
         if (!isConnectedToSupabase || !supabase || !username) return;
         const channel = supabase.channel(`msg_${username}`)
@@ -168,7 +161,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         return () => { supabase.removeChannel(channel); };
     }, [isConnectedToSupabase, username, playCoin, setFriendRequests]);
 
-    // Écouter les événements temps réel (ACCEPTATIONS)
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'FRIEND_ACCEPT') {
@@ -203,7 +195,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             const isReallyOnline = onlineEntry && onlineEntry.status === 'online';
             
             return isReallyOnline 
-                ? { ...f, id: onlineEntry.id, status: 'online', gameActivity: onlineEntry.gameActivity, lastSeen: onlineEntry.lastSeen } 
+                ? { ...f, id: onlineEntry.id, status: 'online', gameActivity: onlineEntry.gameActivity, lastSeen: onlineEntry.lastSeen, stats: onlineEntry.stats } 
                 : { ...f, status: 'offline' };
         }));
     }, [onlineUsers]);
@@ -374,6 +366,45 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     const activeFriend = useMemo(() => friends.find(f => f.id === activeChatId), [activeChatId, friends]);
 
+    const handlePlayerClick = async (player: any) => {
+        playLand();
+        // Si les stats manquent et que Supabase est là, on tente de récupérer le profil complet
+        if (!player.stats && isConnectedToSupabase && player.name) {
+            const profile = await DB.getUserProfile(player.name);
+            if (profile && profile.data) {
+                setSelectedPlayer({
+                    ...player,
+                    stats: profile.data.highScores,
+                    lastSeen: new Date(profile.updated_at).getTime()
+                });
+                return;
+            }
+        }
+        setSelectedPlayer(player as Friend);
+    };
+
+    const renderStatsList = (stats?: any) => {
+        if (!stats) return <p className="text-gray-600 text-xs italic">Aucune statistique enregistrée.</p>;
+        
+        const games = Object.keys(stats).filter(k => stats[k] > 0);
+        if (games.length === 0) return <p className="text-gray-600 text-xs italic">Le joueur n'a pas encore de records.</p>;
+
+        return (
+            <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                {games.map(gameId => {
+                    const val = stats[gameId];
+                    const displayVal = typeof val === 'object' ? (val.medium || Object.values(val)[0]) : val;
+                    return (
+                        <div key={gameId} className="bg-black/30 border border-white/5 rounded-lg p-2 flex flex-col items-center">
+                            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">{GAME_NAMES[gameId] || gameId}</span>
+                            <span className="text-xs font-mono font-bold text-cyan-400">{displayVal.toLocaleString()}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
     return (
         <div className="h-full w-full flex flex-col bg-black/20 font-sans text-white relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
@@ -447,7 +478,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             <button onClick={() => setSocialTab('FRIENDS')} className="p-2 hover:bg-white/10 rounded-full text-gray-400 transition-colors"><ArrowLeft size={20}/></button>
                             <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center border ${getFrameClass(activeFriend.frameId)}`}>{React.createElement((avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).icon, { size: 20, className: (avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).color })}</div>
                             <div className="flex-1 min-w-0"><span className="font-bold text-sm text-white truncate">{activeFriend.name}</span><div className="flex items-center gap-1.5"><div className={`w-1.5 h-1.5 rounded-full ${activeFriend.status === 'online' ? 'bg-green-500 shadow-[0_0_5px_lime]' : 'bg-gray-500'}`}></div><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{activeFriend.status === 'online' ? (activeFriend.gameActivity && activeFriend.gameActivity !== 'menu' ? `Joue à ${GAME_NAMES[activeFriend.gameActivity]}` : 'En ligne') : 'Hors-ligne'}</span></div></div>
-                            <button onClick={() => setSelectedPlayer(activeFriend)} className="p-2 hover:bg-white/10 rounded-full text-gray-400"><MoreVertical size={20}/></button>
+                            <button onClick={() => handlePlayerClick(activeFriend)} className="p-2 hover:bg-white/10 rounded-full text-gray-400"><MoreVertical size={20}/></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {isLoadingHistory && <div className="flex justify-center py-4"><div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div></div>}
@@ -483,7 +514,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                  {searchResults.map(player => {
                                       const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                       return (
-                                          <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/80 rounded-2xl border border-purple-500/30 group">
+                                          <div key={player.id} onClick={() => handlePlayerClick(player)} className="flex items-center justify-between p-3 bg-gray-800/80 rounded-2xl border border-purple-500/30 group cursor-pointer transition-all hover:bg-gray-700">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border ${getFrameClass(player.frameId)}`}><avatar.icon size={22} className={avatar.color} /></div>
                                                 <div className="flex flex-col">
@@ -494,7 +525,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                                     </div>
                                                 </div>
                                             </div>
-                                            <button onClick={() => setSelectedPlayer(player as Friend)} className="p-2 bg-gray-700/50 rounded-xl hover:bg-white hover:text-black transition-all"><UserPlus size={18}/></button>
+                                            <div className="p-2 bg-gray-700/50 rounded-xl hover:bg-white hover:text-black transition-all"><UserPlus size={18}/></div>
                                           </div>
                                       );
                                  })}
@@ -511,7 +542,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                     {onlineOnlyCommunity.map(player => {
                                         const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                         return (
-                                            <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-2xl border border-white/5 hover:bg-gray-800 transition-all group">
+                                            <div key={player.id} onClick={() => handlePlayerClick(player)} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-2xl border border-white/5 hover:bg-gray-800 transition-all group cursor-pointer">
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border ${getFrameClass(player.frameId)}`}><avatar.icon size={22} className={avatar.color} /></div>
                                                     <div className="flex flex-col">
@@ -522,7 +553,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <button onClick={() => setSelectedPlayer(player as Friend)} className="p-2 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-white hover:text-black transition-all"><UserPlus size={18}/></button>
+                                                <div className="p-2 bg-gray-700/50 text-gray-300 rounded-xl hover:bg-white hover:text-black transition-all"><UserPlus size={18}/></div>
                                             </div>
                                         );
                                     })}
@@ -559,18 +590,42 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
             {selectedPlayer && (
                 <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in" onClick={() => setSelectedPlayer(null)}>
-                    <div className="bg-gray-900 w-full max-w-sm rounded-[40px] border border-white/20 shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
-                        <div className="h-24 bg-gradient-to-r from-cyan-600/20 to-purple-600/20 border-b border-white/10"></div>
-                        <div className="px-6 pb-8 flex flex-col items-center -mt-12">
-                            <div className={`w-24 h-24 rounded-3xl bg-gray-900 p-1 border-2 mb-4 ${getFrameClass(selectedPlayer.frameId)}`}>
+                    <div className="bg-gray-900 w-full max-w-sm rounded-[40px] border border-white/20 shadow-2xl overflow-hidden relative flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="h-24 bg-gradient-to-r from-cyan-600/20 to-purple-600/20 border-b border-white/10 relative shrink-0">
+                            <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 p-2 bg-black/40 rounded-full text-white/60 hover:text-white transition-colors"><X size={20}/></button>
+                        </div>
+                        
+                        <div className="px-6 pb-6 flex flex-col items-center -mt-12 overflow-y-auto custom-scrollbar">
+                            <div className={`w-24 h-24 rounded-3xl bg-gray-900 p-1 border-2 mb-4 shrink-0 ${getFrameClass(selectedPlayer.frameId)}`}>
                                 <div className={`w-full h-full rounded-2xl bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center shadow-2xl`}>{React.createElement((avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0]).icon, { size: 48, className: (avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0]).color })}</div>
                             </div>
+                            
                             <h2 className="text-2xl font-black text-white italic">{selectedPlayer.name}</h2>
-                            <span className="text-xs font-mono text-gray-500 mt-1 uppercase tracking-widest">Joueur Néon</span>
+                            
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <div className={`w-2 h-2 rounded-full ${selectedPlayer.status === 'online' ? 'bg-green-500 shadow-[0_0_5px_#22c55e] animate-pulse' : 'bg-gray-600'}`}></div>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{selectedPlayer.status === 'online' ? 'En ligne' : 'Hors-ligne'}</span>
+                            </div>
+
+                            {/* Section Stats & Connexion */}
+                            <div className="w-full mt-6 space-y-4">
+                                <div className="bg-black/40 rounded-2xl p-4 border border-white/5">
+                                    <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Trophy size={14}/> Records de jeu</h3>
+                                    {renderStatsList(selectedPlayer.stats)}
+                                </div>
+
+                                <div className="bg-black/40 rounded-2xl p-4 border border-white/5 flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <h3 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Clock size={14}/> Dernière connexion</h3>
+                                        <p className="text-xs text-white font-mono">{selectedPlayer.lastSeen ? new Date(selectedPlayer.lastSeen).toLocaleString() : 'Inconnue'}</p>
+                                    </div>
+                                    <Calendar size={20} className="text-gray-600" />
+                                </div>
+                            </div>
+
                             <div className="w-full flex flex-col gap-3 mt-8">
-                                <button onClick={() => { if(friends.some(f => f.name === selectedPlayer.name)) openChat(friends.find(f => f.name === selectedPlayer.name)!); else sendFriendRequest(); }} className="py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">{friends.some(f => f.name === selectedPlayer.name) ? <><MessageSquare size={18}/> MESSAGE</> : <><UserPlus size={18}/> AJOUTER</>}</button>
-                                {friends.some(f => f.name === selectedPlayer.name) && (<button onClick={() => removeFriend(friends.find(f => f.name === selectedPlayer.name)!.id)} className="py-3 bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-500/30 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 active:scale-95"><UserMinus size={18} /> SUPPRIMER</button>)}
-                                <button onClick={() => setSelectedPlayer(null)} className="py-4 bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-2xl font-black text-sm transition-all border border-white/5 flex items-center justify-center gap-2 active:scale-95">ANNULER</button>
+                                <button onClick={() => { if(friends.some(f => f.name === selectedPlayer.name)) openChat(friends.find(f => f.name === selectedPlayer.name)!); else sendFriendRequest(); }} className="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">{friends.some(f => f.name === selectedPlayer.name) ? <><MessageSquare size={18}/> ENVOYER UN MESSAGE</> : <><UserPlus size={18}/> AJOUTER EN AMI</>}</button>
+                                {friends.some(f => f.name === selectedPlayer.name) && (<button onClick={() => removeFriend(friends.find(f => f.name === selectedPlayer.name)!.id)} className="py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 border border-red-500/20 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-95"><UserMinus size={16} /> SUPPRIMER L'AMI</button>)}
                             </div>
                         </div>
                     </div>
