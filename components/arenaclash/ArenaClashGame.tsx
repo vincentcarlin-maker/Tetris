@@ -201,7 +201,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     
     const gameStateRef = useRef(gameState);
     const timeLeftRef = useRef(timeLeft);
-    const lastUiTimeRef = useRef(MATCH_DURATION); // Optimization: avoid state dependency
+    const lastUiTimeRef = useRef(MATCH_DURATION); 
     const onReportProgressRef = useRef(onReportProgress);
     const cameraRef = useRef({ x: 0, y: 0 });
     const selectedMapIndexRef = useRef(0);
@@ -227,7 +227,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             localStorage.setItem('neon_arena_tutorial_seen', 'true');
         }
         
-        // Sync Identity
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Arena Clash');
 
         return () => cancelAnimationFrame(animationFrameRef.current);
@@ -250,14 +249,10 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
-            
-            // If we were playing and got kicked to lobby
             if (gameState === 'PLAYING') setGameState('MENU');
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            
-            // Auto start if matched while in menu
             if (gameState === 'MENU' && gameMode === 'ONLINE') {
                 startGame('ONLINE');
             }
@@ -278,7 +273,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         } while (!safe);
 
         return {
-            id, name, x, y, radius: 20, // Tank radius slightly larger
+            id, name, x, y, radius: 20,
             color: isPlayer ? COLORS.player : COLORS.enemy,
             hp: 100, maxHp: 100,
             angle: 0, vx: 0, vy: 0, speed: isPlayer || isRemote ? 5 : 3.5,
@@ -310,7 +305,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         };
         powerUpsRef.current.push(newPowerUp);
         
-        // Broadcast PowerUp spawn (Host Only)
         if (gameMode === 'ONLINE' && mp.isHost) {
             mp.sendData({ type: 'ARENA_POWERUP_SPAWN', powerup: newPowerUp });
         }
@@ -330,12 +324,10 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
                 let opponent = botsRef.current.find(b => b.id === remoteData.id);
                 if (!opponent) {
-                    // Initialize new remote player
                     opponent = spawnCharacter(remoteData.id, remoteData.name, false, true);
                     botsRef.current.push(opponent);
                 }
                 
-                // Sync State
                 opponent.x = remoteData.x;
                 opponent.y = remoteData.y;
                 opponent.angle = remoteData.angle;
@@ -343,14 +335,21 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 opponent.shield = remoteData.shield;
                 opponent.isDead = remoteData.isDead;
                 opponent.score = remoteData.score;
-                opponent.name = remoteData.name; // Keep name sync
+                opponent.name = remoteData.name;
             }
 
             if (data.type === 'ARENA_SHOOT') {
                 const shooter = botsRef.current.find(b => b.id === data.id);
                 if (shooter) {
-                    // Fire remote bullet locally
                     fireBullet(shooter, data.boosted);
+                }
+            }
+
+            // Correction: Réception du signal de Kill pour mettre à jour son propre score
+            if (data.type === 'ARENA_PLAYER_KILLED') {
+                if (data.killerId === mp.peerId && playerRef.current) {
+                    playerRef.current.score += 1;
+                    playCoin();
                 }
             }
 
@@ -371,7 +370,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
             if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
-                // Remove player from bots list
                 botsRef.current = botsRef.current.filter(b => b.id !== mp.gameOpponent?.id);
             }
             
@@ -386,20 +384,16 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const currentMode = modeOverride || gameMode;
         if (showTutorial) return;
         
-        // If Host online, broadcast map choice
         if (currentMode === 'ONLINE' && mp.isHost) {
             mp.sendData({ type: 'ARENA_INIT_MAP', mapIndex: selectedMapIndex });
         }
 
-        // My Player
         playerRef.current = spawnCharacter(mp.peerId || 'player', username, true);
         
         if (currentMode === 'SOLO') {
             botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
         } else {
-            // In online mode, opponents are synced, so start empty
             botsRef.current = [];
-            // If we have an opponent already known from lobby, create a placeholder
             if (mp.gameOpponent) {
                 const opp = spawnCharacter(mp.gameOpponent.id, mp.gameOpponent.name, false, true);
                 botsRef.current.push(opp);
@@ -428,7 +422,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const speed = BULLET_SPEED;
         const color = boosted ? '#ff00ff' : char.id === (mp.peerId || 'player') ? COLORS.player : COLORS.bullet;
         
-        // Barrel offset for tank
         const barrelLen = 30; 
         
         bulletsRef.current.push({
@@ -465,18 +458,21 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             
             if (attacker) {
                 attacker.score += 1;
-                // Add Kill to Feed
                 const killEvent = { id: Date.now(), killer: attacker.name, victim: char.name, time: Date.now() };
                 setKillFeed(prev => [killEvent, ...prev].slice(0, 5));
                 
-                // Broadcast Kill Feed in Online
                 if (gameMode === 'ONLINE') {
                     mp.sendData({ type: 'ARENA_KILL_FEED', killer: attacker.name, victim: char.name });
+                    
+                    // Correction: Si c'est mon personnage qui est mort, on prévient l'attaquant pour qu'il incrémente son score
+                    if (char.id === playerRef.current?.id) {
+                        mp.sendData({ type: 'ARENA_PLAYER_KILLED', killerId: attackerId });
+                    }
                 }
 
                 if (attacker.id === (mp.peerId || 'player')) { playCoin(); shakeRef.current = 10; }
             }
-            if (char.id === (mp.peerId || 'player')) { setGameState('RESPAWNING'); gameStateRef.current = 'RESPAWNING'; playGameOver(); }
+            if (char.id === playerRef.current?.id) { setGameState('RESPAWNING'); gameStateRef.current = 'RESPAWNING'; playGameOver(); }
         }
     };
 
@@ -505,18 +501,15 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const player = playerRef.current;
         const currentObstacles = MAPS[selectedMapIndexRef.current].obstacles;
         
-        // If no player initiated, return
         if (!player) return;
 
         if (gameStateRef.current === 'PLAYING' || gameStateRef.current === 'RESPAWNING') {
             timeLeftRef.current = Math.max(0, timeLeftRef.current - dt / 1000);
             
-            // Only update UI state every second to prevent jitter
             if (Math.floor(timeLeftRef.current) !== Math.floor(lastUiTimeRef.current)) {
                 setTimeLeft(timeLeftRef.current);
                 lastUiTimeRef.current = timeLeftRef.current;
                 
-                // Host spawns powerups in online mode
                 if (gameMode === 'SOLO' || (gameMode === 'ONLINE' && mp.isHost)) {
                     if (Math.random() < 0.3) spawnPowerUp();
                 }
@@ -528,9 +521,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             }
         }
 
-        // --- NETWORK SYNC ---
         if (gameMode === 'ONLINE' && gameStateRef.current !== 'GAMEOVER') {
-            if (now - lastNetworkUpdateRef.current > 40) { // ~25 updates/sec
+            if (now - lastNetworkUpdateRef.current > 40) {
                 mp.sendData({ 
                     type: 'ARENA_UPDATE', 
                     player: {
@@ -556,8 +548,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 if (char.respawnTimer > 0) {
                     char.respawnTimer -= dt;
                     if (char.respawnTimer <= 0) {
-                        // Respawn logic (only for me or bots in solo)
-                        // In online, opponents respawn themselves and sync position via Update
                         if (char.id === player.id || gameMode === 'SOLO') {
                             const spawn = spawnCharacter(char.id, char.name, char.id === player.id);
                             Object.assign(char, spawn);
@@ -576,7 +566,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             const hasDamage = char.powerups.some(p => p.type === 'DAMAGE');
             const currentSpeed = hasSpeed ? char.speed * 1.5 : char.speed;
 
-            // MOVEMENT Logic (Local Only for Player & Solo Bots)
             const isLocal = char.id === player.id;
             const isBot = gameMode === 'SOLO' && char.id !== player.id;
 
@@ -617,7 +606,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
 
             } else if (isBot) {
-                // AI Logic (Only in Solo)
                 let target: {x: number, y: number} | null = null;
                 let minDist = 600;
                 powerUpsRef.current.forEach(pu => {
@@ -644,7 +632,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
             }
 
-            // COLLISION (Calculated Locally for Smoothness)
             char.x = Math.max(char.radius, Math.min(CANVAS_WIDTH - char.radius, char.x));
             char.y = Math.max(char.radius, Math.min(CANVAS_HEIGHT - char.radius, char.y));
             currentObstacles.forEach(obs => {
@@ -655,12 +642,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist < char.radius) {
                     const overlap = char.radius - dist;
-                    const nx = dx / dist; const ny = dy / dist;
+                    const nx = dx / (dist || 0.001); const ny = dy / (dist || 0.001);
                     char.x += nx * overlap; char.y += ny * overlap;
                 }
             });
 
-            // POWERUPS (Only for Local Player or Solo)
             if (isLocal || isBot) {
                 for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
                     const pu = powerUpsRef.current[i];
@@ -675,7 +661,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             }
         });
 
-        // BULLETS
         for (let i = bulletsRef.current.length - 1; i >= 0; i--) {
             const b = bulletsRef.current[i];
             b.x += b.vx; b.y += b.vy; b.life -= dt;
@@ -689,15 +674,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
             }
             if (!hit) {
-                // Check hits against characters
                 for (const char of allChars) {
                     if (char.id !== b.ownerId && !char.isDead) {
-                        // HIT DETECTION
                         if (Math.hypot(b.x - char.x, b.y - char.y) < char.radius + b.radius) {
                             hit = true; 
                             spawnParticles(b.x, b.y, char.color, 5); 
                             
-                            // In ONLINE, simpler if each client calculates damage taken
                             if (char.id === player.id || gameMode === 'SOLO') {
                                 takeDamage(char, b.damage, b.ownerId);
                             }
@@ -709,14 +691,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             if (hit || b.life <= 0) bulletsRef.current.splice(i, 1);
         }
 
-        // PARTICLES
         for (let i = particlesRef.current.length - 1; i >= 0; i--) {
             const p = particlesRef.current[i];
             p.x += p.vx; p.y += p.vy; p.life--;
             if (p.life <= 0) particlesRef.current.splice(i, 1);
         }
 
-        // CAMERA
         if (player && !player.isDead) {
             const targetX = player.x - VIEWPORT_WIDTH / 2;
             const targetY = player.y - VIEWPORT_HEIGHT / 2;
@@ -738,36 +718,30 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     // --- DRAWING FUNCTIONS ---
     
-    // Draw Tank Function
     const drawTank = (ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string, radius: number) => {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
 
-        // 1. Treads (Chenilles)
         ctx.fillStyle = '#111';
-        ctx.fillRect(-radius - 2, -radius, 6, radius * 2); // Left track
-        ctx.fillRect(radius - 4, -radius, 6, radius * 2);  // Right track
+        ctx.fillRect(-radius - 2, -radius, 6, radius * 2); 
+        ctx.fillRect(radius - 4, -radius, 6, radius * 2);  
         
-        // Track details
         ctx.fillStyle = '#333';
         for(let i=0; i<4; i++) {
             ctx.fillRect(-radius - 1, -radius + 2 + (i*8), 4, 4);
             ctx.fillRect(radius - 3, -radius + 2 + (i*8), 4, 4);
         }
 
-        // 2. Body
         ctx.fillStyle = color;
         ctx.shadowColor = color;
         ctx.shadowBlur = 10;
         ctx.fillRect(-radius + 2, -radius + 2, radius * 2 - 4, radius * 2 - 4);
-        ctx.shadowBlur = 0; // Reset shadow for details
+        ctx.shadowBlur = 0; 
 
-        // Body Details
         ctx.fillStyle = 'rgba(255,255,255,0.2)';
         ctx.fillRect(-radius + 6, -radius + 6, radius - 4, radius * 1.5);
 
-        // 3. Turret
         ctx.fillStyle = '#222';
         ctx.beginPath();
         ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2);
@@ -776,13 +750,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 4. Barrel (Canon)
         ctx.fillStyle = '#333';
-        ctx.fillRect(0, -4, radius * 1.6, 8); // Barrel sticking out
+        ctx.fillRect(0, -4, radius * 1.6, 8); 
         ctx.strokeStyle = '#555';
         ctx.strokeRect(0, -4, radius * 1.6, 8);
         
-        // Barrel Tip
         ctx.fillStyle = '#000';
         ctx.fillRect(radius * 1.6, -5, 4, 10);
 
@@ -792,19 +764,16 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const draw = useCallback((ctx: CanvasRenderingContext2D) => {
         const map = MAPS[selectedMapIndexRef.current];
         
-        // Background
         ctx.fillStyle = map.colors.bg; 
         ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
         
         const cam = cameraRef.current;
         ctx.save(); ctx.translate(-cam.x, -cam.y);
 
-        // Grid
         ctx.strokeStyle = map.colors.grid; ctx.lineWidth = 2;
         for (let x = 0; x <= CANVAS_WIDTH; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); }
         for (let y = 0; y <= CANVAS_HEIGHT; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); }
 
-        // Obstacles
         ctx.shadowColor = map.colors.wallBorder; ctx.shadowBlur = 15; 
         ctx.strokeStyle = map.colors.wallBorder; ctx.lineWidth = 2;
         ctx.fillStyle = map.colors.wall;
@@ -814,7 +783,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         });
         ctx.shadowBlur = 0;
 
-        // PowerUps
         powerUpsRef.current.forEach(pu => {
             let color = '#fff';
             if (pu.type === 'HEALTH') color = COLORS.powerup.health;
@@ -826,14 +794,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px sans-serif'; ctx.fillText(pu.type[0], pu.x, pu.y);
         });
 
-        // Particles
         particlesRef.current.forEach(p => {
             ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
         });
         ctx.globalAlpha = 1;
 
-        // Bullets
         bulletsRef.current.forEach(b => {
             ctx.shadowColor = b.color; ctx.shadowBlur = 10; ctx.fillStyle = b.color;
             ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
@@ -842,20 +808,16 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const player = playerRef.current;
         const allChars = player ? [player, ...botsRef.current] : [];
 
-        // Characters (Tanks)
         allChars.forEach(char => {
             if (!char || char.isDead) return;
             
-            // Shield Effect
             if (char.shield > 0) {
                 ctx.strokeStyle = COLORS.powerup.shield; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.arc(char.x, char.y, char.radius + 8, 0, Math.PI*2); ctx.stroke();
             }
 
-            // Draw Tank
             drawTank(ctx, char.x, char.y, char.angle, char.color, char.radius);
             
-            // HP Bar & Name
             const hpPct = char.hp / char.maxHp;
             ctx.fillStyle = '#000'; ctx.fillRect(char.x - 15, char.y - 35, 30, 4);
             ctx.fillStyle = hpPct > 0.5 ? '#0f0' : '#f00'; ctx.fillRect(char.x - 15, char.y - 35, 30 * hpPct, 4);
@@ -888,7 +850,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     }, []);
 
     useEffect(() => {
-        // Start loop on mount and keep it running
         animationFrameRef.current = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(animationFrameRef.current);
     }, [loop]);
@@ -910,7 +871,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     // --- TOUCH HANDLERS ---
     useEffect(() => {
         const handleTouch = (e: TouchEvent) => {
-            // Prevent default behavior to stop scrolling
             if (e.target !== leftZoneRef.current && e.target !== rightZoneRef.current && !(e.target as HTMLElement).closest('button')) {
                e.preventDefault(); 
             }
@@ -918,7 +878,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 
-                // START
                 if (e.type === 'touchstart') {
                     if (leftZoneRef.current && activeTouches.current.move === null) {
                         const rect = leftZoneRef.current.getBoundingClientRect();
@@ -938,7 +897,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     }
                 }
 
-                // MOVE
                 if (e.type === 'touchmove') {
                     if (t.identifier === activeTouches.current.move && leftZoneRef.current) {
                         updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
@@ -948,7 +906,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     }
                 }
 
-                // END
                 if (e.type === 'touchend' || e.type === 'touchcancel') {
                     if (t.identifier === activeTouches.current.move) {
                         activeTouches.current.move = null;
@@ -980,18 +937,16 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         };
     }, []);
 
-    // --- JOYSTICK LOGIC ---
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
         const rect = zone.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        const maxDist = rect.width / 2 - 25; // Padding
+        const maxDist = rect.width / 2 - 25; 
 
         let dx = clientX - centerX;
         let dy = clientY - centerY;
         const dist = Math.sqrt(dx*dx + dy*dy);
         
-        // Normalize vector
         let normX = 0;
         let normY = 0;
 
@@ -999,13 +954,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             const limitedDist = Math.min(dist, maxDist);
             const ratio = limitedDist / dist;
             
-            // Move visual knob
             const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
             if (knob) {
                 knob.style.transform = `translate(${dx * ratio}px, ${dy * ratio}px)`;
             }
 
-            // Input value (0 to 1 magnitude)
             const magnitude = Math.min(dist / maxDist, 1.0);
             normX = (dx / dist) * magnitude;
             normY = (dy / dist) * magnitude;
@@ -1026,7 +979,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         else controlsRef.current.aim = { x: 0, y: 0, active: false };
     };
 
-    // --- LOBBY LOGIC ---
     const handleLocalBack = () => {
         if (gameMode === 'ONLINE') {
             if (onlineStep === 'game') {
@@ -1121,14 +1073,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     return (
         <div id="arena-container" className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden select-none relative">
-            {/* Background */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none -z-10" />
             
             {showTutorial && <TutorialOverlay gameId="arenaclash" onClose={() => setShowTutorial(false)} />}
 
-            {/* MAIN GAME CONTAINER (Always Rendered for Canvas) */}
             <div className="absolute inset-0 flex flex-col items-center">
-                {/* HEADER */}
                 <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0 pointer-events-none">
                     <button onClick={(e) => { e.stopPropagation(); handleLocalBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
                         <Home size={20} />
@@ -1139,10 +1088,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     </div>
                 </div>
 
-                {/* GAME AREA */}
                 <div className="flex-1 w-full max-w-4xl relative min-h-0 flex flex-col">
                     
-                    {/* HUD (Only visible when Playing) */}
                     {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                         <div className="absolute top-0 left-0 w-full flex justify-between p-4 z-20 pointer-events-none">
                             <div className="flex flex-col gap-1">
@@ -1179,7 +1126,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         </div>
                     )}
 
-                    {/* CANVAS WRAPPER */}
                     <div className="flex-1 relative flex items-center justify-center overflow-hidden">
                         <canvas 
                             ref={canvasRef}
@@ -1201,10 +1147,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         />
                     </div>
 
-                    {/* MOBILE CONTROLS (Only visible when Playing) */}
                     {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                         <div className="h-48 w-full grid grid-cols-2 gap-4 shrink-0 z-40 p-4 pointer-events-auto">
-                            {/* LEFT STICK - MOVE */}
                             <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
                                 <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
                                     <div className="w-20 h-20 rounded-full border-2 border-cyan-500"></div>
@@ -1215,7 +1159,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                                 <span className="absolute bottom-2 text-[10px] text-cyan-500 font-bold tracking-widest pointer-events-none">BOUGER</span>
                             </div>
 
-                            {/* RIGHT STICK - AIM/SHOOT */}
                             <div ref={rightZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
                                 <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
                                     <div className="w-20 h-20 rounded-full border-2 border-red-500"></div>
@@ -1230,15 +1173,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 </div>
             </div>
 
-            {/* --- OVERLAYS --- */}
-
-            {/* MENU OVERLAY */}
             {gameState === 'MENU' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
                     <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
                     <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
                     
-                    {/* Map Selection */}
                     <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/50 p-2 rounded-xl border border-white/10">
                         <button onClick={() => setSelectedMapIndex((prev) => (prev - 1 + MAPS.length) % MAPS.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                             <ChevronLeft size={24} className="text-gray-400"/>
@@ -1264,7 +1203,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 </div>
             )}
 
-            {/* WAITING FOR OPPONENT OVERLAY */}
             {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto">
                     <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
@@ -1273,7 +1211,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 </div>
             )}
 
-            {/* GAME OVER OVERLAY */}
             {gameState === 'GAMEOVER' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in pointer-events-auto">
                     <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce"/>
