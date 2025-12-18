@@ -78,6 +78,23 @@ export const DB = {
         }
     },
 
+    getUserByEmail: async (email: string) => {
+        if (!supabase) return null;
+        try {
+            // Recherche dans le champ JSONB 'data'
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('data->>email', email.trim().toLowerCase())
+                .single();
+            
+            if (error) return null;
+            return data;
+        } catch (e) {
+            return null;
+        }
+    },
+
     saveUserProfile: async (username: string, profileData: any) => {
         if (!supabase) return { success: false, error: "No Supabase client" };
         try {
