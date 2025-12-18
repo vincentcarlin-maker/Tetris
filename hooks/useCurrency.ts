@@ -211,6 +211,11 @@ export const useCurrency = () => {
     });
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
 
+    // Mettre à jour la variable CSS au démarrage
+    useEffect(() => {
+        document.documentElement.style.setProperty('--neon-accent', accentColor);
+    }, [accentColor]);
+
     // --- ADMIN CHECK ---
     const [adminModeActive, setAdminModeActive] = useState(() => {
         const storedUsername = localStorage.getItem('neon-username');

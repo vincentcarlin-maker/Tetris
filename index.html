@@ -32,7 +32,8 @@
                 pink: '#ff00ff',
                 purple: '#9d00ff',
                 yellow: '#ffe600',
-                green: '#00ff9d'
+                green: '#00ff9d',
+                accent: 'var(--neon-accent, #00f3ff)'
               }
             },
             animation: {
@@ -46,8 +47,8 @@
             },
             keyframes: {
               glow: {
-                '0%': { boxShadow: '0 0 5px #00f3ff' },
-                '100%': { boxShadow: '0 0 20px #00f3ff, 0 0 10px #00f3ff' }
+                '0%': { boxShadow: '0 0 5px var(--neon-accent, #00f3ff)' },
+                '100%': { boxShadow: '0 0 20px var(--neon-accent, #00f3ff), 0 0 10px var(--neon-accent, #00f3ff)' }
               },
               bounce: {
                 '0%, 100%': { transform: 'translateY(0)', animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)' },
@@ -80,21 +81,10 @@
         }
       }
     </script>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://aistudiocdn.com/react@^19.2.0",
-        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-        "react/": "https://aistudiocdn.com/react@^19.2.0/",
-        "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0",
-        "peerjs": "https://esm.sh/peerjs@1.5.2?bundle",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7"
-      }
-    }
-    </script>
     <style>
       :root {
         --bg-color: #020202;
+        --neon-accent: #00f3ff;
       }
       html {
         background-color: var(--bg-color);
@@ -175,12 +165,29 @@
         100% { clip-path: polygon(0 77%, 100% 77%, 100% 79%, 0 79%); }
       }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0"
+  }
+}
+</script>
 </head>
   <body class="h-[100dvh] w-screen">
     <div id="app-background"></div>
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="index.js"></script>
     <script>
+      // Initialiser la variable CSS au chargement
+      const savedAccent = localStorage.getItem('neon-accent-color');
+      if (savedAccent) {
+        document.documentElement.style.setProperty('--neon-accent', savedAccent);
+      }
+      
       // Service Worker Registration
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
