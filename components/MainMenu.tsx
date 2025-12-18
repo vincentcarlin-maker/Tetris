@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle, Hexagon, ArrowRight } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -69,7 +70,7 @@ const UnoIcon = ({ size, className }: { size?: number | string, className?: stri
     </svg>
 );
 const Connect4Icon = ({ size, className }: { size?: number | string, className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
        <path d="M4 21v-2" stroke="#6b7280" />
        <path d="M20 21v-2" stroke="#6b7280" />
        <rect x="2" y="3" width="20" height="17" rx="2" stroke="#4b5563" fill="#1f2937" />
@@ -90,7 +91,7 @@ const BreakerIcon = ({ size, className }: { size?: number | string, className?: 
     </svg>
 );
 const NeonMixIcon = ({ size, className }: { size?: number | string, className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M3 11v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-6" fill="#facc15" stroke="none" />
         <path d="M3 2v15a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2" stroke="#ffffff" strokeOpacity="0.9" />
         <path d="M10 6v11a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-11" fill="#22d3ee" stroke="none" />
@@ -168,17 +169,19 @@ const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComp
 
 const ArcadeLogo = () => {
     return (
-        <div className="flex flex-col items-center justify-center py-6 animate-in fade-in slide-in-from-top-8 duration-700 mb-2 relative">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-gradient-to-b from-neon-pink/40 to-neon-blue/40 blur-[60px] rounded-full pointer-events-none -z-10 mix-blend-hard-light opacity-80" />
+        <div className="flex flex-col items-center justify-center py-10 animate-in fade-in slide-in-from-top-8 duration-700 mb-2 relative">
+            {/* LUEUR DE FOND INTENSIFIÉE */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180%] h-[180%] bg-gradient-to-br from-neon-blue/60 via-neon-purple/40 to-neon-pink/60 blur-[100px] rounded-full pointer-events-none -z-10 mix-blend-screen opacity-100 animate-glow-accent" />
+            
             <div className="relative mb-[-25px] z-10 hover:scale-105 transition-transform duration-300 group">
-                <div className="w-48 h-16 bg-gray-900 rounded-2xl border-2 accent-border shadow-[0_0_30px_rgba(0,243,255,0.15),inset_0_0_20px_rgba(0,0,0,0.8)] flex items-center justify-between px-6 relative">
+                <div className="w-48 h-16 bg-gray-950 rounded-2xl border-2 accent-border shadow-[0_0_40px_rgba(var(--neon-accent-rgb),0.5),inset_0_0_20px_rgba(0,0,0,0.8)] flex items-center justify-between px-6 relative">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-2xl"></div>
-                    <div className="relative flex items-center justify-center w-12 h-12 group-hover:-rotate-12 transition-transform duration-300">
+                    <div className="relative flex items-center justify-center w-12 h-12 group-hover:-rotate-12 transition-transform duration-300 z-20">
                          <div className="absolute bottom-1/2 w-3 h-8 bg-gray-600 rounded-full origin-bottom transform -rotate-12 border border-black"></div>
-                         <div className="absolute bottom-[40%] w-10 h-10 bg-gradient-to-br from-neon-pink via-purple-600 to-purple-900 rounded-full shadow-[0_0_15px_rgba(255,0,255,0.6)] border border-white/20 transform -translate-x-1 -translate-y-2 z-10">
+                         <div className="absolute bottom-[40%] w-10 h-10 bg-gradient-to-br from-neon-pink via-purple-600 to-purple-900 rounded-full shadow-[0_0_15px_rgba(255,0,255,0.6)] border border-white/20 transform -translate-x-1 -translate-y-2 z-30">
                             <div className="absolute top-2 left-2 w-3 h-2 bg-white/40 rounded-full rotate-45 blur-[1px]"></div>
                          </div>
-                         <div className="w-10 h-10 bg-black/50 rounded-full border border-gray-700 shadow-inner"></div>
+                         <div className="w-10 h-10 bg-black/50 rounded-full border border-gray-700 shadow-inner z-10"></div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 transform rotate-6">
                          <div className="w-4 h-4 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] border border-white/30 animate-pulse"></div>
@@ -188,9 +191,10 @@ const ArcadeLogo = () => {
                     </div>
                 </div>
             </div>
+            
             <div className="flex flex-col items-center relative z-20 mt-2">
-                 <div className="font-script text-7xl text-white transform -rotate-6 z-10 animate-pulse accent-glow" style={{ textShadow: '0 0 10px var(--neon-accent, #00f3ff), 0 0 20px var(--neon-accent, #00f3ff)' }}>Neon</div>
-                <div className="font-script text-6xl text-neon-pink transform -rotate-3 -mt-4 ml-8 animate-pulse" style={{ textShadow: '0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff', animationDelay: '150ms' }}>Arcade</div>
+                 <div className="font-script text-8xl text-white transform -rotate-6 z-10 drop-shadow-[0_0_20px_var(--neon-blue,#00f3ff)]" style={{ textShadow: '0 0 10px var(--neon-blue, #00f3ff), 0 0 25px var(--neon-blue, #00f3ff), 0 0 40px var(--neon-blue, #00f3ff)' }}>Neon</div>
+                <div className="font-script text-7xl text-neon-pink transform -rotate-3 -mt-6 ml-10" style={{ textShadow: '0 0 10px #ff00ff, 0 0 25px #ff00ff, 0 0 40px #ff00ff' }}>Arcade</div>
             </div>
         </div>
     );
@@ -321,7 +325,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto pb-24">
             {flyingCoins.map(coin => <FlyingCoin key={coin.id} startX={coin.startX} startY={coin.startY} targetX={coin.targetX} targetY={coin.targetY} delay={coin.delay} onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))} />)}
             {showDailyModal && isAuthenticated && <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />}
-            <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-10 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
+            <div className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vmax] h-[150vmax] rounded-full pointer-events-none -z-20 mix-blend-hard-light blur-[80px] transition-all duration-200 ease-out`} style={{ background: activeGlow ? `radial-gradient(circle, ${activeGlow} 0%, transparent 70%)` : 'none', opacity: activeGlow ? 0.6 : 0 }} />
 
             <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
                 {isAuthenticated ? (
@@ -472,7 +476,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                     </div>
                                     {/* Badge List Display */}
                                     {ownedBadges.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1.5 overflow-x-auto no-scrollbar max-w-full pb-1">
+                                        <div className="flex flex-wrap gap-1.5 mt-1.5 overflow-x-auto no-scrollbar max-w-full pb-1">
                                             {ownedBadges.map(badge => {
                                                 const BIcon = badge.icon;
                                                 return (
