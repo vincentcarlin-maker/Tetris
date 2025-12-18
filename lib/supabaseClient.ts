@@ -66,7 +66,6 @@ export const DB = {
                 .single();
             
             if (error) {
-                // Ignore "row not found" errors, they are normal for new users
                 if (error.code !== 'PGRST116') {
                     console.warn("Error fetching profile:", error.message);
                 }
@@ -86,6 +85,7 @@ export const DB = {
                 .from('profiles')
                 .select('*')
                 .eq('data->>email', email.trim().toLowerCase())
+                .neq('username', 'SYSTEM_CONFIG') // Sécurité
                 .single();
             
             if (error) return null;
@@ -97,24 +97,18 @@ export const DB = {
 
     saveUserProfile: async (username: string, profileData: any) => {
         if (!supabase) return { success: false, error: "No Supabase client" };
+        if (username === 'SYSTEM_CONFIG') return { success: false, error: "Reserved name" };
+
         try {
             console.log(`☁️ Saving profile for [${username}]...`);
-            
-            // 1. Fetch existing data first to prevent overwrite
-            const { data: existing, error: fetchError } = await supabase
+            const { data: existing } = await supabase
                 .from('profiles')
                 .select('data')
                 .eq('username', username)
                 .single();
             
-            if (fetchError && fetchError.code !== 'PGRST116') {
-                console.warn("⚠️ Fetch error before save:", fetchError.message);
-            }
-            
-            // 2. Merge existing data with new data (new data takes precedence)
             const mergedData = { ...(existing?.data || {}), ...profileData };
 
-            // 3. Save merged data
             const { error: saveError } = await supabase
                 .from('profiles')
                 .upsert({ 
@@ -124,19 +118,16 @@ export const DB = {
                 }, { onConflict: 'username' });
             
             if (saveError) {
-                console.error("❌ SAVE FAILED:", saveError.message, saveError.details);
+                console.error("❌ SAVE FAILED:", saveError.message);
                 return { success: false, error: saveError };
             }
             
-            console.log("✅ Profile saved successfully!");
             return { success: true, error: null };
         } catch (e) {
-            console.error("❌ Exception during save:", e);
             return { success: false, error: e };
         }
     },
 
-    // --- SYSTEM CONFIG (Admin Persistance) ---
     getSystemConfig: async () => {
         if (!supabase) return null;
         try {
@@ -172,43 +163,23 @@ export const DB = {
         }
     },
 
-    // --- ADMIN ACTIONS ---
-    
-    // Supprimer un utilisateur
     deleteUser: async (username: string) => {
-        if (!supabase) return { success: false, error: "Offline mode" };
+        if (!supabase || username === 'SYSTEM_CONFIG') return { success: false };
         try {
-            const { error } = await supabase
-                .from('profiles')
-                .delete()
-                .eq('username', username);
-            
+            const { error } = await supabase.from('profiles').delete().eq('username', username);
             if (error) throw error;
             return { success: true };
         } catch (e) {
-            console.error("Delete user failed:", e);
             return { success: false, error: e };
         }
     },
 
-    // Mettre à jour uniquement les données (pour Ban/Unban)
     updateUserData: async (username: string, newData: any) => {
         if (!supabase) return { success: false, error: "Offline mode" };
         try {
-            // On récupère d'abord pour merger proprement
-            const { data: existing } = await supabase
-                .from('profiles')
-                .select('data')
-                .eq('username', username)
-                .single();
-
+            const { data: existing } = await supabase.from('profiles').select('data').eq('username', username).single();
             const merged = { ...(existing?.data || {}), ...newData };
-
-            const { error } = await supabase
-                .from('profiles')
-                .update({ data: merged, updated_at: new Date().toISOString() })
-                .eq('username', username);
-
+            const { error } = await supabase.from('profiles').update({ data: merged, updated_at: new Date().toISOString() }).eq('username', username);
             if (error) throw error;
             return { success: true };
         } catch (e) {
@@ -219,14 +190,8 @@ export const DB = {
     getGlobalLeaderboard: async () => {
         if (!supabase) return [];
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('username, data, updated_at')
-                .neq('username', 'SYSTEM_CONFIG') // EXCLURE SYSTEM_CONFIG
-                .limit(100);
-
+            const { data, error } = await supabase.from('profiles').select('username, data, updated_at').neq('username', 'SYSTEM_CONFIG').limit(100);
             if (error || !data) return [];
-
             return data.map((row: any) => ({
                 id: row.username,
                 name: row.username,
@@ -237,184 +202,92 @@ export const DB = {
                 online_at: row.updated_at,
                 stats: row.data?.highScores || {}
             }));
-        } catch (e) {
-            return [];
-        }
+        } catch (e) { return []; }
     },
 
-    // NEW: Fetch ALL raw data for Admin Dashboard
     getFullAdminExport: async () => {
         if (!supabase) return [];
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('updated_at', { ascending: false });
-
+            const { data, error } = await supabase.from('profiles').select('*').neq('username', 'SYSTEM_CONFIG').order('updated_at', { ascending: false });
             if (error || !data) return [];
             return data;
-        } catch (e) {
-            return [];
-        }
+        } catch (e) { return []; }
     },
 
-    // Rechercher des utilisateurs (pour les demandes d'amis)
     searchUsers: async (query: string) => {
         if (!supabase || query.length < 2) return [];
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('username, data, updated_at')
-                .ilike('username', `%${query}%`)
-                .neq('username', 'SYSTEM_CONFIG')
-                .limit(10);
-            
+            const { data, error } = await supabase.from('profiles').select('username, data, updated_at').ilike('username', `%${query}%`).neq('username', 'SYSTEM_CONFIG').limit(10);
             if (error || !data) return [];
-            
             return data.map((row: any) => ({
-                id: row.username, // Username is key in DB
+                id: row.username,
                 name: row.username,
                 avatarId: row.data?.avatarId || 'av_bot',
                 frameId: row.data?.frameId,
-                status: 'offline', // Default, realtime handles online
+                status: 'offline',
                 lastSeen: new Date(row.updated_at).getTime(),
                 stats: row.data?.highScores || {}
             }));
-        } catch (e) {
-            return [];
-        }
+        } catch (e) { return []; }
     },
 
     getMessages: async (user1: string, user2: string) => {
         if (!supabase) return [];
         try {
-            const { data, error } = await supabase
-                .from('messages')
-                .select('*')
-                .or(`and(sender_id.eq.${user1},receiver_id.eq.${user2}),and(sender_id.eq.${user2},receiver_id.eq.${user1})`)
-                .order('created_at', { ascending: true })
-                .limit(50);
-
+            const { data, error } = await supabase.from('messages').select('*').or(`and(sender_id.eq.${user1},receiver_id.eq.${user2}),and(sender_id.eq.${user2},receiver_id.eq.${user1})`).order('created_at', { ascending: true }).limit(50);
             if (error) throw error;
-            // Filtrer les commandes système (demandes d'amis) pour ne pas polluer le chat
             return (data || []).filter((m: any) => !m.text.startsWith('CMD:'));
-        } catch (e) {
-            return [];
-        }
+        } catch (e) { return []; }
     },
 
-    // Récupérer les demandes d'amis en attente (stockées comme messages spéciaux)
     getPendingRequests: async (username: string) => {
         if (!supabase) return [];
         try {
-            const { data, error } = await supabase
-                .from('messages')
-                .select('*')
-                .eq('receiver_id', username)
-                .like('text', 'CMD:FRIEND_REQUEST%')
-                .eq('read', false); // Non lues = En attente
-            
+            const { data, error } = await supabase.from('messages').select('*').eq('receiver_id', username).like('text', 'CMD:FRIEND_REQUEST%').eq('read', false);
             if (error) return [];
-            
-            // Pour chaque demande, on doit récupérer le profil de l'envoyeur pour afficher son avatar
             const requests = await Promise.all(data.map(async (msg: any) => {
                 const profile = await DB.getUserProfile(msg.sender_id);
-                return {
-                    id: msg.sender_id,
-                    name: msg.sender_id,
-                    avatarId: profile?.data?.avatarId || 'av_bot',
-                    frameId: profile?.data?.frameId,
-                    timestamp: new Date(msg.created_at).getTime()
-                };
+                return { id: msg.sender_id, name: msg.sender_id, avatarId: profile?.data?.avatarId || 'av_bot', frameId: profile?.data?.frameId, timestamp: new Date(msg.created_at).getTime() };
             }));
-            
             return requests;
-        } catch (e) {
-            return [];
-        }
+        } catch (e) { return []; }
     },
 
     sendMessage: async (senderId: string, receiverId: string, text: string) => {
         if (!supabase) return null;
         try {
-            const { data, error } = await supabase
-                .from('messages')
-                .insert([{ sender_id: senderId, receiver_id: receiverId, text: text, read: false }])
-                .select()
-                .single();
-
+            const { data, error } = await supabase.from('messages').insert([{ sender_id: senderId, receiver_id: receiverId, text: text, read: false }]).select().single();
             if (error) throw error;
             return data;
-        } catch (e) {
-            return null;
-        }
+        } catch (e) { return null; }
     },
 
-    // Envoyer une demande d'ami persistante (via table messages)
     sendFriendRequestDB: async (senderId: string, receiverId: string) => {
         if (!supabase) return null;
-        // Format spécial : CMD:FRIEND_REQUEST
         return await DB.sendMessage(senderId, receiverId, 'CMD:FRIEND_REQUEST');
     },
 
     markMessagesAsRead: async (senderId: string, receiverId: string) => {
         if (!supabase) return;
-        try {
-            await supabase
-                .from('messages')
-                .update({ read: true })
-                .match({ sender_id: senderId, receiver_id: receiverId, read: false });
-        } catch (e) {
-            console.error("Erreur update read:", e);
-        }
+        try { await supabase.from('messages').update({ read: true }).match({ sender_id: senderId, receiver_id: receiverId, read: false }); } catch (e) {}
     },
 
-    // Accepter une demande (marque le message comme lu + envoie confirm)
     acceptFriendRequestDB: async (accepterId: string, requesterId: string) => {
         if (!supabase) return;
-        // 1. Marquer la demande (message) comme lue
-        try {
-             await supabase
-                .from('messages')
-                .update({ read: true })
-                .eq('sender_id', requesterId)
-                .eq('receiver_id', accepterId)
-                .like('text', 'CMD:FRIEND_REQUEST%');
-             
-             // 2. Envoyer un message de confirmation (Optionnel, ou via Realtime)
-             // On laisse le Realtime gérer la notif immédiate, ceci nettoie juste la DB.
-        } catch (e) {
-            console.error("Error accepting request:", e);
-        }
+        try { await supabase.from('messages').update({ read: true }).eq('sender_id', requesterId).eq('receiver_id', accepterId).like('text', 'CMD:FRIEND_REQUEST%'); } catch (e) {}
     },
 
     getUnreadCount: async (userId: string) => {
         if (!supabase) return 0;
         try {
-            const { count, error } = await supabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('receiver_id', userId)
-                .eq('read', false)
-                .not('text', 'like', 'CMD:%'); // Exclure les commandes système du badge chat
-            
+            const { count, error } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('receiver_id', userId).eq('read', false).not('text', 'like', 'CMD:%');
             if (error) return 0;
             return count || 0;
-        } catch (e) {
-            return 0;
-        }
+        } catch (e) { return 0; }
     },
 
     markAllAsRead: async (receiverId: string) => {
         if (!supabase) return;
-        try {
-            await supabase
-                .from('messages')
-                .update({ read: true })
-                .eq('receiver_id', receiverId)
-                .eq('read', false);
-        } catch (e) {
-            console.error("Error marking all as read:", e);
-        }
+        try { await supabase.from('messages').update({ read: true }).eq('receiver_id', receiverId).eq('read', false); } catch (e) {}
     }
 };
