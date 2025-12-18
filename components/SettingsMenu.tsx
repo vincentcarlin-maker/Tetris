@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2 } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -37,6 +37,11 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
     const [confirmPassword, setConfirmPassword] = useState('');
     const [msg, setMsg] = useState<{text: string, type: 'error' | 'success'} | null>(null);
 
+    // Email Edit State
+    const [isEditingEmail, setIsEditingEmail] = useState(false);
+    const [tempEmail, setTempEmail] = useState(currency.email);
+    const emailInputRef = useRef<HTMLInputElement>(null);
+
     const handleSavePassword = async () => {
         const currentStored = localStorage.getItem('neon_current_password');
         if (oldPassword !== currentStored) { setMsg({ text: "L'ancien mot de passe est incorrect.", type: 'error' }); return; }
@@ -52,6 +57,22 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
             setMsg({ text: "Mot de passe modifié !", type: 'success' });
             setTimeout(() => { setShowPasswordModal(false); setMsg(null); }, 1500);
         } catch (e) { setMsg({ text: "Erreur lors de la sauvegarde.", type: 'error' }); }
+    };
+
+    const handleSaveEmail = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        const trimmed = tempEmail.trim();
+        if (trimmed && !trimmed.includes('@')) {
+            alert("Veuillez entrer une adresse e-mail valide.");
+            return;
+        }
+        
+        currency.updateEmail(trimmed);
+        if (isSupabaseConfigured) {
+            await DB.updateUserData(currency.username, { email: trimmed });
+        }
+        setIsEditingEmail(false);
+        audio.playVictory();
     };
 
     const handleHardReset = () => {
@@ -252,6 +273,38 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             </div>
                             <button onClick={onLogout} className="px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg text-xs font-bold transition-all">DECO</button>
                         </div>
+
+                        {/* E-MAIL SECTION */}
+                        <div className="bg-black/40 rounded-xl border border-white/5 p-3">
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-[10px] text-gray-500 font-bold uppercase flex items-center gap-1"><Mail size={10}/> Adresse E-mail</span>
+                                {!isEditingEmail && (
+                                    <button onClick={() => { setIsEditingEmail(true); setTempEmail(currency.email); }} className="text-neon-blue text-[10px] font-bold uppercase hover:underline">
+                                        {currency.email ? 'Modifier' : 'Ajouter'}
+                                    </button>
+                                )}
+                            </div>
+                            {isEditingEmail ? (
+                                <form onSubmit={handleSaveEmail} className="flex gap-2 mt-2">
+                                    <input 
+                                        ref={emailInputRef}
+                                        type="email" 
+                                        value={tempEmail} 
+                                        onChange={e => setTempEmail(e.target.value)} 
+                                        placeholder="votre@email.com"
+                                        className="flex-1 bg-gray-800 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-neon-blue"
+                                        autoFocus
+                                    />
+                                    <button type="submit" className="p-1 text-green-400 hover:bg-green-400/20 rounded transition-colors"><Check size={18}/></button>
+                                    <button type="button" onClick={() => setIsEditingEmail(false)} className="p-1 text-red-400 hover:bg-red-400/20 rounded transition-colors"><X size={18}/></button>
+                                </form>
+                            ) : (
+                                <p className={`text-sm font-bold ${currency.email ? 'text-white' : 'text-gray-600 italic'}`}>
+                                    {currency.email || 'Aucune adresse associée'}
+                                </p>
+                            )}
+                        </div>
+
                         <button onClick={() => setShowPasswordModal(true)} className="w-full py-3 bg-gray-800 border border-white/10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-gray-300 active:scale-95 transition-all"><Key size={16}/> MODIFIER MOT DE PASSE</button>
                         {currency.isSuperUser && (
                             <div className="mt-2 pt-4 border-t border-white/5">

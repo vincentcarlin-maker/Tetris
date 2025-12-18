@@ -193,6 +193,7 @@ const App: React.FC = () => {
         const cachedPassword = localStorage.getItem('neon_current_password');
         const payload: any = {
             coins: currency.coins,
+            email: currency.email,
             inventory: currency.inventory,
             avatarId: currency.currentAvatarId,
             ownedAvatars: currency.ownedAvatars,
@@ -228,7 +229,8 @@ const App: React.FC = () => {
             localStorage.setItem(`neon_data_${currency.username}`, JSON.stringify(payload));
         }, 2000); 
     }, [
-        currency.coins, 
+        currency.coins,
+        currency.email,
         currency.currentAvatarId, 
         currency.currentFrameId,
         currency.currentWallpaperId,

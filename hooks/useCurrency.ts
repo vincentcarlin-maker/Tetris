@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc } from 'lucide-react';
 
@@ -186,6 +187,7 @@ export const useCurrency = () => {
     });
     
     const [username, setUsername] = useState(() => localStorage.getItem('neon-username') || "Joueur Néon");
+    const [email, setEmail] = useState(() => localStorage.getItem('neon-email') || "");
     const [currentAvatarId, setCurrentAvatarId] = useState(() => localStorage.getItem('neon-avatar') || "av_bot");
     const [ownedAvatars, setOwnedAvatars] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_owned_avatars') || '["av_bot", "av_human"]'); } catch { return ["av_bot", "av_human"]; }
@@ -227,14 +229,6 @@ export const useCurrency = () => {
     });
     const isSuperUser = username === 'Vincent';
 
-    const toggleAdminMode = useCallback(() => {
-        setAdminModeActive(prev => {
-            const newState = !prev;
-            localStorage.setItem('neon-admin-mode', JSON.stringify(newState));
-            return newState;
-        });
-    }, []);
-
     // Mise à jour de l'accentuation de couleur sur tout le document
     useEffect(() => {
         const root = document.documentElement;
@@ -247,7 +241,6 @@ export const useCurrency = () => {
             root.style.setProperty('--neon-accent', '#00f3ff');
             root.style.setProperty('--neon-accent-rgb', '0, 243, 255');
         } else {
-            // Appliquer l'accent à toutes les variables néon pour unifier le thème
             root.style.setProperty('--neon-blue', accentColor);
             root.style.setProperty('--neon-pink', accentColor);
             root.style.setProperty('--neon-purple', accentColor);
@@ -265,9 +258,10 @@ export const useCurrency = () => {
     const importData = useCallback((data: any) => {
         if (!data) return;
         if (data.coins !== undefined) { setCoins(data.coins); localStorage.setItem('neon-coins', data.coins.toString()); }
+        if (data.email !== undefined) { setEmail(data.email); localStorage.setItem('neon-email', data.email); }
         if (data.inventory) { setInventory(data.inventory); localStorage.setItem('neon-inventory', JSON.stringify(data.inventory)); }
         if (data.avatarId) { setCurrentAvatarId(data.avatarId); localStorage.setItem('neon-avatar', data.avatarId); }
-        if (data.ownedAvatars) { setOwnedAvatars(data.ownedAvatars); localStorage.setItem('neon-owned-avatars', JSON.stringify(data.ownedAvatars)); }
+        if (data.ownedAvatars) { setOwnedAvatars(data.ownedAvatars); localStorage.setItem('neon_owned_avatars', JSON.stringify(data.ownedAvatars)); }
         if (data.frameId) { setCurrentFrameId(data.frameId); localStorage.setItem('neon-frame', data.frameId); }
         if (data.ownedFrames) { setOwnedFrames(data.ownedFrames); localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames)); }
         if (data.wallpaperId) { setCurrentWallpaperId(data.wallpaperId); localStorage.setItem('neon-wallpaper', data.wallpaperId); }
@@ -281,8 +275,10 @@ export const useCurrency = () => {
     const refreshData = useCallback(() => {
         const storedCoins = localStorage.getItem('neon-coins');
         const storedInv = localStorage.getItem('neon-inventory');
+        const storedEmail = localStorage.getItem('neon-email');
         if (storedCoins) setCoins(parseInt(storedCoins, 10));
         if (storedInv) setInventory(JSON.parse(storedInv));
+        if (storedEmail) setEmail(storedEmail);
         const storedName = localStorage.getItem('neon-username');
         if (storedName) setUsername(storedName);
     }, []);
@@ -295,6 +291,11 @@ export const useCurrency = () => {
             localStorage.setItem('neon-coins', newVal.toString());
             return newVal;
         });
+    }, []);
+
+    const updateEmail = useCallback((newEmail: string) => {
+        setEmail(newEmail);
+        localStorage.setItem('neon-email', newEmail);
     }, []);
 
     const updateAccentColor = (color: string) => {
@@ -331,7 +332,8 @@ export const useCurrency = () => {
     return { 
         coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets,
         accentColor, updateAccentColor, privacySettings, togglePrivacy, reducedMotion, toggleReducedMotion,
-        isSuperUser, adminModeActive, toggleAdminMode, refreshData, importData, addCoins, 
+        isSuperUser, adminModeActive, toggleAdminMode: () => { const n = !adminModeActive; setAdminModeActive(n); localStorage.setItem('neon-admin-mode', JSON.stringify(n)); },
+        refreshData, importData, addCoins, email, updateEmail,
         buyBadge: (id: string, cost: number) => {
             if (coins >= cost) { addCoins(-cost); setInventory(p => [...p, id]); localStorage.setItem('neon-inventory', JSON.stringify([...inventory, id])); }
         },
