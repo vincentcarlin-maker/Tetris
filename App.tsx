@@ -565,6 +565,7 @@ const App: React.FC = () => {
                         onOpenDashboard={() => setCurrentView('admin_dashboard')}
                         audio={audio}
                         currency={currency}
+                        highScores={highScores}
                     />
                 )}
 
