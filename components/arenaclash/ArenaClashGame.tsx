@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Crosshair, Play, HelpCircle, Skull, Zap, Clock, Shield, Activity, Target, User, Globe, Users, Loader2, ArrowLeft, LogOut, ChevronLeft, ChevronRight, Map } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -161,7 +162,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { username, currentAvatarId, avatarsCatalog } = useCurrency();
     
-    // Joystick Refs
+    // Joystick Refs (DOM Elements)
     const leftZoneRef = useRef<HTMLDivElement>(null);
     const rightZoneRef = useRef<HTMLDivElement>(null);
     const leftKnobRef = useRef<HTMLDivElement>(null);
@@ -193,14 +194,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     // Game Loop Refs
     const playerRef = useRef<Character | null>(null);
-    const botsRef = useRef<Character[]>([]);
+    const botsRef = useRef<Character[]>([]); // In Online Mode, this stores Opponents
     const bulletsRef = useRef<Bullet[]>([]);
     const powerUpsRef = useRef<PowerUp[]>([]);
     const particlesRef = useRef<Particle[]>([]);
     
     const gameStateRef = useRef(gameState);
     const timeLeftRef = useRef(timeLeft);
-    const lastUiTimeRef = useRef(MATCH_DURATION);
+    const lastUiTimeRef = useRef(MATCH_DURATION); // Optimization: avoid state dependency
     const onReportProgressRef = useRef(onReportProgress);
     const cameraRef = useRef({ x: 0, y: 0 });
     const selectedMapIndexRef = useRef(0);
@@ -226,6 +227,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             localStorage.setItem('neon_arena_tutorial_seen', 'true');
         }
         
+        // Sync Identity
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Arena Clash');
 
         return () => cancelAnimationFrame(animationFrameRef.current);
@@ -237,7 +239,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             setOnlineStep('connecting');
             mp.connect();
         } else {
-            if (mp.mode === 'in_game' || mp.isHost) mp.leaveGame();
+            mp.disconnect();
             setOpponentLeft(false);
         }
         return () => mp.disconnect();
@@ -248,10 +250,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
+            
+            // If we were playing and got kicked to lobby
             if (gameState === 'PLAYING') setGameState('MENU');
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
+            
+            // Auto start if matched while in menu
             if (gameState === 'MENU' && gameMode === 'ONLINE') {
                 startGame('ONLINE');
             }
@@ -272,7 +278,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         } while (!safe);
 
         return {
-            id, name, x, y, radius: 20,
+            id, name, x, y, radius: 20, // Tank radius slightly larger
             color: isPlayer ? COLORS.player : COLORS.enemy,
             hp: 100, maxHp: 100,
             angle: 0, vx: 0, vy: 0, speed: isPlayer || isRemote ? 5 : 3.5,
@@ -304,6 +310,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         };
         powerUpsRef.current.push(newPowerUp);
         
+        // Broadcast PowerUp spawn (Host Only)
         if (gameMode === 'ONLINE' && mp.isHost) {
             mp.sendData({ type: 'ARENA_POWERUP_SPAWN', powerup: newPowerUp });
         }
@@ -323,10 +330,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
                 let opponent = botsRef.current.find(b => b.id === remoteData.id);
                 if (!opponent) {
+                    // Initialize new remote player
                     opponent = spawnCharacter(remoteData.id, remoteData.name, false, true);
                     botsRef.current.push(opponent);
                 }
                 
+                // Sync State
                 opponent.x = remoteData.x;
                 opponent.y = remoteData.y;
                 opponent.angle = remoteData.angle;
@@ -334,16 +343,21 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 opponent.shield = remoteData.shield;
                 opponent.isDead = remoteData.isDead;
                 opponent.score = remoteData.score;
-                opponent.name = remoteData.name;
+                opponent.name = remoteData.name; // Keep name sync
             }
 
             if (data.type === 'ARENA_SHOOT') {
                 const shooter = botsRef.current.find(b => b.id === data.id);
-                if (shooter) fireBullet(shooter, data.boosted);
+                if (shooter) {
+                    // Fire remote bullet locally
+                    fireBullet(shooter, data.boosted);
+                }
             }
 
             if (data.type === 'ARENA_POWERUP_SPAWN') {
-                if (!mp.isHost) powerUpsRef.current.push(data.powerup);
+                if (!mp.isHost) {
+                    powerUpsRef.current.push(data.powerup);
+                }
             }
 
             if (data.type === 'ARENA_POWERUP_COLLECT') {
@@ -353,19 +367,17 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
             if (data.type === 'ARENA_KILL_FEED') {
                 setKillFeed(prev => [{ id: Date.now(), killer: data.killer, victim: data.victim, time: Date.now() }, ...prev].slice(0, 5));
-                // Correction : L'attaquant met à jour son propre score localement s'il est désigné comme tueur
-                if (data.killerId === mp.peerId && playerRef.current) {
-                    playerRef.current.score += 1;
-                    playCoin();
-                }
             }
 
             if (data.type === 'LEAVE_GAME') {
                 setOpponentLeft(true);
+                // Remove player from bots list
                 botsRef.current = botsRef.current.filter(b => b.id !== mp.gameOpponent?.id);
             }
             
-            if (data.type === 'REMATCH_START') startGame('ONLINE');
+            if (data.type === 'REMATCH_START') {
+                startGame('ONLINE');
+            }
         });
         return () => unsubscribe();
     }, [mp, spawnCharacter]);
@@ -374,16 +386,20 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const currentMode = modeOverride || gameMode;
         if (showTutorial) return;
         
+        // If Host online, broadcast map choice
         if (currentMode === 'ONLINE' && mp.isHost) {
             mp.sendData({ type: 'ARENA_INIT_MAP', mapIndex: selectedMapIndex });
         }
 
+        // My Player
         playerRef.current = spawnCharacter(mp.peerId || 'player', username, true);
         
         if (currentMode === 'SOLO') {
             botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
         } else {
+            // In online mode, opponents are synced, so start empty
             botsRef.current = [];
+            // If we have an opponent already known from lobby, create a placeholder
             if (mp.gameOpponent) {
                 const opp = spawnCharacter(mp.gameOpponent.id, mp.gameOpponent.name, false, true);
                 botsRef.current.push(opp);
@@ -411,6 +427,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const damage = boosted ? 25 : 10;
         const speed = BULLET_SPEED;
         const color = boosted ? '#ff00ff' : char.id === (mp.peerId || 'player') ? COLORS.player : COLORS.bullet;
+        
+        // Barrel offset for tank
         const barrelLen = 30; 
         
         bulletsRef.current.push({
@@ -442,22 +460,21 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             char.isDead = true; char.respawnTimer = RESPAWN_TIME; char.hp = 0;
             playExplosion(); spawnParticles(char.x, char.y, char.color, 30, true);
             
+            // Find Attacker
             const attacker = (attackerId === playerRef.current?.id) ? playerRef.current : botsRef.current.find(b => b.id === attackerId);
             
             if (attacker) {
-                // Pour les bots en solo, on incrémente directement. En ligne, on laisse le message faire.
-                if (gameMode === 'SOLO') {
-                    attacker.score += 1;
-                }
-                
+                attacker.score += 1;
+                // Add Kill to Feed
                 const killEvent = { id: Date.now(), killer: attacker.name, victim: char.name, time: Date.now() };
                 setKillFeed(prev => [killEvent, ...prev].slice(0, 5));
                 
+                // Broadcast Kill Feed in Online
                 if (gameMode === 'ONLINE') {
-                    mp.sendData({ type: 'ARENA_KILL_FEED', killer: attacker.name, killerId: attacker.id, victim: char.name });
+                    mp.sendData({ type: 'ARENA_KILL_FEED', killer: attacker.name, victim: char.name });
                 }
 
-                if (attacker.id === (mp.peerId || 'player') && gameMode === 'SOLO') { playCoin(); shakeRef.current = 10; }
+                if (attacker.id === (mp.peerId || 'player')) { playCoin(); shakeRef.current = 10; }
             }
             if (char.id === (mp.peerId || 'player')) { setGameState('RESPAWNING'); gameStateRef.current = 'RESPAWNING'; playGameOver(); }
         }
@@ -488,22 +505,32 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         const player = playerRef.current;
         const currentObstacles = MAPS[selectedMapIndexRef.current].obstacles;
         
+        // If no player initiated, return
         if (!player) return;
 
         if (gameStateRef.current === 'PLAYING' || gameStateRef.current === 'RESPAWNING') {
             timeLeftRef.current = Math.max(0, timeLeftRef.current - dt / 1000);
+            
+            // Only update UI state every second to prevent jitter
             if (Math.floor(timeLeftRef.current) !== Math.floor(lastUiTimeRef.current)) {
                 setTimeLeft(timeLeftRef.current);
                 lastUiTimeRef.current = timeLeftRef.current;
+                
+                // Host spawns powerups in online mode
                 if (gameMode === 'SOLO' || (gameMode === 'ONLINE' && mp.isHost)) {
                     if (Math.random() < 0.3) spawnPowerUp();
                 }
             }
-            if (timeLeftRef.current <= 0) { endGame(); return; }
+            
+            if (timeLeftRef.current <= 0) {
+                endGame();
+                return;
+            }
         }
 
+        // --- NETWORK SYNC ---
         if (gameMode === 'ONLINE' && gameStateRef.current !== 'GAMEOVER') {
-            if (now - lastNetworkUpdateRef.current > 40) {
+            if (now - lastNetworkUpdateRef.current > 40) { // ~25 updates/sec
                 mp.sendData({ 
                     type: 'ARENA_UPDATE', 
                     player: {
@@ -529,6 +556,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 if (char.respawnTimer > 0) {
                     char.respawnTimer -= dt;
                     if (char.respawnTimer <= 0) {
+                        // Respawn logic (only for me or bots in solo)
+                        // In online, opponents respawn themselves and sync position via Update
                         if (char.id === player.id || gameMode === 'SOLO') {
                             const spawn = spawnCharacter(char.id, char.name, char.id === player.id);
                             Object.assign(char, spawn);
@@ -547,21 +576,28 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             const hasDamage = char.powerups.some(p => p.type === 'DAMAGE');
             const currentSpeed = hasSpeed ? char.speed * 1.5 : char.speed;
 
+            // MOVEMENT Logic (Local Only for Player & Solo Bots)
             const isLocal = char.id === player.id;
             const isBot = gameMode === 'SOLO' && char.id !== player.id;
 
             if (isLocal) {
                 let dx = 0, dy = 0;
+                
                 if (keysRef.current['w'] || keysRef.current['ArrowUp']) dy -= 1;
                 if (keysRef.current['s'] || keysRef.current['ArrowDown']) dy += 1;
                 if (keysRef.current['a'] || keysRef.current['ArrowLeft']) dx -= 1;
                 if (keysRef.current['d'] || keysRef.current['ArrowRight']) dx += 1;
+
                 if (controlsRef.current.move.active) {
-                    dx = controlsRef.current.move.x; dy = controlsRef.current.move.y;
+                    dx = controlsRef.current.move.x;
+                    dy = controlsRef.current.move.y;
                 }
+
                 const len = Math.sqrt(dx*dx + dy*dy);
                 if (len > 1) { dx /= len; dy /= len; }
-                char.x += dx * currentSpeed; char.y += dy * currentSpeed;
+
+                char.x += dx * currentSpeed;
+                char.y += dy * currentSpeed;
 
                 if (controlsRef.current.aim.active) {
                     char.angle = Math.atan2(controlsRef.current.aim.y, controlsRef.current.aim.x);
@@ -573,12 +609,15 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                     const worldMouseX = mouseRef.current.x + cameraRef.current.x;
                     const worldMouseY = mouseRef.current.y + cameraRef.current.y;
                     char.angle = Math.atan2(worldMouseY - char.y, worldMouseX - char.x);
+                    
                     if (mouseRef.current.down && now - char.lastShot > char.weaponDelay) {
                         fireBullet(char, hasDamage);
                         if (gameMode === 'ONLINE') mp.sendData({ type: 'ARENA_SHOOT', id: char.id, boosted: hasDamage });
                     }
                 }
+
             } else if (isBot) {
+                // AI Logic (Only in Solo)
                 let target: {x: number, y: number} | null = null;
                 let minDist = 600;
                 powerUpsRef.current.forEach(pu => {
@@ -591,6 +630,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         if (dist < minDist) { minDist = dist; target = other; char.targetId = other.id; }
                     }
                 });
+
                 if (target) {
                     const angle = Math.atan2(target.y - char.y, target.x - char.x);
                     char.angle = angle;
@@ -604,12 +644,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
             }
 
+            // COLLISION (Calculated Locally for Smoothness)
             char.x = Math.max(char.radius, Math.min(CANVAS_WIDTH - char.radius, char.x));
             char.y = Math.max(char.radius, Math.min(CANVAS_HEIGHT - char.radius, char.y));
             currentObstacles.forEach(obs => {
                 const closestX = Math.max(obs.x, Math.min(char.x, obs.x + obs.w));
                 const closestY = Math.max(obs.y, Math.min(char.y, obs.y + obs.h));
-                const dx = char.x - closestX; const dy = char.y - closestY;
+                const dx = char.x - closestX;
+                const dy = char.y - closestY;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 if (dist < char.radius) {
                     const overlap = char.radius - dist;
@@ -618,12 +660,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
             });
 
+            // POWERUPS (Only for Local Player or Solo)
             if (isLocal || isBot) {
                 for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
                     const pu = powerUpsRef.current[i];
                     if (Math.hypot(char.x - pu.x, char.y - pu.y) < char.radius + pu.radius) {
                         playPowerUpCollect(pu.type === 'HEALTH' ? 'EXTRA_LIFE' : 'PADDLE_GROW');
                         applyPowerUp(char, pu.type);
+                        
                         if (gameMode === 'ONLINE') mp.sendData({ type: 'ARENA_POWERUP_COLLECT', powerupId: pu.id });
                         powerUpsRef.current.splice(i, 1);
                     }
@@ -631,6 +675,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             }
         });
 
+        // BULLETS
         for (let i = bulletsRef.current.length - 1; i >= 0; i--) {
             const b = bulletsRef.current[i];
             b.x += b.vx; b.y += b.vy; b.life -= dt;
@@ -644,11 +689,18 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
             }
             if (!hit) {
+                // Check hits against characters
                 for (const char of allChars) {
                     if (char.id !== b.ownerId && !char.isDead) {
+                        // HIT DETECTION
                         if (Math.hypot(b.x - char.x, b.y - char.y) < char.radius + b.radius) {
-                            hit = true; spawnParticles(b.x, b.y, char.color, 5); 
-                            if (char.id === player.id || gameMode === 'SOLO') takeDamage(char, b.damage, b.ownerId);
+                            hit = true; 
+                            spawnParticles(b.x, b.y, char.color, 5); 
+                            
+                            // In ONLINE, simpler if each client calculates damage taken
+                            if (char.id === player.id || gameMode === 'SOLO') {
+                                takeDamage(char, b.damage, b.ownerId);
+                            }
                             break;
                         }
                     }
@@ -657,12 +709,14 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             if (hit || b.life <= 0) bulletsRef.current.splice(i, 1);
         }
 
+        // PARTICLES
         for (let i = particlesRef.current.length - 1; i >= 0; i--) {
             const p = particlesRef.current[i];
             p.x += p.vx; p.y += p.vy; p.life--;
             if (p.life <= 0) particlesRef.current.splice(i, 1);
         }
 
+        // CAMERA
         if (player && !player.isDead) {
             const targetX = player.x - VIEWPORT_WIDTH / 2;
             const targetY = player.y - VIEWPORT_HEIGHT / 2;
@@ -682,36 +736,85 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         setLeaderboard(sorted.map(c => ({ name: c.name, score: c.score, isMe: c.id === player.id })));
     }, [spawnCharacter, spawnPowerUp, endGame, gameMode, mp]);
 
+    // --- DRAWING FUNCTIONS ---
+    
+    // Draw Tank Function
     const drawTank = (ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string, radius: number) => {
-        ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        // 1. Treads (Chenilles)
         ctx.fillStyle = '#111';
-        ctx.fillRect(-radius - 2, -radius, 6, radius * 2); ctx.fillRect(radius - 4, -radius, 6, radius * 2);
+        ctx.fillRect(-radius - 2, -radius, 6, radius * 2); // Left track
+        ctx.fillRect(radius - 4, -radius, 6, radius * 2);  // Right track
+        
+        // Track details
         ctx.fillStyle = '#333';
-        for(let i=0; i<4; i++) { ctx.fillRect(-radius - 1, -radius + 2 + (i*8), 4, 4); ctx.fillRect(radius - 3, -radius + 2 + (i*8), 4, 4); }
-        ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 10;
+        for(let i=0; i<4; i++) {
+            ctx.fillRect(-radius - 1, -radius + 2 + (i*8), 4, 4);
+            ctx.fillRect(radius - 3, -radius + 2 + (i*8), 4, 4);
+        }
+
+        // 2. Body
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
         ctx.fillRect(-radius + 2, -radius + 2, radius * 2 - 4, radius * 2 - 4);
-        ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.shadowBlur = 0; // Reset shadow for details
+
+        // Body Details
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
         ctx.fillRect(-radius + 6, -radius + 6, radius - 4, radius * 1.5);
-        ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
-        ctx.fillStyle = '#333'; ctx.fillRect(0, -4, radius * 1.6, 8);
-        ctx.strokeStyle = '#555'; ctx.strokeRect(0, -4, radius * 1.6, 8);
-        ctx.fillStyle = '#000'; ctx.fillRect(radius * 1.6, -5, 4, 10);
+
+        // 3. Turret
+        ctx.fillStyle = '#222';
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 4. Barrel (Canon)
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, -4, radius * 1.6, 8); // Barrel sticking out
+        ctx.strokeStyle = '#555';
+        ctx.strokeRect(0, -4, radius * 1.6, 8);
+        
+        // Barrel Tip
+        ctx.fillStyle = '#000';
+        ctx.fillRect(radius * 1.6, -5, 4, 10);
+
         ctx.restore();
     };
 
     const draw = useCallback((ctx: CanvasRenderingContext2D) => {
         const map = MAPS[selectedMapIndexRef.current];
-        ctx.fillStyle = map.colors.bg; ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+        
+        // Background
+        ctx.fillStyle = map.colors.bg; 
+        ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+        
         const cam = cameraRef.current;
         ctx.save(); ctx.translate(-cam.x, -cam.y);
+
+        // Grid
         ctx.strokeStyle = map.colors.grid; ctx.lineWidth = 2;
         for (let x = 0; x <= CANVAS_WIDTH; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); }
         for (let y = 0; y <= CANVAS_HEIGHT; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); }
+
+        // Obstacles
         ctx.shadowColor = map.colors.wallBorder; ctx.shadowBlur = 15; 
-        ctx.strokeStyle = map.colors.wallBorder; ctx.lineWidth = 2; ctx.fillStyle = map.colors.wall;
-        map.obstacles.forEach(obs => { ctx.fillRect(obs.x, obs.y, obs.w, obs.h); ctx.strokeRect(obs.x, obs.y, obs.w, obs.h); });
+        ctx.strokeStyle = map.colors.wallBorder; ctx.lineWidth = 2;
+        ctx.fillStyle = map.colors.wall;
+        map.obstacles.forEach(obs => { 
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h); 
+            ctx.strokeRect(obs.x, obs.y, obs.w, obs.h); 
+        });
         ctx.shadowBlur = 0;
+
+        // PowerUps
         powerUpsRef.current.forEach(pu => {
             let color = '#fff';
             if (pu.type === 'HEALTH') color = COLORS.powerup.health;
@@ -722,15 +825,37 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             ctx.beginPath(); ctx.arc(pu.x, pu.y, pu.radius, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px sans-serif'; ctx.fillText(pu.type[0], pu.x, pu.y);
         });
-        particlesRef.current.forEach(p => { ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); });
+
+        // Particles
+        particlesRef.current.forEach(p => {
+            ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+        });
         ctx.globalAlpha = 1;
-        bulletsRef.current.forEach(b => { ctx.shadowColor = b.color; ctx.shadowBlur = 10; ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill(); });
+
+        // Bullets
+        bulletsRef.current.forEach(b => {
+            ctx.shadowColor = b.color; ctx.shadowBlur = 10; ctx.fillStyle = b.color;
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
+        });
+
         const player = playerRef.current;
         const allChars = player ? [player, ...botsRef.current] : [];
+
+        // Characters (Tanks)
         allChars.forEach(char => {
             if (!char || char.isDead) return;
-            if (char.shield > 0) { ctx.strokeStyle = COLORS.powerup.shield; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(char.x, char.y, char.radius + 8, 0, Math.PI*2); ctx.stroke(); }
+            
+            // Shield Effect
+            if (char.shield > 0) {
+                ctx.strokeStyle = COLORS.powerup.shield; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(char.x, char.y, char.radius + 8, 0, Math.PI*2); ctx.stroke();
+            }
+
+            // Draw Tank
             drawTank(ctx, char.x, char.y, char.angle, char.color, char.radius);
+            
+            // HP Bar & Name
             const hpPct = char.hp / char.maxHp;
             ctx.fillStyle = '#000'; ctx.fillRect(char.x - 15, char.y - 35, 30, 4);
             ctx.fillStyle = hpPct > 0.5 ? '#0f0' : '#f00'; ctx.fillRect(char.x - 15, char.y - 35, 30 * hpPct, 4);
@@ -742,12 +867,19 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const loop = useCallback(() => {
         if (!lastTimeRef.current) lastTimeRef.current = Date.now();
         const now = Date.now();
-        const dt = now - lastTimeRef.current; lastTimeRef.current = now;
+        const dt = now - lastTimeRef.current;
+        lastTimeRef.current = now;
+        
         update(dt);
-        if (canvasRef.current) { const ctx = canvasRef.current.getContext('2d'); if (ctx) draw(ctx); }
+        
+        if (canvasRef.current) { 
+            const ctx = canvasRef.current.getContext('2d'); 
+            if (ctx) draw(ctx); 
+        }
         animationFrameRef.current = requestAnimationFrame(loop);
     }, [update, draw]);
 
+    // --- CONTROLS ---
     useEffect(() => {
         const kd = (e: KeyboardEvent) => { keysRef.current[e.key.toLowerCase()] = true; keysRef.current[e.code] = true; };
         const ku = (e: KeyboardEvent) => { keysRef.current[e.key.toLowerCase()] = false; keysRef.current[e.code] = false; };
@@ -755,93 +887,170 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
     }, []);
 
-    useEffect(() => { animationFrameRef.current = requestAnimationFrame(loop); return () => cancelAnimationFrame(animationFrameRef.current); }, [loop]);
+    useEffect(() => {
+        // Start loop on mount and keep it running
+        animationFrameRef.current = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(animationFrameRef.current);
+    }, [loop]);
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        const rect = canvasRef.current?.getBoundingClientRect(); if(!rect) return;
-        const scaleX = VIEWPORT_WIDTH / rect.width; const scaleY = VIEWPORT_HEIGHT / rect.height;
-        mouseRef.current.x = (e.clientX - rect.left) * scaleX; mouseRef.current.y = (e.clientY - rect.top) * scaleY;
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if(!rect) return;
+        const scaleX = VIEWPORT_WIDTH / rect.width;
+        const scaleY = VIEWPORT_HEIGHT / rect.height;
+        mouseRef.current.x = (e.clientX - rect.left) * scaleX;
+        mouseRef.current.y = (e.clientY - rect.top) * scaleY;
     };
 
-    const toggleTutorial = (e: React.MouseEvent) => { e.stopPropagation(); setShowTutorial(prev => !prev); };
+    const toggleTutorial = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowTutorial(prev => !prev);
+    };
 
-    // Added fix for handleLocalBack
-    const handleLocalBack = useCallback(() => {
-        if (gameState === 'MENU') {
-            onBack();
-        } else {
-            if (gameMode === 'ONLINE') {
-                if (onlineStep === 'game') {
-                    mp.leaveGame();
-                    setOnlineStep('lobby');
-                } else {
-                    mp.disconnect();
-                    setGameState('MENU');
-                }
-            } else {
-                setGameState('MENU');
-            }
-        }
-    }, [onBack, gameMode, onlineStep, mp, gameState]);
-
+    // --- TOUCH HANDLERS ---
     useEffect(() => {
         const handleTouch = (e: TouchEvent) => {
-            if (e.target !== leftZoneRef.current && e.target !== rightZoneRef.current && !(e.target as HTMLElement).closest('button')) e.preventDefault();
+            // Prevent default behavior to stop scrolling
+            if (e.target !== leftZoneRef.current && e.target !== rightZoneRef.current && !(e.target as HTMLElement).closest('button')) {
+               e.preventDefault(); 
+            }
+
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
+                
+                // START
                 if (e.type === 'touchstart') {
                     if (leftZoneRef.current && activeTouches.current.move === null) {
                         const rect = leftZoneRef.current.getBoundingClientRect();
                         if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                            activeTouches.current.move = t.identifier; updateStick('move', t.clientX, t.clientY, leftZoneRef.current); continue;
+                            activeTouches.current.move = t.identifier;
+                            updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
+                            continue;
                         }
                     }
                     if (rightZoneRef.current && activeTouches.current.aim === null) {
                         const rect = rightZoneRef.current.getBoundingClientRect();
                         if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                            activeTouches.current.aim = t.identifier; updateStick('aim', t.clientX, t.clientY, rightZoneRef.current); continue;
+                            activeTouches.current.aim = t.identifier;
+                            updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
+                            continue;
                         }
                     }
                 }
+
+                // MOVE
                 if (e.type === 'touchmove') {
-                    if (t.identifier === activeTouches.current.move && leftZoneRef.current) updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
-                    if (t.identifier === activeTouches.current.aim && rightZoneRef.current) updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
+                    if (t.identifier === activeTouches.current.move && leftZoneRef.current) {
+                        updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
+                    }
+                    if (t.identifier === activeTouches.current.aim && rightZoneRef.current) {
+                        updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
+                    }
                 }
+
+                // END
                 if (e.type === 'touchend' || e.type === 'touchcancel') {
-                    if (t.identifier === activeTouches.current.move) { activeTouches.current.move = null; resetStick('move'); }
-                    if (t.identifier === activeTouches.current.aim) { activeTouches.current.aim = null; resetStick('aim'); }
+                    if (t.identifier === activeTouches.current.move) {
+                        activeTouches.current.move = null;
+                        resetStick('move');
+                    }
+                    if (t.identifier === activeTouches.current.aim) {
+                        activeTouches.current.aim = null;
+                        resetStick('aim');
+                    }
                 }
             }
         };
+
         const container = document.getElementById('arena-container');
-        if (container) { container.addEventListener('touchstart', handleTouch, { passive: false }); container.addEventListener('touchmove', handleTouch, { passive: false }); container.addEventListener('touchend', handleTouch, { passive: false }); container.addEventListener('touchcancel', handleTouch, { passive: false }); }
-        return () => { if (container) { container.removeEventListener('touchstart', handleTouch); container.removeEventListener('touchmove', handleTouch); container.removeEventListener('touchend', handleTouch); container.removeEventListener('touchcancel', handleTouch); } };
+        if (container) {
+            container.addEventListener('touchstart', handleTouch, { passive: false });
+            container.addEventListener('touchmove', handleTouch, { passive: false });
+            container.addEventListener('touchend', handleTouch, { passive: false });
+            container.addEventListener('touchcancel', handleTouch, { passive: false });
+        }
+
+        return () => {
+            if (container) {
+                container.removeEventListener('touchstart', handleTouch);
+                container.removeEventListener('touchmove', handleTouch);
+                container.removeEventListener('touchend', handleTouch);
+                container.removeEventListener('touchcancel', handleTouch);
+            }
+        };
     }, []);
 
+    // --- JOYSTICK LOGIC ---
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
-        const rect = zone.getBoundingClientRect(); const centerX = rect.left + rect.width / 2; const centerY = rect.top + rect.height / 2; const maxDist = rect.width / 2 - 25;
-        let dx = clientX - centerX; let dy = clientY - centerY; const dist = Math.sqrt(dx*dx + dy*dy);
-        let normX = 0, normY = 0;
+        const rect = zone.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const maxDist = rect.width / 2 - 25; // Padding
+
+        let dx = clientX - centerX;
+        let dy = clientY - centerY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        // Normalize vector
+        let normX = 0;
+        let normY = 0;
+
         if (dist > 0) {
-            const limitedDist = Math.min(dist, maxDist); const ratio = limitedDist / dist;
+            const limitedDist = Math.min(dist, maxDist);
+            const ratio = limitedDist / dist;
+            
+            // Move visual knob
             const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
-            if (knob) knob.style.transform = `translate(${dx * ratio}px, ${dy * ratio}px)`;
-            const magnitude = Math.min(dist / maxDist, 1.0); normX = (dx / dist) * magnitude; normY = (dy / dist) * magnitude;
+            if (knob) {
+                knob.style.transform = `translate(${dx * ratio}px, ${dy * ratio}px)`;
+            }
+
+            // Input value (0 to 1 magnitude)
+            const magnitude = Math.min(dist / maxDist, 1.0);
+            normX = (dx / dist) * magnitude;
+            normY = (dy / dist) * magnitude;
         }
-        if (type === 'move') controlsRef.current.move = { x: normX, y: normY, active: true };
-        else controlsRef.current.aim = { x: normX, y: normY, active: true };
+
+        if (type === 'move') {
+            controlsRef.current.move = { x: normX, y: normY, active: true };
+        } else {
+            controlsRef.current.aim = { x: normX, y: normY, active: true };
+        }
     };
 
     const resetStick = (type: 'move' | 'aim') => {
         const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
         if (knob) knob.style.transform = `translate(0px, 0px)`;
+        
         if (type === 'move') controlsRef.current.move = { x: 0, y: 0, active: false };
         else controlsRef.current.aim = { x: 0, y: 0, active: false };
+    };
+
+    // --- LOBBY LOGIC ---
+    const handleLocalBack = () => {
+        if (gameMode === 'ONLINE') {
+            if (onlineStep === 'game') {
+                mp.leaveGame();
+                setOnlineStep('lobby');
+            } else {
+                mp.disconnect();
+                setGameMode('SOLO');
+                setGameState('MENU');
+            }
+            return;
+        }
+        
+        if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
+            setGameState('MENU');
+        } else {
+            onBack();
+        }
     };
 
     const renderLobby = () => {
         const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
         const otherPlayers = mp.players.filter(p => p.status !== 'hosting' && p.id !== mp.peerId);
+        
          return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md bg-black/60 rounded-xl border border-white/10 backdrop-blur-md p-4">
                  <div className="flex flex-col gap-3 mb-4">
@@ -870,6 +1079,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         </>
                     )}
                     {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                    
                     {otherPlayers.length > 0 && (
                         <>
                              <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
@@ -911,15 +1121,28 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
     return (
         <div id="arena-container" className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden select-none relative">
+            {/* Background */}
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none -z-10" />
+            
             {showTutorial && <TutorialOverlay gameId="arenaclash" onClose={() => setShowTutorial(false)} />}
+
+            {/* MAIN GAME CONTAINER (Always Rendered for Canvas) */}
             <div className="absolute inset-0 flex flex-col items-center">
+                {/* HEADER */}
                 <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0 pointer-events-none">
-                    <button onClick={(e) => { e.stopPropagation(); handleLocalBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all"><Home size={20} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleLocalBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
+                        <Home size={20} />
+                    </button>
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,217,255,0.5)] tracking-widest">NEON ARENA</h1>
-                    <div className="flex gap-2 pointer-events-auto"><button onClick={toggleTutorial} className="p-3 bg-gray-900/80 rounded-xl text-yellow-400 border border-yellow-500/30 hover:bg-yellow-900/50 active:scale-95 transition-all"><HelpCircle size={20} /></button></div>
+                    <div className="flex gap-2 pointer-events-auto">
+                        <button onClick={toggleTutorial} className="p-3 bg-gray-900/80 rounded-xl text-yellow-400 border border-yellow-500/30 hover:bg-yellow-900/50 active:scale-95 transition-all"><HelpCircle size={20} /></button>
+                    </div>
                 </div>
+
+                {/* GAME AREA */}
                 <div className="flex-1 w-full max-w-4xl relative min-h-0 flex flex-col">
+                    
+                    {/* HUD (Only visible when Playing) */}
                     {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                         <div className="absolute top-0 left-0 w-full flex justify-between p-4 z-20 pointer-events-none">
                             <div className="flex flex-col gap-1">
@@ -932,35 +1155,135 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                                 ))}
                             </div>
                             <div className="flex flex-col items-center">
-                                <div className={`text-2xl font-black font-mono ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{Math.floor(timeLeft / 60)}:{String(Math.floor(timeLeft % 60)).padStart(2, '0')}</div>
-                                {gameState === 'RESPAWNING' && <div className="mt-2 bg-red-900/80 px-4 py-1 rounded text-red-200 font-bold animate-pulse border border-red-500 text-xs">RESPAWN DANS {Math.ceil(playerRef.current?.respawnTimer! / 1000)}s</div>}
+                                <div className={`text-2xl font-black font-mono ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                                    {Math.floor(timeLeft / 60)}:{String(Math.floor(timeLeft % 60)).padStart(2, '0')}
+                                </div>
+                                {gameState === 'RESPAWNING' && (
+                                    <div className="mt-2 bg-red-900/80 px-4 py-1 rounded text-red-200 font-bold animate-pulse border border-red-500 text-xs">
+                                        RESPAWN DANS {Math.ceil(playerRef.current?.respawnTimer! / 1000)}s
+                                    </div>
+                                )}
                             </div>
-                            <div className="w-32 bg-gray-900/80 p-2 rounded-lg border border-white/10"><div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-1"><Trophy size={14} className="text-yellow-400"/><span className="text-xs font-bold text-white">TOP</span></div>{leaderboard.slice(0, 5).map((p, i) => (<div key={i} className={`flex justify-between text-[10px] mb-1 ${p.isMe ? 'text-cyan-400 font-bold' : 'text-gray-300'}`}><span>{i+1}. {p.name}</span><span>{p.score}</span></div>))}</div>
+                            <div className="w-32 bg-gray-900/80 p-2 rounded-lg border border-white/10">
+                                <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
+                                    <Trophy size={14} className="text-yellow-400"/>
+                                    <span className="text-xs font-bold text-white">TOP</span>
+                                </div>
+                                {leaderboard.slice(0, 5).map((p, i) => (
+                                    <div key={i} className={`flex justify-between text-[10px] mb-1 ${p.isMe ? 'text-cyan-400 font-bold' : 'text-gray-300'}`}>
+                                        <span>{i+1}. {p.name}</span>
+                                        <span>{p.score}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
+
+                    {/* CANVAS WRAPPER */}
                     <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-                        <canvas ref={canvasRef} width={VIEWPORT_WIDTH} height={VIEWPORT_HEIGHT} className="bg-black/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-xl w-full h-full object-contain cursor-crosshair" onMouseDown={(e) => { if(!showTutorial && gameState === 'PLAYING') { mouseRef.current.down = true; const rect = e.currentTarget.getBoundingClientRect(); const scaleX = VIEWPORT_WIDTH / rect.width; const scaleY = VIEWPORT_HEIGHT / rect.height; mouseRef.current.x = (e.clientX - rect.left) * scaleX; mouseRef.current.y = (e.clientY - rect.top) * scaleY; } }} onMouseUp={() => mouseRef.current.down = false} onMouseMove={handleMouseMove} />
+                        <canvas 
+                            ref={canvasRef}
+                            width={VIEWPORT_WIDTH}
+                            height={VIEWPORT_HEIGHT}
+                            className="bg-black/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-xl w-full h-full object-contain cursor-crosshair"
+                            onMouseDown={(e) => { 
+                                if(!showTutorial && gameState === 'PLAYING') { 
+                                    mouseRef.current.down = true; 
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const scaleX = VIEWPORT_WIDTH / rect.width;
+                                    const scaleY = VIEWPORT_HEIGHT / rect.height;
+                                    mouseRef.current.x = (e.clientX - rect.left) * scaleX;
+                                    mouseRef.current.y = (e.clientY - rect.top) * scaleY;
+                                } 
+                            }}
+                            onMouseUp={() => mouseRef.current.down = false}
+                            onMouseMove={handleMouseMove}
+                        />
                     </div>
+
+                    {/* MOBILE CONTROLS (Only visible when Playing) */}
                     {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                         <div className="h-48 w-full grid grid-cols-2 gap-4 shrink-0 z-40 p-4 pointer-events-auto">
-                            <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors"><div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none"><div className="w-20 h-20 rounded-full border-2 border-cyan-500"></div></div><div ref={leftKnobRef} className="w-12 h-12 bg-cyan-500/80 rounded-full shadow-[0_0_15px_#00f3ff] relative pointer-events-none"><div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div></div><span className="absolute bottom-2 text-[10px] text-cyan-500 font-bold tracking-widest pointer-events-none">BOUGER</span></div>
-                            <div ref={rightZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors"><div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none"><div className="w-20 h-20 rounded-full border-2 border-red-500"></div></div><div ref={rightKnobRef} className="w-12 h-12 bg-red-500/80 rounded-full shadow-[0_0_15px_#ef4444] relative pointer-events-none"><div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div></div><span className="absolute bottom-2 text-[10px] text-red-500 font-bold tracking-widest pointer-events-none">VISER & TIRER</span></div>
+                            {/* LEFT STICK - MOVE */}
+                            <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
+                                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                                    <div className="w-20 h-20 rounded-full border-2 border-cyan-500"></div>
+                                </div>
+                                <div ref={leftKnobRef} className="w-12 h-12 bg-cyan-500/80 rounded-full shadow-[0_0_15px_#00f3ff] relative pointer-events-none">
+                                    <div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div>
+                                </div>
+                                <span className="absolute bottom-2 text-[10px] text-cyan-500 font-bold tracking-widest pointer-events-none">BOUGER</span>
+                            </div>
+
+                            {/* RIGHT STICK - AIM/SHOOT */}
+                            <div ref={rightZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
+                                <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                                    <div className="w-20 h-20 rounded-full border-2 border-red-500"></div>
+                                </div>
+                                <div ref={rightKnobRef} className="w-12 h-12 bg-red-500/80 rounded-full shadow-[0_0_15px_#ef4444] relative pointer-events-none">
+                                    <div className="absolute inset-0 rounded-full border-2 border-white opacity-50"></div>
+                                </div>
+                                <span className="absolute bottom-2 text-[10px] text-red-500 font-bold tracking-widest pointer-events-none">VISER & TIRER</span>
+                            </div>
                         </div>
                     )}
                 </div>
             </div>
+
+            {/* --- OVERLAYS --- */}
+
+            {/* MENU OVERLAY */}
             {gameState === 'MENU' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                    <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/><h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
-                    <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/50 p-2 rounded-xl border border-white/10"><button onClick={() => setSelectedMapIndex((prev) => (prev - 1 + MAPS.length) % MAPS.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400"/></button><div className="text-center w-40"><p className="text-[10px] text-gray-500 font-bold mb-1 flex items-center justify-center gap-1"><Map size={10}/> CARTE</p><p className="text-white font-black italic text-lg" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p></div><button onClick={() => setSelectedMapIndex((prev) => (prev + 1) % MAPS.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronRight size={24} className="text-gray-400"/></button></div>
-                    <div className="flex flex-col gap-4 w-full max-w-[260px]"><button onClick={() => { setGameMode('SOLO'); startGame('SOLO'); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95"><User size={24} className="text-neon-blue"/> SOLO (BOTS)</button><button onClick={() => setGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95"><Globe size={24} className="text-purple-500"/> EN LIGNE</button></div><button onClick={handleLocalBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
+                    <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
+                    <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
+                    
+                    {/* Map Selection */}
+                    <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/50 p-2 rounded-xl border border-white/10">
+                        <button onClick={() => setSelectedMapIndex((prev) => (prev - 1 + MAPS.length) % MAPS.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                            <ChevronLeft size={24} className="text-gray-400"/>
+                        </button>
+                        <div className="text-center w-40">
+                            <p className="text-[10px] text-gray-500 font-bold mb-1 flex items-center justify-center gap-1"><Map size={10}/> CARTE</p>
+                            <p className="text-white font-black italic text-lg" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
+                        </div>
+                        <button onClick={() => setSelectedMapIndex((prev) => (prev + 1) % MAPS.length)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                            <ChevronRight size={24} className="text-gray-400"/>
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col gap-4 w-full max-w-[260px]">
+                        <button onClick={() => { setGameMode('SOLO'); startGame('SOLO'); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                            <User size={24} className="text-neon-blue"/> SOLO (BOTS)
+                        </button>
+                        <button onClick={() => setGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
+                            <Globe size={24} className="text-purple-500"/> EN LIGNE
+                        </button>
+                    </div>
+                    <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
                 </div>
             )}
+
+            {/* WAITING FOR OPPONENT OVERLAY */}
             {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
-                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto"><Loader2 size={48} className="text-purple-400 animate-spin mb-4" /><p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p><button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold mt-4">ANNULER</button></div>
+                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto">
+                    <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
+                    <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                    <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
+                </div>
             )}
+
+            {/* GAME OVER OVERLAY */}
             {gameState === 'GAMEOVER' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in pointer-events-auto"><Trophy size={64} className="text-yellow-400 mb-4 animate-bounce"/><h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-400 to-orange-500 italic mb-4">MATCH TERMINÉ</h2>{earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}<div className="flex gap-4"><button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startGame(); }} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>{gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}</div><button onClick={handleLocalBack} className="mt-4 text-xs text-gray-400 underline hover:text-white">Retour au Menu</button></div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in pointer-events-auto">
+                    <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce"/>
+                    <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-400 to-orange-500 italic mb-4">MATCH TERMINÉ</h2>
+                    {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
+                    <div className="flex gap-4">
+                        <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startGame(); }} className="px-8 py-3 bg-cyan-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                        {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
+                    </div>
+                </div>
             )}
         </div>
     );
