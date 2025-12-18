@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X, Trophy, Calendar, Zap } from 'lucide-react';
+import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X, Trophy, Calendar, Zap, Star } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
-import { useCurrency } from '../hooks/useCurrency';
+import { useCurrency, BADGES_CATALOG } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 import { DB, supabase } from '../lib/supabaseClient';
 import { OnlineUser } from '../hooks/useSupabase';
@@ -26,6 +26,7 @@ interface Friend {
     lastMessage?: string;
     lastMessageTime?: number;
     stats?: any;
+    inventory?: string[];
 }
 
 interface SocialOverlayProps {
@@ -369,12 +370,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const handlePlayerClick = async (player: any) => {
         playLand();
         // Si les stats manquent et que Supabase est là, on tente de récupérer le profil complet
-        if (!player.stats && isConnectedToSupabase && player.name) {
+        if (isConnectedToSupabase && player.name) {
             const profile = await DB.getUserProfile(player.name);
             if (profile && profile.data) {
                 setSelectedPlayer({
                     ...player,
                     stats: profile.data.highScores,
+                    inventory: profile.data.inventory || [],
                     lastSeen: new Date(profile.updated_at).getTime()
                 });
                 return;
@@ -398,6 +400,25 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                         <div key={gameId} className="bg-black/30 border border-white/5 rounded-lg p-2 flex flex-col items-center">
                             <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">{GAME_NAMES[gameId] || gameId}</span>
                             <span className="text-xs font-mono font-bold text-cyan-400">{displayVal.toLocaleString()}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const renderBadgeCollection = (inventory?: string[]) => {
+        if (!inventory || inventory.length === 0) return <p className="text-gray-600 text-xs italic">Aucun badge collectionné.</p>;
+        
+        const ownedBadges = BADGES_CATALOG.filter(b => inventory.includes(b.id));
+        
+        return (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+                {ownedBadges.map(badge => {
+                    const BIcon = badge.icon;
+                    return (
+                        <div key={badge.id} title={badge.name} className={`p-1.5 rounded-lg bg-black/40 border border-white/10 ${badge.color} shadow-[0_0_8px_rgba(0,0,0,0.5)]`}>
+                            <BIcon size={14} />
                         </div>
                     );
                 })}
@@ -607,11 +628,16 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{selectedPlayer.status === 'online' ? 'En ligne' : 'Hors-ligne'}</span>
                             </div>
 
-                            {/* Section Stats & Connexion */}
+                            {/* Section Stats, Badges & Connexion */}
                             <div className="w-full mt-6 space-y-4">
                                 <div className="bg-black/40 rounded-2xl p-4 border border-white/5">
                                     <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Trophy size={14}/> Records de jeu</h3>
                                     {renderStatsList(selectedPlayer.stats)}
+                                </div>
+
+                                <div className="bg-black/40 rounded-2xl p-4 border border-white/5">
+                                    <h3 className="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Star size={14}/> Collection de Badges</h3>
+                                    {renderBadgeCollection(selectedPlayer.inventory)}
                                 </div>
 
                                 <div className="bg-black/40 rounded-2xl p-4 border border-white/5 flex items-center justify-between">

@@ -473,7 +473,20 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                             {playerRank.title}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-1.5">
+                                    {/* Badge List Display */}
+                                    {ownedBadges.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1.5 overflow-x-auto no-scrollbar max-w-full pb-1">
+                                            {ownedBadges.map(badge => {
+                                                const BIcon = badge.icon;
+                                                return (
+                                                    <div key={badge.id} title={badge.name} className={`p-1 rounded-lg bg-black/40 border border-white/10 ${badge.color} shadow-[0_0_8px_rgba(0,0,0,0.5)] flex-shrink-0`}>
+                                                        <BIcon size={12} />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 mt-1">
                                         <div className="flex items-center gap-1 text-[9px] text-yellow-500 font-bold bg-yellow-900/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
                                             <Calendar size={10} /> J{streak}
                                         </div>
@@ -491,7 +504,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                     </div>
                 </div>
 
-                 <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34,197,94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
+                 <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34, 197, 94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34, 197, 94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
                      <div onClick={() => isAuthenticated && setIsQuestsExpanded(!isQuestsExpanded)} className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}>
                          <div className="flex items-center gap-2 overflow-hidden py-1">
                              <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap pr-2">
