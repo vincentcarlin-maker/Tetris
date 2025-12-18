@@ -24,7 +24,7 @@ export interface Frame {
     id: string;
     name: string;
     price: number;
-    cssClass: string; // Tailwind classes for the border/glow
+    cssClass: string;
     description: string;
 }
 
@@ -32,16 +32,16 @@ export interface Wallpaper {
     id: string;
     name: string;
     price: number;
-    cssValue: string; // CSS background property
+    cssValue: string;
     description: string;
-    bgSize?: string; // Optional custom background size
+    bgSize?: string;
 }
 
 export interface Title {
     id: string;
-    name: string; // The text displayed
+    name: string;
     price: number;
-    color: string; // Tailwind text color class
+    color: string;
     description: string;
 }
 
@@ -49,7 +49,7 @@ export interface Mallet {
     id: string;
     name: string;
     price: number;
-    colors: string[]; // Colors used for gradient or patterns
+    colors: string[];
     type: 'basic' | 'gradient' | 'ring' | 'flower' | 'target' | 'complex';
     description: string;
 }
@@ -172,13 +172,12 @@ export const MALLETS_CATALOG: Mallet[] = [
 ];
 
 export const useCurrency = () => {
-    // --- STATE INITIALIZATION WITH LOCALSTORAGE LAZY LOADING ---
+    // --- STATE INITIALIZATION ---
     const [coins, setCoins] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
     const [inventory, setInventory] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
     });
     
-    // User Identity
     const [username, setUsername] = useState(() => localStorage.getItem('neon-username') || "Joueur Néon");
     const [currentAvatarId, setCurrentAvatarId] = useState(() => localStorage.getItem('neon-avatar') || "av_bot");
     const [ownedAvatars, setOwnedAvatars] = useState<string[]>(() => {
@@ -205,6 +204,13 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-owned-mallets') || '["m_classic"]'); } catch { return ["m_classic"]; }
     });
 
+    // --- NEW PREFERENCES ---
+    const [accentColor, setAccentColor] = useState(() => localStorage.getItem('neon-accent-color') || '#00f3ff');
+    const [privacySettings, setPrivacySettings] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('neon-privacy') || '{"hideOnline": false, "blockRequests": false}'); } catch { return {hideOnline: false, blockRequests: false}; }
+    });
+    const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
+
     // --- ADMIN CHECK ---
     const [adminModeActive, setAdminModeActive] = useState(() => {
         const storedUsername = localStorage.getItem('neon-username');
@@ -215,7 +221,6 @@ export const useCurrency = () => {
         return false;
     });
     const isSuperUser = username === 'Vincent';
-    const isAdmin = isSuperUser && adminModeActive;
 
     const toggleAdminMode = useCallback(() => {
         setAdminModeActive(prev => {
@@ -228,135 +233,30 @@ export const useCurrency = () => {
     // --- CLOUD SYNC IMPORT ---
     const importData = useCallback((data: any) => {
         if (!data) return;
-        
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const todayStr = `${year}-${month}-${day}`;
-        
-        if (data.coins !== undefined) {
-            setCoins(data.coins);
-            localStorage.setItem('neon-coins', data.coins.toString());
-        }
-        if (data.inventory) {
-            setInventory(data.inventory);
-            localStorage.setItem('neon-inventory', JSON.stringify(data.inventory));
-        }
-        if (data.avatarId) {
-            setCurrentAvatarId(data.avatarId);
-            localStorage.setItem('neon-avatar', data.avatarId);
-        }
-        if (data.ownedAvatars) {
-            setOwnedAvatars(data.ownedAvatars);
-            localStorage.setItem('neon-owned-avatars', JSON.stringify(data.ownedAvatars));
-        }
-        if (data.frameId) {
-            setCurrentFrameId(data.frameId);
-            localStorage.setItem('neon-frame', data.frameId);
-        }
-        if (data.ownedFrames) {
-            setOwnedFrames(data.ownedFrames);
-            localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames));
-        }
-        if (data.wallpaperId) {
-            setCurrentWallpaperId(data.wallpaperId);
-            localStorage.setItem('neon-wallpaper', data.wallpaperId);
-        }
-        if (data.ownedWallpapers) {
-            setOwnedWallpapers(data.ownedWallpapers);
-            localStorage.setItem('neon-owned-wallpapers', JSON.stringify(data.ownedWallpapers));
-        }
-        if (data.titleId) {
-            setCurrentTitleId(data.titleId);
-            localStorage.setItem('neon-title', data.titleId);
-        }
-        if (data.ownedTitles) {
-            setOwnedTitles(data.ownedTitles);
-            localStorage.setItem('neon-owned-titles', JSON.stringify(data.ownedTitles));
-        }
-        if (data.malletId) {
-            setCurrentMalletId(data.malletId);
-            localStorage.setItem('neon-mallet', data.malletId);
-        }
-        if (data.ownedMallets) {
-            setOwnedMallets(data.ownedMallets);
-            localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets));
-        }
-        
-        // --- SMART QUEST SYNC ---
-        // Only overwrite quests if the cloud data is from TODAY or if no local data exists.
-        // If local is fresh (Today) and cloud is stale (Yesterday), we prefer local.
-        const localQuestDate = localStorage.getItem('neon_quests_date');
-        
-        if (data.quests && data.questsDate === todayStr) {
-             // Cloud is fresh (Today) -> Sync it (e.g. played on another device today)
-             localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
-             localStorage.setItem('neon_quests_date', data.questsDate);
-        } else if (!localQuestDate) {
-             // No local data -> Take whatever cloud has (DailySystem will reset it if old)
-             if (data.quests) localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
-             if (data.questsDate) localStorage.setItem('neon_quests_date', data.questsDate);
-        }
-        // Else: Local is likely 'today' (fresh reset) and cloud is 'yesterday' (stale). Keep local.
-        
-        // PROTECTION FIX: Daily Bonus Overwrite
-        const localLastLogin = localStorage.getItem('neon_last_login');
-        const isLocalFresh = localLastLogin === todayStr && data.lastLogin !== todayStr;
-
-        if (!isLocalFresh) {
-            if (data.streak) localStorage.setItem('neon_streak', data.streak.toString());
-            if (data.lastLogin) localStorage.setItem('neon_last_login', data.lastLogin);
-        }
+        if (data.coins !== undefined) { setCoins(data.coins); localStorage.setItem('neon-coins', data.coins.toString()); }
+        if (data.inventory) { setInventory(data.inventory); localStorage.setItem('neon-inventory', JSON.stringify(data.inventory)); }
+        if (data.avatarId) { setCurrentAvatarId(data.avatarId); localStorage.setItem('neon-avatar', data.avatarId); }
+        if (data.ownedAvatars) { setOwnedAvatars(data.ownedAvatars); localStorage.setItem('neon-owned-avatars', JSON.stringify(data.ownedAvatars)); }
+        if (data.frameId) { setCurrentFrameId(data.frameId); localStorage.setItem('neon-frame', data.frameId); }
+        if (data.ownedFrames) { setOwnedFrames(data.ownedFrames); localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames)); }
+        if (data.wallpaperId) { setCurrentWallpaperId(data.wallpaperId); localStorage.setItem('neon-wallpaper', data.wallpaperId); }
+        if (data.ownedWallpapers) { setOwnedWallpapers(data.ownedWallpapers); localStorage.setItem('neon-owned-wallpapers', JSON.stringify(data.ownedWallpapers)); }
+        if (data.titleId) { setCurrentTitleId(data.titleId); localStorage.setItem('neon-title', data.titleId); }
+        if (data.ownedTitles) { setOwnedTitles(data.ownedTitles); localStorage.setItem('neon-owned-titles', JSON.stringify(data.ownedTitles)); }
+        if (data.malletId) { setCurrentMalletId(data.malletId); localStorage.setItem('neon-mallet', data.malletId); }
+        if (data.ownedMallets) { setOwnedMallets(data.ownedMallets); localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets)); }
     }, []);
 
     const refreshData = useCallback(() => {
-        // Load Economy
         const storedCoins = localStorage.getItem('neon-coins');
         const storedInv = localStorage.getItem('neon-inventory');
         if (storedCoins) setCoins(parseInt(storedCoins, 10));
         if (storedInv) setInventory(JSON.parse(storedInv));
-
-        // Load Identity
         const storedName = localStorage.getItem('neon-username');
-        const storedAvatar = localStorage.getItem('neon-avatar');
-        const storedOwnedAvatars = localStorage.getItem('neon-owned-avatars');
-        const storedFrame = localStorage.getItem('neon-frame');
-        const storedOwnedFrames = localStorage.getItem('neon-owned-frames');
-        const storedWallpaper = localStorage.getItem('neon-wallpaper');
-        const storedOwnedWallpapers = localStorage.getItem('neon-owned-wallpapers');
-        const storedTitle = localStorage.getItem('neon-title');
-        const storedOwnedTitles = localStorage.getItem('neon-owned-titles');
-        const storedMallet = localStorage.getItem('neon-mallet');
-        const storedOwnedMallets = localStorage.getItem('neon-owned-mallets');
-
         if (storedName) setUsername(storedName);
-        if (storedAvatar) setCurrentAvatarId(storedAvatar);
-        if (storedOwnedAvatars) setOwnedAvatars(JSON.parse(storedOwnedAvatars));
-        
-        if (storedFrame) setCurrentFrameId(storedFrame);
-        if (storedOwnedFrames) setOwnedFrames(JSON.parse(storedOwnedFrames));
-
-        if (storedWallpaper) setCurrentWallpaperId(storedWallpaper);
-        if (storedOwnedWallpapers) setOwnedWallpapers(JSON.parse(storedOwnedWallpapers));
-
-        if (storedTitle) setCurrentTitleId(storedTitle);
-        if (storedOwnedTitles) setOwnedTitles(JSON.parse(storedOwnedTitles));
-
-        if (storedMallet) setCurrentMalletId(storedMallet);
-        if (storedOwnedMallets) setOwnedMallets(JSON.parse(storedOwnedMallets));
-
-        if (storedName === 'Vincent') {
-            const savedMode = localStorage.getItem('neon-admin-mode');
-            setAdminModeActive(savedMode !== null ? JSON.parse(savedMode) : true);
-        } else {
-            setAdminModeActive(false);
-        }
     }, []);
 
-    useEffect(() => {
-        refreshData();
-    }, [refreshData]);
+    useEffect(() => { refreshData(); }, [refreshData]);
 
     const addCoins = useCallback((amount: number) => {
         setCoins(prev => {
@@ -366,152 +266,30 @@ export const useCurrency = () => {
         });
     }, []);
 
-    const buyBadge = useCallback((badgeId: string, cost: number) => {
-        setCoins(prev => {
-            if (prev >= cost) {
-                const newBalance = prev - cost;
-                localStorage.setItem('neon-coins', newBalance.toString());
-                
-                setInventory(prevInv => {
-                    const newInv = [...prevInv, badgeId];
-                    localStorage.setItem('neon-inventory', JSON.stringify(newInv));
-                    return newInv;
-                });
-                
-                return newBalance;
-            }
-            return prev;
+    const updateAccentColor = (color: string) => {
+        setAccentColor(color);
+        localStorage.setItem('neon-accent-color', color);
+        document.documentElement.style.setProperty('--neon-accent', color);
+    };
+
+    const togglePrivacy = (key: 'hideOnline' | 'blockRequests') => {
+        setPrivacySettings((prev: any) => {
+            const newVal = { ...prev, [key]: !prev[key] };
+            localStorage.setItem('neon-privacy', JSON.stringify(newVal));
+            return newVal;
         });
-    }, []);
+    };
 
-    const updateUsername = useCallback((name: string) => {
-        setUsername(name);
-        localStorage.setItem('neon-username', name);
-    }, []);
-
-    const buyAvatar = useCallback((avatarId: string, cost: number) => {
-        setCoins(prev => {
-            if (prev >= cost) {
-                const newBalance = prev - cost;
-                localStorage.setItem('neon-coins', newBalance.toString());
-                
-                setOwnedAvatars(prevOwned => {
-                    const newOwned = [...prevOwned, avatarId];
-                    localStorage.setItem('neon-owned-avatars', JSON.stringify(newOwned));
-                    return newOwned;
-                });
-                return newBalance;
-            }
-            return prev;
-        });
-    }, []);
-
-    const selectAvatar = useCallback((avatarId: string) => {
-        if (ownedAvatars.includes(avatarId)) {
-            setCurrentAvatarId(avatarId);
-            localStorage.setItem('neon-avatar', avatarId);
-        }
-    }, [ownedAvatars]);
-
-    const buyFrame = useCallback((frameId: string, cost: number) => {
-        setCoins(prev => {
-            if (prev >= cost) {
-                const newBalance = prev - cost;
-                localStorage.setItem('neon-coins', newBalance.toString());
-                
-                setOwnedFrames(prevOwned => {
-                    const newOwned = [...prevOwned, frameId];
-                    localStorage.setItem('neon-owned-frames', JSON.stringify(newOwned));
-                    return newOwned;
-                });
-                return newBalance;
-            }
-            return prev;
-        });
-    }, []);
-
-    const selectFrame = useCallback((frameId: string) => {
-        if (ownedFrames.includes(frameId)) {
-            setCurrentFrameId(frameId);
-            localStorage.setItem('neon-frame', frameId);
-        }
-    }, [ownedFrames]);
-
-    const buyWallpaper = useCallback((wallpaperId: string, cost: number) => {
-        setCoins(prev => {
-            if (prev >= cost) {
-                const newBalance = prev - cost;
-                localStorage.setItem('neon-coins', newBalance.toString());
-                
-                setOwnedWallpapers(prevOwned => {
-                    const newOwned = [...prevOwned, wallpaperId];
-                    localStorage.setItem('neon-owned-wallpapers', JSON.stringify(newOwned));
-                    return newOwned;
-                });
-                return newBalance;
-            }
-            return prev;
-        });
-    }, []);
-
-    const selectWallpaper = useCallback((wallpaperId: string) => {
-        if (ownedWallpapers.includes(wallpaperId)) {
-            setCurrentWallpaperId(wallpaperId);
-            localStorage.setItem('neon-wallpaper', wallpaperId);
-        }
-    }, [ownedWallpapers]);
-
-    const buyTitle = useCallback((titleId: string, cost: number) => {
-        setCoins(prev => {
-            if (prev >= cost) {
-                const newBalance = prev - cost;
-                localStorage.setItem('neon-coins', newBalance.toString());
-                
-                setOwnedTitles(prevOwned => {
-                    const newOwned = [...prevOwned, titleId];
-                    localStorage.setItem('neon-owned-titles', JSON.stringify(newOwned));
-                    return newOwned;
-                });
-                return newBalance;
-            }
-            return prev;
-        });
-    }, []);
-
-    const selectTitle = useCallback((titleId: string) => {
-        if (ownedTitles.includes(titleId)) {
-            setCurrentTitleId(titleId);
-            localStorage.setItem('neon-title', titleId);
-        }
-    }, [ownedTitles]);
-
-    const buyMallet = useCallback((malletId: string, cost: number) => {
-        setCoins(prev => {
-            if (prev >= cost) {
-                const newBalance = prev - cost;
-                localStorage.setItem('neon-coins', newBalance.toString());
-                
-                setOwnedMallets(prevOwned => {
-                    const newOwned = [...prevOwned, malletId];
-                    localStorage.setItem('neon-owned-mallets', JSON.stringify(newOwned));
-                    return newOwned;
-                });
-                return newBalance;
-            }
-            return prev;
-        });
-    }, []);
-
-    const selectMallet = useCallback((malletId: string) => {
-        if (ownedMallets.includes(malletId)) {
-            setCurrentMalletId(malletId);
-            localStorage.setItem('neon-mallet', malletId);
-        }
-    }, [ownedMallets]);
+    const toggleReducedMotion = () => {
+        const newVal = !reducedMotion;
+        setReducedMotion(newVal);
+        localStorage.setItem('neon-reduced-motion', String(newVal));
+        if (newVal) document.body.classList.add('reduced-motion');
+        else document.body.classList.remove('reduced-motion');
+    };
 
     const playerRank = useMemo(() => {
         if (isSuperUser) return { title: 'ADMINISTRATEUR', color: 'text-red-500', glow: 'shadow-red-500/50' };
-        
         const count = inventory.length;
         if (count >= 12) return { title: 'LÉGENDE VIVANTE', color: 'text-amber-400', glow: 'shadow-amber-400/50' };
         if (count >= 8) return { title: 'MAÎTRE ARCADE', color: 'text-purple-400', glow: 'shadow-purple-400/50' };
@@ -521,51 +299,27 @@ export const useCurrency = () => {
     }, [inventory, isSuperUser]);
 
     return { 
-        coins, 
-        inventory,
-        ownedAvatars,
-        ownedFrames,
-        ownedWallpapers,
-        ownedTitles,
-        ownedMallets,
-        
-        // Expose Admin state control
-        isSuperUser,
-        adminModeActive,
-        toggleAdminMode,
-
-        refreshData,
-        importData,
-        addCoins, 
-        buyBadge, 
-        catalog: BADGES_CATALOG, 
-        playerRank,
-        // Identity Exports
-        username,
-        updateUsername,
-        currentAvatarId,
-        selectAvatar,
-        buyAvatar,
+        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets,
+        accentColor, updateAccentColor, privacySettings, togglePrivacy, reducedMotion, toggleReducedMotion,
+        isSuperUser, adminModeActive, toggleAdminMode, refreshData, importData, addCoins, 
+        buyBadge: (id: string, cost: number) => {
+            if (coins >= cost) { addCoins(-cost); setInventory(p => [...p, id]); localStorage.setItem('neon-inventory', JSON.stringify([...inventory, id])); }
+        },
+        catalog: BADGES_CATALOG, playerRank, username, updateUsername: (n: string) => { setUsername(n); localStorage.setItem('neon-username', n); },
+        currentAvatarId, selectAvatar: (id: string) => { setCurrentAvatarId(id); localStorage.setItem('neon-avatar', id); },
+        buyAvatar: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedAvatars(p => [...p, id]); localStorage.setItem('neon-owned-avatars', JSON.stringify([...ownedAvatars, id])); } },
         avatarsCatalog: AVATARS_CATALOG,
-        // Frames
-        currentFrameId,
-        selectFrame,
-        buyFrame,
+        currentFrameId, selectFrame: (id: string) => { setCurrentFrameId(id); localStorage.setItem('neon-frame', id); },
+        buyFrame: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedFrames(p => [...p, id]); localStorage.setItem('neon-owned-frames', JSON.stringify([...ownedFrames, id])); } },
         framesCatalog: FRAMES_CATALOG,
-        // Wallpapers
-        currentWallpaperId,
-        selectWallpaper,
-        buyWallpaper,
+        currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
+        buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
         wallpapersCatalog: WALLPAPERS_CATALOG,
-        // Titles
-        currentTitleId,
-        selectTitle,
-        buyTitle,
+        currentTitleId, selectTitle: (id: string) => { setCurrentTitleId(id); localStorage.setItem('neon-title', id); },
+        buyTitle: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedTitles(p => [...p, id]); localStorage.setItem('neon-owned-titles', JSON.stringify([...ownedTitles, id])); } },
         titlesCatalog: TITLES_CATALOG,
-        // Mallets
-        currentMalletId,
-        selectMallet,
-        buyMallet,
+        currentMalletId, selectMallet: (id: string) => { setCurrentMalletId(id); localStorage.setItem('neon-mallet', id); },
+        buyMallet: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedMallets(p => [...p, id]); localStorage.setItem('neon-owned-mallets', JSON.stringify([...ownedMallets, id])); } },
         malletsCatalog: MALLETS_CATALOG,
     };
 };
