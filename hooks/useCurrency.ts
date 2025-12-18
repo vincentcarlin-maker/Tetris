@@ -172,7 +172,6 @@ export const MALLETS_CATALOG: Mallet[] = [
 ];
 
 export const useCurrency = () => {
-    // --- STATE INITIALIZATION ---
     const [coins, setCoins] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
     const [inventory, setInventory] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
@@ -204,14 +203,12 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-owned-mallets') || '["m_classic"]'); } catch { return ["m_classic"]; }
     });
 
-    // --- NEW PREFERENCES ---
-    const [accentColor, setAccentColor] = useState(() => localStorage.getItem('neon-accent-color') || '#00f3ff');
+    const [accentColor, setAccentColor] = useState(() => localStorage.getItem('neon-accent-color') || 'default');
     const [privacySettings, setPrivacySettings] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('neon-privacy') || '{"hideOnline": false, "blockRequests": false}'); } catch { return {hideOnline: false, blockRequests: false}; }
+        try { return JSON.parse(localStorage.getItem('neon_privacy') || '{"hideOnline": false, "blockRequests": false}'); } catch { return {hideOnline: false, blockRequests: false}; }
     });
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
 
-    // --- ADMIN CHECK ---
     const [adminModeActive, setAdminModeActive] = useState(() => {
         const storedUsername = localStorage.getItem('neon-username');
         if (storedUsername === 'Vincent') {
@@ -230,7 +227,23 @@ export const useCurrency = () => {
         });
     }, []);
 
-    // --- CLOUD SYNC IMPORT ---
+    // Mise à jour de l'accentuation de couleur sur tout le document
+    useEffect(() => {
+        if (accentColor === 'default') {
+            document.documentElement.style.removeProperty('--neon-blue');
+            document.documentElement.style.removeProperty('--neon-pink');
+            document.documentElement.style.removeProperty('--neon-purple');
+            document.documentElement.style.removeProperty('--neon-yellow');
+            document.documentElement.style.removeProperty('--neon-green');
+        } else {
+            document.documentElement.style.setProperty('--neon-blue', accentColor);
+            document.documentElement.style.setProperty('--neon-pink', accentColor);
+            document.documentElement.style.setProperty('--neon-purple', accentColor);
+            document.documentElement.style.setProperty('--neon-yellow', accentColor);
+            document.documentElement.style.setProperty('--neon-green', accentColor);
+        }
+    }, [accentColor]);
+
     const importData = useCallback((data: any) => {
         if (!data) return;
         if (data.coins !== undefined) { setCoins(data.coins); localStorage.setItem('neon-coins', data.coins.toString()); }
@@ -269,13 +282,12 @@ export const useCurrency = () => {
     const updateAccentColor = (color: string) => {
         setAccentColor(color);
         localStorage.setItem('neon-accent-color', color);
-        document.documentElement.style.setProperty('--neon-accent', color);
     };
 
     const togglePrivacy = (key: 'hideOnline' | 'blockRequests') => {
         setPrivacySettings((prev: any) => {
             const newVal = { ...prev, [key]: !prev[key] };
-            localStorage.setItem('neon-privacy', JSON.stringify(newVal));
+            localStorage.setItem('neon_privacy', JSON.stringify(newVal));
             return newVal;
         });
     };

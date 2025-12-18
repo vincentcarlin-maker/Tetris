@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -15,7 +16,8 @@ interface SettingsMenuProps {
 }
 
 const ACCENT_COLORS = [
-    { name: 'Standard', hex: '#00f3ff' },
+    { name: 'Standard', hex: 'default' },
+    { name: 'Bleu', hex: '#00f3ff' },
     { name: 'Rose', hex: '#ff00ff' },
     { name: 'Violet', hex: '#9d00ff' },
     { name: 'Jaune', hex: '#ffe600' },
@@ -57,7 +59,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
             localStorage.removeItem('neon-accent-color');
             localStorage.removeItem('neon-reduced-motion');
             localStorage.removeItem('neon-vibration');
-            localStorage.removeItem('neon-privacy');
+            localStorage.removeItem('neon_privacy');
             window.location.reload();
         }
     };
@@ -82,7 +84,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
     }, [highScores]);
 
     const selectedColorName = useMemo(() => {
-        return ACCENT_COLORS.find(c => c.hex === currency.accentColor)?.name || 'Personnalisé';
+        return ACCENT_COLORS.find(c => c.hex === currency.accentColor)?.name || 'Thématique';
     }, [currency.accentColor]);
 
     const AvatarIcon = currentAvatar.icon;
@@ -112,7 +114,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     <div className="w-10"></div>
                 </div>
 
-                {/* --- SECTION MON PROFIL --- */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 blur-3xl rounded-full -mr-10 -mt-10 group-hover:bg-purple-600/20 transition-all duration-700"></div>
                     
@@ -170,26 +171,37 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 {/* Personnalisation Visuelle */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={16} /> STYLE NÉON</h3>
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="flex flex-col">
-                            <span className="text-xs text-gray-400">Accentuation</span>
-                            <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{selectedColorName}</span>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                            <div className="flex flex-col">
+                                <span className="text-xs text-gray-400">Accentuation</span>
+                                <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{selectedColorName}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end max-w-[200px]">
+                                {ACCENT_COLORS.map(c => (
+                                    <button 
+                                        key={c.hex} 
+                                        onClick={() => currency.updateAccentColor(c.hex)}
+                                        title={c.name}
+                                        className={`w-8 h-8 rounded-full border-2 transition-all ${currency.accentColor === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                        style={{ 
+                                            background: c.hex === 'default' 
+                                                ? 'conic-gradient(from 0deg, #00f3ff, #ff00ff, #9d00ff, #00f3ff)' 
+                                                : c.hex, 
+                                            boxShadow: currency.accentColor === c.hex && c.hex !== 'default' ? `0 0 10px ${c.hex}` : 'none' 
+                                        }}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex gap-2">
-                            {ACCENT_COLORS.map(c => (
-                                <button 
-                                    key={c.hex} 
-                                    onClick={() => currency.updateAccentColor(c.hex)}
-                                    title={c.name}
-                                    className={`w-8 h-8 rounded-full border-2 transition-all ${currency.accentColor === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                                    style={{ backgroundColor: c.hex, boxShadow: currency.accentColor === c.hex ? `0 0 10px ${c.hex}` : 'none' }}
-                                />
-                            ))}
-                        </div>
+                        {currency.accentColor === 'default' && (
+                            <p className="text-[10px] text-gray-500 italic bg-black/20 p-2 rounded border border-white/5">
+                                Mode Standard : L'application utilise son mélange de couleurs néon original (Cyan, Rose, Violet).
+                            </p>
+                        )}
                     </div>
                 </div>
 
-                {/* Confidentialité & Social */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Eye size={16} /> SOCIAL & VIE PRIVÉE</h3>
                     <div className="space-y-3">
@@ -210,7 +222,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     </div>
                 </div>
 
-                {/* Graphismes & Performance */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> PERFORMANCE</h3>
                     <div className="space-y-3">
@@ -231,7 +242,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     </div>
                 </div>
 
-                {/* Account & Administration */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Lock size={16} /> COMPTE</h3>
                     <div className="flex flex-col gap-3">
@@ -247,7 +257,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             <div className="mt-2 pt-4 border-t border-white/5">
                                 <div className="flex items-center justify-between mb-3">
                                     <span className="text-xs font-bold text-red-400">GOD MODE (ADMIN)</span>
-                                    <button onClick={currency.toggleAdminMode} className={`w-12 h-6 rounded-full relative transition-colors ${currency.adminModeActive ? 'bg-red-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.adminModeActive ? 'left-7' : 'left-1'}`}></div></button>
+                                    <button onClick={currency.toggleAdminMode} className={`w-12 h-6 rounded-full relative transition-colors ${currency.adminModeActive ? 'bg-red-500' : 'bg-gray-600'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.adminModeActive ? 'left-7' : 'left-1'}`}></div></button>
                                 </div>
                                 <button onClick={onOpenDashboard} className="w-full py-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg font-bold text-xs">OUVRIR DASHBOARD</button>
                             </div>
@@ -255,19 +265,16 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     </div>
                 </div>
 
-                {/* Section Danger */}
                 <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Trash2 size={16} /> ZONE DE DANGER</h3>
-                    {/* Fixed broken button syntax - was handleHardReset} without onClick={ */}
                     <button onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
                         <RefreshCw size={14}/> RÉINITIALISER LES PRÉFÉRENCES LOCALES
                     </button>
                 </div>
 
-                {/* About */}
                 <div className="text-center py-4">
-                    <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase">Neon Arcade v2.9.5</p>
-                    <p className="text-[10px] text-gray-700 mt-1 italic">Made with ❤️ for Arcade Lovers</p>
+                    <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase">Neon Arcade v3.0.0</p>
+                    <p className="text-[10px] text-gray-700 mt-1 italic">Mode "Original Theme" activé</p>
                 </div>
             </div>
         </div>
