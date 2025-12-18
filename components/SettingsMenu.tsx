@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2 } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -32,6 +32,7 @@ const GAME_LABELS: Record<string, string> = {
 
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency, highScores }) => {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [showCGU, setShowCGU] = useState(false);
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -112,6 +113,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
 
     return (
         <div className="flex flex-col h-full w-full bg-black/20 font-sans text-white p-4 overflow-y-auto custom-scrollbar">
+            {/* Modal Mot de passe */}
             {showPasswordModal && (
                 <div className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in">
                     <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/10 p-6 shadow-2xl relative">
@@ -124,6 +126,42 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                         </div>
                         {msg && <div className={`mt-4 p-3 rounded-lg text-xs font-bold text-center ${msg.type === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>{msg.text}</div>}
                         <button onClick={handleSavePassword} className="w-full mt-6 py-3 bg-neon-blue text-black font-black tracking-widest rounded-xl hover:bg-white transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(0,243,255,0.3)]"><Check size={18} strokeWidth={3}/> VALIDER</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal CGU */}
+            {showCGU && (
+                <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-gray-900 w-full max-w-lg max-h-[80vh] rounded-3xl border border-white/10 shadow-2xl flex flex-col relative overflow-hidden">
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-gray-800/50">
+                            <h3 className="text-xl font-black text-white flex items-center gap-2 italic tracking-tight"><Gavel className="text-neon-blue" /> CONDITIONS GÉNÉRALES</h3>
+                            <button onClick={() => setShowCGU(false)} className="p-2 bg-black/40 hover:bg-white/10 rounded-full text-white transition-colors"><X size={20}/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-gray-300 leading-relaxed custom-scrollbar">
+                            <section>
+                                <h4 className="text-neon-blue font-bold uppercase tracking-widest mb-2">1. Acceptation des termes</h4>
+                                <p>En accédant à Neon Arcade, vous acceptez de respecter ces conditions. L'accès aux fonctionnalités sociales nécessite un compte vérifié.</p>
+                            </section>
+                            <section>
+                                <h4 className="text-neon-pink font-bold uppercase tracking-widest mb-2">2. Données Personnelles</h4>
+                                <p>Nous collectons votre pseudo, e-mail (facultatif) et statistiques de jeu pour assurer la sauvegarde cloud et le classement mondial. Vos données ne sont jamais vendues à des tiers.</p>
+                            </section>
+                            <section>
+                                <h4 className="text-neon-yellow font-bold uppercase tracking-widest mb-2">3. Économie Virtuelle</h4>
+                                <p>Les "Pièces Néon" sont une monnaie purement fictive. Elles ne peuvent en aucun cas être converties en argent réel. Tout abus ou tentative de triche pourra entraîner une remise à zéro du compte.</p>
+                            </section>
+                            <section>
+                                <h4 className="text-neon-green font-bold uppercase tracking-widest mb-2">4. Code de conduite</h4>
+                                <p>Le respect est primordial. Tout comportement harcelant, insultant ou inapproprié dans le chat social pourra entraîner un bannissement définitif de votre compte par les administrateurs.</p>
+                            </section>
+                            <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-[10px] text-gray-500 font-mono text-center">
+                                Neon Arcade v3.0.0 - Dernière mise à jour : Mai 2024
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-white/10 bg-gray-800/30">
+                            <button onClick={() => setShowCGU(false)} className="w-full py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-neon-blue transition-colors shadow-lg">J'AI COMPRIS</button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -215,11 +253,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                                 ))}
                             </div>
                         </div>
-                        {currency.accentColor === 'default' && (
-                            <p className="text-[10px] text-gray-500 italic bg-black/20 p-2 rounded border border-white/5">
-                                Mode Standard : L'application utilise son mélange de couleurs néon original (Cyan, Rose, Violet).
-                            </p>
-                        )}
                     </div>
                 </div>
 
@@ -274,7 +307,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             <button onClick={onLogout} className="px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg text-xs font-bold transition-all">DECO</button>
                         </div>
 
-                        {/* E-MAIL SECTION */}
                         <div className="bg-black/40 rounded-xl border border-white/5 p-3">
                             <div className="flex justify-between items-center mb-1">
                                 <span className="text-[10px] text-gray-500 font-bold uppercase flex items-center gap-1"><Mail size={10}/> Adresse E-mail</span>
@@ -306,6 +338,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                         </div>
 
                         <button onClick={() => setShowPasswordModal(true)} className="w-full py-3 bg-gray-800 border border-white/10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-gray-300 active:scale-95 transition-all"><Key size={16}/> MODIFIER MOT DE PASSE</button>
+                        
                         {currency.isSuperUser && (
                             <div className="mt-2 pt-4 border-t border-white/5">
                                 <div className="flex items-center justify-between mb-3">
@@ -318,6 +351,16 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     </div>
                 </div>
 
+                {/* Section Légal & Infos */}
+                <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Gavel size={16} /> LÉGAL & INFOS</h3>
+                    <div className="flex flex-col gap-3">
+                        <button onClick={() => setShowCGU(true)} className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all">
+                            <FileText size={16} className="text-neon-blue" /> CONSULTER LES CGU / RGPD
+                        </button>
+                    </div>
+                </div>
+
                 <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Trash2 size={16} /> ZONE DE DANGER</h3>
                     <button onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
@@ -327,7 +370,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
 
                 <div className="text-center py-4">
                     <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase">Neon Arcade v3.0.0</p>
-                    <p className="text-[10px] text-gray-700 mt-1 italic">Mode "Original Theme" activé</p>
+                    <p className="text-[10px] text-gray-700 mt-1 italic">Tous droits réservés</p>
                 </div>
             </div>
         </div>
