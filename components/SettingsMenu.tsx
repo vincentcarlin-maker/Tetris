@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Ban } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -16,11 +16,12 @@ interface SettingsMenuProps {
 }
 
 const ACCENT_COLORS = [
-    { name: 'Cyan', hex: '#00f3ff' },
+    { name: 'Standard', hex: '#00f3ff' },
     { name: 'Pink', hex: '#ff00ff' },
     { name: 'Purple', hex: '#9d00ff' },
     { name: 'Yellow', hex: '#ffe600' },
     { name: 'Green', hex: '#00ff9d' },
+    { name: 'Minimal', hex: 'none' },
 ];
 
 const GAME_LABELS: Record<string, string> = {
@@ -171,17 +172,27 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={16} /> STYLE NÉON</h3>
                     <div className="flex justify-between items-center mb-4">
                         <span className="text-xs text-gray-400">Couleur d'accentuation</span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap justify-end">
                             {ACCENT_COLORS.map(c => (
                                 <button 
                                     key={c.hex} 
                                     onClick={() => currency.updateAccentColor(c.hex)}
-                                    className={`w-8 h-8 rounded-full border-2 transition-all ${currency.accentColor === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
-                                    style={{ backgroundColor: c.hex, boxShadow: currency.accentColor === c.hex ? `0 0 10px ${c.hex}` : 'none' }}
-                                />
+                                    className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${currency.accentColor === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
+                                    style={{ 
+                                        backgroundColor: c.hex === 'none' ? '#333' : c.hex, 
+                                        boxShadow: (currency.accentColor === c.hex && c.hex !== 'none') ? `0 0 10px ${c.hex}` : 'none' 
+                                    }}
+                                    title={c.name}
+                                >
+                                    {c.hex === 'none' && <Ban size={14} className="text-gray-500"/>}
+                                    {currency.accentColor === c.hex && c.hex !== 'none' && <Check size={14} className="text-black" strokeWidth={4}/>}
+                                </button>
                             ))}
                         </div>
                     </div>
+                    {currency.accentColor === 'none' && (
+                        <p className="text-[10px] text-gray-500 italic text-right">Mode minimaliste activé : les halos d'arrière-plan sont masqués.</p>
+                    )}
                 </div>
 
                 {/* Confidentialité & Social */}

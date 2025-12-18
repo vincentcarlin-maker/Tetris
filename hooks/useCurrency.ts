@@ -119,7 +119,7 @@ export const FRAMES_CATALOG: Frame[] = [
     { id: 'fr_fire', name: 'Infernal', price: 12000, cssClass: 'border-orange-600 shadow-[0_0_20px_#ea580c] animate-[pulse_0.5s_ease-in-out_infinite] bg-gradient-to-t from-red-600/30 to-orange-500/10', description: 'Brûlant.' },
     { id: 'fr_matrix', name: 'Matrice', price: 15000, cssClass: 'border-green-500 shadow-[inset_0_0_20px_#22c55e] font-mono', description: 'Le code source.' },
     { id: 'fr_diamond', name: 'Diamant', price: 20000, cssClass: 'border-cyan-100 shadow-[0_0_20px_#cffafe] ring-2 ring-white bg-[linear-gradient(135deg,rgba(255,255,255,0.4)_0%,rgba(255,255,255,0)_50%,rgba(255,255,255,0.4)_100%)]', description: 'Incassable et brillant.' },
-    { id: 'fr_angel', name: 'Angélique', price: 25000, cssClass: 'border-white ring-4 ring-white/30 shadow-[0_0_30px_white] bg-white/10', description: 'Pur et céleste.' },
+    { id: 'fr_angel', name: 'Angélique', price: 25000, cssClass: 'border-white ring-4 ring-white/30 shadow-[0_0_30px_white] bg-white/10', description: 'Pour les purs.' },
     { id: 'fr_demon', name: 'Démoniaque', price: 30000, cssClass: 'border-red-900 ring-2 ring-red-600 shadow-[0_0_30px_#7f1d1d] bg-gradient-to-b from-black via-red-900/50 to-black', description: 'Sombre et puissant.' },
 ];
 
@@ -172,7 +172,6 @@ export const MALLETS_CATALOG: Mallet[] = [
 ];
 
 export const useCurrency = () => {
-    // --- STATE INITIALIZATION ---
     const [coins, setCoins] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
     const [inventory, setInventory] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
@@ -204,19 +203,20 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-owned-mallets') || '["m_classic"]'); } catch { return ["m_classic"]; }
     });
 
-    // --- NEW PREFERENCES ---
     const [accentColor, setAccentColor] = useState(() => localStorage.getItem('neon-accent-color') || '#00f3ff');
     const [privacySettings, setPrivacySettings] = useState(() => {
         try { return JSON.parse(localStorage.getItem('neon-privacy') || '{"hideOnline": false, "blockRequests": false}'); } catch { return {hideOnline: false, blockRequests: false}; }
     });
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
 
-    // Mettre à jour la variable CSS au démarrage
     useEffect(() => {
-        document.documentElement.style.setProperty('--neon-accent', accentColor);
+        if (accentColor === 'none') {
+            document.documentElement.style.setProperty('--neon-accent', 'transparent');
+        } else {
+            document.documentElement.style.setProperty('--neon-accent', accentColor);
+        }
     }, [accentColor]);
 
-    // --- ADMIN CHECK ---
     const [adminModeActive, setAdminModeActive] = useState(() => {
         const storedUsername = localStorage.getItem('neon-username');
         if (storedUsername === 'Vincent') {
@@ -235,7 +235,6 @@ export const useCurrency = () => {
         });
     }, []);
 
-    // --- CLOUD SYNC IMPORT ---
     const importData = useCallback((data: any) => {
         if (!data) return;
         if (data.coins !== undefined) { setCoins(data.coins); localStorage.setItem('neon-coins', data.coins.toString()); }
@@ -274,7 +273,11 @@ export const useCurrency = () => {
     const updateAccentColor = (color: string) => {
         setAccentColor(color);
         localStorage.setItem('neon-accent-color', color);
-        document.documentElement.style.setProperty('--neon-accent', color);
+        if (color === 'none') {
+            document.documentElement.style.setProperty('--neon-accent', 'transparent');
+        } else {
+            document.documentElement.style.setProperty('--neon-accent', color);
+        }
     };
 
     const togglePrivacy = (key: 'hideOnline' | 'blockRequests') => {
