@@ -322,6 +322,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 const remoteData = data.player;
                 if (remoteData.id === mp.peerId) return;
 
+                // Sync time from host to avoid "10 seconds bug"
+                if (!mp.isHost && data.timeLeft !== undefined) {
+                    timeLeftRef.current = data.timeLeft;
+                }
+
                 let opponent = botsRef.current.find(b => b.id === remoteData.id);
                 if (!opponent) {
                     opponent = spawnCharacter(remoteData.id, remoteData.name, false, true);
@@ -345,7 +350,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 }
             }
 
-            // Correction: Réception du signal de Kill pour mettre à jour son propre score
             if (data.type === 'ARENA_PLAYER_KILLED') {
                 if (data.killerId === mp.peerId && playerRef.current) {
                     playerRef.current.score += 1;
@@ -463,8 +467,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 
                 if (gameMode === 'ONLINE') {
                     mp.sendData({ type: 'ARENA_KILL_FEED', killer: attacker.name, victim: char.name });
-                    
-                    // Correction: Si c'est mon personnage qui est mort, on prévient l'attaquant pour qu'il incrémente son score
                     if (char.id === playerRef.current?.id) {
                         mp.sendData({ type: 'ARENA_PLAYER_KILLED', killerId: attackerId });
                     }
@@ -503,8 +505,11 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         
         if (!player) return;
 
+        // Cap dt to prevent huge jumps in time if browser lags
+        const limitedDt = Math.min(dt, 100);
+
         if (gameStateRef.current === 'PLAYING' || gameStateRef.current === 'RESPAWNING') {
-            timeLeftRef.current = Math.max(0, timeLeftRef.current - dt / 1000);
+            timeLeftRef.current = Math.max(0, timeLeftRef.current - limitedDt / 1000);
             
             if (Math.floor(timeLeftRef.current) !== Math.floor(lastUiTimeRef.current)) {
                 setTimeLeft(timeLeftRef.current);
@@ -525,6 +530,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
             if (now - lastNetworkUpdateRef.current > 40) {
                 mp.sendData({ 
                     type: 'ARENA_UPDATE', 
+                    timeLeft: mp.isHost ? timeLeftRef.current : undefined,
                     player: {
                         id: player.id,
                         name: player.name,
@@ -546,7 +552,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         allChars.forEach(char => {
             if (char.isDead) {
                 if (char.respawnTimer > 0) {
-                    char.respawnTimer -= dt;
+                    char.respawnTimer -= limitedDt;
                     if (char.respawnTimer <= 0) {
                         if (char.id === player.id || gameMode === 'SOLO') {
                             const spawn = spawnCharacter(char.id, char.name, char.id === player.id);
@@ -663,7 +669,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
 
         for (let i = bulletsRef.current.length - 1; i >= 0; i--) {
             const b = bulletsRef.current[i];
-            b.x += b.vx; b.y += b.vy; b.life -= dt;
+            b.x += b.vx; b.y += b.vy; b.life -= limitedDt;
             let hit = false;
             if (b.x < 0 || b.x > CANVAS_WIDTH || b.y < 0 || b.y > CANVAS_HEIGHT) hit = true;
             if (!hit) {
@@ -1103,7 +1109,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                             </div>
                             <div className="flex flex-col items-center">
                                 <div className={`text-2xl font-black font-mono ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                                    {Math.floor(timeLeft / 60)}:{String(Math.floor(timeLeft % 60)).padStart(2, '0')}
+                                    {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
                                 </div>
                                 {gameState === 'RESPAWNING' && (
                                     <div className="mt-2 bg-red-900/80 px-4 py-1 rounded text-red-200 font-bold animate-pulse border border-red-500 text-xs">
