@@ -535,7 +535,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                  {searchResults.map(player => {
                                       const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                       return (
-                                          <div key={player.id} onClick={() => handlePlayerClick(player)} className="flex items-center justify-between p-3 bg-gray-800/80 rounded-2xl border border-purple-500/30 group cursor-pointer transition-all hover:bg-gray-700">
+                                          <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/80 rounded-2xl border border-purple-500/30 group cursor-pointer transition-all hover:bg-gray-700" onClick={() => handlePlayerClick(player)}>
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border ${getFrameClass(player.frameId)}`}><avatar.icon size={22} className={avatar.color} /></div>
                                                 <div className="flex flex-col">
@@ -611,12 +611,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
             {selectedPlayer && (
                 <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in" onClick={() => setSelectedPlayer(null)}>
-                    <div className="bg-gray-900 w-full max-w-sm rounded-[40px] border border-white/20 shadow-2xl overflow-hidden relative flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="bg-gray-900 w-full max-w-sm max-h-[85vh] rounded-[40px] border border-white/20 shadow-2xl overflow-hidden relative flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="h-24 bg-gradient-to-r from-cyan-600/20 to-purple-600/20 border-b border-white/10 relative shrink-0">
                             <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 p-2 bg-black/40 rounded-full text-white/60 hover:text-white transition-colors"><X size={20}/></button>
                         </div>
                         
-                        <div className="px-6 pb-6 flex flex-col items-center -mt-12 overflow-y-auto custom-scrollbar">
+                        <div className="px-6 pb-6 flex flex-col items-center -mt-12 overflow-y-auto custom-scrollbar flex-1">
                             <div className={`w-24 h-24 rounded-3xl bg-gray-900 p-1 border-2 mb-4 shrink-0 ${getFrameClass(selectedPlayer.frameId)}`}>
                                 <div className={`w-full h-full rounded-2xl bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center shadow-2xl`}>{React.createElement((avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0]).icon, { size: 48, className: (avatarsCatalog.find(a => a.id === selectedPlayer.avatarId) || avatarsCatalog[0]).color })}</div>
                             </div>
@@ -649,7 +649,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                                 </div>
                             </div>
 
-                            <div className="w-full flex flex-col gap-3 mt-8">
+                            <div className="w-full flex flex-col gap-3 mt-8 shrink-0">
                                 <button onClick={() => { if(friends.some(f => f.name === selectedPlayer.name)) openChat(friends.find(f => f.name === selectedPlayer.name)!); else sendFriendRequest(); }} className="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">{friends.some(f => f.name === selectedPlayer.name) ? <><MessageSquare size={18}/> ENVOYER UN MESSAGE</> : <><UserPlus size={18}/> AJOUTER EN AMI</>}</button>
                                 {friends.some(f => f.name === selectedPlayer.name) && (<button onClick={() => removeFriend(friends.find(f => f.name === selectedPlayer.name)!.id)} className="py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 border border-red-500/20 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-95"><UserMinus size={16} /> SUPPRIMER L'AMI</button>)}
                             </div>
