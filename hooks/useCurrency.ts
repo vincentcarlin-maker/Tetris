@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc } from 'lucide-react';
 
@@ -218,6 +217,8 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon_privacy') || '{"hideOnline": false, "blockRequests": false}'); } catch { return {hideOnline: false, blockRequests: false}; }
     });
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
+    const [crtEffect, setCrtEffect] = useState(() => localStorage.getItem('neon-crt-effect') === 'true');
+    const [currentLanguage, setCurrentLanguage] = useState(() => localStorage.getItem('neon-language') || 'fr');
 
     const [adminModeActive, setAdminModeActive] = useState(() => {
         const storedUsername = localStorage.getItem('neon-username');
@@ -319,6 +320,17 @@ export const useCurrency = () => {
         else document.body.classList.remove('reduced-motion');
     };
 
+    const toggleCrtEffect = () => {
+        const newVal = !crtEffect;
+        setCrtEffect(newVal);
+        localStorage.setItem('neon-crt-effect', String(newVal));
+    };
+
+    const updateLanguage = (lang: string) => {
+        setCurrentLanguage(lang);
+        localStorage.setItem('neon-language', lang);
+    };
+
     const playerRank = useMemo(() => {
         if (isSuperUser) return { title: 'ADMINISTRATEUR', color: 'text-red-500', glow: 'shadow-red-500/50' };
         const count = inventory.length;
@@ -332,6 +344,7 @@ export const useCurrency = () => {
     return { 
         coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets,
         accentColor, updateAccentColor, privacySettings, togglePrivacy, reducedMotion, toggleReducedMotion,
+        crtEffect, toggleCrtEffect, currentLanguage, updateLanguage,
         isSuperUser, adminModeActive, toggleAdminMode: () => { const n = !adminModeActive; setAdminModeActive(n); localStorage.setItem('neon-admin-mode', JSON.stringify(n)); },
         refreshData, importData, addCoins, email, updateEmail,
         buyBadge: (id: string, cost: number) => {

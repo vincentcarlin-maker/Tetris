@@ -1,6 +1,5 @@
-
-import React, { useState, useMemo, useRef } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2 } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, Monitor, Globe2, Heart, Code2, Sparkles, CloudCheck, ShieldCheck } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -13,6 +12,7 @@ interface SettingsMenuProps {
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
     highScores: HighScores;
+    isConnectedToSupabase: boolean;
 }
 
 const ACCENT_COLORS = [
@@ -24,14 +24,21 @@ const ACCENT_COLORS = [
     { name: 'Vert', hex: '#00ff9d' },
 ];
 
+const LANGUAGES = [
+    { code: 'fr', name: 'Français', flag: '🇫🇷' },
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' },
+];
+
 const GAME_LABELS: Record<string, string> = {
     tetris: 'Tetris', arenaclash: 'Arena Clash', stack: 'Stack', runner: 'Neon Run',
     pacman: 'Pacman', snake: 'Snake', breaker: 'Breaker', invaders: 'Invaders',
     lumen: 'Lumen Order', memory: 'Memory', skyjo: 'Skyjo', uno: 'Uno', mastermind: 'Mastermind'
 };
 
-export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency, highScores }) => {
+export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency, highScores, isConnectedToSupabase }) => {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [showCreditsModal, setShowCreditsModal] = useState(false);
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -77,10 +84,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
 
     const handleHardReset = () => {
         if (window.confirm("Ceci va effacer vos préférences locales (audio, thème, vibration). Vos données de jeu sont en sécurité sur le cloud. Continuer ?")) {
-            localStorage.removeItem('neon-accent-color');
-            localStorage.removeItem('neon-reduced-motion');
-            localStorage.removeItem('neon-vibration');
-            localStorage.removeItem('neon_privacy');
+            localStorage.clear();
             window.location.reload();
         }
     };
@@ -112,6 +116,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
 
     return (
         <div className="flex flex-col h-full w-full bg-black/20 font-sans text-white p-4 overflow-y-auto custom-scrollbar">
+            {/* Password Modal */}
             {showPasswordModal && (
                 <div className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in">
                     <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/10 p-6 shadow-2xl relative">
@@ -128,6 +133,52 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 </div>
             )}
 
+            {/* Credits Modal */}
+            {showCreditsModal && (
+                <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-gray-900 w-full max-w-md rounded-3xl border border-white/20 p-8 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon-blue via-neon-pink to-neon-purple"></div>
+                        <button onClick={() => setShowCreditsModal(false)} className="absolute top-4 right-4 p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"><X size={20}/></button>
+                        
+                        <div className="flex flex-col items-center text-center">
+                            <div className="p-4 rounded-3xl bg-black/40 border border-white/10 mb-6 shadow-xl">
+                                <Sparkles size={48} className="text-neon-yellow animate-pulse" />
+                            </div>
+                            <h2 className="text-3xl font-black italic text-white mb-2 tracking-tighter">NEON ARCADE</h2>
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-[0.3em] mb-8">Version 3.4.0 • Pro Build</p>
+                            
+                            <div className="space-y-6 w-full text-left">
+                                <div className="flex items-start gap-4">
+                                    <Code2 className="text-neon-blue shrink-0 mt-1" size={20}/>
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Développement</p>
+                                        <p className="text-sm font-bold text-white">Vincent • Lead Engineer</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-4">
+                                    <Monitor className="text-neon-pink shrink-0 mt-1" size={20}/>
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Interface & FX</p>
+                                        <p className="text-sm font-bold text-white">Pixel Studio • UI/UX Design</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-4">
+                                    <CloudCheck className="text-neon-green shrink-0 mt-1" size={20}/>
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Infrastructure</p>
+                                        <p className="text-sm font-bold text-white">Supabase Realtime • Database</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-10 p-4 bg-white/5 rounded-2xl border border-white/10 w-full">
+                                <p className="text-[10px] text-gray-500 italic">"Conçu pour raviver la flamme des salles d'arcade des années 80."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pt-6 pb-24">
                 <div className="flex items-center justify-between mb-2">
                     <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
@@ -135,10 +186,18 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     <div className="w-10"></div>
                 </div>
 
+                {/* Profil & Status Pro */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 blur-3xl rounded-full -mr-10 -mt-10 group-hover:bg-purple-600/20 transition-all duration-700"></div>
                     
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2"><UserCircle size={16} className="text-neon-blue" /> MON PROFIL NÉON</h3>
+                    <div className="flex justify-between items-start mb-6">
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><UserCircle size={16} className="text-neon-blue" /> MON PROFIL</h3>
+                        {isConnectedToSupabase && (
+                            <div className="flex items-center gap-2 px-2 py-1 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-[9px] font-black animate-pulse">
+                                <ShieldCheck size={12}/> CLOUD SYNCED
+                            </div>
+                        )}
+                    </div>
                     
                     <div className="flex items-center gap-6 mb-8">
                         <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative border-2 ${currentFrame.cssClass} shadow-xl`}>
@@ -161,7 +220,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col items-center">
                             <Coins size={18} className="text-yellow-400 mb-1" />
                             <span className="text-lg font-black font-mono">{currency.coins.toLocaleString()}</span>
@@ -173,27 +232,21 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Badges Gagnés</span>
                         </div>
                     </div>
-
-                    <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
-                        <h4 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Target size={12}/> MEILLEURS RECORDS</h4>
-                        <div className="space-y-2">
-                            {topScores.length > 0 ? topScores.map(([key, score]) => (
-                                <div key={key} className="flex justify-between items-center text-sm border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                                    <span className="text-gray-400 font-bold">{GAME_LABELS[key] || key}</span>
-                                    <span className="text-white font-mono font-bold">{score.toLocaleString()}</span>
-                                </div>
-                            )) : (
-                                <p className="text-[10px] text-gray-600 italic">Aucun score enregistré...</p>
-                            )}
-                        </div>
-                    </div>
                 </div>
 
-                {/* Personnalisation Visuelle */}
+                {/* Graphismes Pro */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={16} /> STYLE NÉON</h3>
-                    <div className="flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Monitor size={16} className="text-neon-pink" /> GRAPHISMES AVANCÉS</h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${currency.crtEffect ? 'bg-neon-pink/20 text-neon-pink' : 'bg-gray-700/50 text-gray-400'}`}><Monitor size={20}/></div>
+                                <div><p className="font-bold text-sm">Effet CRT Rétro</p><p className="text-[10px] text-gray-500">Scanlines & Distorsion CRT</p></div>
+                            </div>
+                            <button onClick={currency.toggleCrtEffect} className={`w-12 h-6 rounded-full relative transition-colors ${currency.crtEffect ? 'bg-neon-pink' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.crtEffect ? 'left-7' : 'left-1'}`}></div></button>
+                        </div>
+                        
+                        <div className="flex justify-between items-center px-2">
                             <div className="flex flex-col">
                                 <span className="text-xs text-gray-400">Accentuation</span>
                                 <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{selectedColorName}</span>
@@ -203,131 +256,89 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                                     <button 
                                         key={c.hex} 
                                         onClick={() => currency.updateAccentColor(c.hex)}
-                                        title={c.name}
-                                        className={`w-8 h-8 rounded-full border-2 transition-all ${currency.accentColor === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                                        style={{ 
-                                            background: c.hex === 'default' 
-                                                ? 'conic-gradient(from 0deg, #00f3ff, #ff00ff, #9d00ff, #00f3ff)' 
-                                                : c.hex, 
-                                            boxShadow: currency.accentColor === c.hex && c.hex !== 'default' ? `0 0 10px ${c.hex}` : 'none' 
-                                        }}
+                                        className={`w-7 h-7 rounded-full border-2 transition-all ${currency.accentColor === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-60'}`}
+                                        style={{ background: c.hex === 'default' ? 'conic-gradient(from 0deg, #00f3ff, #ff00ff, #9d00ff, #00f3ff)' : c.hex }}
                                     />
                                 ))}
                             </div>
                         </div>
-                        {currency.accentColor === 'default' && (
-                            <p className="text-[10px] text-gray-500 italic bg-black/20 p-2 rounded border border-white/5">
-                                Mode Standard : L'application utilise son mélange de couleurs néon original (Cyan, Rose, Violet).
-                            </p>
-                        )}
                     </div>
                 </div>
 
+                {/* Langues & Région */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Eye size={16} /> SOCIAL & VIE PRIVÉE</h3>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${currency.privacySettings.hideOnline ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-400'}`}><EyeOff size={20}/></div>
-                                <div><p className="font-bold text-sm">Mode Invisible</p><p className="text-[10px] text-gray-500">Ne plus apparaître "En ligne"</p></div>
-                            </div>
-                            <button onClick={() => currency.togglePrivacy('hideOnline')} className={`w-12 h-6 rounded-full relative transition-colors ${currency.privacySettings.hideOnline ? 'bg-purple-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.privacySettings.hideOnline ? 'left-7' : 'left-1'}`}></div></button>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${currency.privacySettings.blockRequests ? 'bg-red-500/20 text-red-400' : 'bg-gray-700/50 text-gray-400'}`}><UserX size={20}/></div>
-                                <div><p className="font-bold text-sm">Bloquer Demandes</p><p className="text-[10px] text-gray-500">Refuser auto les invitations</p></div>
-                            </div>
-                            <button onClick={() => currency.togglePrivacy('blockRequests')} className={`w-12 h-6 rounded-full relative transition-colors ${currency.privacySettings.blockRequests ? 'bg-red-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.privacySettings.blockRequests ? 'left-7' : 'left-1'}`}></div></button>
-                        </div>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Globe2 size={16} className="text-neon-green" /> LANGUE & RÉGION</h3>
+                    <div className="flex gap-2">
+                        {LANGUAGES.map(lang => (
+                            <button 
+                                key={lang.code}
+                                onClick={() => currency.updateLanguage(lang.code)}
+                                className={`flex-1 flex flex-col items-center py-3 rounded-xl border transition-all ${currency.currentLanguage === lang.code ? 'bg-green-600/20 border-green-500 shadow-lg' : 'bg-black/40 border-white/5 text-gray-500'}`}
+                            >
+                                <span className="text-2xl mb-1">{lang.flag}</span>
+                                <span className="text-[10px] font-black tracking-widest uppercase">{lang.name}</span>
+                            </button>
+                        ))}
                     </div>
                 </div>
 
+                {/* Audio & Performance */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> PERFORMANCE</h3>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${currency.reducedMotion ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-700/50 text-gray-400'}`}><Sliders size={20}/></div>
-                                <div><p className="font-bold text-sm">Motion Réduite</p><p className="text-[10px] text-gray-500">Moins d'effets visuels lourds</p></div>
-                            </div>
-                            <button onClick={currency.toggleReducedMotion} className={`w-12 h-6 rounded-full relative transition-colors ${currency.reducedMotion ? 'bg-orange-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.reducedMotion ? 'left-7' : 'left-1'}`}></div></button>
-                        </div>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} className="text-neon-yellow" /> PERFORMANCE & AUDIO</h3>
+                    <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
                             <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${!audio.isMuted ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{!audio.isMuted ? <Volume2 size={20}/> : <VolumeX size={20}/>}</div>
-                                <div><p className="font-bold text-sm">Effets Sonores</p><p className="text-[10px] text-gray-500">Sons d'interface et jeux</p></div>
+                                <div><p className="font-bold text-sm">Volume Principal</p><p className="text-[10px] text-gray-500">Audio Global</p></div>
                             </div>
                             <button onClick={audio.toggleMute} className={`w-12 h-6 rounded-full relative transition-colors ${!audio.isMuted ? 'bg-green-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${!audio.isMuted ? 'left-7' : 'left-1'}`}></div></button>
                         </div>
+                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${audio.isVibrationEnabled ? 'bg-cyan-500/20 text-cyan-400' : 'bg-gray-700/50 text-gray-400'}`}>{audio.isVibrationEnabled ? <Vibrate size={20}/> : <VibrateOff size={20}/>}</div>
+                                <div><p className="font-bold text-sm">Haptique</p><p className="text-[10px] text-gray-500">Vibrations d'impact</p></div>
+                            </div>
+                            <button onClick={audio.toggleVibration} className={`w-12 h-6 rounded-full relative transition-colors ${audio.isVibrationEnabled ? 'bg-cyan-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${audio.isVibrationEnabled ? 'left-7' : 'left-1'}`}></div></button>
+                        </div>
                     </div>
                 </div>
 
+                {/* Sécurité du Compte */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Lock size={16} /> COMPTE</h3>
-                    <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                            <div className="flex-1">
-                                <p className="text-[10px] text-gray-500 font-bold uppercase">Utilisateur</p>
-                                <p className="text-lg font-black text-white">{currency.username}</p>
-                            </div>
-                            <button onClick={onLogout} className="px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg text-xs font-bold transition-all">DECO</button>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Lock size={16} className="text-purple-400" /> SÉCURITÉ DU COMPTE</h3>
+                    <div className="space-y-3">
+                        <div className="p-3 bg-black/40 rounded-xl border border-white/5 flex items-center justify-between">
+                            <div><p className="text-[10px] text-gray-500 font-bold uppercase">Identifiant</p><p className="text-sm font-black">{currency.username}</p></div>
+                            <button onClick={() => setShowPasswordModal(true)} className="p-2 bg-purple-900/30 text-purple-400 rounded-lg hover:bg-purple-600 hover:text-white transition-all"><Key size={18}/></button>
                         </div>
-
-                        {/* E-MAIL SECTION */}
-                        <div className="bg-black/40 rounded-xl border border-white/5 p-3">
+                        <div className="p-3 bg-black/40 rounded-xl border border-white/5">
                             <div className="flex justify-between items-center mb-1">
-                                <span className="text-[10px] text-gray-500 font-bold uppercase flex items-center gap-1"><Mail size={10}/> Adresse E-mail</span>
-                                {!isEditingEmail && (
-                                    <button onClick={() => { setIsEditingEmail(true); setTempEmail(currency.email); }} className="text-neon-blue text-[10px] font-bold uppercase hover:underline">
-                                        {currency.email ? 'Modifier' : 'Ajouter'}
-                                    </button>
-                                )}
+                                <span className="text-[10px] text-gray-500 font-bold uppercase flex items-center gap-1"><Mail size={10}/> E-mail de récupération</span>
+                                {!isEditingEmail && <button onClick={() => { setIsEditingEmail(true); setTempEmail(currency.email); }} className="text-neon-blue text-[10px] font-bold uppercase">{currency.email ? 'Modifier' : 'Ajouter'}</button>}
                             </div>
                             {isEditingEmail ? (
                                 <form onSubmit={handleSaveEmail} className="flex gap-2 mt-2">
-                                    <input 
-                                        ref={emailInputRef}
-                                        type="email" 
-                                        value={tempEmail} 
-                                        onChange={e => setTempEmail(e.target.value)} 
-                                        placeholder="votre@email.com"
-                                        className="flex-1 bg-gray-800 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-neon-blue"
-                                        autoFocus
-                                    />
-                                    <button type="submit" className="p-1 text-green-400 hover:bg-green-400/20 rounded transition-colors"><Check size={18}/></button>
-                                    <button type="button" onClick={() => setIsEditingEmail(false)} className="p-1 text-red-400 hover:bg-red-400/20 rounded transition-colors"><X size={18}/></button>
+                                    <input type="email" value={tempEmail} onChange={e => setTempEmail(e.target.value)} className="flex-1 bg-gray-800 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none" autoFocus />
+                                    <button type="submit" className="text-green-400"><Check size={18}/></button>
                                 </form>
-                            ) : (
-                                <p className={`text-sm font-bold ${currency.email ? 'text-white' : 'text-gray-600 italic'}`}>
-                                    {currency.email || 'Aucune adresse associée'}
-                                </p>
-                            )}
+                            ) : <p className="text-sm font-bold truncate">{currency.email || 'Non renseigné'}</p>}
                         </div>
-
-                        <button onClick={() => setShowPasswordModal(true)} className="w-full py-3 bg-gray-800 border border-white/10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-gray-300 active:scale-95 transition-all"><Key size={16}/> MODIFIER MOT DE PASSE</button>
-                        {currency.isSuperUser && (
-                            <div className="mt-2 pt-4 border-t border-white/5">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-bold text-red-400">GOD MODE (ADMIN)</span>
-                                    <button onClick={currency.toggleAdminMode} className={`w-12 h-6 rounded-full relative transition-colors ${currency.adminModeActive ? 'bg-red-500' : 'bg-gray-600'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.adminModeActive ? 'left-7' : 'left-1'}`}></div></button>
-                                </div>
-                                <button onClick={onOpenDashboard} className="w-full py-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg font-bold text-xs">OUVRIR DASHBOARD</button>
-                            </div>
-                        )}
                     </div>
                 </div>
 
-                <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Trash2 size={16} /> ZONE DE DANGER</h3>
-                    <button onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
-                        <RefreshCw size={14}/> RÉINITIALISER LES PRÉFÉRENCES LOCALES
-                    </button>
+                {/* Footer Pro Actions */}
+                <div className="flex gap-3 shrink-0">
+                    <button onClick={() => setShowCreditsModal(true)} className="flex-1 py-4 bg-gray-800 border border-white/10 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 text-gray-400 hover:text-white transition-all active:scale-95"><Info size={16}/> CRÉDITS</button>
+                    <button onClick={onLogout} className="flex-1 py-4 bg-red-900/20 border border-red-500/20 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 text-red-400 hover:bg-red-600 hover:text-white transition-all active:scale-95"><LogOut size={16}/> DÉCONNEXION</button>
                 </div>
 
-                <div className="text-center py-4">
-                    <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase">Neon Arcade v3.0.0</p>
-                    <p className="text-[10px] text-gray-700 mt-1 italic">Mode "Original Theme" activé</p>
+                {currency.isSuperUser && (
+                    <button onClick={onOpenDashboard} className="w-full py-4 bg-gradient-to-r from-blue-900 to-purple-900 border border-blue-500/30 rounded-2xl font-black text-sm text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"><Shield size={18}/> ADMINISTRATION SYSTEME</button>
+                )}
+
+                <div className="flex flex-col items-center gap-4 py-8 border-t border-red-500/20 mt-4">
+                    <button onClick={handleHardReset} className="text-[10px] text-red-500 font-bold uppercase tracking-widest flex items-center gap-2 opacity-50 hover:opacity-100 transition-opacity"><Trash2 size={12}/> Réinitialiser toutes les données locales</button>
+                    <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase">Neon Arcade Pro • v3.4.0 • Built with Supabase</p>
                 </div>
             </div>
         </div>
