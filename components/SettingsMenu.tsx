@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -30,15 +30,16 @@ const GAME_LABELS: Record<string, string> = {
     lumen: 'Lumen Order', memory: 'Memory', skyjo: 'Skyjo', uno: 'Uno', mastermind: 'Mastermind'
 };
 
+type LegalTab = 'CGU' | 'PRIVACY' | 'MENTIONS';
+
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency, highScores }) => {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
-    const [showCGU, setShowCGU] = useState(false);
+    const [legalTab, setLegalTab] = useState<LegalTab | null>(null);
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [msg, setMsg] = useState<{text: string, type: 'error' | 'success'} | null>(null);
 
-    // Email Edit State
     const [isEditingEmail, setIsEditingEmail] = useState(false);
     const [tempEmail, setTempEmail] = useState(currency.email);
     const emailInputRef = useRef<HTMLInputElement>(null);
@@ -67,13 +68,24 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
             alert("Veuillez entrer une adresse e-mail valide.");
             return;
         }
-        
         currency.updateEmail(trimmed);
-        if (isSupabaseConfigured) {
-            await DB.updateUserData(currency.username, { email: trimmed });
-        }
+        if (isSupabaseConfigured) await DB.updateUserData(currency.username, { email: trimmed });
         setIsEditingEmail(false);
         audio.playVictory();
+    };
+
+    const handleDeleteAccount = async () => {
+        const confirmation = window.prompt("⚠️ ACTION IRRÉVERSIBLE ⚠️\nPour supprimer votre compte et TOUTES vos données (scores, achats, pièces), tapez votre pseudo ci-dessous :");
+        if (confirmation === currency.username) {
+            if (isSupabaseConfigured) await DB.deleteUser(currency.username);
+            localStorage.removeItem('neon-username');
+            localStorage.removeItem('neon_current_password');
+            localStorage.removeItem(`neon_data_${currency.username}`);
+            alert("Compte supprimé. Au revoir !");
+            window.location.reload();
+        } else if (confirmation !== null) {
+            alert("Pseudo incorrect. Annulation.");
+        }
     };
 
     const handleHardReset = () => {
@@ -130,37 +142,73 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 </div>
             )}
 
-            {/* Modal CGU */}
-            {showCGU && (
+            {/* Centre Légal */}
+            {legalTab && (
                 <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="bg-gray-900 w-full max-w-lg max-h-[80vh] rounded-3xl border border-white/10 shadow-2xl flex flex-col relative overflow-hidden">
-                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-gray-800/50">
-                            <h3 className="text-xl font-black text-white flex items-center gap-2 italic tracking-tight"><Gavel className="text-neon-blue" /> CONDITIONS GÉNÉRALES</h3>
-                            <button onClick={() => setShowCGU(false)} className="p-2 bg-black/40 hover:bg-white/10 rounded-full text-white transition-colors"><X size={20}/></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-gray-300 leading-relaxed custom-scrollbar">
-                            <section>
-                                <h4 className="text-neon-blue font-bold uppercase tracking-widest mb-2">1. Acceptation des termes</h4>
-                                <p>En accédant à Neon Arcade, vous acceptez de respecter ces conditions. L'accès aux fonctionnalités sociales nécessite un compte vérifié.</p>
-                            </section>
-                            <section>
-                                <h4 className="text-neon-pink font-bold uppercase tracking-widest mb-2">2. Données Personnelles</h4>
-                                <p>Nous collectons votre pseudo, e-mail (facultatif) et statistiques de jeu pour assurer la sauvegarde cloud et le classement mondial. Vos données ne sont jamais vendues à des tiers.</p>
-                            </section>
-                            <section>
-                                <h4 className="text-neon-yellow font-bold uppercase tracking-widest mb-2">3. Économie Virtuelle</h4>
-                                <p>Les "Pièces Néon" sont une monnaie purement fictive. Elles ne peuvent en aucun cas être converties en argent réel. Tout abus ou tentative de triche pourra entraîner une remise à zéro du compte.</p>
-                            </section>
-                            <section>
-                                <h4 className="text-neon-green font-bold uppercase tracking-widest mb-2">4. Code de conduite</h4>
-                                <p>Le respect est primordial. Tout comportement harcelant, insultant ou inapproprié dans le chat social pourra entraîner un bannissement définitif de votre compte par les administrateurs.</p>
-                            </section>
-                            <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-[10px] text-gray-500 font-mono text-center">
-                                Neon Arcade v3.0.0 - Dernière mise à jour : Mai 2024
+                    <div className="bg-gray-900 w-full max-w-xl max-h-[85vh] rounded-3xl border border-white/10 shadow-2xl flex flex-col relative overflow-hidden">
+                        <div className="p-4 border-b border-white/10 flex flex-col bg-gray-800/50">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-black text-white flex items-center gap-2 italic"><ShieldCheck className="text-neon-blue" /> CENTRE LÉGAL</h3>
+                                <button onClick={() => setLegalTab(null)} className="p-2 bg-black/40 hover:bg-white/10 rounded-full text-white transition-colors"><X size={20}/></button>
+                            </div>
+                            <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
+                                <button onClick={() => setLegalTab('CGU')} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${legalTab === 'CGU' ? 'bg-neon-blue text-black' : 'text-gray-400 hover:text-white'}`}>CGU</button>
+                                <button onClick={() => setLegalTab('PRIVACY')} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${legalTab === 'PRIVACY' ? 'bg-neon-pink text-black' : 'text-gray-400 hover:text-white'}`}>RGPD</button>
+                                <button onClick={() => setLegalTab('MENTIONS')} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${legalTab === 'MENTIONS' ? 'bg-neon-yellow text-black' : 'text-gray-400 hover:text-white'}`}>MENTIONS</button>
                             </div>
                         </div>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-gray-300 leading-relaxed custom-scrollbar">
+                            {legalTab === 'CGU' && (
+                                <div className="animate-in slide-in-from-left-4">
+                                    <h4 className="text-neon-blue font-black uppercase tracking-widest mb-4">Conditions Générales d'Utilisation</h4>
+                                    <section className="mb-4">
+                                        <p className="font-bold text-white mb-1">1. Objet</p>
+                                        <p>Neon Arcade fournit des jeux rétro et des fonctionnalités sociales. L'utilisation implique l'acceptation pleine et entière de ces termes.</p>
+                                    </section>
+                                    <section className="mb-4">
+                                        <p className="font-bold text-white mb-1">2. Monnaie Virtuelle</p>
+                                        <p>Les "Pièces Néon" n'ont aucune valeur pécuniaire. Elles ne sont ni remboursables ni convertibles en monnaie réelle.</p>
+                                    </section>
+                                    <section className="mb-4">
+                                        <p className="font-bold text-white mb-1">3. Responsabilité</p>
+                                        <p>L'éditeur ne peut être tenu responsable en cas d'indisponibilité du service ou de perte de progression liée à un incident technique.</p>
+                                    </section>
+                                </div>
+                            )}
+                            {legalTab === 'PRIVACY' && (
+                                <div className="animate-in slide-in-from-right-4">
+                                    <h4 className="text-neon-pink font-black uppercase tracking-widest mb-4">Politique de Confidentialité (RGPD)</h4>
+                                    <section className="mb-4">
+                                        <p className="font-bold text-white mb-1">Données collectées :</p>
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            <li>Pseudo (public) : Pour le classement et le social.</li>
+                                            <li>Email (privé) : Pour la récupération de mot de passe (si fourni).</li>
+                                            <li>Stats de jeu : Scores et inventaire.</li>
+                                        </ul>
+                                    </section>
+                                    <section className="mb-4">
+                                        <p className="font-bold text-white mb-1">Vos Droits :</p>
+                                        <p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données via les réglages de l'application.</p>
+                                    </section>
+                                    <section>
+                                        <p className="font-bold text-white mb-1">Conservation :</p>
+                                        <p>Vos données sont conservées tant que votre compte est actif. Un compte inactif pendant 24 mois pourra être supprimé.</p>
+                                    </section>
+                                </div>
+                            )}
+                            {legalTab === 'MENTIONS' && (
+                                <div className="animate-in fade-in">
+                                    <h4 className="text-neon-yellow font-black uppercase tracking-widest mb-4">Mentions Légales</h4>
+                                    <div className="bg-black/30 p-4 rounded-2xl border border-white/5 space-y-2">
+                                        <p><span className="text-gray-500 uppercase text-[10px] block">Éditeur</span> Neon Arcade Project</p>
+                                        <p><span className="text-gray-500 uppercase text-[10px] block">Hébergement</span> Supabase Inc. (USA) / Google Cloud</p>
+                                        <p><span className="text-gray-500 uppercase text-[10px] block">Contact</span> support@neon-arcade.io</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         <div className="p-4 border-t border-white/10 bg-gray-800/30">
-                            <button onClick={() => setShowCGU(false)} className="w-full py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-neon-blue transition-colors shadow-lg">J'AI COMPRIS</button>
+                            <button onClick={() => setLegalTab(null)} className="w-full py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-neon-blue transition-colors shadow-lg">FERMER</button>
                         </div>
                     </div>
                 </div>
@@ -227,7 +275,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     </div>
                 </div>
 
-                {/* Personnalisation Visuelle */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={16} /> STYLE NÉON</h3>
                     <div className="flex flex-col gap-4">
@@ -252,26 +299,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                                     />
                                 ))}
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Eye size={16} /> SOCIAL & VIE PRIVÉE</h3>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${currency.privacySettings.hideOnline ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-400'}`}><EyeOff size={20}/></div>
-                                <div><p className="font-bold text-sm">Mode Invisible</p><p className="text-[10px] text-gray-500">Ne plus apparaître "En ligne"</p></div>
-                            </div>
-                            <button onClick={() => currency.togglePrivacy('hideOnline')} className={`w-12 h-6 rounded-full relative transition-colors ${currency.privacySettings.hideOnline ? 'bg-purple-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.privacySettings.hideOnline ? 'left-7' : 'left-1'}`}></div></button>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${currency.privacySettings.blockRequests ? 'bg-red-500/20 text-red-400' : 'bg-gray-700/50 text-gray-400'}`}><UserX size={20}/></div>
-                                <div><p className="font-bold text-sm">Bloquer Demandes</p><p className="text-[10px] text-gray-500">Refuser auto les invitations</p></div>
-                            </div>
-                            <button onClick={() => currency.togglePrivacy('blockRequests')} className={`w-12 h-6 rounded-full relative transition-colors ${currency.privacySettings.blockRequests ? 'bg-red-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.privacySettings.blockRequests ? 'left-7' : 'left-1'}`}></div></button>
                         </div>
                     </div>
                 </div>
@@ -351,11 +378,10 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                     </div>
                 </div>
 
-                {/* Section Légal & Infos */}
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Gavel size={16} /> LÉGAL & INFOS</h3>
                     <div className="flex flex-col gap-3">
-                        <button onClick={() => setShowCGU(true)} className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all">
+                        <button onClick={() => setLegalTab('CGU')} className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all">
                             <FileText size={16} className="text-neon-blue" /> CONSULTER LES CGU / RGPD
                         </button>
                     </div>
@@ -363,9 +389,14 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
 
                 <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-5 backdrop-blur-md">
                     <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Trash2 size={16} /> ZONE DE DANGER</h3>
-                    <button onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
-                        <RefreshCw size={14}/> RÉINITIALISER LES PRÉFÉRENCES LOCALES
-                    </button>
+                    <div className="space-y-3">
+                        <button onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
+                            <RefreshCw size={14}/> RÉINITIALISER LES PRÉFÉRENCES LOCALES
+                        </button>
+                        <button onClick={handleDeleteAccount} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg">
+                            <UserX size={16}/> SUPPRIMER DÉFINITIVEMENT MON COMPTE
+                        </button>
+                    </div>
                 </div>
 
                 <div className="text-center py-4">

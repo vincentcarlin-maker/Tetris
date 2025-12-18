@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, ArrowRight, Sparkles, X, Lock, Key, LogIn, UserPlus, Cloud, Check, ShieldAlert, Mail, RefreshCcw, Hash } from 'lucide-react';
+import { User, ArrowRight, Sparkles, X, Lock, Key, LogIn, UserPlus, Cloud, Check, ShieldAlert, Mail, RefreshCcw, Hash, FileText } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 
 // --- CONFIGURATION EMAILJS (À configurer par l'utilisateur) ---
-// Note : Vous devez créer un compte sur emailjs.com et créer un template.
 const EMAILJS_SERVICE_ID = 'service_default'; 
 const EMAILJS_TEMPLATE_ID = 'template_reset_pass';
-const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY'; // Remplacer par votre clé publique EmailJS
+const EMAILJS_PUBLIC_KEY = 'YOUR_PUBLIC_KEY'; 
 
 interface LoginScreenProps {
     onLogin: (username: string, cloudData?: any) => void;
@@ -29,6 +28,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [otpCode, setOtpCode] = useState('');
+    const [acceptCGU, setAcceptCGU] = useState(false);
     
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -108,6 +108,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
     const handleRegisterSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        if (!acceptCGU) { setError("Vous devez accepter les CGU."); return; }
         setIsLoading(true);
         if (username.trim().length < 3) { setError("Pseudo trop court."); setIsLoading(false); return; }
         if (password.length < 4) { setError("Mot de passe trop court."); setIsLoading(false); return; }
@@ -120,103 +121,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         
         usersDb[username] = password;
         localStorage.setItem(USERS_DB_KEY, JSON.stringify(usersDb));
-        const freshData = { coins: 0, inventory: [], avatarId: 'av_bot', ownedAvatars: ['av_bot', 'av_human'], frameId: 'fr_none', ownedFrames: ['fr_none'], wallpaperId: 'bg_brick', ownedWallpapers: ['bg_brick'], titleId: 't_none', ownedTitles: ['t_none'], malletId: 'm_classic', ownedMallets: ['m_classic'], highScores: { tetris: 0, breaker: 0, pacman: 0, snake: 0, invaders: 0, runner: 0, stack: 0, arenaclash: 0, sudoku: {}, memory: 0, mastermind: 0, uno: 0, game2048: 0, watersort: 1 }, streak: 0, quests: [], password: password, banned: false };
+        const freshData = { coins: 0, inventory: [], avatarId: 'av_bot', ownedAvatars: ['av_bot', 'av_human'], frameId: 'fr_none', ownedFrames: ['fr_none'], wallpaperId: 'bg_brick', ownedWallpapers: ['bg_brick'], titleId: 't_none', ownedTitles: ['t_none'], malletId: 'm_classic', ownedMallets: ['m_classic'], highScores: { tetris: 0, breaker: 0, pacman: 0, snake: 0, invaders: 0, runner: 0, stack: 0, arenaclash: 0, sudoku: {}, memory: 0, mastermind: 0, uno: 0, game2048: 0, watersort: 1 }, streak: 0, quests: [], password: password, banned: false, cgu_accepted: true, cgu_date: new Date().toISOString() };
         handleSuccess(username, password, freshData);
     };
-
-    // --- RECOVERY LOGIC ---
 
     const handleRequestOTP = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setIsLoading(true);
-
-        if (!email.trim() || !email.includes('@')) {
-            setError("Veuillez entrer une adresse e-mail valide.");
-            setIsLoading(false);
-            return;
-        }
-
-        if (!isSupabaseConfigured) {
-            setError("Le serveur n'est pas configuré pour l'envoi d'e-mails.");
-            setIsLoading(false);
-            return;
-        }
-
+        if (!email.trim() || !email.includes('@')) { setError("Veuillez entrer une adresse e-mail valide."); setIsLoading(false); return; }
+        if (!isSupabaseConfigured) { setError("Le serveur n'est pas configuré pour l'envoi d'e-mails."); setIsLoading(false); return; }
         try {
             const user = await DB.getUserByEmail(email);
-            if (!user) {
-                setError("Aucun compte n'est associé à cette adresse e-mail.");
-                setIsLoading(false);
-                return;
-            }
-
+            if (!user) { setError("Aucun compte n'est associé à cette adresse e-mail."); setIsLoading(false); return; }
             setTargetUser(user);
-            
-            // Génération du code OTP
             const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const expiry = Date.now() + 15 * 60 * 1000; // 15 minutes
-
-            // Sauvegarde du code dans Supabase (dans le JSONB data)
-            await DB.updateUserData(user.username, { 
-                reset_code: code, 
-                reset_expiry: expiry 
-            });
-
-            // Envoi de l'e-mail réel via EmailJS
-            const templateParams = {
-                to_name: user.username,
-                to_email: email.trim(),
-                reset_code: code,
-                app_name: 'Neon Arcade'
-            };
-
+            const expiry = Date.now() + 15 * 60 * 1000;
+            await DB.updateUserData(user.username, { reset_code: code, reset_expiry: expiry });
+            const templateParams = { to_name: user.username, to_email: email.trim(), reset_code: code, app_name: 'Neon Arcade' };
             const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service_id: EMAILJS_SERVICE_ID,
-                    template_id: EMAILJS_TEMPLATE_ID,
-                    user_id: EMAILJS_PUBLIC_KEY,
-                    template_params: templateParams
-                })
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ service_id: EMAILJS_SERVICE_ID, template_id: EMAILJS_TEMPLATE_ID, user_id: EMAILJS_PUBLIC_KEY, template_params: templateParams })
             });
-
-            if (response.ok) {
-                setForgotStep('CODE');
-                setSuccessMsg("Code de vérification envoyé !");
-            } else {
-                const errData = await response.text();
-                console.error("EmailJS Error:", errData);
-                // Fallback simulation si la clé est manquante mais l'utilisateur veut tester l'UI
-                if (EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY') {
-                    setForgotStep('CODE');
-                    setSuccessMsg("Clé EmailJS manquante - Mode démo : Code = " + code);
-                } else {
-                    setError("Erreur lors de l'envoi de l'e-mail.");
-                }
+            if (response.ok) { setForgotStep('CODE'); setSuccessMsg("Code de vérification envoyé !"); } else {
+                if (EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY') { setForgotStep('CODE'); setSuccessMsg("Mode démo : Code = " + code); } else { setError("Erreur lors de l'envoi de l'e-mail."); }
             }
-        } catch (e: any) {
-            setError("Une erreur est survenue : " + e.message);
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (e: any) { setError("Une erreur est survenue : " + e.message); } finally { setIsLoading(false); }
     };
 
     const handleVerifyOTP = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setIsLoading(true);
-
         if (!targetUser) return;
-
         const userData = targetUser.data;
-        if (userData.reset_code === otpCode && Date.now() < userData.reset_expiry) {
-            setForgotStep('NEW_PASS');
-            setSuccessMsg(null);
-        } else {
-            setError("Code invalide ou expiré.");
-        }
+        if (userData.reset_code === otpCode && Date.now() < userData.reset_expiry) { setForgotStep('NEW_PASS'); setSuccessMsg(null); } else { setError("Code invalide ou expiré."); }
         setIsLoading(false);
     };
 
@@ -224,55 +163,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
         e.preventDefault();
         setError(null);
         setIsLoading(true);
-
-        if (password.length < 4) {
-            setError("Le mot de passe doit faire au moins 4 caractères.");
-            setIsLoading(false);
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            setError("Les mots de passe ne correspondent pas.");
-            setIsLoading(false);
-            return;
-        }
-
+        if (password.length < 4) { setError("Le mot de passe doit faire au moins 4 caractères."); setIsLoading(false); return; }
+        if (password !== confirmPassword) { setError("Les mots de passe ne correspondent pas."); setIsLoading(false); return; }
         try {
-            // Mise à jour finale
-            const updatedData = { 
-                ...targetUser.data, 
-                password: password,
-                reset_code: null,
-                reset_expiry: null
-            };
-
+            const updatedData = { ...targetUser.data, password: password, reset_code: null, reset_expiry: null };
             await DB.updateUserData(targetUser.username, updatedData);
-            
-            // Mise à jour locale du "pseudo DB"
             const usersDb = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
             usersDb[targetUser.username] = password;
             localStorage.setItem(USERS_DB_KEY, JSON.stringify(usersDb));
             localStorage.setItem(DATA_PREFIX + targetUser.username, JSON.stringify(updatedData));
-
             setSuccessMsg("Mot de passe réinitialisé avec succès !");
-            setTimeout(() => {
-                setMode('LOGIN');
-                setForgotStep('EMAIL');
-                setSuccessMsg(null);
-            }, 2000);
-        } catch (e) {
-            setError("Erreur lors de la mise à jour.");
-        } finally {
-            setIsLoading(false);
-        }
+            setTimeout(() => { setMode('LOGIN'); setForgotStep('EMAIL'); setSuccessMsg(null); }, 2000);
+        } catch (e) { setError("Erreur lors de la mise à jour."); } finally { setIsLoading(false); }
     };
 
-    const handleClose = () => {
-        if (onCancel) {
-            setIsAnimating(true);
-            setTimeout(() => { onCancel(); }, 500);
-        }
-    };
+    const handleClose = () => { if (onCancel) { setIsAnimating(true); setTimeout(() => { onCancel(); }, 500); } };
 
     return (
         <div className={`fixed inset-0 z-[200] flex flex-col items-center justify-center p-6 bg-[#020202]/90 backdrop-blur-md transition-opacity duration-700 ${isAnimating ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100'}`}>
@@ -331,8 +236,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Key className="text-gray-500 group-focus-within:text-neon-blue" size={20} /></div>
                                 <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mot de passe" className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white outline-none focus:border-neon-blue font-bold" />
                             </div>
+                            
+                            <div className="flex items-start gap-3 p-3 bg-black/20 rounded-xl border border-white/5 mt-2">
+                                <button 
+                                    type="button"
+                                    onClick={() => setAcceptCGU(!acceptCGU)}
+                                    className={`w-5 h-5 rounded border transition-all shrink-0 flex items-center justify-center ${acceptCGU ? 'bg-neon-pink border-neon-pink' : 'border-gray-600 bg-black/40'}`}
+                                >
+                                    {acceptCGU && <Check size={14} strokeWidth={4} className="text-white"/>}
+                                </button>
+                                <p className="text-[10px] text-gray-400 leading-tight">
+                                    J'accepte les <span className="text-white underline cursor-pointer">CGU</span> et la <span className="text-white underline cursor-pointer">Politique de Confidentialité</span> de Neon Arcade.
+                                </p>
+                            </div>
+
                             {error && <div className="text-red-500 text-xs font-bold text-center bg-red-900/20 py-2 rounded border border-red-500/30">{error}</div>}
-                            <button type="submit" disabled={isLoading} className="w-full py-4 rounded-xl font-black text-white bg-gradient-to-r from-pink-600 to-purple-600 shadow-lg active:scale-95 transition-all">
+                            <button type="submit" disabled={isLoading} className="w-full py-4 rounded-xl font-black text-white bg-gradient-to-r from-pink-600 to-purple-600 shadow-lg active:scale-95 transition-all disabled:opacity-50">
                                 {isLoading ? 'CRÉATION...' : 'CRÉER MON COMPTE'}
                             </button>
                         </form>
