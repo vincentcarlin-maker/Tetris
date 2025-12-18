@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, ArrowRight, Sparkles, X, Lock, Key, LogIn, UserPlus, Cloud, Check, ShieldAlert, Mail, RefreshCcw, Hash, FileText } from 'lucide-react';
+import { User, ArrowRight, Sparkles, X, Lock, Key, LogIn, UserPlus, Cloud, Check, ShieldAlert, Mail, RefreshCcw, Hash, FileText, ShieldCheck, Gavel } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 
 // --- CONFIGURATION EMAILJS (À configurer par l'utilisateur) ---
@@ -18,10 +18,12 @@ const USERS_DB_KEY = 'neon_users_db';
 const DATA_PREFIX = 'neon_data_';
 
 type ForgotStep = 'EMAIL' | 'CODE' | 'NEW_PASS';
+type LegalView = 'CGU' | 'PRIVACY' | null;
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onAttemptLogin }) => {
     const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'FORGOT'>('LOGIN');
     const [forgotStep, setForgotStep] = useState<ForgotStep>('EMAIL');
+    const [legalView, setLegalView] = useState<LegalView>(null);
     
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -189,6 +191,60 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
                 </button>
             )}
 
+            {/* Modal Légal Interne */}
+            {legalView && (
+                <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-gray-900 w-full max-w-lg max-h-[80vh] rounded-3xl border border-white/10 shadow-2xl flex flex-col relative overflow-hidden">
+                        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-gray-800/50">
+                            <h3 className="text-xl font-black text-white flex items-center gap-2 italic tracking-tight">
+                                {legalView === 'CGU' ? <Gavel className="text-neon-blue" /> : <ShieldCheck className="text-neon-pink" />}
+                                {legalView === 'CGU' ? "CONDITIONS GÉNÉRALES" : "POLITIQUE DE CONFIDENTIALITÉ"}
+                            </h3>
+                            <button onClick={() => setLegalView(null)} className="p-2 bg-black/40 hover:bg-white/10 rounded-full text-white transition-colors"><X size={20}/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-gray-300 leading-relaxed custom-scrollbar">
+                            {legalView === 'CGU' ? (
+                                <>
+                                    <section>
+                                        <h4 className="text-neon-blue font-bold uppercase tracking-widest mb-2">1. Acceptation des termes</h4>
+                                        <p>En accédant à Neon Arcade, vous acceptez de respecter ces conditions. L'accès aux fonctionnalités sociales nécessite un compte vérifié.</p>
+                                    </section>
+                                    <section>
+                                        <h4 className="text-neon-blue font-bold uppercase tracking-widest mb-2">2. Économie Virtuelle</h4>
+                                        <p>Les "Pièces Néon" sont une monnaie purement fictive. Elles ne peuvent en aucun cas être converties en argent réel. Tout abus ou tentative de triche pourra entraîner une remise à zéro du compte.</p>
+                                    </section>
+                                    <section>
+                                        <h4 className="text-neon-blue font-bold uppercase tracking-widest mb-2">3. Code de conduite</h4>
+                                        <p>Le respect est primordial. Tout comportement harcelant, insultant ou inapproprié dans le chat social pourra entraîner un bannissement définitif de votre compte par les administrateurs.</p>
+                                    </section>
+                                </>
+                            ) : (
+                                <>
+                                    <section>
+                                        <h4 className="text-neon-pink font-bold uppercase tracking-widest mb-2">1. Données collectées</h4>
+                                        <p>Nous collectons votre pseudo, e-mail (si fourni pour la récupération) et vos statistiques de jeu (scores, inventaire) afin d'assurer la sauvegarde cloud et le classement mondial.</p>
+                                    </section>
+                                    <section>
+                                        <h4 className="text-neon-pink font-bold uppercase tracking-widest mb-2">2. Utilisation des données</h4>
+                                        <p>Vos données ne sont jamais vendues à des tiers. Elles sont uniquement utilisées pour le bon fonctionnement technique de l'application et des services sociaux.</p>
+                                    </section>
+                                    <section>
+                                        <h4 className="text-neon-pink font-bold uppercase tracking-widest mb-2">3. Vos Droits</h4>
+                                        <p>Vous disposez d'un droit d'accès et de suppression de votre compte via les réglages de l'application une fois connecté. La suppression du compte entraîne l'effacement immédiat de toutes les données cloud.</p>
+                                    </section>
+                                </>
+                            )}
+                            <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-[10px] text-gray-500 font-mono text-center">
+                                Neon Arcade v3.0.0 - Dernière mise à jour : Mai 2024
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-white/10 bg-gray-800/30">
+                            <button onClick={() => setLegalView(null)} className="w-full py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-neon-blue transition-colors shadow-lg">J'AI COMPRIS</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="relative mb-8 flex flex-col items-center animate-in fade-in zoom-in duration-1000">
                 <div className="font-script text-8xl text-white transform -rotate-6 z-10 drop-shadow-[0_0_15px_#00f3ff]">Neon</div>
                 <div className="font-script text-7xl text-neon-pink transform -rotate-3 -mt-6 ml-12 drop-shadow-[0_0_15px_#ff00ff]">Arcade</div>
@@ -245,9 +301,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onCancel, onA
                                 >
                                     {acceptCGU && <Check size={14} strokeWidth={4} className="text-white"/>}
                                 </button>
-                                <p className="text-[10px] text-gray-400 leading-tight">
-                                    J'accepte les <span className="text-white underline cursor-pointer">CGU</span> et la <span className="text-white underline cursor-pointer">Politique de Confidentialité</span> de Neon Arcade.
-                                </p>
+                                <div className="text-[10px] text-gray-400 leading-tight">
+                                    J'accepte les <span onClick={() => setLegalView('CGU')} className="text-white underline cursor-pointer hover:text-neon-blue">CGU</span> et la <span onClick={() => setLegalView('PRIVACY')} className="text-white underline cursor-pointer hover:text-neon-pink">Politique de Confidentialité</span> de Neon Arcade.
+                                </div>
                             </div>
 
                             {error && <div className="text-red-500 text-xs font-bold text-center bg-red-900/20 py-2 rounded border border-red-500/30">{error}</div>}
