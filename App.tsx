@@ -161,11 +161,26 @@ const App: React.FC = () => {
             loginAndFetchProfile(currency.username).then(profile => {
                 if (profile && profile.data) {
                     console.log("☁️ Synced profile from cloud on connect");
+                    
+                    // DATE CHECK FOR QUESTS SYNC
+                    const d = new Date();
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const todayStr = `${year}-${month}-${day}`;
+                    
+                    const cloudQuestDate = profile.data.questsDate;
+                    
+                    // Safe import: useCurrency will handle filtering based on dates for storage
                     currency.importData(profile.data);
+                    
                     if (profile.data.highScores) {
                         importScores(profile.data.highScores);
                     }
-                    if (profile.data.quests) {
+                    
+                    // Only update React state for quests if the cloud data is FRESH (from today).
+                    // If cloud data is old, we keep the local state (which was likely reset to today's quests by useDailySystem).
+                    if (profile.data.quests && cloudQuestDate === todayStr) {
                         updateQuestsState(profile.data.quests);
                     }
                 }
@@ -437,9 +452,18 @@ const App: React.FC = () => {
             if (cloudData.highScores) {
                 importScores(cloudData.highScores);
             }
-            if (cloudData.quests) {
+            
+            // DATE CHECK: Only import quests if they are FRESH
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            
+            if (cloudData.quests && cloudData.questsDate === todayStr) {
                 updateQuestsState(cloudData.quests);
             }
+            
             setIsCloudSynced(true);
             syncProfileToCloud(username, cloudData);
             localStorage.setItem(`neon_data_${username}`, JSON.stringify(cloudData));

@@ -229,6 +229,12 @@ export const useCurrency = () => {
     const importData = useCallback((data: any) => {
         if (!data) return;
         
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        
         if (data.coins !== undefined) {
             setCoins(data.coins);
             localStorage.setItem('neon-coins', data.coins.toString());
@@ -278,23 +284,24 @@ export const useCurrency = () => {
             localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets));
         }
         
-        // Quests Data
-        if (data.quests) localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
-        if (data.questsDate) localStorage.setItem('neon_quests_date', data.questsDate);
+        // --- SMART QUEST SYNC ---
+        // Only overwrite quests if the cloud data is from TODAY or if no local data exists.
+        // If local is fresh (Today) and cloud is stale (Yesterday), we prefer local.
+        const localQuestDate = localStorage.getItem('neon_quests_date');
+        
+        if (data.quests && data.questsDate === todayStr) {
+             // Cloud is fresh (Today) -> Sync it (e.g. played on another device today)
+             localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
+             localStorage.setItem('neon_quests_date', data.questsDate);
+        } else if (!localQuestDate) {
+             // No local data -> Take whatever cloud has (DailySystem will reset it if old)
+             if (data.quests) localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
+             if (data.questsDate) localStorage.setItem('neon_quests_date', data.questsDate);
+        }
+        // Else: Local is likely 'today' (fresh reset) and cloud is 'yesterday' (stale). Keep local.
         
         // PROTECTION FIX: Daily Bonus Overwrite
-        // Calculate "Today" locally
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const todayStr = `${year}-${month}-${day}`;
-
         const localLastLogin = localStorage.getItem('neon_last_login');
-        
-        // We only overwrite streak/lastLogin if the local data IS NOT from today 
-        // OR if the cloud data IS from today (syncing between devices on same day).
-        // If Local = Today and Cloud = Old, we keep Local (we just claimed bonus).
         const isLocalFresh = localLastLogin === todayStr && data.lastLogin !== todayStr;
 
         if (!isLocalFresh) {
