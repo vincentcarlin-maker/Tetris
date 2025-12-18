@@ -74,9 +74,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     label="Accueil" 
                     active={isMenu && !showSocial} 
                     onClick={() => onNavigate('menu')} 
-                    activeColor="text-neon-accent"
-                    glowColor="var(--neon-accent)"
-                    bgActiveClass="bg-neon-accent/10"
+                    activeColor="text-neon-blue"
+                    glowColor="#00f3ff"
+                    bgActiveClass="bg-neon-blue/10"
                 />
                 <NavButton 
                     icon={MessageSquare} 
