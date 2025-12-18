@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc } from 'lucide-react';
 
@@ -171,6 +170,15 @@ export const MALLETS_CATALOG: Mallet[] = [
     { id: 'm_glitch', name: 'Glitch', price: 5000, colors: ['#ff00ff', '#00ffff', '#ffff00'], type: 'complex', description: 'Erreur système.' },
 ];
 
+const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+};
+
 export const useCurrency = () => {
     const [coins, setCoins] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
     const [inventory, setInventory] = useState<string[]>(() => {
@@ -180,7 +188,7 @@ export const useCurrency = () => {
     const [username, setUsername] = useState(() => localStorage.getItem('neon-username') || "Joueur Néon");
     const [currentAvatarId, setCurrentAvatarId] = useState(() => localStorage.getItem('neon-avatar') || "av_bot");
     const [ownedAvatars, setOwnedAvatars] = useState<string[]>(() => {
-        try { return JSON.parse(localStorage.getItem('neon-owned-avatars') || '["av_bot", "av_human"]'); } catch { return ["av_bot", "av_human"]; }
+        try { return JSON.parse(localStorage.getItem('neon_owned_avatars') || '["av_bot", "av_human"]'); } catch { return ["av_bot", "av_human"]; }
     });
     
     const [currentFrameId, setCurrentFrameId] = useState(() => localStorage.getItem('neon-frame') || "fr_none");
@@ -229,18 +237,28 @@ export const useCurrency = () => {
 
     // Mise à jour de l'accentuation de couleur sur tout le document
     useEffect(() => {
+        const root = document.documentElement;
         if (accentColor === 'default') {
-            document.documentElement.style.removeProperty('--neon-blue');
-            document.documentElement.style.removeProperty('--neon-pink');
-            document.documentElement.style.removeProperty('--neon-purple');
-            document.documentElement.style.removeProperty('--neon-yellow');
-            document.documentElement.style.removeProperty('--neon-green');
+            root.style.removeProperty('--neon-blue');
+            root.style.removeProperty('--neon-pink');
+            root.style.removeProperty('--neon-purple');
+            root.style.removeProperty('--neon-yellow');
+            root.style.removeProperty('--neon-green');
+            root.style.setProperty('--neon-accent', '#00f3ff');
+            root.style.setProperty('--neon-accent-rgb', '0, 243, 255');
         } else {
-            document.documentElement.style.setProperty('--neon-blue', accentColor);
-            document.documentElement.style.setProperty('--neon-pink', accentColor);
-            document.documentElement.style.setProperty('--neon-purple', accentColor);
-            document.documentElement.style.setProperty('--neon-yellow', accentColor);
-            document.documentElement.style.setProperty('--neon-green', accentColor);
+            // Appliquer l'accent à toutes les variables néon pour unifier le thème
+            root.style.setProperty('--neon-blue', accentColor);
+            root.style.setProperty('--neon-pink', accentColor);
+            root.style.setProperty('--neon-purple', accentColor);
+            root.style.setProperty('--neon-yellow', accentColor);
+            root.style.setProperty('--neon-green', accentColor);
+            root.style.setProperty('--neon-accent', accentColor);
+            
+            const rgb = hexToRgb(accentColor);
+            if (rgb) {
+                root.style.setProperty('--neon-accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+            }
         }
     }, [accentColor]);
 
@@ -319,7 +337,7 @@ export const useCurrency = () => {
         },
         catalog: BADGES_CATALOG, playerRank, username, updateUsername: (n: string) => { setUsername(n); localStorage.setItem('neon-username', n); },
         currentAvatarId, selectAvatar: (id: string) => { setCurrentAvatarId(id); localStorage.setItem('neon-avatar', id); },
-        buyAvatar: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedAvatars(p => [...p, id]); localStorage.setItem('neon-owned-avatars', JSON.stringify([...ownedAvatars, id])); } },
+        buyAvatar: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedAvatars(p => [...p, id]); localStorage.setItem('neon_owned_avatars', JSON.stringify([...ownedAvatars, id])); } },
         avatarsCatalog: AVATARS_CATALOG,
         currentFrameId, selectFrame: (id: string) => { setCurrentFrameId(id); localStorage.setItem('neon-frame', id); },
         buyFrame: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedFrames(p => [...p, id]); localStorage.setItem('neon-owned-frames', JSON.stringify([...ownedFrames, id])); } },
