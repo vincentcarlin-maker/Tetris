@@ -352,18 +352,36 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Détails de la tête
+        // --- DÉTAILS DE LA TÊTE (YEUX) ---
         const head = segs[0];
-        ctx.fillStyle = 'white';
         const eyeOffset = 8;
+        const pupilOffset = 2.5; 
         const eyeAngle = worm.angle;
         
-        // Yeux
+        // Coordonnées des yeux (Blanc)
+        const eye1X = head.x + Math.cos(eyeAngle + 0.6) * eyeOffset;
+        const eye1Y = head.y + Math.sin(eyeAngle + 0.6) * eyeOffset;
+        const eye2X = head.x + Math.cos(eyeAngle - 0.6) * eyeOffset;
+        const eye2Y = head.y + Math.sin(eyeAngle - 0.6) * eyeOffset;
+
+        // Dessiner le blanc des yeux
+        ctx.fillStyle = 'white';
+        ctx.shadowBlur = 5; ctx.shadowColor = 'white';
         ctx.beginPath();
-        ctx.arc(head.x + Math.cos(eyeAngle + 0.5) * eyeOffset, head.y + Math.sin(eyeAngle + 0.5) * eyeOffset, 5, 0, Math.PI * 2);
+        ctx.arc(eye1X, eye1Y, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(head.x + Math.cos(eyeAngle - 0.5) * eyeOffset, head.y + Math.sin(eyeAngle - 0.5) * eyeOffset, 5, 0, Math.PI * 2);
+        ctx.arc(eye2X, eye2Y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dessiner les pupilles (Noir) qui regardent vers l'avant
+        ctx.fillStyle = 'black';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(eye1X + Math.cos(eyeAngle) * pupilOffset, eye1Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2);
         ctx.fill();
         
         // Nom
