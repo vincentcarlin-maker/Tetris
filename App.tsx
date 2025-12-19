@@ -402,9 +402,12 @@ const App: React.FC = () => {
     const handleLogout = () => { setIsAuthenticated(false); mp.disconnect(); setIsCloudSynced(false); setCurrentView('menu'); };
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
+        if (eventType === 'score') {
+            updateHighScore(gameId as any, value);
+        }
         reportQuestProgress(gameId, eventType, value);
         updateEventProgress(gameId, eventType, value);
-    }, [reportQuestProgress, updateEventProgress]);
+    }, [reportQuestProgress, updateEventProgress, updateHighScore]);
 
     const isMaintenance = featureFlags.maintenance_mode;
     const isImmuneUser = currency.username === 'Vincent' || currency.adminModeActive;
@@ -497,6 +500,7 @@ const App: React.FC = () => {
                         dailyData={{ streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, claimAllBonus, allCompletedBonusClaimed }}
                         onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers} liveUsers={onlineUsers}
                         onOpenSocial={handleOpenSocial} disabledGamesList={disabledGames} activeEvent={currentActiveEvent} eventProgress={eventProgress}
+                        highScores={highScores}
                     />
                 )}
             </div>

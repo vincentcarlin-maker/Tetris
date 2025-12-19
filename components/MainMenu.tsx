@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle, Hexagon, ArrowRight } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
-import { useHighScores } from '../hooks/useHighScores';
+import { useHighScores, HighScores } from '../hooks/useHighScores';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 import { DailyQuest } from '../hooks/useDailySystem'; 
 import { DailyBonusModal } from './DailyBonusModal';
@@ -47,6 +47,7 @@ interface MainMenuProps {
         rewards?: { coins: number, badgeId?: string, skinId?: string };
     };
     eventProgress?: Record<string, number>;
+    highScores: HighScores;
 }
 
 const TetrisIcon = ({ size, className }: { size?: number | string, className?: string }) => (
@@ -203,9 +204,8 @@ const ArcadeLogo = () => {
     );
 };
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, liveUsers, onOpenSocial, disabledGamesList = [], activeEvent, eventProgress }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, liveUsers, onOpenSocial, disabledGamesList = [], activeEvent, eventProgress, highScores }) => {
     const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog, currentMalletId } = currency;
-    const { highScores } = useHighScores();
     const [showScores, setShowScores] = useState(false);
     const [scoreTab, setScoreTab] = useState<'LOCAL' | 'GLOBAL'>('LOCAL');
     const [activeCategory, setActiveCategory] = useState('ALL');
@@ -430,7 +430,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             ) : (
                                 <div className="flex flex-col gap-1 items-start">
                                     <h2 className="text-base font-bold text-gray-400 italic">Mode Visiteur</h2>
-                                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-[0_0_10px_rgba(0,243,255,0.3)]">SE CONNECTER / CRÉER</button>
+                                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-lg active:scale-95 shadow-[0_0_10px_rgba(0,243,255,0.3)]">SE CONNECTER / CRÉER</button>
                                 </div>
                             )}
                         </div>
@@ -458,7 +458,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                                  <div><span className={`text-xs font-bold tracking-wide block ${quest.isCompleted ? 'text-green-100 line-through decoration-green-500/50' : 'text-gray-200'}`}>{quest.description}</span><span className="text-[9px] text-gray-500 font-mono">{quest.progress}/{quest.target}</span></div>
                                              </div>
                                              {quest.isCompleted && !quest.isClaimed ? (
-                                                 <button onClick={(e) => handleClaim(quest, e)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center gap-1 shrink-0"><Coins size={12} fill="black" /> +{quest.reward}</button>
+                                                 <button onClick={(e) => handleClaim(quest, e)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center justify-center gap-1 shrink-0"><Coins size={12} fill="black" /> +{quest.reward}</button>
                                              ) : quest.isClaimed ? (
                                                  <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 rounded border border-green-500/20 shrink-0"><Check size={12} className="text-green-400" /><span className="text-[10px] font-black text-green-400 tracking-wider">FAIT</span></div>
                                              ) : (

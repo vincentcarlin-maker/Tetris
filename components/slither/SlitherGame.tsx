@@ -36,7 +36,6 @@ const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d'
 export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any }> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { username, currentAvatarId } = useCurrency();
-    const { highScores, updateHighScore } = useHighScores();
 
     const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
@@ -283,7 +282,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         setGameState('GAMEOVER');
         playExplosion();
         playGameOver();
-        updateHighScore('slither', player.score);
+        
         const coins = Math.floor(player.score / 20);
         if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
         if (onReportProgress) onReportProgress('score', player.score);
