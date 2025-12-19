@@ -27,12 +27,12 @@ interface Food { id: string; x: number; y: number; val: number; color: string; }
 const WORLD_SIZE = 2000;
 const INITIAL_LENGTH = 15;
 const SEGMENT_DISTANCE = 6; // Distance fixe entre les segments
-const BASE_SPEED = 3.5;
-const BOOST_SPEED = 7;
-const TURN_SPEED = 0.12;
+const BASE_SPEED = 4.2; // Augmenté de 3.5 pour plus de dynamisme
+const BOOST_SPEED = 8.5; // Augmenté de 7
+const TURN_SPEED = 0.22; // Augmenté de 0.12 pour une rotation beaucoup plus sensible
 const RADAR_SIZE = 120;
 const DOUBLE_TAP_DELAY = 300; // ms
-const JOYSTICK_DEADZONE = 5;
+const JOYSTICK_DEADZONE = 3; // Réduit de 5 pour capter les micro-mouvements
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -316,7 +316,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.lineWidth = 1;
         for (let i = 0; i <= WORLD_SIZE; i += 100) {
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_SIZE); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
+            ctx.beginPath(); moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
         }
         ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
         ctx.lineWidth = 10;
