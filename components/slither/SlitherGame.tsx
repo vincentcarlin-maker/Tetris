@@ -316,7 +316,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.lineWidth = 1;
         for (let i = 0; i <= WORLD_SIZE; i += 100) {
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_SIZE); ctx.stroke();
-            ctx.beginPath(); moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
         }
         ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
         ctx.lineWidth = 10;
@@ -367,8 +367,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.shadowBlur = 10;
         ctx.shadowColor = accessory.color;
         
-        if (accessory.type === 'CROWN') {
-            ctx.fillStyle = '#ffe600';
+        const type = accessory.type;
+        const color = accessory.color;
+
+        if (type === 'CROWN') {
+            ctx.fillStyle = color;
             ctx.beginPath();
             ctx.moveTo(-radius, -radius * 0.5);
             ctx.lineTo(-radius, -radius * 1.5);
@@ -380,53 +383,118 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
-        } else if (accessory.type === 'HAT') {
-            ctx.fillStyle = '#111';
-            // Base du chapeau
+        } else if (type === 'TIARA') {
+            ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.ellipse(0, -radius * 0.4, radius * 1.2, radius * 0.4, 0, 0, Math.PI * 2);
+            ctx.arc(0, -radius * 0.8, radius * 0.8, Math.PI, 0);
             ctx.fill();
             ctx.stroke();
-            // Haut du chapeau
-            ctx.fillStyle = '#000';
+            // Gem central
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(-2, -radius * 1.6, 4, 4);
+        } else if (type === 'HAT') {
+            ctx.fillStyle = '#111';
+            ctx.beginPath(); ctx.ellipse(0, -radius * 0.4, radius * 1.2, radius * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = color;
             ctx.fillRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.4);
             ctx.strokeRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.4);
-        } else if (accessory.type === 'GLASSES') {
-            ctx.fillStyle = 'rgba(0, 243, 255, 0.4)';
+        } else if (type === 'BERET') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.ellipse(0, -radius * 0.8, radius * 1.1, radius * 0.5, 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        } else if (type === 'FEZ') {
+            ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.roundRect(0, -radius * 0.4, radius * 1.5, radius * 0.8, 4);
-            ctx.fill();
-            ctx.stroke();
-        } else if (accessory.type === 'NINJA') {
-            ctx.fillStyle = '#ef4444';
+            ctx.moveTo(-radius * 0.6, -radius * 0.3);
+            ctx.lineTo(-radius * 0.4, -radius * 1.4);
+            ctx.lineTo(radius * 0.4, -radius * 1.4);
+            ctx.lineTo(radius * 0.6, -radius * 0.3);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+        } else if (type === 'CAP') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.arc(0, -radius * 0.6, radius * 0.8, Math.PI, 0); ctx.fill(); ctx.stroke();
+            ctx.fillRect(0, -radius * 0.7, radius * 1.2, radius * 0.2); // Visière
+        } else if (type === 'COWBOY') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.ellipse(0, -radius * 0.5, radius * 1.5, radius * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
             ctx.beginPath();
-            ctx.roundRect(-radius * 1.1, -radius * 0.3, radius * 2.2, radius * 0.6, 2);
-            ctx.fill();
-            ctx.stroke();
+            ctx.moveTo(-radius * 0.7, -radius * 0.5);
+            ctx.quadraticCurveTo(0, -radius * 2.2, radius * 0.7, -radius * 0.5);
+            ctx.fill(); ctx.stroke();
+        } else if (type === 'WITCH') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.ellipse(0, -radius * 0.3, radius * 1.4, radius * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(-radius * 0.8, -radius * 0.3);
+            ctx.lineTo(0, -radius * 2.5);
+            ctx.lineTo(radius * 0.8, -radius * 0.3);
+            ctx.fill(); ctx.stroke();
+        } else if (type === 'SOMBRERO') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.ellipse(0, -radius * 0.3, radius * 2, radius * 0.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, -radius * 0.5, radius * 0.8, Math.PI, 0); ctx.fill(); ctx.stroke();
+        } else if (type === 'GLASSES' || type === 'MONOCLE' || type === 'EYEPATCH') {
+            ctx.fillStyle = color;
+            if (type === 'MONOCLE') {
+                ctx.beginPath(); ctx.arc(radius * 0.5, 0, radius * 0.5, 0, Math.PI * 2); ctx.stroke();
+            } else if (type === 'EYEPATCH') {
+                ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.arc(radius * 0.5, 0, radius * 0.6, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-radius, -radius * 0.5); ctx.lineTo(radius, 0); ctx.stroke();
+            } else {
+                ctx.globalAlpha = 0.6;
+                ctx.fillRect(0, -radius * 0.4, radius * 1.5, radius * 0.8);
+                ctx.globalAlpha = 1;
+                ctx.strokeRect(0, -radius * 0.4, radius * 1.5, radius * 0.8);
+            }
+        } else if (type === 'NINJA') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.roundRect(-radius * 1.1, -radius * 0.3, radius * 2.2, radius * 0.6, 2); ctx.fill(); ctx.stroke();
+        } else if (type === 'VIKING') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.arc(0, -radius * 0.3, radius * 0.9, Math.PI, 0); ctx.fill(); ctx.stroke();
             ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.moveTo(-radius * 0.8, -radius * 0.5); ctx.lineTo(-radius * 1.5, -radius * 1.5); ctx.lineTo(-radius * 0.5, -radius * 0.5); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(radius * 0.8, -radius * 0.5); ctx.lineTo(radius * 1.5, -radius * 1.5); ctx.lineTo(radius * 0.5, -radius * 0.5); ctx.fill();
+        } else if (type === 'HALO') {
+            ctx.strokeStyle = color; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.ellipse(0, -radius * 1.5, radius, radius * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+        } else if (type === 'HORNS' || type === 'DEVIL') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.moveTo(-radius * 0.5, -radius * 0.8); ctx.quadraticCurveTo(-radius * 1.2, -radius * 2, -radius * 0.2, -radius * 2.2); ctx.lineTo(-radius * 0.2, -radius * 0.8); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(radius * 0.5, -radius * 0.8); ctx.quadraticCurveTo(radius * 1.2, -radius * 2, radius * 0.2, -radius * 2.2); ctx.lineTo(radius * 0.2, -radius * 0.8); ctx.fill();
+        } else if (type === 'CAT_EARS') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.moveTo(-radius * 0.8, -radius * 0.5); ctx.lineTo(-radius * 1.2, -radius * 1.5); ctx.lineTo(-radius * 0.2, -radius * 0.8); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(radius * 0.8, -radius * 0.5); ctx.lineTo(radius * 1.2, -radius * 1.5); ctx.lineTo(radius * 0.2, -radius * 0.8); ctx.fill();
+        } else if (type === 'MOUSTACHE') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.ellipse(-radius * 0.4, radius * 0.6, radius * 0.6, radius * 0.2, 0.2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(radius * 0.4, radius * 0.6, radius * 0.6, radius * 0.2, -0.2, 0, Math.PI * 2); ctx.fill();
+        } else if (type === 'FLOWER') {
+            ctx.fillStyle = color;
+            for(let i=0; i<5; i++) {
+                ctx.beginPath(); ctx.arc(Math.cos(i*1.2)*8, -radius-8 + Math.sin(i*1.2)*8, 6, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(0, -radius-8, 4, 0, Math.PI*2); ctx.fill();
+        } else if (type === 'STAR') {
+            ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
+            for(let i=0; i<5; i++) {
+                ctx.lineTo(Math.cos((18+i*72)/180*Math.PI)*15, -radius-15 + Math.sin((18+i*72)/180*Math.PI)*15);
+                ctx.lineTo(Math.cos((54+i*72)/180*Math.PI)*7, -radius-15 + Math.sin((54+i*72)/180*Math.PI)*7);
+            }
             ctx.fill();
-        } else if (accessory.type === 'VIKING') {
-            ctx.fillStyle = '#94a3b8';
-            ctx.beginPath();
-            ctx.arc(0, -radius * 0.3, radius * 0.9, Math.PI, 0);
-            ctx.fill();
-            ctx.stroke();
-            // Cornes
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.moveTo(-radius * 0.8, -radius * 0.5);
-            ctx.quadraticCurveTo(-radius * 1.5, -radius * 1.5, -radius * 1.2, -radius * 2);
-            ctx.lineTo(-radius * 0.5, -radius * 0.5);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(radius * 0.8, -radius * 0.5);
-            ctx.quadraticCurveTo(radius * 1.5, -radius * 1.5, radius * 1.2, -radius * 2);
-            ctx.lineTo(radius * 0.5, -radius * 0.5);
-            ctx.fill();
+        } else if (type === 'ROBOT') {
+            ctx.strokeStyle = color; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, -radius); ctx.lineTo(0, -radius*2); ctx.stroke();
+            ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, -radius*2, 4, 0, Math.PI*2); ctx.fill();
+        } else if (type === 'HERO' || type === 'MASK') {
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.roundRect(-radius, -radius*0.2, radius*2, radius*0.8, 5); ctx.fill();
+            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-radius*0.4, 0, 3, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(radius*0.4, 0, 3, 0, Math.PI*2); ctx.fill();
         }
-        
+
         ctx.restore();
     };
 

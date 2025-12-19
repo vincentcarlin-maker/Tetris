@@ -42,7 +42,7 @@ export interface SlitherAccessory {
     id: string;
     name: string;
     price: number;
-    type: 'CROWN' | 'HAT' | 'GLASSES' | 'NINJA' | 'VIKING';
+    type: 'CROWN' | 'HAT' | 'GLASSES' | 'NINJA' | 'VIKING' | 'HALO' | 'HORNS' | 'CAT_EARS' | 'MOUSTACHE' | 'MONOCLE' | 'EYEPATCH' | 'BERET' | 'CAP' | 'FEZ' | 'SOMBRERO' | 'TIARA' | 'WITCH' | 'COWBOY' | 'MASK' | 'FLOWER' | 'STAR' | 'ROBOT' | 'DEVIL' | 'ANGEL' | 'HERO';
     color: string;
     description: string;
 }
@@ -131,11 +131,64 @@ export const SLITHER_SKINS_CATALOG: SlitherSkin[] = [
 
 export const SLITHER_ACCESSORIES_CATALOG: SlitherAccessory[] = [
     { id: 'sa_none', name: 'Aucun', price: 0, type: 'HAT', color: 'transparent', description: 'Garder la tête libre.' },
-    { id: 'sa_crown', name: 'Couronne Royale', price: 5000, type: 'CROWN', color: '#ffe600', description: 'Le roi de l\'arène.' },
-    { id: 'sa_tophat', name: 'Haut-de-forme', price: 1500, type: 'HAT', color: '#ffffff', description: 'Un ver distingué.' },
-    { id: 'sa_sunglasses', name: 'Cyber Lunettes', price: 1000, type: 'GLASSES', color: '#00f3ff', description: 'Style futuriste garanti.' },
-    { id: 'sa_ninja', name: 'Bandeau Ninja', price: 2000, type: 'NINJA', color: '#ef4444', description: 'Maître du camouflage.' },
-    { id: 'sa_viking', name: 'Casque Viking', price: 3000, type: 'VIKING', color: '#94a3b8', description: 'Prêt pour le combat.' },
+    // ROYAUTÉ
+    { id: 'sa_crown_gold', name: 'Couronne d\'Or', price: 5000, type: 'CROWN', color: '#ffe600', description: 'Le roi de l\'arène.' },
+    { id: 'sa_crown_silver', name: 'Couronne d\'Argent', price: 4000, type: 'CROWN', color: '#e2e8f0', description: 'Éclat métallique.' },
+    { id: 'sa_crown_ruby', name: 'Couronne Rubis', price: 6000, type: 'CROWN', color: '#ef4444', description: 'La puissance du sang.' },
+    { id: 'sa_crown_emerald', name: 'Couronne Émeraude', price: 6000, type: 'CROWN', color: '#10b981', description: 'Reflets forestiers.' },
+    { id: 'sa_crown_dark', name: 'Couronne d\'Ombre', price: 8000, type: 'CROWN', color: '#111827', description: 'Roi des ténèbres.' },
+    { id: 'sa_tiara_pink', name: 'Diadème Rose', price: 3500, type: 'TIARA', color: '#ff00ff', description: 'Élégance néon.' },
+    { id: 'sa_tiara_diamond', name: 'Tiara Diamant', price: 10000, type: 'TIARA', color: '#ffffff', description: 'Pureté absolue.' },
+    
+    // CHAPEAUX CLASSIQUES
+    { id: 'sa_tophat_black', name: 'Haut-de-forme Noir', price: 1500, type: 'HAT', color: '#111827', description: 'Un ver distingué.' },
+    { id: 'sa_tophat_white', name: 'Haut-de-forme Blanc', price: 1800, type: 'HAT', color: '#ffffff', description: 'Style magicien.' },
+    { id: 'sa_tophat_blue', name: 'Haut-de-forme Cyan', price: 2000, type: 'HAT', color: '#00f3ff', description: 'Élégance électrique.' },
+    { id: 'sa_beret_red', name: 'Béret Rouge', price: 1000, type: 'BERET', color: '#ef4444', description: 'L\'artiste de l\'arène.' },
+    { id: 'sa_beret_black', name: 'Béret Noir', price: 1000, type: 'BERET', color: '#111827', description: 'Style parisien.' },
+    { id: 'sa_fez_red', name: 'Fez Rouge', price: 1200, type: 'FEZ', color: '#ef4444', description: 'Un classique intemporel.' },
+    { id: 'sa_cap_red', name: 'Casquette Rouge', price: 800, type: 'CAP', color: '#ef4444', description: 'Ver sportif.' },
+    { id: 'sa_cap_blue', name: 'Casquette Bleue', price: 800, type: 'CAP', color: '#3b82f6', description: 'Style urbain.' },
+    { id: 'sa_cap_green', name: 'Casquette Verte', price: 800, type: 'CAP', color: '#10b981', description: 'Loisirs extérieurs.' },
+    { id: 'sa_cowboy_brown', name: 'Chapeau Cowboy', price: 2500, type: 'COWBOY', color: '#78350f', description: 'Le shérif glissant.' },
+    { id: 'sa_cowboy_black', name: 'Cowboy Sombre', price: 3000, type: 'COWBOY', color: '#111827', description: 'Hors-la-loi.' },
+    { id: 'sa_witch', name: 'Chapeau de Sorcier', price: 4500, type: 'WITCH', color: '#4c1d95', description: 'Magie noire.' },
+    { id: 'sa_sombrero', name: 'Sombrero', price: 3500, type: 'SOMBRERO', color: '#facc15', description: '¡Fiesta Slither!' },
+
+    // LUNETTES & YEUX
+    { id: 'sa_sunglasses_black', name: 'Cyber Lunettes', price: 1000, type: 'GLASSES', color: '#00f3ff', description: 'Style futuriste.' },
+    { id: 'sa_sunglasses_pink', name: 'Lunettes Flash', price: 1200, type: 'GLASSES', color: '#ff00ff', description: 'Protection UV néon.' },
+    { id: 'sa_sunglasses_gold', name: 'Lunettes de Star', price: 5000, type: 'GLASSES', color: '#ffe600', description: 'Succès garanti.' },
+    { id: 'sa_monocle_gold', name: 'Monocle d\'Or', price: 4000, type: 'MONOCLE', color: '#ffe600', description: 'Très aristocratique.' },
+    { id: 'sa_eyepatch_black', name: 'Cache-œil Pirate', price: 1500, type: 'EYEPATCH', color: '#111827', description: 'Terreur des mers.' },
+
+    // GUERRIER & NINJA
+    { id: 'sa_ninja_red', name: 'Bandeau Ninja Rouge', price: 2000, type: 'NINJA', color: '#ef4444', description: 'Maître du camouflage.' },
+    { id: 'sa_ninja_blue', name: 'Bandeau Ninja Bleu', price: 2000, type: 'NINJA', color: '#3b82f6', description: 'Agilité de l\'eau.' },
+    { id: 'sa_ninja_black', name: 'Bandeau Ninja Noir', price: 2500, type: 'NINJA', color: '#111827', description: 'L\'ombre fatale.' },
+    { id: 'sa_viking_silver', name: 'Casque Viking', price: 3000, type: 'VIKING', color: '#94a3b8', description: 'Prêt pour le Valhalla.' },
+    { id: 'sa_viking_gold', name: 'Viking de Légende', price: 7000, type: 'VIKING', color: '#ffe600', description: 'Chef de clan.' },
+
+    // MYTHIQUE & FUN
+    { id: 'sa_halo_gold', name: 'Auréole Céleste', price: 5000, type: 'HALO', color: '#ffe600', description: 'Ver angélique.' },
+    { id: 'sa_halo_cyan', name: 'Halo de Glace', price: 5000, type: 'HALO', color: '#00f3ff', description: 'Froideur divine.' },
+    { id: 'sa_horns_red', name: 'Cornes Démoniaques', price: 5000, type: 'HORNS', color: '#ef4444', description: 'Petit diable.' },
+    { id: 'sa_horns_purple', name: 'Cornes Abyssales', price: 5500, type: 'HORNS', color: '#9d00ff', description: 'Force obscure.' },
+    { id: 'sa_catears_pink', name: 'Oreilles de Chat', price: 3000, type: 'CAT_EARS', color: '#ff00ff', description: 'Mignon mais traître.' },
+    { id: 'sa_catears_white', name: 'Chat Blanc', price: 3000, type: 'CAT_EARS', color: '#ffffff', description: 'Élégance féline.' },
+    { id: 'sa_moustache_black', name: 'Moustache Classique', price: 1000, type: 'MOUSTACHE', color: '#111827', description: 'Un ver de goût.' },
+    { id: 'sa_moustache_gold', name: 'Moustache de Luxe', price: 2500, type: 'MOUSTACHE', color: '#ffe600', description: 'Brillance faciale.' },
+    { id: 'sa_flower_red', name: 'Fleur de Vie', price: 2000, type: 'FLOWER', color: '#ef4444', description: 'Fragile mais beau.' },
+    { id: 'sa_star_yellow', name: 'Étoile de Chance', price: 3000, type: 'STAR', color: '#facc15', description: 'Brille comme une star.' },
+    { id: 'sa_robot_antenna', name: 'Antenne Robot', price: 4000, type: 'ROBOT', color: '#00f3ff', description: 'Signal reçu.' },
+    { id: 'sa_mask_hero', name: 'Masque de Héros', price: 5000, type: 'HERO', color: '#3b82f6', description: 'Justicier rampant.' },
+    { id: 'sa_mask_villain', name: 'Masque de Vilain', price: 5000, type: 'HERO', color: '#9d00ff', description: 'Némésis.' },
+    
+    // ÉDITIONS SPÉCIALES
+    { id: 'sa_tiara_ruby', name: 'Diadème Rubis', price: 8000, type: 'TIARA', color: '#ef4444', description: 'Princesse de feu.' },
+    { id: 'sa_tiara_emerald', name: 'Diadème Émeraude', price: 8000, type: 'TIARA', color: '#10b981', description: 'Reine de la jungle.' },
+    { id: 'sa_angel_wings', name: 'Auréole & Ailes', price: 12000, type: 'ANGEL', color: '#ffffff', description: 'Ascension pure.' },
+    { id: 'sa_devil_horns', name: 'Cornes & Flammes', price: 12000, type: 'DEVIL', color: '#ef4444', description: 'Chaos rampant.' },
 ];
 
 export const FRAMES_CATALOG: Frame[] = [
@@ -402,7 +455,7 @@ export const useCurrency = () => {
         buySlitherSkin: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherSkins(p => [...p, id]); localStorage.setItem('neon-owned-slither-skins', JSON.stringify([...ownedSlitherSkins, id])); } },
         slitherSkinsCatalog: SLITHER_SKINS_CATALOG,
         currentSlitherAccessoryId, selectSlitherAccessory: (id: string) => { setCurrentSlitherAccessoryId(id); localStorage.setItem('neon-slither-accessory', id); },
-        buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
+        buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon_owned_slither_accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
         slitherAccessoriesCatalog: SLITHER_ACCESSORIES_CATALOG,
         currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
         buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },

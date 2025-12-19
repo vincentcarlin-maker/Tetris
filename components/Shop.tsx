@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, User, Image, Type, Disc, Pipette, Glasses, X, ChevronRight, LayoutGrid, Star, Palette, Sparkles, UserCircle, Frame, Zap } from 'lucide-react';
+import { ArrowLeft, Lock, Check, Coins, User, Image, Type, Disc, Pipette, Glasses, X, ChevronRight, LayoutGrid, Star, Palette, Sparkles, UserCircle, Frame, Zap, Flower } from 'lucide-react';
 import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, Mallet, SlitherSkin, SlitherAccessory } from '../hooks/useCurrency';
 
 interface ShopProps {
@@ -91,14 +91,28 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     };
 
     const renderAccessoryPreview = (acc: SlitherAccessory) => {
+        const type = acc.type;
+        const color = acc.color;
+
         return (
             <div className="w-16 h-16 rounded-xl bg-gray-800 border border-white/10 flex items-center justify-center relative overflow-hidden group shadow-lg">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
-                {acc.type === 'CROWN' && <div className="w-10 h-8 bg-yellow-400 rounded-sm relative shadow-[0_0_10px_#facc15]"><div className="absolute -top-2 left-0 w-3 h-3 bg-yellow-400" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-yellow-400" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="absolute -top-2 right-0 w-3 h-3 bg-yellow-400" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div></div>}
-                {acc.type === 'HAT' && acc.id !== 'sa_none' && <div className="flex flex-col items-center"><div className="w-8 h-8 bg-white rounded-t-sm shadow-[0_0_10px_white]"></div><div className="w-12 h-1.5 bg-white rounded-full"></div></div>}
-                {acc.type === 'GLASSES' && <div className="flex gap-1 items-center"><div className="w-6 h-4 bg-cyan-400 rounded-sm shadow-[0_0_8px_#22d3ee] border border-white/40"></div><div className="w-2 h-0.5 bg-white"></div><div className="w-6 h-4 bg-cyan-400 rounded-sm shadow-[0_0_8px_#22d3ee] border border-white/40"></div></div>}
-                {acc.type === 'NINJA' && <div className="w-12 h-3 bg-red-600 rounded-full shadow-[0_0_10px_#ef4444] flex items-center justify-center"><div className="w-2 h-2 bg-white rounded-full"></div></div>}
-                {acc.type === 'VIKING' && <div className="relative"><div className="w-10 h-6 bg-slate-400 rounded-t-full shadow-[0_0_10px_#94a3b8]"></div><div className="absolute -top-3 -left-2 w-4 h-6 bg-white rounded-tr-full transform -rotate-45"></div><div className="absolute -top-3 -right-2 w-4 h-6 bg-white rounded-tl-full transform rotate(45deg)"></div></div>}
+                {type === 'CROWN' && <div className="w-10 h-8 rounded-sm relative shadow-lg" style={{backgroundColor: color, boxShadow: `0 0 10px ${color}`}}><div className="absolute -top-2 left-0 w-3 h-3" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="absolute -top-2 right-0 w-3 h-3" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div></div>}
+                {type === 'TIARA' && <div className="w-10 h-6 border-2 rounded-t-full relative" style={{borderColor: color, boxShadow: `0 0 10px ${color}`}}><div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full"></div></div>}
+                {type === 'HAT' && <div className="flex flex-col items-center"><div className="w-8 h-8 rounded-t-sm shadow-md" style={{backgroundColor: color}}></div><div className="w-12 h-1.5 bg-gray-700 rounded-full"></div></div>}
+                {type === 'CAP' && <div className="flex flex-col items-center"><div className="w-8 h-6 rounded-t-full" style={{backgroundColor: color}}></div><div className="w-10 h-1 bg-white/20 rounded-full"></div></div>}
+                {type === 'GLASSES' && <div className="flex gap-1 items-center"><div className="w-6 h-4 rounded-sm shadow-md" style={{backgroundColor: color, opacity: 0.7}}></div><div className="w-2 h-0.5 bg-white"></div><div className="w-6 h-4 rounded-sm shadow-md" style={{backgroundColor: color, opacity: 0.7}}></div></div>}
+                {type === 'NINJA' && <div className="w-12 h-3 rounded-full flex items-center justify-center shadow-md" style={{backgroundColor: color}}><div className="w-2 h-2 bg-white rounded-full"></div></div>}
+                {type === 'VIKING' && <div className="relative"><div className="w-10 h-6 bg-slate-400 rounded-t-full shadow-md"></div><div className="absolute -top-3 -left-2 w-4 h-6 bg-white rounded-tr-full transform -rotate-45"></div><div className="absolute -top-3 -right-2 w-4 h-6 bg-white rounded-tl-full transform rotate(45deg)"></div></div>}
+                {type === 'HALO' && <div className="w-10 h-3 border-2 rounded-full animate-pulse" style={{borderColor: color, boxShadow: `0 0 10px ${color}`}}></div>}
+                {type === 'HORNS' && <div className="flex gap-4"><div className="w-2 h-6 rounded-t-full transform -rotate-12" style={{backgroundColor: color}}></div><div className="w-2 h-6 rounded-t-full transform rotate(12)" style={{backgroundColor: color}}></div></div>}
+                {type === 'CAT_EARS' && <div className="flex gap-4"><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div></div>}
+                {type === 'MOUSTACHE' && <div className="flex gap-1"><div className="w-5 h-2 rounded-full" style={{backgroundColor: color}}></div><div className="w-5 h-2 rounded-full" style={{backgroundColor: color}}></div></div>}
+                {type === 'STAR' && <Star size={32} style={{color: color, filter: `drop-shadow(0 0 8px ${color})`}} fill="currentColor" />}
+                {/* Fix: Added missing Flower icon to imports */}
+                {type === 'FLOWER' && <Flower size={32} style={{color: color}} fill="currentColor" />}
+                {type === 'ROBOT' && <div className="flex flex-col items-center"><div className="w-1 h-6 bg-gray-400"></div><div className="w-3 h-3 rounded-full" style={{backgroundColor: color, boxShadow: `0 0 10px ${color}`}}></div ></div>}
+                {type === 'HERO' && <div className="w-12 h-4 rounded-md border" style={{backgroundColor: color, borderColor: 'white'}}></div>}
                 {acc.id === 'sa_none' && <X className="text-gray-600" size={32} />}
             </div>
         );
@@ -158,7 +172,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                         {/* CARTE SLITHER */}
                         <button onClick={() => setActiveGroup('SLITHER')} className="group relative h-48 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-indigo-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/40 via-purple-900/40 to-black"></div>
-                            {/* Fix error in file components/Shop.tsx on line 161: Cannot find name 'Zap' */}
                             <div className="absolute top-0 right-0 p-8 text-white/5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform"><Zap size={140} /></div>
                             <div className="absolute inset-0 p-8 flex flex-col justify-end items-start text-left">
                                 <Sparkles size={32} className="text-indigo-400 mb-3 drop-shadow-[0_0_10px_#818cf8]" />
@@ -236,7 +249,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                                     {isSelected && <div className="absolute -top-1 -right-2 w-6 h-6 bg-green-500 rounded-full border-2 border-black flex items-center justify-center text-black"><Check size={14} strokeWidth={4} /></div>}
                                                 </div>
                                                 <h3 className="font-bold text-xs text-white mb-1">{frame.name}</h3>
-                                                <p className="text-[9px] text-gray-500 mb-3 leading-tight px-1 h-6 line-clamp-2">{frame.description}</p>
+                                                <p className="text-[9px] text-gray-500 mb-3 lifting-tight px-1 h-6 line-clamp-2">{frame.description}</p>
                                                 {isOwned ? (
                                                     <button onClick={() => selectFrame(frame.id)} disabled={isSelected} className={`w-full py-2 rounded-xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-pink-600 text-white hover:bg-pink-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
                                                 ) : (
@@ -315,7 +328,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </div>
 
                                 <SectionHeader title="Accessoires de Tête" icon={Glasses} color="text-purple-400" />
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pb-24">
                                     {slitherAccessoriesCatalog.map(acc => {
                                         const isOwned = ownedSlitherAccessories.includes(acc.id);
                                         const isSelected = currentSlitherAccessoryId === acc.id;
@@ -323,7 +336,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                         return (
                                             <div key={acc.id} className={`p-4 rounded-2xl border ${isSelected ? 'bg-purple-900/20 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all group`}>
                                                 <div className="mb-4 transition-transform group-hover:scale-110">{renderAccessoryPreview(acc)}</div>
-                                                <h3 className="font-bold text-xs text-white mb-3">{acc.name}</h3>
+                                                <h3 className="font-bold text-[11px] text-white mb-3 h-8 line-clamp-2 leading-tight">{acc.name}</h3>
                                                 {isOwned ? (
                                                     <button onClick={() => selectSlitherAccessory(acc.id)} disabled={isSelected} className={`w-full py-2 rounded-xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-purple-600 text-white hover:bg-purple-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
                                                 ) : (
