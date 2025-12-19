@@ -13,25 +13,28 @@ interface Worm {
     name: string;
     segments: Point[];
     angle: number;
-    color: string; // Background color fallback
+    color: string;
     skin?: SlitherSkin; 
-    accessory?: SlitherAccessory; // New: equipped accessory
+    accessory?: SlitherAccessory;
     score: number;
     isBoost: boolean;
     isDead: boolean;
     radius: number;
+    // AI Specific properties
+    aiTargetAngle?: number;
+    aiDecisionTimer?: number;
 }
 interface Food { id: string; x: number; y: number; val: number; color: string; }
 
 // --- CONSTANTS ---
 const WORLD_SIZE = 2000;
 const INITIAL_LENGTH = 15;
-const SEGMENT_DISTANCE = 5; // Réduit pour un aspect "tube" plus lisse
+const SEGMENT_DISTANCE = 5; 
 const BASE_SPEED = 4.2; 
 const BOOST_SPEED = 8.5; 
-const TURN_SPEED = 0.22; 
+const TURN_SPEED = 0.18; // Légèrement réduit pour plus de stabilité
 const RADAR_SIZE = 120;
-const DOUBLE_TAP_DELAY = 300; // ms
+const DOUBLE_TAP_DELAY = 300; 
 const JOYSTICK_DEADZONE = 3; 
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
@@ -54,7 +57,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const othersRef = useRef<Worm[]>([]);
     const foodRef = useRef<Food[]>([]);
     const cameraRef = useRef<Point>({ x: 0, y: 0 });
-    const mouseRef = useRef<Point & { down: boolean }>({ x: 0, y: 0, down: false });
     
     // Joystick Refs
     const joystickOriginRef = useRef<Point | null>(null);
@@ -69,7 +71,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const { playCoin, playMove, playExplosion, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
-    const bestScore = highScores.slither || 0;
 
     // --- INITIALIZATION ---
     const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin, accessory?: SlitherAccessory): Worm => {
@@ -79,7 +80,12 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         for (let i = 0; i < INITIAL_LENGTH; i++) {
             segments.push({ x: x - i * SEGMENT_DISTANCE, y });
         }
-        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, accessory, score: 0, isBoost: false, isDead: false, radius: 12 };
+        return { 
+            id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, accessory, 
+            score: 0, isBoost: false, isDead: false, radius: 12,
+            aiTargetAngle: Math.random() * Math.PI * 2,
+            aiDecisionTimer: 0
+        };
     };
 
     const spawnFood = (count: number = 1) => {
@@ -102,7 +108,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         playerWormRef.current = spawnWorm(mp.peerId || 'player', username, playerSkin.primaryColor, playerSkin, playerAcc);
         foodRef.current = [];
         spawnFood(300);
-        othersRef.current = mode === 'SOLO' ? Array.from({length: 12}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
+        othersRef.current = mode === 'SOLO' ? Array.from({length: 12}, (_, i) => spawnWorm(`bot_${i}`, `CyberBot ${i+1}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
         setGameState('PLAYING');
         setScore(0);
         setRank({ current: 0, total: 0 });
@@ -117,6 +123,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         let angleDiff = targetAngle - worm.angle;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        
+        // Rotation fluide
         worm.angle += angleDiff * TURN_SPEED;
 
         const head = worm.segments[0];
@@ -130,7 +138,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             const curr = worm.segments[i];
             const dx = curr.x - prev.x;
             const dy = curr.y - prev.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
             const angle = Math.atan2(dy, dx);
 
             newSegments.push({
@@ -142,15 +149,15 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         worm.segments = newSegments;
     };
 
-    // --- SMART AI UTILS ---
     const isWormCollidingAt = (x: number, y: number, radius: number, excludeId: string, allWorms: Worm[]) => {
         for (const worm of allWorms) {
             if (worm.isDead) continue;
-            for (let i = 0; i < worm.segments.length; i++) {
-                if (worm.id === excludeId && i < 10) continue;
+            // On ignore les 8 premiers segments du ver lui-même pour éviter de s'auto-détecter en tournant
+            const startIdx = worm.id === excludeId ? 10 : 0;
+            for (let i = startIdx; i < worm.segments.length; i += 2) { // Optimisation : 1 segment sur 2
                 const seg = worm.segments[i];
-                const dist = Math.hypot(x - seg.x, y - seg.y);
-                if (dist < radius + 15) return true;
+                const distSq = (x - seg.x)**2 + (y - seg.y)**2;
+                if (distSq < (radius + 15)**2) return true;
             }
         }
         return false;
@@ -196,9 +203,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             handleDeath();
         }
 
+        // Nourriture
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
-            if (Math.hypot(head.x - f.x, head.y - f.y) < 25) {
+            const distSq = (head.x - f.x)**2 + (head.y - f.y)**2;
+            if (distSq < 25**2) {
                 player.score += f.val * 5;
                 setScore(player.score);
                 playCoin();
@@ -208,87 +217,123 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 }
                 foodRef.current.splice(i, 1);
                 if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId: f.id });
-                if (foodRef.current.length < 200) spawnFood(50);
+                if (foodRef.current.length < 250) spawnFood(50);
             }
         }
 
+        // Collisions
         othersRef.current.forEach(other => {
             if (other.isDead) return;
-            other.segments.forEach((seg, sIdx) => {
+            for (let sIdx = 0; sIdx < other.segments.length; sIdx += 2) {
                 if (sIdx > 3) {
-                    if (Math.hypot(head.x - seg.x, head.y - seg.y) < 18) {
+                    const seg = other.segments[sIdx];
+                    const dSq = (head.x - seg.x)**2 + (head.y - seg.y)**2;
+                    if (dSq < 18**2) {
                         handleDeath();
+                        return;
                     }
                 }
-            });
+            }
         });
 
         cameraRef.current.x = head.x;
         cameraRef.current.y = head.y;
 
+        // --- BOT AI AMÉLIORÉE ---
         if (gameMode === 'SOLO') {
             const allWorms = [player, ...othersRef.current];
             othersRef.current.forEach(bot => {
                 if (bot.isDead) return;
                 const bHead = bot.segments[0];
-                let botTargetAngle = bot.angle;
-                const lookAheadDist = 120;
-                const sides = [-0.8, -0.4, 0, 0.4, 0.8]; 
-                let blocked = false;
+                
+                // 1. DÉTECTION D'OBSTACLES (Priorité haute)
+                const lookAhead = 150;
+                const rays = [0, -0.5, 0.5, -1.0, 1.0]; // Angles à tester
+                let collisionFound = false;
+                let clearAngle = bot.angle;
 
-                const margin = 100;
-                if (bHead.x < margin) botTargetAngle = 0;
-                else if (bHead.x > WORLD_SIZE - margin) botTargetAngle = Math.PI;
-                else if (bHead.y < margin) botTargetAngle = Math.PI / 2;
-                else if (bHead.y > WORLD_SIZE - margin) botTargetAngle = -Math.PI / 2;
-                else {
-                    for (const angleOffset of sides) {
-                        const checkAngle = bot.angle + angleOffset;
-                        const cx = bHead.x + Math.cos(checkAngle) * lookAheadDist;
-                        const cy = bHead.y + Math.sin(checkAngle) * lookAheadDist;
-                        const isHit = isWormCollidingAt(cx, cy, bot.radius, bot.id, allWorms);
-                        if (isHit && angleOffset === 0) blocked = true;
-                        if (!isHit && Math.abs(angleOffset) > 0.1) {
-                            botTargetAngle = checkAngle;
-                            break;
-                        }
-                    }
-
-                    if (!blocked) {
-                        let closestF = null, minDist = 500;
-                        foodRef.current.forEach(f => {
-                            const d = Math.hypot(bHead.x - f.x, bHead.y - f.y);
-                            if (d < minDist) { minDist = d; closestF = f; }
-                        });
-                        if (closestF) {
-                            botTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
-                            bot.isBoost = (bot.segments.length > 20 && closestF.val > 2);
+                // Vérifier les murs
+                const margin = 120;
+                if (bHead.x < margin) { clearAngle = 0; collisionFound = true; }
+                else if (bHead.x > WORLD_SIZE - margin) { clearAngle = Math.PI; collisionFound = true; }
+                else if (bHead.y < margin) { clearAngle = Math.PI / 2; collisionFound = true; }
+                else if (bHead.y > WORLD_SIZE - margin) { clearAngle = -Math.PI / 2; collisionFound = true; }
+                
+                // Vérifier les autres vers
+                if (!collisionFound) {
+                    for (let angleOff of rays) {
+                        const testAngle = bot.angle + angleOff;
+                        const tx = bHead.x + Math.cos(testAngle) * lookAhead;
+                        const ty = bHead.y + Math.sin(testAngle) * lookAhead;
+                        
+                        if (isWormCollidingAt(tx, ty, bot.radius, bot.id, allWorms)) {
+                            if (angleOff === 0) collisionFound = true;
                         } else {
-                            bot.isBoost = false;
-                            if (Math.random() > 0.98) botTargetAngle += (Math.random() - 0.5) * 1.5;
+                            // On a trouvé un angle libre !
+                            if (collisionFound) {
+                                clearAngle = testAngle;
+                                break;
+                            }
                         }
-                    } else {
-                        bot.isBoost = true; 
                     }
                 }
 
-                const speed = bot.isBoost ? BOOST_SPEED : BASE_SPEED;
-                updateWormMovement(bot, botTargetAngle, speed);
+                // 2. RECHERCHE DE NOURRITURE (Si pas de collision immédiate)
+                if (!collisionFound) {
+                    bot.aiDecisionTimer = (bot.aiDecisionTimer || 0) - 1;
+                    
+                    if (bot.aiDecisionTimer <= 0) {
+                        let closestF = null, minDistSq = 600**2;
+                        foodRef.current.forEach(f => {
+                            const dSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
+                            if (dSq < minDistSq) { minDistSq = dSq; closestF = f; }
+                        });
 
-                if (Math.hypot(bHead.x - head.x, bHead.y - head.y) < 25) handleDeath();
-                else {
-                    player.segments.forEach((pSeg, pIdx) => {
-                        if (pIdx > 2 && Math.hypot(bHead.x - pSeg.x, bHead.y - pSeg.y) < 18) {
-                            bot.isDead = true;
-                            bot.segments.forEach((s, idx) => { 
-                                if(idx % 2 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); 
-                            });
+                        if (closestF) {
+                            bot.aiTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
+                            bot.aiDecisionTimer = 40 + Math.random() * 40; // Garder la cible un moment
+                        } else {
+                            // Errance aléatoire
+                            bot.aiTargetAngle = bot.angle + (Math.random() - 0.5) * 0.5;
+                            bot.aiDecisionTimer = 100;
                         }
-                    });
+                    }
+                } else {
+                    bot.aiTargetAngle = clearAngle;
+                    bot.aiDecisionTimer = 10; // Réévaluer vite si on évite un obstacle
+                    bot.isBoost = true; // Turbo pour s'enfuir
+                }
+
+                // Appliquer le mouvement
+                const speed = bot.isBoost ? BOOST_SPEED : BASE_SPEED;
+                updateWormMovement(bot, bot.aiTargetAngle || bot.angle, speed);
+                
+                // Réduire le boost progressivement
+                if (!collisionFound && Math.random() > 0.95) bot.isBoost = false;
+
+                // Mort du bot
+                const distToPlayerHead = (bHead.x - head.x)**2 + (bHead.y - head.y)**2;
+                if (distToPlayerHead < 25**2) {
+                     handleDeath();
+                } else {
+                    // Check si le bot fonce dans le corps du joueur
+                    for (let pIdx = 0; pIdx < player.segments.length; pIdx += 2) {
+                        if (pIdx > 3) {
+                            const pSeg = player.segments[pIdx];
+                            const dSq = (bHead.x - pSeg.x)**2 + (bHead.y - pSeg.y)**2;
+                            if (dSq < 18**2) {
+                                bot.isDead = true;
+                                bot.segments.forEach((s, idx) => { 
+                                    if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); 
+                                });
+                                break;
+                            }
+                        }
+                    }
                 }
             });
             othersRef.current = othersRef.current.filter(b => !b.isDead);
-            if (othersRef.current.length < 12) othersRef.current.push(spawnWorm(`bot_${Date.now()}`, "CyberBot", COLORS[Math.floor(Math.random()*COLORS.length)]));
+            if (othersRef.current.length < 12) othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Bot " + (Math.floor(Math.random()*100)), COLORS[Math.floor(Math.random()*COLORS.length)]));
         }
 
         if (gameMode === 'ONLINE' && Date.now() - lastNetworkUpdateRef.current > 50) {
@@ -390,80 +435,57 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const radius = worm.radius || 12;
 
         ctx.save();
-        // On dessine de la queue vers la tête pour que la tête soit au-dessus
         for (let i = segs.length - 1; i >= 0; i--) {
             const seg = segs[i];
             const isHead = i === 0;
-            
-            // --- EFFET 3D VOLUMÉTRIQUE ---
             const segmentColor = pattern === 'solid' ? primary : 
                                pattern === 'stripes' ? (Math.floor(i / 3) % 2 === 0 ? primary : secondary) :
                                pattern === 'checker' ? (i % 2 === 0 ? primary : secondary) :
                                pattern === 'rainbow' ? `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)` :
                                primary;
 
-            // 1. Ombre portée légère
             ctx.shadowBlur = isHead ? 20 : 5;
             ctx.shadowColor = worm.isBoost ? '#fff' : glow;
 
-            // 2. Corps principal avec dégradé radial (Shading)
             const bodyGrad = ctx.createRadialGradient(
                 seg.x - radius * 0.3, seg.y - radius * 0.3, radius * 0.1,
                 seg.x, seg.y, radius
             );
-            bodyGrad.addColorStop(0, '#fff'); // Point le plus éclairé
+            bodyGrad.addColorStop(0, '#fff');
             bodyGrad.addColorStop(0.2, segmentColor);
-            bodyGrad.addColorStop(1, 'rgba(0,0,0,0.4)'); // Ombre sur les bords
+            bodyGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
 
             ctx.fillStyle = bodyGrad;
             ctx.beginPath();
             ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
             ctx.fill();
 
-            // 3. Spécularité (Le petit "shine" blanc sur le dessus)
-            ctx.shadowBlur = 0; // On retire le glow pour le reflet net
+            ctx.shadowBlur = 0;
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.beginPath();
-            // Une petite ellipse décentrée pour simuler la réflexion de la lumière
             ctx.ellipse(seg.x - radius * 0.3, seg.y - radius * 0.3, radius * 0.3, radius * 0.2, Math.PI / 4, 0, Math.PI * 2);
             ctx.fill();
-
-            // 4. Détails des motifs (dots/grid)
-            if (pattern === 'dots' && i % 4 === 0) {
-                ctx.fillStyle = secondary;
-                ctx.beginPath(); ctx.arc(seg.x, seg.y, radius * 0.3, 0, Math.PI * 2); ctx.fill();
-            }
         }
 
-        // --- DESSIN DES YEUX (Sur la tête) ---
         const head = segs[0];
         const eyeOffset = 8;
         const eyeAngle = worm.angle;
-        
-        // Positions des yeux avec volume
         const eyePositions = [
             { x: head.x + Math.cos(eyeAngle + 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle + 0.6) * eyeOffset },
             { x: head.x + Math.cos(eyeAngle - 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle - 0.6) * eyeOffset }
         ];
 
         eyePositions.forEach(pos => {
-            // Globe oculaire 3D
             const eyeGrad = ctx.createRadialGradient(pos.x - 2, pos.y - 2, 1, pos.x, pos.y, 6);
             eyeGrad.addColorStop(0, '#fff');
             eyeGrad.addColorStop(0.8, '#eee');
             eyeGrad.addColorStop(1, '#999');
-            
             ctx.fillStyle = eyeGrad;
             ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2); ctx.fill();
-            
-            // Pupille
             ctx.fillStyle = '#000';
-            ctx.beginPath(); 
-            ctx.arc(pos.x + Math.cos(eyeAngle) * 2, pos.y + Math.sin(eyeAngle) * 2, 3, 0, Math.PI * 2); 
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(pos.x + Math.cos(eyeAngle) * 2, pos.y + Math.sin(eyeAngle) * 2, 3, 0, Math.PI * 2); ctx.fill();
         });
 
-        // Nom du joueur
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = 'bold 14px Rajdhani'; ctx.textAlign = 'center';
         ctx.fillText(worm.name, head.x, head.y - 35);
@@ -484,7 +506,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [gameState, gameMode, isBoosting]);
+    }, [gameState, gameMode]);
 
     const handleInputStart = (x: number, y: number) => {
         if (gameState !== 'PLAYING') return;
