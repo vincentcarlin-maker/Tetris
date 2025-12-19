@@ -20,6 +20,7 @@ import { StackGame } from './components/stack/StackGame';
 import { ArenaClashGame } from './components/arenaclash/ArenaClashGame'; 
 import { SkyjoGame } from './components/skyjo/SkyjoGame';
 import { LumenOrderGame } from './components/lumen/LumenOrderGame';
+import { SlitherGame } from './components/slither/SlitherGame';
 import { Shop } from './components/Shop';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SocialOverlay, FriendRequest } from './components/SocialOverlay';
@@ -36,7 +37,7 @@ import { DB } from './lib/supabaseClient';
 import { AlertTriangle, Info, Construction } from 'lucide-react';
 
 
-type ViewState = 'menu' | 'social' | 'settings' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'shop' | 'admin_dashboard';
+type ViewState = 'menu' | 'social' | 'settings' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
 type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
 
 const App: React.FC = () => {
@@ -49,7 +50,7 @@ const App: React.FC = () => {
     // Social UI State
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
-    const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); // New state for global request handling
+    const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
     const pendingRequests = friendRequests.length;
     
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
@@ -108,17 +109,13 @@ const App: React.FC = () => {
 
     const saveTimeoutRef = useRef<any>(null);
 
-    // GLOBAL LISTENER FOR FRIEND REQUESTS
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'FRIEND_REQUEST') {
                 const sender = data.sender;
                 
                 setFriendRequests(prev => {
-                    // 1. Check duplicate request
                     if (prev.some(r => r.id === sender.id)) return prev;
-                    
-                    // 2. Check if already friend (from localStorage mirror)
                     const storedFriends = localStorage.getItem('neon_friends');
                     let friends = [];
                     if (storedFriends) {
@@ -126,7 +123,7 @@ const App: React.FC = () => {
                     }
                     if (friends.some((f: any) => f.id === sender.id)) return prev;
 
-                    audio.playCoin(); // Notification sound
+                    audio.playCoin(); 
                     return [...prev, { ...sender, timestamp: Date.now() }];
                 });
             }
@@ -160,26 +157,16 @@ const App: React.FC = () => {
         if (isAuthenticated && isConnectedToSupabase && !isCloudSynced && currency.username) {
             loginAndFetchProfile(currency.username).then(profile => {
                 if (profile && profile.data) {
-                    console.log("☁️ Synced profile from cloud on connect");
-                    
-                    // DATE CHECK FOR QUESTS SYNC
                     const d = new Date();
                     const year = d.getFullYear();
                     const month = String(d.getMonth() + 1).padStart(2, '0');
                     const day = String(d.getDate()).padStart(2, '0');
                     const todayStr = `${year}-${month}-${day}`;
-                    
                     const cloudQuestDate = profile.data.questsDate;
-                    
-                    // Safe import: useCurrency will handle filtering based on dates for storage
                     currency.importData(profile.data);
-                    
                     if (profile.data.highScores) {
                         importScores(profile.data.highScores);
                     }
-                    
-                    // Only update React state for quests if the cloud data is FRESH (from today).
-                    // If cloud data is old, we keep the local state (which was likely reset to today's quests by useDailySystem).
                     if (profile.data.quests && cloudQuestDate === todayStr) {
                         updateQuestsState(profile.data.quests);
                     }
@@ -211,17 +198,13 @@ const App: React.FC = () => {
             streak: streak,
             lastLogin: localStorage.getItem('neon_last_login')
         };
-        
-        if (cachedPassword) {
-            payload.password = cachedPassword;
-        }
+        if (cachedPassword) payload.password = cachedPassword;
         return payload;
     };
 
     useEffect(() => {
         if (!isAuthenticated || !currency.username) return;
         if (isConnectedToSupabase && !isCloudSynced) return;
-
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             const payload = buildSavePayload();
@@ -229,30 +212,16 @@ const App: React.FC = () => {
             localStorage.setItem(`neon_data_${currency.username}`, JSON.stringify(payload));
         }, 2000); 
     }, [
-        currency.coins,
-        currency.email,
-        currency.currentAvatarId, 
-        currency.currentFrameId,
-        currency.currentWallpaperId,
-        currency.currentTitleId,
-        currency.currentMalletId,
-        currency.inventory,
-        currency.ownedAvatars,
-        currency.ownedFrames,
-        currency.ownedWallpapers,
-        currency.ownedTitles,
-        currency.ownedMallets,
-        highScores, 
-        quests, 
-        streak, 
-        isConnectedToSupabase, 
-        isCloudSynced
+        currency.coins, currency.email, currency.currentAvatarId, currency.currentFrameId,
+        currency.currentWallpaperId, currency.currentTitleId, currency.currentMalletId,
+        currency.inventory, currency.ownedAvatars, currency.ownedFrames, currency.ownedWallpapers,
+        currency.ownedTitles, currency.ownedMallets, highScores, quests, streak, 
+        isConnectedToSupabase, isCloudSynced
     ]);
 
     useEffect(() => {
         const handleAdminEvent = (e: CustomEvent) => {
             const { message, type, data } = e.detail;
-            
             if (type === 'game_config') {
                 if (Array.isArray(data)) {
                     setDisabledGames(data);
@@ -269,7 +238,6 @@ const App: React.FC = () => {
                     localStorage.setItem('neon_feature_flags', JSON.stringify(data.flags));
                 }
             }
-
             if (type === 'sync_events') {
                 if (Array.isArray(data)) {
                     setGlobalEvents(data);
@@ -277,7 +245,6 @@ const App: React.FC = () => {
                 }
                 if (!message) return;
             }
-
             if (type === 'user_update') {
                 if (data && data.targetUser === currency.username) {
                     if (data.action === 'ADD_COINS') {
@@ -292,7 +259,6 @@ const App: React.FC = () => {
                     }
                 }
             }
-
             if (message) {
                 if (type === 'user_update') {
                     if (data && data.targetUser === currency.username) {
@@ -313,15 +279,11 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const storedName = localStorage.getItem('neon-username');
-        if (storedName) {
-            setIsAuthenticated(true);
-        }
+        if (storedName) setIsAuthenticated(true);
     }, []);
 
     useEffect(() => {
-        if (isAuthenticated) {
-            mp.connect();
-        }
+        if (isAuthenticated) mp.connect();
         return () => mp.disconnect();
     }, [isAuthenticated]);
 
@@ -346,7 +308,7 @@ const App: React.FC = () => {
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers', 'runner', 'stack', 'arenaclash', 'skyjo', 'lumen'];
+        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers', 'runner', 'stack', 'arenaclash', 'skyjo', 'lumen', 'slither'];
         const isGameView = gameViews.includes(currentView);
         if (isGameView) {
             document.body.classList.add('overflow-hidden');
@@ -364,29 +326,22 @@ const App: React.FC = () => {
     const currentActiveEvent = globalEvents.find(e => {
         if (!e.active) return false;
         const now = new Date();
-        const start = new Date(e.startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(e.endDate);
-        end.setHours(23, 59, 59, 999);
+        const start = new Date(e.startDate); start.setHours(0, 0, 0, 0);
+        const end = new Date(e.endDate); end.setHours(23, 59, 59, 999);
         return now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
     });
 
     const updateEventProgress = useCallback((gameId: string, metric: string, value: number) => {
         if (!currentActiveEvent) return;
-        
         setEventProgress(prev => {
             const newProgress = { ...prev };
             let changed = false;
-
             currentActiveEvent.objectives?.forEach((obj: any, index: number) => {
                 const key = `${currentActiveEvent.id}_${index}`;
                 const currentVal = newProgress[key] || 0;
-                
                 if (currentVal >= obj.target) return;
-
                 const gameMatch = obj.gameIds.length === 0 || obj.gameIds.includes(gameId);
                 if (!gameMatch && gameId !== 'any') return;
-
                 if (obj.type === 'PLAY_GAMES' && metric === 'play') {
                     newProgress[key] = Math.min(obj.target, currentVal + 1);
                     changed = true;
@@ -394,20 +349,11 @@ const App: React.FC = () => {
                     newProgress[key] = Math.min(obj.target, currentVal + value);
                     changed = true;
                 } else if (obj.type === 'REACH_SCORE' && metric === 'score') {
-                    if (value >= obj.target) {
-                        newProgress[key] = obj.target;
-                        changed = true;
-                    } else if (value > currentVal) {
-                         newProgress[key] = value;
-                         changed = true;
-                    }
+                    if (value >= obj.target) { newProgress[key] = obj.target; changed = true; }
+                    else if (value > currentVal) { newProgress[key] = value; changed = true; }
                 }
             });
-
-            if (changed) {
-                localStorage.setItem('neon_event_progress', JSON.stringify(newProgress));
-                return newProgress;
-            }
+            if (changed) { localStorage.setItem('neon_event_progress', JSON.stringify(newProgress)); return newProgress; }
             return prev;
         });
     }, [currentActiveEvent]);
@@ -422,67 +368,38 @@ const App: React.FC = () => {
     };
 
     const handleSelectGame = (game: string) => {
-        if (!isAuthenticated) {
-            setShowLoginModal(true);
-            return;
-        }
-        if (game === 'admin_dashboard') {
-            setCurrentView('admin_dashboard');
-            return;
-        }
-        
+        if (!isAuthenticated) { setShowLoginModal(true); return; }
+        if (game === 'admin_dashboard') { setCurrentView('admin_dashboard'); return; }
         const isRestricted = disabledGames.includes(game);
         const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
-        
         if (isRestricted && !isImmune) {
              setGlobalAlert({ message: "Ce jeu est actuellement désactivé.", type: 'warning' });
              setTimeout(() => setGlobalAlert(null), 2000);
              return;
         }
-
         setCurrentView(game as ViewState);
     };
 
-    const handleBackToMenu = () => {
-        setCurrentView('menu');
-    };
+    const handleBackToMenu = () => setCurrentView('menu');
 
     const handleLogin = (username: string, cloudData?: any) => {
         currency.updateUsername(username);
         if (cloudData) {
             currency.importData(cloudData);
-            if (cloudData.highScores) {
-                importScores(cloudData.highScores);
-            }
-            
-            // DATE CHECK: Only import quests if they are FRESH
+            if (cloudData.highScores) importScores(cloudData.highScores);
             const d = new Date();
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`;
-            
-            if (cloudData.quests && cloudData.questsDate === todayStr) {
-                updateQuestsState(cloudData.quests);
-            }
-            
+            const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            if (cloudData.quests && cloudData.questsDate === todayStr) updateQuestsState(cloudData.quests);
             setIsCloudSynced(true);
             syncProfileToCloud(username, cloudData);
             localStorage.setItem(`neon_data_${username}`, JSON.stringify(cloudData));
-        } else {
-            currency.refreshData(); 
-        }
+        } else { currency.refreshData(); }
         setIsAuthenticated(true);
         setShowLoginModal(false);
         audio.playVictory();
     };
 
-    const handleLogout = () => {
-        setIsAuthenticated(false);
-        mp.disconnect();
-        setIsCloudSynced(false);
-        setCurrentView('menu');
-    };
+    const handleLogout = () => { setIsAuthenticated(false); mp.disconnect(); setIsCloudSynced(false); setCurrentView('menu'); };
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
         reportQuestProgress(gameId, eventType, value);
@@ -509,15 +426,11 @@ const App: React.FC = () => {
     const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social', 'settings'].includes(currentView);
 
     const handleOpenSocial = (tab: SocialTab) => {
-        if (!isAuthenticated) {
-            setShowLoginModal(true);
-            return;
-        }
+        if (!isAuthenticated) { setShowLoginModal(true); return; }
         setActiveSocialTab(tab);
         setCurrentView('social');
     };
 
-    // La barre de navigation doit être visible sur les pages de navigation (menu, shop, admin, social, settings)
     const shouldShowBottomNav = !isGameActive;
 
     return (
@@ -542,43 +455,20 @@ const App: React.FC = () => {
                 />
             )}
 
-            
             <div className="flex-1 overflow-auto">
                 {currentView === 'social' && isAuthenticated && (
                     <SocialOverlay 
-                        audio={audio} 
-                        currency={currency} 
-                        mp={mp} 
-                        onlineUsers={onlineUsers} 
-                        isConnectedToSupabase={isConnectedToSupabase}
-                        isSupabaseConfigured={isSupabaseConfigured}
-                        onUnreadChange={setUnreadMessages}
-                        friendRequests={friendRequests}
-                        setFriendRequests={setFriendRequests}
-                        activeTabOverride={activeSocialTab}
-                        onTabChangeOverride={setActiveSocialTab}
+                        audio={audio} currency={currency} mp={mp} onlineUsers={onlineUsers} 
+                        isConnectedToSupabase={isConnectedToSupabase} isSupabaseConfigured={isSupabaseConfigured}
+                        onUnreadChange={setUnreadMessages} friendRequests={friendRequests} setFriendRequests={setFriendRequests}
+                        activeTabOverride={activeSocialTab} onTabChangeOverride={setActiveSocialTab}
                     />
                 )}
-
                 {currentView === 'settings' && isAuthenticated && (
-                    <SettingsMenu 
-                        onBack={handleBackToMenu}
-                        onLogout={handleLogout}
-                        onOpenDashboard={() => setCurrentView('admin_dashboard')}
-                        audio={audio}
-                        currency={currency}
-                        highScores={highScores}
-                    />
+                    <SettingsMenu onBack={handleBackToMenu} onLogout={handleLogout} onOpenDashboard={() => setCurrentView('admin_dashboard')} audio={audio} currency={currency} highScores={highScores} />
                 )}
-
-                {currentView === 'shop' && isAuthenticated && (
-                    <Shop onBack={handleBackToMenu} currency={currency} />
-                )}
-
-                {currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser && (
-                    <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={onlineUsers} />
-                )}
-
+                {currentView === 'shop' && isAuthenticated && <Shop onBack={handleBackToMenu} currency={currency} />}
+                {currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser && <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={onlineUsers} />}
                 {currentView === 'tetris' && isAuthenticated && <TetrisGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('tetris', metric, val)} />}
                 {currentView === 'connect4' && isAuthenticated && <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('connect4', metric, val)} />}
                 {currentView === 'sudoku' && isAuthenticated && <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('sudoku', metric, val)} />}
@@ -598,45 +488,24 @@ const App: React.FC = () => {
                 {currentView === 'arenaclash' && isAuthenticated && <ArenaClashGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('arenaclash', metric, val)} />}
                 {currentView === 'skyjo' && isAuthenticated && <SkyjoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('skyjo', metric, val)} />}
                 {currentView === 'lumen' && isAuthenticated && <LumenOrderGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('lumen', metric, val)} />}
+                {currentView === 'slither' && isAuthenticated && <SlitherGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('slither', metric, val)} />}
 
                 {currentView === 'menu' && (
                     <MainMenu 
-                        onSelectGame={handleSelectGame} 
-                        audio={audio} 
-                        currency={currency} 
-                        mp={mp}
-                        onLogout={handleLogout}
-                        isAuthenticated={isAuthenticated}
-                        onLoginRequest={() => setShowLoginModal(true)}
-                        dailyData={{
-                            streak,
-                            showDailyModal,
-                            todaysReward,
-                            claimDailyBonus,
-                            quests,
-                            claimQuestReward,
-                            claimAllBonus,
-                            allCompletedBonusClaimed
-                        }}
-                        onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers}
-                        liveUsers={onlineUsers} // On passe la liste live séparément pour le compteur
-                        onOpenSocial={handleOpenSocial} // Handler pour le bouton
-                        disabledGamesList={disabledGames}
-                        activeEvent={currentActiveEvent}
-                        eventProgress={eventProgress}
+                        onSelectGame={handleSelectGame} audio={audio} currency={currency} mp={mp} onLogout={handleLogout}
+                        isAuthenticated={isAuthenticated} onLoginRequest={() => setShowLoginModal(true)}
+                        dailyData={{ streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, claimAllBonus, allCompletedBonusClaimed }}
+                        onlineUsers={globalLeaderboard.length > 0 ? globalLeaderboard : onlineUsers} liveUsers={onlineUsers}
+                        onOpenSocial={handleOpenSocial} disabledGamesList={disabledGames} activeEvent={currentActiveEvent} eventProgress={eventProgress}
                     />
                 )}
             </div>
 
             {isAuthenticated && shouldShowBottomNav && (
                 <BottomNav 
-                    currentView={currentView} 
-                    onNavigate={(v) => setCurrentView(v)} 
-                    onOpenSocial={handleOpenSocial}
-                    showSocial={currentView === 'social'}
-                    activeSocialTab={activeSocialTab}
-                    unreadMessages={unreadMessages}
-                    pendingRequests={pendingRequests}
+                    currentView={currentView} onNavigate={(v) => setCurrentView(v)} 
+                    onOpenSocial={handleOpenSocial} showSocial={currentView === 'social'}
+                    activeSocialTab={activeSocialTab} unreadMessages={unreadMessages} pendingRequests={pendingRequests}
                 />
             )}
         </div>

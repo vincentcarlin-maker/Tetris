@@ -28,8 +28,8 @@ interface MainMenuProps {
         allCompletedBonusClaimed: boolean;
     };
     onlineUsers: OnlineUser[]; 
-    liveUsers?: OnlineUser[]; // Liste spécifique pour la présence en temps réel
-    onOpenSocial?: (tab: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS') => void; // Handler pour ouvrir le social
+    liveUsers?: OnlineUser[]; 
+    onOpenSocial?: (tab: 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS') => void; 
     disabledGamesList?: string[]; 
     activeEvent?: {
         id: string;
@@ -49,7 +49,6 @@ interface MainMenuProps {
     eventProgress?: Record<string, number>;
 }
 
-// Custom Icons ...
 const TetrisIcon = ({ size, className }: { size?: number | string, className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <rect x="2" y="6" width="6" height="6" rx="1.5" /><rect x="9" y="6" width="6" height="6" rx="1.5" /><rect x="16" y="6" width="6" height="6" rx="1.5" /><rect x="9" y="13" width="6" height="6" rx="1.5" />
@@ -58,6 +57,11 @@ const TetrisIcon = ({ size, className }: { size?: number | string, className?: s
 const SnakeIcon = ({ size, className }: { size?: number | string, className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
        <path d="M4 20h4a2 2 0 0 0 2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 0-2-2V6a2 2 0 0 0-2-2H9" /><circle cx="8" cy="4" r="2" />
+    </svg>
+);
+const SlitherIcon = ({ size, className }: { size?: number | string, className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+       <path d="M12 2a10 10 0 0 0-10 10c0 5.523 4.477 10 10 10s10-4.477 10-10" /><path d="M12 12c-2 0-4 1.5-4 4s2 4 4 4 4-1.5 4-4" /><circle cx="12" cy="7" r="1" /><circle cx="12" cy="12" r="1" />
     </svg>
 );
 const UnoIcon = ({ size, className }: { size?: number | string, className?: string }) => (
@@ -109,9 +113,10 @@ const StackIcon = ({ size, className }: { size?: number | string, className?: st
 );
 
 const GAMES_CONFIG = [
-    { id: 'lumen', category: 'PUZZLE', name: 'LUMEN ORDER', icon: Hexagon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS' },
-    { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: Grid3X3, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: true }, reward: 'GAINS' },
-    { id: 'arenaclash', category: 'ARCADE', name: 'ARENA CLASH', icon: Crosshair, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: true }, reward: 'GAINS' },
+    { id: 'slither', category: 'ARCADE', name: 'NEON SLITHER', icon: SlitherIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: true, new: true }, reward: 'GAINS' },
+    { id: 'lumen', category: 'PUZZLE', name: 'LUMEN ORDER', icon: Hexagon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
+    { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: Grid3X3, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS' },
+    { id: 'arenaclash', category: 'ARCADE', name: 'ARENA CLASH', icon: Crosshair, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS' },
     { id: 'stack', category: 'ARCADE', name: 'STACK', icon: StackIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
     { id: 'tetris', category: 'ARCADE', name: 'TETRIS', icon: TetrisIcon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
     { id: 'runner', category: 'ARCADE', name: 'NEON RUN', icon: Activity, color: 'text-orange-400', bg: 'bg-orange-900/20', border: 'border-orange-500/30', hoverBorder: 'hover:border-orange-400', shadow: 'hover:shadow-[0_0_20px_rgba(251,146,60,0.3)]', glow: 'rgba(251,146,60,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
@@ -139,6 +144,7 @@ const CATEGORIES = [
 ];
 
 const LEADERBOARD_GAMES = [
+    { id: 'slither', label: 'SLITHER', unit: 'pts', type: 'high', color: 'text-indigo-400' },
     { id: 'lumen', label: 'LUMEN', unit: 'pts', type: 'high', color: 'text-cyan-400' },
     { id: 'arenaclash', label: 'ARENA', unit: '', type: 'high', color: 'text-red-500' },
     { id: 'skyjo', label: 'SKYJO', unit: 'pts', type: 'low', color: 'text-purple-400' },
@@ -170,9 +176,7 @@ const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComp
 const ArcadeLogo = () => {
     return (
         <div className="flex flex-col items-center justify-center py-10 animate-in fade-in slide-in-from-top-8 duration-700 mb-2 relative">
-            {/* LUEUR DE FOND INTENSIFIÉE */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180%] h-[180%] bg-gradient-to-br from-neon-blue/60 via-neon-purple/40 to-neon-pink/60 blur-[100px] rounded-full pointer-events-none -z-10 mix-blend-screen opacity-100 animate-glow-accent" />
-            
             <div className="relative mb-[-25px] z-10 hover:scale-105 transition-transform duration-300 group">
                 <div className="w-48 h-16 bg-gray-950 rounded-2xl border-2 accent-border shadow-[0_0_40px_rgba(var(--neon-accent-rgb),0.5),inset_0_0_20px_rgba(0,0,0,0.8)] flex items-center justify-between px-6 relative">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-2xl"></div>
@@ -191,7 +195,6 @@ const ArcadeLogo = () => {
                     </div>
                 </div>
             </div>
-            
             <div className="flex flex-col items-center relative z-20 mt-2">
                  <div className="font-script text-8xl text-white transform -rotate-6 z-10 drop-shadow-[0_0_20px_var(--neon-blue,#00f3ff)]" style={{ textShadow: '0 0 10px var(--neon-blue, #00f3ff), 0 0 25px var(--neon-blue, #00f3ff), 0 0 40px var(--neon-blue, #00f3ff)' }}>Neon</div>
                 <div className="font-script text-7xl text-neon-pink transform -rotate-3 -mt-6 ml-10" style={{ textShadow: '0 0 10px #ff00ff, 0 0 25px #ff00ff, 0 0 40px #ff00ff' }}>Arcade</div>
@@ -207,9 +210,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [scoreTab, setScoreTab] = useState<'LOCAL' | 'GLOBAL'>('LOCAL');
     const [activeCategory, setActiveCategory] = useState('ALL');
     const [showEventInfo, setShowEventInfo] = useState(false);
-    
     const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, claimAllBonus, allCompletedBonusClaimed } = dailyData;
-
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
     const [installPrompt, setInstallPrompt] = useState<any>(null);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -219,8 +220,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     const [animatingQuestId, setAnimatingQuestId] = useState<string | null>(null);
     const [flyingCoins, setFlyingCoins] = useState<{id: number, startX: number, startY: number, targetX: number, targetY: number, delay: number}[]>([]);
     const coinBalanceRef = useRef<HTMLDivElement>(null);
-    
-    // Calcul des utilisateurs en ligne (Live Users si dispo, sinon fallback)
     const onlineCount = (liveUsers || onlineUsers).filter(u => u.status === 'online' && u.id !== mp.peerId).length;
 
     const bindGlow = (color: string) => ({
@@ -230,9 +229,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         onTouchEnd: () => setActiveGlow(null)
     });
     
-    const handleGameStart = (gameId: string) => { 
-        onSelectGame(gameId); 
-    };
+    const handleGameStart = (gameId: string) => onSelectGame(gameId); 
 
     const spawnCoins = (startX: number, startY: number, amount: number) => {
         const targetRect = coinBalanceRef.current?.getBoundingClientRect();
@@ -355,7 +352,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
 
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  <ArcadeLogo />
-
                  {activeEvent && (
                      <div 
                         onClick={() => setShowEventInfo(true)}
@@ -383,53 +379,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"></div>
                      </div>
                  )}
-
-                 {showEventInfo && activeEvent && (
-                     <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowEventInfo(false)}>
-                         <div className="bg-gray-900 w-full max-w-md rounded-2xl border-2 shadow-2xl overflow-hidden flex flex-col relative" style={{ borderColor: activeEvent.theme?.primaryColor || '#fff' }} onClick={e => e.stopPropagation()}>
-                             <button onClick={() => setShowEventInfo(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white z-20"><X size={24}/></button>
-                             <div className="p-6 relative overflow-hidden" style={{ background: activeEvent.theme?.backgroundImage ? `${activeEvent.theme.backgroundImage}` : 'bg-gray-800' }}>
-                                 <div className="absolute inset-0 bg-black/60"></div>
-                                 <div className="relative z-10 flex flex-col items-center text-center">
-                                     <h2 className="text-2xl font-black text-white italic uppercase drop-shadow-lg mb-2">{activeEvent.title}</h2>
-                                     <p className="text-sm text-gray-200">{activeEvent.description}</p>
-                                     <div className="mt-4 flex items-center gap-4 text-xs font-mono font-bold text-white bg-black/40 px-3 py-1 rounded border border-white/20">
-                                         <span>{new Date(activeEvent.startDate).toLocaleDateString()}</span>
-                                         <span>➔</span>
-                                         <span>{new Date(activeEvent.endDate).toLocaleDateString()}</span>
-                                     </div>
-                                 </div>
-                             </div>
-                             <div className="p-6 bg-gray-900 space-y-6">
-                                 {activeEvent.objectives && activeEvent.objectives.length > 0 && (
-                                     <div>
-                                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Target size={14}/> OBJECTIFS</h4>
-                                         <div className="space-y-3">
-                                             {activeEvent.objectives.map((obj, i) => {
-                                                 const progressKey = `${activeEvent.id}_${i}`;
-                                                 const currentProgress = eventProgress?.[progressKey] || 0;
-                                                 const percentage = Math.min(100, Math.round((currentProgress / obj.target) * 100));
-                                                 return (
-                                                     <div key={i} className="bg-gray-800 p-3 rounded-lg border border-white/10">
-                                                         <div className="flex justify-between text-sm text-white mb-1">
-                                                             <span>{obj.type === 'PLAY_GAMES' ? 'Jouer des parties' : obj.type === 'REACH_SCORE' ? 'Atteindre un score' : 'Gagner des pièces'}</span>
-                                                             <span className="font-mono font-bold" style={{ color: activeEvent.theme?.primaryColor }}>{currentProgress} / {obj.target}</span>
-                                                         </div>
-                                                         <div className="w-full h-1.5 bg-black rounded-full overflow-hidden">
-                                                             <div className="h-full transition-all duration-500" style={{ width: `${percentage}%`, backgroundColor: activeEvent.theme?.primaryColor || '#fff' }}></div>
-                                                         </div>
-                                                         <p className="text-[10px] text-gray-500 mt-1">{obj.gameIds.length > 0 ? `Sur : ${obj.gameIds.join(', ')}` : 'Sur tous les jeux'}</p>
-                                                     </div>
-                                                 );
-                                             })}
-                                         </div>
-                                     </div>
-                                 )}
-                             </div>
-                         </div>
-                     </div>
-                 )}
-
                  <div {...bindGlow('var(--neon-accent, #00f3ff)')} className="w-full bg-black/60 border accent-border rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
                     {isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title="Se déconnecter"><LogOut size={14} /></button>}
@@ -465,53 +414,32 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                         )}
                                     </div>
                                     <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                        {currentTitle && currentTitle.id !== 't_none' && (
-                                            <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>
-                                                {currentTitle.name}
-                                            </span>
-                                        )}
-                                        <span className={`text-[9px] font-bold tracking-wider uppercase ${playerRank.color}`}>
-                                            {playerRank.title}
-                                        </span>
+                                        {currentTitle && currentTitle.id !== 't_none' && (<span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>{currentTitle.name}</span>)}
+                                        <span className={`text-[9px] font-bold tracking-wider uppercase ${playerRank.color}`}>{playerRank.title}</span>
                                     </div>
-                                    {/* Badge List Display */}
                                     {ownedBadges.length > 0 && (
                                         <div className="flex flex-wrap gap-1.5 mt-1.5 overflow-x-auto no-scrollbar max-w-full pb-1">
                                             {ownedBadges.map(badge => {
                                                 const BIcon = badge.icon;
-                                                return (
-                                                    <div key={badge.id} title={badge.name} className={`p-1 rounded-lg bg-black/40 border border-white/10 ${badge.color} shadow-[0_0_8px_rgba(0,0,0,0.5)] flex-shrink-0`}>
-                                                        <BIcon size={12} />
-                                                    </div>
-                                                );
+                                                return (<div key={badge.id} title={badge.name} className={`p-1 rounded-lg bg-black/40 border border-white/10 ${badge.color} shadow-[0_0_8px_rgba(0,0,0,0.5)] flex-shrink-0`}><BIcon size={12} /></div>);
                                             })}
                                         </div>
                                     )}
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <div className="flex items-center gap-1 text-[9px] text-yellow-500 font-bold bg-yellow-900/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
-                                            <Calendar size={10} /> J{streak}
-                                        </div>
-                                    </div>
+                                    <div className="flex items-center gap-2 mt-1"><div className="flex items-center gap-1 text-[9px] text-yellow-500 font-bold bg-yellow-900/10 px-1.5 py-0.5 rounded border border-yellow-500/20"><Calendar size={10} /> J{streak}</div></div>
                                 </>
                             ) : (
                                 <div className="flex flex-col gap-1 items-start">
                                     <h2 className="text-base font-bold text-gray-400 italic">Mode Visiteur</h2>
-                                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-[0_0_10px_rgba(0,243,255,0.3)]">
-                                        SE CONNECTER / CRÉER
-                                    </button>
+                                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-[0_0_10px_rgba(0,243,255,0.3)]">SE CONNECTER / CRÉER</button>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
-
                  <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34, 197, 94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34, 197, 94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
                      <div onClick={() => isAuthenticated && setIsQuestsExpanded(!isQuestsExpanded)} className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}>
                          <div className="flex items-center gap-2 overflow-hidden py-1">
-                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap pr-2">
-                                <CheckCircle size={16} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> 
-                                DÉFIS DU JOUR
-                             </h3>
+                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap pr-2"><CheckCircle size={16} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> DÉFIS DU JOUR</h3>
                              {isAuthenticated && !isQuestsExpanded && (<div className="flex gap-1 ml-1 animate-in fade-in duration-300 shrink-0">{quests.map((q) => (<div key={q.id} title={q.description} className={`w-3 h-3 flex items-center justify-center rounded-full border transition-colors ${q.isCompleted ? 'bg-green-500 border-green-400 shadow-[0_0_5px_#22c55e]' : 'bg-gray-800/50 border-white/10'}`}>{q.isCompleted && <Check size={8} className="text-black" strokeWidth={4} />}</div>))}</div>)}
                          </div>
                          {isAuthenticated ? <ChevronDown size={16} className={`text-green-400 transition-transform duration-300 ${isQuestsExpanded ? 'rotate-180' : ''}`} /> : <Lock size={16} className="text-gray-500" />}
@@ -537,21 +465,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                                  <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono font-bold bg-yellow-900/10 px-2 py-1 rounded border border-yellow-500/20 shrink-0"><Coins size={10} /> {quest.reward}</div>
                                              )}
                                          </div>
-                                         <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/5 relative">
-                                             <div className={`h-full transition-all duration-500 relative ${quest.isCompleted ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gradient-to-r from-blue-600 to-cyan-400'}`} style={{ width: `${progressPercent}%` }}></div>
-                                         </div>
+                                         <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden border border-white/5 relative"><div className={`h-full transition-all duration-500 relative ${quest.isCompleted ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gradient-to-r from-blue-600 to-cyan-400'}`} style={{ width: `${progressPercent}%` }}></div></div>
                                      </div>
                                  );
                              })}
                          </div>
                      )}
                  </div>
-
                  <div {...bindGlow('rgba(250, 204, 21, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300 shadow-xl hover:shadow-[0_0_35px_rgba(250, 204, 21, 0.5)] hover:border-yellow-400/50 hover:ring-1 hover:ring-yellow-400/30">
-                    <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3"><Trophy size={20} className="text-yellow-400" /><h3 className="text-lg font-bold text-white italic">SCORES & CLASSEMENTS</h3></div>
-                        <ChevronDown size={20} className={`transition-transform ${showScores ? 'rotate-180' : ''}`} />
-                    </button>
+                    <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between"><div className="flex items-center gap-3"><Trophy size={20} className="text-yellow-400" /><h3 className="text-lg font-bold text-white italic">SCORES & CLASSEMENTS</h3></div><ChevronDown size={20} className={`transition-transform ${showScores ? 'rotate-180' : ''}`} /></button>
                     {showScores && (
                         <div className="px-4 pb-4 animate-in fade-in duration-300">
                             <div className="flex bg-black/30 p-1 rounded-lg mb-3">
@@ -563,14 +485,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                     {LEADERBOARD_GAMES.map(game => {
                                         const score = highScores[game.id];
                                         const displayScore = game.id === 'sudoku' && typeof score === 'object' ? score?.medium : score;
-                                        if (displayScore && displayScore > 0) {
-                                            return (
-                                                <div key={game.id} className="py-2 border-t border-white/5 flex justify-between">
-                                                    <span className={`text-xs font-bold ${game.color}`}>{game.label}</span>
-                                                    <span className="text-xs font-mono">{displayScore.toLocaleString()} {game.unit}</span>
-                                                </div>
-                                            );
-                                        }
+                                        if (displayScore && displayScore > 0) return (<div key={game.id} className="py-2 border-t border-white/5 flex justify-between"><span className={`text-xs font-bold ${game.color}`}>{game.label}</span><span className="text-xs font-mono">{displayScore.toLocaleString()} {game.unit}</span></div>);
                                         return null;
                                     })}
                                 </div>
@@ -578,31 +493,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 <div className="space-y-2">
                                     {LEADERBOARD_GAMES.map(game => {
                                         const top = getTopScoreForGame(game);
-                                        return (
-                                            <div key={game.id} className="py-2 border-t border-white/5 flex justify-between items-center">
-                                                <h4 className={`font-bold text-sm ${game.color}`}>{game.label}</h4>
-                                                <div className="text-right"><p className="text-xs text-gray-400 font-bold">{top.name}</p><p className="font-mono text-lg">{top.score > 0 ? `${top.score.toLocaleString()} ${game.unit}` : '-'}</p></div>
-                                            </div>
-                                        );
+                                        return (<div key={game.id} className="py-2 border-t border-white/5 flex justify-between items-center"><h4 className={`font-bold text-sm ${game.color}`}>{game.label}</h4><div className="text-right"><p className="text-xs text-gray-400 font-bold">{top.name}</p><p className="font-mono text-lg">{top.score > 0 ? `${top.score.toLocaleString()} ${game.unit}` : '-'}</p></div></div>);
                                     })}
                                 </div>
                             )}
                         </div>
                     )}
                 </div>
-
-                 <div className="flex gap-2 w-full overflow-x-auto pb-2 no-scrollbar px-1">
-                    {CATEGORIES.map(cat => (
-                        <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all border ${activeCategory === cat.id ? 'bg-neon-accent text-black border-neon-accent shadow-[0_0_10px_rgba(var(--neon-accent-rgb),0.5)]' : 'bg-gray-900 text-gray-400 border-white/10 hover:border-white/30 hover:text-white'}`}><cat.icon size={14} /> {cat.label}</button>
-                    ))}
-                 </div>
-
+                 <div className="flex gap-2 w-full overflow-x-auto pb-2 no-scrollbar px-1">{CATEGORIES.map(cat => (<button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all border ${activeCategory === cat.id ? 'bg-neon-accent text-black border-neon-accent shadow-[0_0_10px_rgba(var(--neon-accent-rgb),0.5)]' : 'bg-gray-900 text-gray-400 border-white/10 hover:border-white/30 hover:text-white'}`}><cat.icon size={14} /> {cat.label}</button>))}</div>
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                    {GAMES_CONFIG.filter(g => {
-                        if (activeCategory === 'ALL') return true;
-                        if (activeCategory === 'ONLINE') return g.badges.online;
-                        return g.category === activeCategory;
-                    }).map((game) => {
+                    {GAMES_CONFIG.filter(g => { if (activeCategory === 'ALL') return true; if (activeCategory === 'ONLINE') return g.badges.online; return g.category === activeCategory; }).map((game) => {
                         const isDisabled = disabledGamesList.includes(game.id) && !(username === 'Vincent' || currency.adminModeActive);
                         return (
                             <button key={game.id} onClick={() => handleGameStart(game.id)} disabled={isDisabled} {...(!isDisabled ? bindGlow(game.glow) : {})} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md ${isDisabled ? 'border-gray-800 opacity-60 grayscale cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}>
@@ -617,8 +517,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         );
                     })}
                  </div>
-                 
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v3.0 • LUMEN ORDER</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v3.1 • NEON SLITHER</div>
              </div>
         </div>
     );

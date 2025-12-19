@@ -5,7 +5,7 @@ import {
     MousePointer2, Target, Shield, Hash, Brain, Palette, Search, BrainCircuit,
     LayoutGrid, Zap, CheckCircle, Crosshair, Anchor, Ghost, Skull, MoveHorizontal,
     MousePointerClick, Layers, Megaphone, ArrowDown, Check, ArrowUp, Crown,
-    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross, Grid3X3, AlertTriangle, Eye
+    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross, Grid3X3, AlertTriangle, Eye, MousePointer
 } from 'lucide-react';
 
 interface Step {
@@ -23,6 +23,14 @@ const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
             { icon: RotateCw, color: "text-purple-400", title: "PIVOTER", desc: "Haut pour tourner." },
             { icon: ChevronDown, color: "text-yellow-400", title: "ACCÉLÉRER", desc: "Bas pour descendre vite." },
             { icon: Keyboard, color: "text-gray-400", title: "CONTRÔLES", desc: "Compatible tactile et clavier." }
+        ]
+    },
+    slither: {
+        titleColor: "text-indigo-400",
+        steps: [
+            { icon: MousePointer, color: "text-indigo-400", title: "DIRIGER", desc: "Le ver suit votre souris ou votre doigt." },
+            { icon: Zap, color: "text-yellow-400", title: "BOOST", desc: "Maintenez le clic pour accélérer (consomme de la taille)." },
+            { icon: Skull, color: "text-red-500", title: "MORTEL", desc: "Ne touchez pas le corps des autres vers !" }
         ]
     },
     arenaclash: {
