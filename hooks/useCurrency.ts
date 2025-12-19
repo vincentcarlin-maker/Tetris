@@ -216,6 +216,13 @@ export const TITLES_CATALOG: Title[] = [
 
 export const MALLETS_CATALOG: Mallet[] = [
     { id: 'm_classic', name: 'Classique', price: 0, colors: ['#00f3ff'], type: 'basic', description: 'Le standard de l\'arcade.' },
+    { id: 'm_fire', name: 'Feu Solaire', price: 500, colors: ['#ff4500'], type: 'basic', description: 'Une frappe brûlante.' },
+    { id: 'm_poison', name: 'Venin', price: 500, colors: ['#a3e635'], type: 'basic', description: 'Rapide et toxique.' },
+    { id: 'm_plasma', name: 'Plasma Pink', price: 1000, colors: ['#ff00ff', '#9d00ff'], type: 'gradient', description: 'Énergie pure.' },
+    { id: 'm_arctic', name: 'Cristal', price: 1000, colors: ['#ffffff', '#00f3ff'], type: 'gradient', description: 'Froid comme la glace.' },
+    { id: 'm_target', name: 'Précision', price: 2000, colors: ['#ffffff', '#ff0000'], type: 'target', description: 'Visez juste.' },
+    { id: 'm_gold', name: 'Or Pur', price: 5000, colors: ['#facc15', '#a16207'], type: 'gradient', description: 'Le luxe de la victoire.' },
+    { id: 'm_rainbow', name: 'Chroma', price: 7500, colors: ['#ff0000', '#00ff00', '#0000ff'], type: 'complex', description: 'Toutes les fréquences.' },
 ];
 
 const hexToRgb = (hex: string) => {
@@ -408,16 +415,16 @@ export const useCurrency = () => {
         buySlitherSkin: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherSkins(p => [...p, id]); localStorage.setItem('neon-owned-slither-skins', JSON.stringify([...ownedSlitherSkins, id])); } },
         slitherSkinsCatalog: SLITHER_SKINS_CATALOG,
         currentSlitherAccessoryId, selectSlitherAccessory: (id: string) => { setCurrentSlitherAccessoryId(id); localStorage.setItem('neon-slither-accessory', id); },
-        buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon_owned_slither_accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
+        buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
         slitherAccessoriesCatalog: SLITHER_ACCESSORIES_CATALOG,
         currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
         buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
         wallpapersCatalog: WALLPAPERS_CATALOG,
         currentTitleId, selectTitle: (id: string) => { setCurrentTitleId(id); localStorage.setItem('neon-title', id); },
-        buyTitle: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedTitles(p => [...p, id]); localStorage.setItem('neon_owned_titles', JSON.stringify([...ownedTitles, id])); } },
+        buyTitle: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedTitles(p => [...p, id]); localStorage.setItem('neon-owned-titles', JSON.stringify([...ownedTitles, id])); } },
         titlesCatalog: TITLES_CATALOG,
         currentMalletId, selectMallet: (id: string) => { setCurrentMalletId(id); localStorage.setItem('neon-mallet', id); },
-        buyMallet: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedMallets(p => [...p, id]); localStorage.setItem('neon-owned-mallets', JSON.stringify([...ownedMallets, id])); } },
+        buyMallet: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedMallets(p => [...p, id]); localStorage.setItem('neon_owned_mallets', JSON.stringify([...ownedMallets, id])); } },
         malletsCatalog: MALLETS_CATALOG,
     };
 };
