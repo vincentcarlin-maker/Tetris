@@ -215,14 +215,69 @@ export const TITLES_CATALOG: Title[] = [
 ];
 
 export const MALLETS_CATALOG: Mallet[] = [
-    { id: 'm_classic', name: 'Classique', price: 0, colors: ['#00f3ff'], type: 'basic', description: 'Le standard de l\'arcade.' },
+    // --- LES CLASSIQUES (0 - 500) ---
+    { id: 'm_classic', name: 'Classique Cyan', price: 0, colors: ['#00f3ff'], type: 'basic', description: 'Le standard de l\'arcade.' },
+    { id: 'm_basic_pink', name: 'Simple Rose', price: 200, colors: ['#ff00ff'], type: 'basic', description: 'Un classique vibrant.' },
+    { id: 'm_basic_yellow', name: 'Simple Jaune', price: 200, colors: ['#ffe600'], type: 'basic', description: 'Eclat pur.' },
+    { id: 'm_basic_green', name: 'Simple Vert', price: 200, colors: ['#00ff9d'], type: 'basic', description: 'Énergie naturelle.' },
     { id: 'm_fire', name: 'Feu Solaire', price: 500, colors: ['#ff4500'], type: 'basic', description: 'Une frappe brûlante.' },
     { id: 'm_poison', name: 'Venin', price: 500, colors: ['#a3e635'], type: 'basic', description: 'Rapide et toxique.' },
+    { id: 'm_obsidian', name: 'Obsidienne', price: 500, colors: ['#1e293b'], type: 'basic', description: 'Frappe sombre.' },
+    { id: 'm_ghost', name: 'Spectre', price: 500, colors: ['#e2e8f0'], type: 'basic', description: 'Presque invisible.' },
+
+    // --- DÉGRADÉS NÉON (750 - 2000) ---
     { id: 'm_plasma', name: 'Plasma Pink', price: 1000, colors: ['#ff00ff', '#9d00ff'], type: 'gradient', description: 'Énergie pure.' },
     { id: 'm_arctic', name: 'Cristal', price: 1000, colors: ['#ffffff', '#00f3ff'], type: 'gradient', description: 'Froid comme la glace.' },
-    { id: 'm_target', name: 'Précision', price: 2000, colors: ['#ffffff', '#ff0000'], type: 'target', description: 'Visez juste.' },
+    { id: 'm_sunset', name: 'Crépuscule', price: 1200, colors: ['#f97316', '#ef4444'], type: 'gradient', description: 'Couleurs du soir.' },
+    { id: 'm_ocean', name: 'Abysse', price: 1200, colors: ['#1e3a8a', '#06b6d4'], type: 'gradient', description: 'Profondeur marine.' },
+    { id: 'm_forest', name: 'Amazonie', price: 1200, colors: ['#064e3b', '#22c55e'], type: 'gradient', description: 'Force de la jungle.' },
+    { id: 'm_electric', name: 'Voltage', price: 1500, colors: ['#facc15', '#00f3ff'], type: 'gradient', description: 'Haute tension.' },
+    { id: 'm_cyber', name: 'Cyberpunk', price: 1800, colors: ['#ff00ff', '#00f3ff'], type: 'gradient', description: 'Le futur maintenant.' },
+    { id: 'm_nebula', name: 'Nébuleuse', price: 2000, colors: ['#7c3aed', '#db2777'], type: 'gradient', description: 'Gaz stellaire.' },
+
+    // --- MÉTALLIQUES & LUXE (2500 - 5000) ---
+    { id: 'm_iron', name: 'Fer Forgé', price: 2500, colors: ['#475569', '#1e293b'], type: 'gradient', description: 'Solidité brute.' },
+    { id: 'm_silver', name: 'Argent Pur', price: 3000, colors: ['#e2e8f0', '#94a3b8'], type: 'gradient', description: 'Éclat métallique.' },
     { id: 'm_gold', name: 'Or Pur', price: 5000, colors: ['#facc15', '#a16207'], type: 'gradient', description: 'Le luxe de la victoire.' },
-    { id: 'm_rainbow', name: 'Chroma', price: 7500, colors: ['#ff0000', '#00ff00', '#0000ff'], type: 'complex', description: 'Toutes les fréquences.' },
+    { id: 'm_ruby', name: 'Rubis Noir', price: 4500, colors: ['#ef4444', '#000000'], type: 'gradient', description: 'Pierre précieuse sombre.' },
+    { id: 'm_emerald', name: 'Émeraude', price: 4500, colors: ['#10b981', '#064e3b'], type: 'gradient', description: 'Éclat vert précieux.' },
+    { id: 'm_sapphire', name: 'Saphir', price: 4500, colors: ['#3b82f6', '#1e3a8a'], type: 'gradient', description: 'Bleu royal intense.' },
+    { id: 'm_platinum', name: 'Platine', price: 5000, colors: ['#ffffff', '#cbd5e1'], type: 'gradient', description: 'Rareté absolue.' },
+
+    // --- MOTIFS SPÉCIAUX (2000 - 4000) ---
+    { id: 'm_target', name: 'Précision', price: 2000, colors: ['#ffffff', '#ff0000'], type: 'target', description: 'Visez juste.' },
+    { id: 'm_bullseye', name: 'Plein Centre', price: 2500, colors: ['#000000', '#00ff00'], type: 'target', description: 'Focus total.' },
+    { id: 'm_flower_pink', name: 'Lotus', price: 3000, colors: ['#ff00ff', '#ffffff'], type: 'flower', description: 'Éclat floral.' },
+    { id: 'm_flower_blue', name: 'Iris', price: 3000, colors: ['#00f3ff', '#1e3a8a'], type: 'flower', description: 'Zenitude néon.' },
+    { id: 'm_toxic_ring', name: 'Biohazard', price: 3500, colors: ['#000000', '#ccff00'], type: 'target', description: 'Danger imminent.' },
+    { id: 'm_vortex', name: 'Vortex', price: 4000, colors: ['#000000', '#9d00ff'], type: 'target', description: 'Aspiration vers la victoire.' },
+
+    // --- ÉLÉMENTAIRES & NATURE (6000 - 9000) ---
+    { id: 'm_magma', name: 'Magma', price: 6000, colors: ['#ff4500', '#000000', '#ff0000'], type: 'complex', description: 'Fusion volcanique.' },
+    { id: 'm_thunder', name: 'Foudre', price: 7000, colors: ['#00f3ff', '#ffffff', '#1e3a8a'], type: 'complex', description: 'Électrisant.' },
+    { id: 'm_toxic_slime', name: 'Slime', price: 6500, colors: ['#ccff00', '#064e3b', '#ccff00'], type: 'complex', description: 'Visqueux mais efficace.' },
+    { id: 'm_ice_age', name: 'Glaciaire', price: 7500, colors: ['#ffffff', '#93c5fd', '#1e3a8a'], type: 'complex', description: 'Zéro absolu.' },
+    { id: 'm_solar_flare', name: 'Éruption', price: 8000, colors: ['#facc15', '#f97316', '#ef4444'], type: 'complex', description: 'Tempête solaire.' },
+    { id: 'm_abyss_depth', name: 'Abyssal', price: 8500, colors: ['#000000', '#1e1b4b', '#3b82f6'], type: 'complex', description: 'Le noir des profondeurs.' },
+
+    // --- LÉGENDAIRES (10000 - 50000) ---
+    { id: 'm_rainbow', name: 'Chroma', price: 10000, colors: ['#ff0000', '#00ff00', '#0000ff'], type: 'complex', description: 'Toutes les fréquences.' },
+    { id: 'm_void', name: 'Le Vide', price: 15000, colors: ['#000000', '#000000', '#ffffff'], type: 'complex', description: 'L\'absence de lumière.' },
+    { id: 'm_matrix', name: 'Code Source', price: 20000, colors: ['#00ff00', '#000000', '#00ff00'], type: 'complex', description: 'Entrez dans la simulation.' },
+    { id: 'm_galaxy_master', name: 'Galactique', price: 25000, colors: ['#4c1d95', '#ec4899', '#3b82f6'], type: 'complex', description: 'Souverain de l\'espace.' },
+    { id: 'm_supernova_legend', name: 'Supernova', price: 30000, colors: ['#ffffff', '#fbbf24', '#ef4444'], type: 'complex', description: 'Explosion finale.' },
+    { id: 'm_diamond_core', name: 'Cœur de Diamant', price: 40000, colors: ['#ffffff', '#bae6fd', '#ffffff'], type: 'complex', description: 'Indestructible.' },
+    { id: 'm_infinity_mallet', name: 'L\'Infini', price: 50000, colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'], type: 'complex', description: 'L\'ultime maillet.' },
+
+    // --- ÉDITIONS SPÉCIALES ---
+    { id: 'm_zebra_cyber', name: 'Zèbre Cyber', price: 4000, colors: ['#ffffff', '#000000', '#ffffff'], type: 'complex', description: 'Rayures futuristes.' },
+    { id: 'm_neon_pulse', name: 'Pulsation', price: 5500, colors: ['#00f3ff', '#000000', '#ff00ff'], type: 'complex', description: 'Rythme visuel.' },
+    { id: 'm_lava_lamp', name: 'Lava Lamp', price: 6000, colors: ['#f97316', '#9d00ff'], type: 'gradient', description: 'Psychédélique.' },
+    { id: 'm_arctic_storm', name: 'Blizzard', price: 7000, colors: ['#e2e8f0', '#ffffff', '#00f3ff'], type: 'complex', description: 'Froid tourbillonnant.' },
+    { id: 'm_cyber_dragon', name: 'Dragon', price: 12000, colors: ['#ef4444', '#facc15', '#000000'], type: 'complex', description: 'Souffle de feu.' },
+    { id: 'm_hologram', name: 'Hologramme', price: 18000, colors: ['#a5f3fc', '#ffffff', '#a5f3fc'], type: 'complex', description: 'Immatériel.' },
+    { id: 'm_midnight', name: 'Minuit', price: 3500, colors: ['#0f172a', '#334155'], type: 'gradient', description: 'Ciel nocturne.' },
+    { id: 'm_stardust', name: 'Poussière d\'Etoiles', price: 8500, colors: ['#ffffff', '#000000', '#facc15'], type: 'complex', description: 'Éclats cosmiques.' },
 ];
 
 const hexToRgb = (hex: string) => {
@@ -336,7 +391,7 @@ export const useCurrency = () => {
         if (data.titleId) { setCurrentTitleId(data.titleId); localStorage.setItem('neon-title', data.titleId); }
         if (data.ownedTitles) { setOwnedTitles(data.ownedTitles); localStorage.setItem('neon-owned-titles', JSON.stringify(data.ownedTitles)); }
         if (data.malletId) { setCurrentMalletId(data.malletId); localStorage.setItem('neon-mallet', data.malletId); }
-        if (data.ownedMallets) { setOwnedMallets(data.ownedMallets); localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets)); }
+        if (data.ownedMallets) { setOwnedMallets(data.ownedMallets); localStorage.setItem('neon_owned_mallets', JSON.stringify(data.ownedMallets)); }
     }, []);
 
     const refreshData = useCallback(() => {
