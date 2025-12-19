@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Zap, HelpCircle, User, Globe, Play, ArrowLeft, Loader2, LogOut, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Shield, Skull } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -17,7 +18,6 @@ interface Worm {
     score: number;
     isBoost: boolean;
     isDead: boolean;
-    // Fix: Added radius to interface to prevent runtime errors
     radius: number;
 }
 interface Food { id: string; x: number; y: number; val: number; color: string; }
@@ -29,6 +29,7 @@ const SEGMENT_DISTANCE = 8;
 const BASE_SPEED = 3;
 const BOOST_SPEED = 6;
 const TURN_SPEED = 0.12;
+const RADAR_SIZE = 120; // Taille du radar en pixels
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -52,7 +53,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const mouseRef = useRef<Point & { down: boolean }>({ x: 0, y: 0, down: false });
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
-    // Fix: Added missing lastNetworkUpdateRef
     const lastNetworkUpdateRef = useRef<number>(0);
 
     const { playCoin, playMove, playExplosion, playVictory, playGameOver, resumeAudio } = audio;
@@ -63,7 +63,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const y = Math.random() * (WORLD_SIZE - 200) + 100;
         const segments: Point[] = [];
         for (let i = 0; i < INITIAL_LENGTH; i++) segments.push({ x, y });
-        // Fix: Added radius property to the returned object
         return { id, name, segments, angle: Math.random() * Math.PI * 2, color, score: 0, isBoost: false, isDead: false, radius: 10 };
     };
 
@@ -427,6 +426,47 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 ))}
             </div>
 
+            {/* RADAR (Minimap) */}
+            {gameState === 'PLAYING' && (
+                <div 
+                    className="absolute bottom-6 right-6 z-30 rounded-full bg-black/60 border-2 border-white/20 shadow-2xl backdrop-blur-md overflow-hidden pointer-events-none"
+                    style={{ width: RADAR_SIZE, height: RADAR_SIZE }}
+                >
+                    {/* Radar Grid */}
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '25% 25%' }}></div>
+                    
+                    {/* Other Worms on Radar */}
+                    {othersRef.current.map(worm => (
+                        <div 
+                            key={worm.id}
+                            className="absolute rounded-full bg-pink-500 shadow-[0_0_4px_pink]"
+                            style={{ 
+                                width: 3, 
+                                height: 3, 
+                                left: (worm.segments[0].x / WORLD_SIZE) * RADAR_SIZE - 1.5,
+                                top: (worm.segments[0].y / WORLD_SIZE) * RADAR_SIZE - 1.5
+                            }}
+                        />
+                    ))}
+
+                    {/* Player on Radar */}
+                    {playerWormRef.current && (
+                        <div 
+                            className="absolute rounded-full bg-white shadow-[0_0_8px_white] animate-pulse"
+                            style={{ 
+                                width: 5, 
+                                height: 5, 
+                                left: (playerWormRef.current.segments[0].x / WORLD_SIZE) * RADAR_SIZE - 2.5,
+                                top: (playerWormRef.current.segments[0].y / WORLD_SIZE) * RADAR_SIZE - 2.5
+                            }}
+                        />
+                    )}
+
+                    {/* Radar Scanline effect */}
+                    <div className="absolute inset-0 rounded-full border border-white/5 bg-gradient-to-t from-transparent via-white/5 to-transparent animate-[spin_4s_linear_infinite]"></div>
+                </div>
+            )}
+
             {gameState === 'MENU' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-6">
                     <div className="w-24 h-24 rounded-full border-4 border-indigo-400 flex items-center justify-center mb-6 shadow-[0_0_30px_#818cf8] animate-pulse">
@@ -457,7 +497,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     </div>
                     {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
                     <div className="flex gap-4">
-                        <button onClick={() => startGame(gameMode)} className="px-8 py-4 bg-indigo-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg active:scale-95 flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
+                        <button onClick={() => startGame(gameMode)} className="px-8 py-4 bg-indigo-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
                         <button onClick={() => setGameState('MENU')} className="px-8 py-4 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700">MENU</button>
                     </div>
                 </div>
