@@ -29,6 +29,7 @@ const BASE_SPEED = 3.5;
 const BOOST_SPEED = 7;
 const TURN_SPEED = 0.12;
 const RADAR_SIZE = 120;
+const DOUBLE_TAP_DELAY = 300; // ms
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -42,6 +43,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [showTutorial, setShowTutorial] = useState(false);
     const [leaderboard, setLeaderboard] = useState<{name: string, score: number, isMe: boolean}[]>([]);
+    const [isBoosting, setIsBoosting] = useState(false);
 
     // Logic Refs
     const playerWormRef = useRef<Worm | null>(null);
@@ -49,6 +51,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const foodRef = useRef<Food[]>([]);
     const cameraRef = useRef<Point>({ x: 0, y: 0 });
     const mouseRef = useRef<Point & { down: boolean }>({ x: 0, y: 0, down: false });
+    const lastTapTimeRef = useRef<number>(0);
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
     const lastNetworkUpdateRef = useRef<number>(0);
@@ -56,6 +59,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const { playCoin, playMove, playExplosion, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
+    const bestScore = highScores.slither || 0;
 
     // --- INITIALIZATION ---
     const spawnWorm = (id: string, name: string, color: string): Worm => {
@@ -89,6 +93,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         setGameState('PLAYING');
         setScore(0);
         setEarnedCoins(0);
+        setIsBoosting(false);
         resumeAudio();
         lastTimeRef.current = Date.now();
         if (onReportProgress) onReportProgress('play', 1);
@@ -96,20 +101,17 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     // --- HELPER: MOVE WORM LOGIC ---
     const updateWormMovement = (worm: Worm, targetAngle: number, speed: number) => {
-        // 1. Interpolation de l'angle
         let angleDiff = targetAngle - worm.angle;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         worm.angle += angleDiff * TURN_SPEED;
 
-        // 2. Déplacement de la tête
         const head = worm.segments[0];
         const nextX = head.x + Math.cos(worm.angle) * speed;
         const nextY = head.y + Math.sin(worm.angle) * speed;
         
         const newSegments = [{ x: nextX, y: nextY }];
 
-        // 3. Les segments suivent à distance fixe
         let prev = newSegments[0];
         for (let i = 1; i < worm.segments.length; i++) {
             const curr = worm.segments[i];
@@ -155,7 +157,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const player = playerWormRef.current;
         if (!player || player.isDead) return;
 
-        // 1. Calcul du vecteur cible pour le joueur
         const canvas = canvasRef.current;
         let playerTargetAngle = player.angle;
         if (canvas) {
@@ -165,7 +166,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             playerTargetAngle = Math.atan2(ty, tx);
         }
 
-        player.isBoost = mouseRef.current.down && player.segments.length > INITIAL_LENGTH;
+        // Le boost s'arrête si la taille est trop petite
+        const canBoost = player.segments.length > INITIAL_LENGTH;
+        if (!canBoost && isBoosting) setIsBoosting(false);
+
+        player.isBoost = isBoosting;
         const currentSpeed = player.isBoost ? BOOST_SPEED : BASE_SPEED;
         
         if (player.isBoost) {
@@ -219,45 +224,29 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         if (gameMode === 'SOLO') {
             othersRef.current.forEach(bot => {
                 if (bot.isDead) return;
-                
                 const bHead = bot.segments[0];
                 let botTargetAngle = bot.angle;
-                
-                // 1. Évitement des bords (Priorité haute)
                 const margin = 150;
-                if (bHead.x < margin) botTargetAngle = 0; // Aller vers la droite
-                else if (bHead.x > WORLD_SIZE - margin) botTargetAngle = Math.PI; // Aller vers la gauche
-                else if (bHead.y < margin) botTargetAngle = Math.PI / 2; // Aller vers le bas
-                else if (bHead.y > WORLD_SIZE - margin) botTargetAngle = -Math.PI / 2; // Aller vers le haut
+                if (bHead.x < margin) botTargetAngle = 0;
+                else if (bHead.x > WORLD_SIZE - margin) botTargetAngle = Math.PI;
+                else if (bHead.y < margin) botTargetAngle = Math.PI / 2;
+                else if (bHead.y > WORLD_SIZE - margin) botTargetAngle = -Math.PI / 2;
                 else {
-                    // 2. Recherche de nourriture (Rayon augmenté)
                     let closestF = null, minDist = 400;
                     foodRef.current.forEach(f => {
                         const d = Math.hypot(bHead.x - f.x, bHead.y - f.y);
                         if (d < minDist) { minDist = d; closestF = f; }
                     });
-
-                    if (closestF) {
-                        botTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
-                    } else {
-                        // 3. Déplacement erratique mais fluide
-                        if (Math.random() > 0.95) {
-                            botTargetAngle += (Math.random() - 0.5) * 1.5;
-                        }
-                    }
+                    if (closestF) botTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
+                    else if (Math.random() > 0.95) botTargetAngle += (Math.random() - 0.5) * 1.5;
                 }
-
                 updateWormMovement(bot, botTargetAngle, BASE_SPEED);
-
-                if (Math.hypot(bHead.x - head.x, bHead.y - head.y) < 30) {
-                     handleDeath();
-                } else {
+                if (Math.hypot(bHead.x - head.x, bHead.y - head.y) < 30) handleDeath();
+                else {
                     player.segments.forEach((pSeg, pIdx) => {
                         if (pIdx > 2 && Math.hypot(bHead.x - pSeg.x, bHead.y - pSeg.y) < 18) {
                             bot.isDead = true;
-                            bot.segments.forEach((s, idx) => { 
-                                if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 3, color: bot.color }); 
-                            });
+                            bot.segments.forEach((s, idx) => { if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 3, color: bot.color }); });
                         }
                     });
                 }
@@ -280,9 +269,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         if (!player || player.isDead) return;
         player.isDead = true;
         setGameState('GAMEOVER');
+        setIsBoosting(false);
         playExplosion();
         playGameOver();
-        
         updateHighScore('slither', player.score);
         const coins = Math.floor(player.score / 50);
         if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
@@ -292,36 +281,58 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const draw = (ctx: CanvasRenderingContext2D) => {
         const player = playerWormRef.current;
         if (!player) return;
-
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        
         const cam = cameraRef.current;
         const offsetX = -cam.x + ctx.canvas.width / 2;
         const offsetY = -cam.y + ctx.canvas.height / 2;
-        
         ctx.save();
         ctx.translate(offsetX, offsetY);
-
         ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
         ctx.lineWidth = 1;
         for (let i = 0; i <= WORLD_SIZE; i += 100) {
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_SIZE); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
         }
-        
         ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
         ctx.lineWidth = 10;
         ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
         foodRef.current.forEach(f => {
             ctx.fillStyle = f.color;
             ctx.shadowBlur = 15; ctx.shadowColor = f.color;
             ctx.beginPath(); ctx.arc(f.x, f.y, 4 + f.val, 0, Math.PI * 2); ctx.fill();
             ctx.shadowBlur = 0;
         });
-
         othersRef.current.forEach(worm => drawWorm(ctx, worm));
         drawWorm(ctx, player);
+        drawDirectionArrow(ctx, player); // Flèche pour le joueur uniquement
+        ctx.restore();
+    };
+
+    const drawDirectionArrow = (ctx: CanvasRenderingContext2D, worm: Worm) => {
+        if (worm.isDead) return;
+        const head = worm.segments[0];
+        const arrowDist = 60;
+        const arrowSize = 12;
+
+        const tx = head.x + Math.cos(worm.angle) * arrowDist;
+        const ty = head.y + Math.sin(worm.angle) * arrowDist;
+
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(worm.angle);
+        
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'white';
+
+        ctx.beginPath();
+        ctx.moveTo(-arrowSize, -arrowSize);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(-arrowSize, arrowSize);
+        ctx.stroke();
 
         ctx.restore();
     };
@@ -329,51 +340,33 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const drawWorm = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         const segs = worm.segments;
         if (segs.length < 2) return;
-
         ctx.lineWidth = 22;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = worm.color;
-        
         ctx.shadowBlur = worm.isBoost ? 25 : 12;
         ctx.shadowColor = worm.color;
-        
         ctx.beginPath();
         ctx.moveTo(segs[0].x, segs[0].y);
-        for (let i = 1; i < segs.length; i++) {
-            ctx.lineTo(segs[i].x, segs[i].y);
-        }
+        for (let i = 1; i < segs.length; i++) ctx.lineTo(segs[i].x, segs[i].y);
         ctx.stroke();
         ctx.shadowBlur = 0;
-
         const head = segs[0];
         const eyeOffset = 8;
         const pupilOffset = 2.5; 
         const eyeAngle = worm.angle;
-        
         const eye1X = head.x + Math.cos(eyeAngle + 0.6) * eyeOffset;
         const eye1Y = head.y + Math.sin(eyeAngle + 0.6) * eyeOffset;
         const eye2X = head.x + Math.cos(eyeAngle - 0.6) * eyeOffset;
         const eye2Y = head.y + Math.sin(eyeAngle - 0.6) * eyeOffset;
-
         ctx.fillStyle = 'white';
         ctx.shadowBlur = 5; ctx.shadowColor = 'white';
-        ctx.beginPath();
-        ctx.arc(eye1X, eye1Y, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(eye2X, eye2Y, 6, 0, Math.PI * 2);
-        ctx.fill();
-
+        ctx.beginPath(); ctx.arc(eye1X, eye1Y, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(eye2X, eye2Y, 6, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = 'black';
         ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.arc(eye1X + Math.cos(eyeAngle) * pupilOffset, eye1Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2);
-        ctx.fill();
-        
+        ctx.beginPath(); ctx.arc(eye1X + Math.cos(eyeAngle) * pupilOffset, eye1Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = 'bold 14px Rajdhani';
         ctx.textAlign = 'center';
@@ -394,14 +387,26 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [gameState, gameMode]);
+    }, [gameState, gameMode, isBoosting]);
+
+    const handleAction = () => {
+        if (gameState !== 'PLAYING') return;
+        const now = Date.now();
+        const diff = now - lastTapTimeRef.current;
+        
+        if (diff < DOUBLE_TAP_DELAY) {
+            // Double Tap detected
+            setIsBoosting(prev => !prev);
+            playMove(); // Petit son de confirmation
+        }
+        
+        lastTapTimeRef.current = now;
+    };
 
     const handleLocalBack = () => {
         if (gameState === 'PLAYING') {
             if (window.confirm("Quitter la partie en cours ?")) onBack();
-        } else {
-            onBack();
-        }
+        } else onBack();
     };
 
     return (
@@ -412,11 +417,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 height={window.innerHeight} 
                 className="w-full h-full cursor-none"
                 onMouseMove={(e) => { mouseRef.current.x = e.clientX; mouseRef.current.y = e.clientY; }}
-                onMouseDown={() => { mouseRef.current.down = true; }}
-                onMouseUp={() => { mouseRef.current.down = false; }}
+                onMouseDown={handleAction}
                 onTouchMove={(e) => { mouseRef.current.x = e.touches[0].clientX; mouseRef.current.y = e.touches[0].clientY; }}
-                onTouchStart={(e) => { mouseRef.current.down = true; resumeAudio(); }}
-                onTouchEnd={() => { mouseRef.current.down = false; }}
+                onTouchStart={(e) => { handleAction(); resumeAudio(); }}
             />
 
             <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
@@ -426,6 +429,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">{score}</span>
                 </div>
             </div>
+
+            {isBoosting && (
+                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-indigo-600/40 border border-indigo-400 rounded-full flex items-center gap-2 animate-pulse">
+                    <Zap size={16} className="text-yellow-400 fill-yellow-400" />
+                    <span className="text-xs font-black tracking-widest text-white">TURBO ACTIF</span>
+                </div>
+            )}
 
             <div className="absolute top-6 right-6 z-20 bg-black/60 border border-white/10 p-4 rounded-2xl w-48 backdrop-blur-xl shadow-2xl">
                 <h4 className="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-3 border-b border-white/10 pb-2 flex items-center gap-2"><Trophy size={12}/> Leaderboard</h4>
@@ -459,7 +469,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                         <Zap size={64} className="text-indigo-400" />
                     </div>
                     <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">NEON SLITHER</h1>
-                    <p className="text-gray-400 text-sm mb-10 max-w-sm text-center leading-relaxed">Dirige ton ver néon dans l'arène. Mange pour grandir, évite les impacts. <br/><span className="text-indigo-300 font-bold uppercase mt-2 block">Boost : Maintenir clic</span></p>
+                    <p className="text-gray-400 text-sm mb-10 max-w-sm text-center leading-relaxed">Dirige ton ver néon dans l'arène. Mange pour grandir, évite les impacts. <br/><span className="text-indigo-300 font-bold uppercase mt-2 block">Turbo : Double-tap sur l'écran</span></p>
                     
                     <div className="flex flex-col gap-5 w-full max-w-xs">
                         <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)] active:scale-95 group">
