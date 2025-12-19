@@ -40,6 +40,236 @@ const JOYSTICK_DEADZONE = 3;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
+// --- LOGIQUE DE DESSIN 3D D'ACCESSOIRES (PARTAGÉE) ---
+export const draw3DAccessory = (ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, radius: number, acc: SlitherAccessory) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    
+    const color = acc.color;
+    const sec = acc.secondaryColor || '#ffffff';
+
+    // Source de lumière virtuelle en haut à gauche pour tous les accessoires
+    const lightX = -radius * 0.5;
+    const lightY = -radius * 0.8;
+
+    if (acc.type === 'CROWN') {
+        // Couronne 3D avec base cylindrique
+        const w = radius * 2.2;
+        const h = radius * 1.2;
+        
+        // Face arrière (sombre)
+        ctx.fillStyle = sec;
+        ctx.beginPath();
+        ctx.moveTo(-w/2, -radius * 0.5);
+        ctx.lineTo(-w/2, -radius - 10);
+        ctx.lineTo(-w/4, -radius);
+        ctx.lineTo(0, -radius - 15);
+        ctx.lineTo(w/4, -radius);
+        ctx.lineTo(w/2, -radius - 10);
+        ctx.lineTo(w/2, -radius * 0.5);
+        ctx.fill();
+
+        // Base de la couronne (Cylindre)
+        const baseGrad = ctx.createLinearGradient(-w/2, 0, w/2, 0);
+        baseGrad.addColorStop(0, sec);
+        baseGrad.addColorStop(0.5, color);
+        baseGrad.addColorStop(1, sec);
+        ctx.fillStyle = baseGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, -radius * 0.5, w/2, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Joyau central
+        const gemGrad = ctx.createRadialGradient(-2, -radius - 12, 0, 0, -radius - 10, 6);
+        gemGrad.addColorStop(0, '#fff');
+        gemGrad.addColorStop(0.3, '#ef4444');
+        gemGrad.addColorStop(1, '#7f1d1d');
+        ctx.fillStyle = gemGrad;
+        ctx.beginPath();
+        ctx.arc(0, -radius - 10, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 10; ctx.shadowColor = '#ef4444';
+        ctx.stroke();
+    } 
+    else if (acc.type === 'HAT') {
+        // Haut-de-forme 3D
+        const w = radius * 2.4;
+        
+        // Bord (Brim)
+        const brimGrad = ctx.createRadialGradient(0, -radius * 0.5, 0, 0, -radius * 0.5, w/2);
+        brimGrad.addColorStop(0.6, color);
+        brimGrad.addColorStop(1, sec);
+        ctx.fillStyle = brimGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, -radius * 0.4, w/2, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Corps du chapeau
+        const bodyGrad = ctx.createLinearGradient(-radius, 0, radius, 0);
+        bodyGrad.addColorStop(0, '#000');
+        bodyGrad.addColorStop(0.4, color);
+        bodyGrad.addColorStop(1, '#000');
+        ctx.fillStyle = bodyGrad;
+        ctx.fillRect(-radius * 0.8, -radius * 1.8, radius * 1.6, radius * 1.4);
+        
+        // Ruban (Band)
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-radius * 0.8, -radius * 0.8, radius * 1.6, 6);
+        
+        // Top du chapeau (Ellipse pour la perspective)
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(0, -radius * 1.8, radius * 0.8, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    else if (acc.type === 'HALO') {
+        // Anneau de lumière flottant
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = color;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(0, -radius - 25, radius * 1.3, radius * 0.4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        // Éclat intérieur blanc
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    else if (acc.type === 'VISOR') {
+        // Visière Cyber-Tech courbée
+        const vW = radius * 1.2;
+        const vH = radius * 1.6;
+        const vGrad = ctx.createLinearGradient(0, -vH/2, 0, vH/2);
+        vGrad.addColorStop(0, 'rgba(0, 243, 255, 0.1)');
+        vGrad.addColorStop(0.5, 'rgba(0, 243, 255, 0.6)');
+        vGrad.addColorStop(1, 'rgba(0, 243, 255, 0.1)');
+        
+        ctx.fillStyle = vGrad;
+        ctx.beginPath();
+        ctx.ellipse(radius * 0.7, 0, vW, vH, 0, -Math.PI/2, Math.PI/2);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Lignes de scan holographiques
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        for(let i=-2; i<=2; i++) {
+            ctx.beginPath();
+            ctx.moveTo(radius * 0.7, i * 6);
+            ctx.lineTo(radius * 1.5, i * 6);
+            ctx.stroke();
+        }
+    }
+    else if (acc.type === 'HORNS') {
+        // Cornes 3D courbées
+        const drawHorn = (side: number) => {
+            ctx.save();
+            ctx.scale(1, side);
+            ctx.translate(0, -radius * 0.8);
+            const hGrad = ctx.createLinearGradient(0, 0, 0, -25);
+            hGrad.addColorStop(0, sec);
+            hGrad.addColorStop(1, color);
+            ctx.fillStyle = hGrad;
+            ctx.beginPath();
+            ctx.moveTo(-8, 0);
+            ctx.quadraticCurveTo(5, -15, 0, -30);
+            ctx.quadraticCurveTo(-15, -15, -10, 0);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        };
+        drawHorn(1);
+        drawHorn(-1);
+    }
+    else if (acc.type === 'CAT_EARS') {
+        const drawEar = (side: number) => {
+            ctx.save();
+            ctx.scale(1, side);
+            ctx.translate(0, -radius * 0.9);
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(-12, 0);
+            ctx.lineTo(0, -18);
+            ctx.lineTo(12, 0);
+            ctx.fill();
+            ctx.fillStyle = sec; // Inner ear
+            ctx.beginPath();
+            ctx.moveTo(-6, 0);
+            ctx.lineTo(0, -10);
+            ctx.lineTo(6, 0);
+            ctx.fill();
+            ctx.restore();
+        };
+        drawEar(1);
+        drawEar(-1);
+    }
+    else if (acc.type === 'HEADPHONES') {
+        // Casque audio stylé
+        const drawCup = (side: number) => {
+            ctx.save();
+            ctx.translate(0, radius * side * 0.9);
+            const cGrad = ctx.createRadialGradient(-3, -3, 0, 0, 0, radius * 0.5);
+            cGrad.addColorStop(0, '#fff');
+            cGrad.addColorStop(0.2, color);
+            cGrad.addColorStop(1, sec);
+            ctx.fillStyle = cGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+            ctx.restore();
+        };
+        drawCup(1);
+        drawCup(-1);
+        // Arceau
+        ctx.strokeStyle = sec;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 1.2, -Math.PI/2, Math.PI/2, true);
+        ctx.stroke();
+    }
+    else if (acc.type === 'VIKING') {
+        // Casque Viking en métal avec cornes blanches
+        const hGrad = ctx.createRadialGradient(-5, -radius*0.8, 0, 0, -radius*0.5, radius);
+        hGrad.addColorStop(0, '#fff');
+        hGrad.addColorStop(0.3, color);
+        hGrad.addColorStop(1, '#000');
+        ctx.fillStyle = hGrad;
+        ctx.beginPath();
+        ctx.arc(0, -radius * 0.4, radius, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Cornes
+        const drawVHorn = (side: number) => {
+            ctx.save();
+            ctx.scale(side, 1);
+            ctx.translate(radius * 0.8, -radius * 0.8);
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.quadraticCurveTo(15, -5, 20, -25);
+            ctx.lineTo(5, -5);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        };
+        drawVHorn(1);
+        drawVHorn(-1);
+    }
+
+    ctx.restore();
+};
+
 export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any }> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { username, currentAvatarId, currentSlitherSkinId, slitherSkinsCatalog, currentSlitherAccessoryId, slitherAccessoriesCatalog } = useCurrency();
@@ -466,228 +696,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.restore();
     };
 
-    const drawAccessory = (ctx: CanvasRenderingContext2D, head: Point, angle: number, radius: number, acc: SlitherAccessory) => {
-        ctx.save();
-        ctx.translate(head.x, head.y);
-        ctx.rotate(angle);
-        
-        const type = acc.type;
-        const color = acc.color;
-        const sec = acc.secondaryColor || '#ffffff';
-
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
-
-        if (type === 'CROWN') {
-            // Gold Crown with 3D ring
-            const w = radius * 2;
-            const h = radius * 1.5;
-            
-            // Back parts of crown points
-            ctx.fillStyle = acc.secondaryColor || '#d97706';
-            ctx.beginPath();
-            ctx.moveTo(-w/2, -radius);
-            ctx.lineTo(-w/2, -radius - 15);
-            ctx.lineTo(-w/4, -radius - 5);
-            ctx.lineTo(0, -radius - 15);
-            ctx.lineTo(w/4, -radius - 5);
-            ctx.lineTo(w/2, -radius - 15);
-            ctx.lineTo(w/2, -radius);
-            ctx.fill();
-
-            // Main ring (gradient for 3D)
-            const ringGrad = ctx.createLinearGradient(-w/2, 0, w/2, 0);
-            ringGrad.addColorStop(0, '#92400e');
-            ringGrad.addColorStop(0.5, color);
-            ringGrad.addColorStop(1, '#92400e');
-            ctx.fillStyle = ringGrad;
-            ctx.beginPath();
-            ctx.ellipse(0, -radius, w/2, 8, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            // Central Jewel
-            ctx.fillStyle = '#ef4444';
-            ctx.beginPath();
-            ctx.arc(0, -radius - 10, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#ef4444';
-            ctx.stroke();
-        } 
-        else if (type === 'HALO') {
-            // Floating 3D ring
-            ctx.shadowBlur = 20;
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.ellipse(0, -radius - 20, radius * 1.2, radius * 0.4, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            // Glow overlay
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-        else if (type === 'HORNS') {
-            // 3D Devil Horns
-            const drawHorn = (side: number) => {
-                ctx.save();
-                ctx.scale(side, 1);
-                ctx.translate(radius * 0.5, -radius * 0.5);
-                
-                const grad = ctx.createLinearGradient(0, 0, 10, -20);
-                grad.addColorStop(0, sec);
-                grad.addColorStop(1, color);
-                
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.quadraticCurveTo(15, -5, 10, -25);
-                ctx.quadraticCurveTo(0, -15, -5, 5);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                ctx.stroke();
-                ctx.restore();
-            };
-            drawHorn(1);
-            drawHorn(-1);
-        }
-        else if (type === 'VISOR') {
-            // Cyber Visor wrapping eyes
-            ctx.fillStyle = 'rgba(0, 243, 255, 0.4)';
-            ctx.beginPath();
-            ctx.ellipse(radius * 0.6, 0, radius * 0.8, radius * 1.2, 0, -Math.PI/2, Math.PI/2);
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            // Highlight
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(radius * 0.8, -radius * 0.5);
-            ctx.lineTo(radius * 0.8, radius * 0.5);
-            ctx.stroke();
-        }
-        else if (type === 'VIKING') {
-            // 3D Viking helmet with horns
-            const helmetGrad = ctx.createRadialGradient(0, -radius, 0, 0, -radius, radius);
-            helmetGrad.addColorStop(0, sec);
-            helmetGrad.addColorStop(1, '#475569');
-            ctx.fillStyle = helmetGrad;
-            ctx.beginPath();
-            ctx.arc(0, -radius * 0.5, radius * 0.9, Math.PI, 0);
-            ctx.fill();
-            ctx.stroke();
-
-            // Horns
-            const drawVHorn = (side: number) => {
-                ctx.save();
-                ctx.scale(side, 1);
-                ctx.translate(radius * 0.7, -radius * 0.8);
-                ctx.fillStyle = '#fff';
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.quadraticCurveTo(10, -5, 15, -20);
-                ctx.lineTo(5, -5);
-                ctx.fill();
-                ctx.stroke();
-                ctx.restore();
-            };
-            drawVHorn(1);
-            drawVHorn(-1);
-        }
-        else if (type === 'HAT') {
-            // Classic Top Hat 3D
-            ctx.fillStyle = color;
-            // Brim
-            ctx.beginPath();
-            ctx.ellipse(0, -radius * 0.6, radius * 1.3, radius * 0.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            // Top part
-            ctx.fillStyle = sec;
-            ctx.fillRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.2);
-            ctx.strokeRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.2);
-            // Band
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(-radius * 0.7, -radius * 0.8, radius * 1.4, 6);
-        }
-        else if (type === 'HEADPHONES') {
-            // Cool cyber headphones
-            const drawEar = (side: number) => {
-                ctx.save();
-                ctx.translate(0, radius * side * 0.8);
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.stroke();
-                // Glow inner
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                ctx.beginPath();
-                ctx.arc(0,0, radius * 0.2, 0, Math.PI*2);
-                ctx.fill();
-                ctx.restore();
-            };
-            drawEar(1);
-            drawEar(-1);
-            // Connecting band
-            ctx.strokeStyle = sec;
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.arc(0, 0, radius * 1.1, -Math.PI/2, Math.PI/2, true);
-            ctx.stroke();
-        }
-        else if (type === 'CAT_EARS') {
-            const drawCatEar = (side: number) => {
-                ctx.save();
-                ctx.scale(1, side);
-                ctx.translate(0, -radius * 0.8);
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.moveTo(-10, 0);
-                ctx.lineTo(0, -15);
-                ctx.lineTo(10, 0);
-                ctx.fill();
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.beginPath();
-                ctx.moveTo(-5, 0);
-                ctx.lineTo(0, -8);
-                ctx.lineTo(5, 0);
-                ctx.fill();
-                ctx.restore();
-            };
-            drawCatEar(1);
-            drawCatEar(-1);
-        }
-        else if (type === 'NINJA') {
-            // Ninja bandana with tails
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.rect(-radius, -radius * 0.3, radius * 2, radius * 0.6);
-            ctx.fill();
-            // Tails at back
-            ctx.save();
-            ctx.translate(-radius, 0);
-            ctx.rotate(Math.sin(Date.now()/200) * 0.2);
-            ctx.beginPath();
-            ctx.moveTo(0,0);
-            ctx.lineTo(-20, -5);
-            ctx.lineTo(-15, 5);
-            ctx.fill();
-            ctx.restore();
-            // Metal plate
-            ctx.fillStyle = '#94a3b8';
-            ctx.fillRect(radius * 0.5, -4, 10, 8);
-        }
-
-        ctx.restore();
-    };
-
     const drawWorm = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         const segs = worm.segments;
         if (segs.length < 2) return;
@@ -751,7 +759,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
         // DRAW ACCESSORY
         if (worm.accessory && worm.accessory.id !== 'sa_none') {
-            drawAccessory(ctx, head, worm.angle, radius, worm.accessory);
+            draw3DAccessory(ctx, head.x, head.y, worm.angle, radius, worm.accessory);
         }
 
         // EYES
@@ -886,10 +894,10 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     <p className="text-gray-400 text-sm mb-10 max-w-sm text-center leading-relaxed">Dirige ton ver néon dans l'arène. Mange pour grandir, évite les impacts. <br/><span className="text-indigo-300 font-bold uppercase mt-2 block">Turbo : Double-tap sur l'écran</span><br/><span className="text-cyan-400 font-bold uppercase mt-1 block">Direction : Glissez n'importe où</span></p>
                     
                     <div className="flex flex-col gap-5 w-full max-w-xs">
-                        <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)] active:scale-95 group">
+                        <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)] active:scale-95 group">
                             <User size={24} /> SOLO (BOTS)
                         </button>
-                        <button onClick={() => startGame('ONLINE')} className="px-8 py-5 bg-gray-900 border-2 border-green-500 text-green-400 font-black tracking-widest rounded-2xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">
+                        <button onClick={() => startGame('ONLINE')} className="px-8 py-5 bg-gray-900 border-2 border-green-500 text-green-400 font-black tracking-widest rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">
                             <Globe size={24} className="text-green-500"/> MULTIJOUEUR
                         </button>
                     </div>
@@ -907,8 +915,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     </div>
                     {earnedCoins > 0 && <div className="mb-10 flex items-center gap-3 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500/50 animate-bounce shadow-[0_0_15px_rgba(234,179,8,0.3)]"><Coins className="text-yellow-400" size={28} /><span className="text-yellow-100 font-black text-2xl">+{earnedCoins}</span></div>}
                     <div className="flex gap-4 w-full max-w-xs">
-                        <button onClick={() => startGame(gameMode)} className="flex-1 py-4 bg-indigo-600 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"><RefreshCw size={24} /> REJOUER</button>
-                        <button onClick={() => setGameState('MENU')} className="flex-1 py-4 bg-gray-800 text-gray-300 font-bold rounded-2xl hover:bg-gray-700 transition-all border border-white/5">MENU</button>
+                        <button onClick={() => startGame(gameMode)} className="flex-1 py-4 bg-indigo-600 text-white font-black tracking-widest rounded-xl hover:bg-indigo-500 transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"><RefreshCw size={24} /> REJOUER</button>
+                        <button onClick={() => setGameState('MENU')} className="flex-1 py-4 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 transition-all border border-white/5">MENU</button>
                     </div>
                 </div>
             )}
