@@ -16,10 +16,8 @@ export interface HighScores {
   memory: number; 
   mastermind?: number; 
   uno?: number; 
-  game2048?: number; 
   watersort?: number; 
   skyjo?: number;
-  rush?: number;
 }
 
 const initialHighScores: HighScores = {
@@ -37,10 +35,8 @@ const initialHighScores: HighScores = {
   memory: 0,
   mastermind: 0,
   uno: 0,
-  game2048: 0,
   watersort: 1,
-  skyjo: 0,
-  rush: 1
+  skyjo: 0
 };
 
 const HIGHSCORES_KEY = 'neon-highscores';
@@ -70,7 +66,7 @@ export const useHighScores = () => {
     setHighScores(prev => {
       const newScores = JSON.parse(JSON.stringify(prev)); 
       let shouldUpdate = false;
-      if (['tetris', 'breaker', 'pacman', 'snake', 'invaders', 'game2048', 'watersort', 'runner', 'stack', 'arenaclash', 'lumen', 'rush', 'slither'].includes(game)) {
+      if (['tetris', 'breaker', 'pacman', 'snake', 'invaders', 'watersort', 'runner', 'stack', 'arenaclash', 'lumen', 'slither'].includes(game)) {
          const current = prev[game] || 0;
          if (value > (current as number)) {
              // @ts-ignore
