@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck, Languages } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -33,6 +33,7 @@ const GAME_LABELS: Record<string, string> = {
 type LegalTab = 'CGU' | 'PRIVACY' | 'MENTIONS';
 
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency, highScores }) => {
+    const { t, language, setLanguage } = currency;
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [legalTab, setLegalTab] = useState<LegalTab | null>(null);
     const [oldPassword, setOldPassword] = useState('');
@@ -94,6 +95,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
             localStorage.removeItem('neon-reduced-motion');
             localStorage.removeItem('neon-vibration');
             localStorage.removeItem('neon_privacy');
+            localStorage.removeItem('neon-language');
             window.location.reload();
         }
     };
@@ -130,7 +132,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 <div className="fixed inset-0 z-[500] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in">
                     <div className="bg-gray-900 w-full max-w-sm rounded-2xl border border-white/10 p-6 shadow-2xl relative">
                         <button onClick={() => setShowPasswordModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X/></button>
-                        <h3 className="text-xl font-black text-white italic mb-6 flex items-center gap-2"><Key className="text-neon-pink" size={24}/> MOT DE PASSE</h3>
+                        <h3 className="text-xl font-black text-white italic mb-6 flex items-center gap-2"><Key className="text-neon-pink" size={24}/> {t.edit_password.toUpperCase()}</h3>
                         <div className="space-y-4">
                             <input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} placeholder="Ancien mot de passe" className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-neon-pink outline-none" />
                             <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nouveau mot de passe" className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:border-neon-blue outline-none" />
@@ -217,14 +219,14 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
             <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pt-6 pb-24">
                 <div className="flex items-center justify-between mb-2">
                     <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
-                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(192,38,211,0.5)]">RÉGLAGES</h1>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(192,38,211,0.5)] uppercase">{t.settings}</h1>
                     <div className="w-10"></div>
                 </div>
 
                 <div className="bg-gray-900/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 blur-3xl rounded-full -mr-10 -mt-10 group-hover:bg-purple-600/20 transition-all duration-700"></div>
                     
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2"><UserCircle size={16} className="text-neon-blue" /> MON PROFIL NÉON</h3>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2"><UserCircle size={16} className="text-neon-blue" /> {t.profile}</h3>
                     
                     <div className="flex items-center gap-6 mb-8">
                         <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative border-2 ${currentFrame.cssClass} shadow-xl`}>
@@ -251,17 +253,17 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                         <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col items-center">
                             <Coins size={18} className="text-yellow-400 mb-1" />
                             <span className="text-lg font-black font-mono">{currency.coins.toLocaleString()}</span>
-                            <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Solde Actuel</span>
+                            <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">{t.coins}</span>
                         </div>
                         <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex flex-col items-center">
                             <Star size={18} className="text-purple-400 mb-1" />
                             <span className="text-lg font-black font-mono">{currency.inventory.length}</span>
-                            <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Badges Gagnés</span>
+                            <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">{t.badges}</span>
                         </div>
                     </div>
 
                     <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
-                        <h4 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Target size={12}/> MEILLEURS RECORDS</h4>
+                        <h4 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Target size={12}/> {t.record.toUpperCase()}S</h4>
                         <div className="space-y-2">
                             {topScores.length > 0 ? topScores.map(([key, score]) => (
                                 <div key={key} className="flex justify-between items-center text-sm border-b border-white/5 pb-2 last:border-0 last:pb-0">
@@ -276,7 +278,25 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 </div>
 
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={16} /> STYLE NÉON</h3>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Languages size={16} className="text-neon-green" /> {t.language}</h3>
+                    <div className="flex gap-2 bg-black/40 p-1 rounded-xl">
+                        <button 
+                            onClick={() => setLanguage('fr')} 
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${language === 'fr' ? 'bg-neon-green text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            FRANÇAIS
+                        </button>
+                        <button 
+                            onClick={() => setLanguage('en')} 
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${language === 'en' ? 'bg-neon-green text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            ENGLISH
+                        </button>
+                    </div>
+                </div>
+
+                <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={16} className="text-neon-pink" /> {t.style}</h3>
                     <div className="flex flex-col gap-4">
                         <div className="flex justify-between items-center">
                             <div className="flex flex-col">
@@ -304,19 +324,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 </div>
 
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} /> PERFORMANCE</h3>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Activity size={16} className="text-neon-yellow" /> {t.performance}</h3>
                     <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
                             <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${currency.reducedMotion ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-700/50 text-gray-400'}`}><Sliders size={20}/></div>
-                                <div><p className="font-bold text-sm">Motion Réduite</p><p className="text-[10px] text-gray-500">Moins d'effets visuels lourds</p></div>
+                                <div><p className="font-bold text-sm">{t.motion_reduced}</p><p className="text-[10px] text-gray-500">Moins d'effets visuels lourds</p></div>
                             </div>
                             <button onClick={currency.toggleReducedMotion} className={`w-12 h-6 rounded-full relative transition-colors ${currency.reducedMotion ? 'bg-orange-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.reducedMotion ? 'left-7' : 'left-1'}`}></div></button>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
                             <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${!audio.isMuted ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{!audio.isMuted ? <Volume2 size={20}/> : <VolumeX size={20}/>}</div>
-                                <div><p className="font-bold text-sm">Effets Sonores</p><p className="text-[10px] text-gray-500">Sons d'interface et jeux</p></div>
+                                <div><p className="font-bold text-sm">{t.sound_fx}</p><p className="text-[10px] text-gray-500">Sons d'interface et jeux</p></div>
                             </div>
                             <button onClick={audio.toggleMute} className={`w-12 h-6 rounded-full relative transition-colors ${!audio.isMuted ? 'bg-green-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${!audio.isMuted ? 'left-7' : 'left-1'}`}></div></button>
                         </div>
@@ -324,7 +344,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 </div>
 
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Lock size={16} /> COMPTE</h3>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Lock size={16} /> {t.account}</h3>
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
                             <div className="flex-1">
@@ -364,7 +384,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             )}
                         </div>
 
-                        <button onClick={() => setShowPasswordModal(true)} className="w-full py-3 bg-gray-800 border border-white/10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-gray-300 active:scale-95 transition-all"><Key size={16}/> MODIFIER MOT DE PASSE</button>
+                        <button onClick={() => setShowPasswordModal(true)} className="w-full py-3 bg-gray-800 border border-white/10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-gray-300 active:scale-95 transition-all"><Key size={16}/> {t.edit_password.toUpperCase()}</button>
                         
                         {currency.isSuperUser && (
                             <div className="mt-2 pt-4 border-t border-white/5">
@@ -379,7 +399,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 </div>
 
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Gavel size={16} /> LÉGAL & INFOS</h3>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Gavel size={16} /> {t.legal}</h3>
                     <div className="flex flex-col gap-3">
                         <button onClick={() => setLegalTab('CGU')} className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all">
                             <FileText size={16} className="text-neon-blue" /> CONSULTER LES CGU / RGPD
@@ -388,19 +408,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                 </div>
 
                 <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-5 backdrop-blur-md">
-                    <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Trash2 size={16} /> ZONE DE DANGER</h3>
+                    <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Trash2 size={16} /> {t.danger_zone}</h3>
                     <div className="space-y-3">
                         <button onClick={handleHardReset} className="w-full py-3 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/40 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2">
                             <RefreshCw size={14}/> RÉINITIALISER LES PRÉFÉRENCES LOCALES
                         </button>
                         <button onClick={handleDeleteAccount} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg">
-                            <UserX size={16}/> SUPPRIMER DÉFINITIVEMENT MON COMPTE
+                            <UserX size={16}/> {t.delete_account.toUpperCase()}
                         </button>
                     </div>
                 </div>
 
                 <div className="text-center py-4">
-                    <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase">Neon Arcade v3.0.0</p>
+                    <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase">Neon Arcade v3.1.0</p>
                     <p className="text-[10px] text-gray-700 mt-1 italic">Tous droits réservés</p>
                 </div>
             </div>

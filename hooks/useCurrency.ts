@@ -285,6 +285,63 @@ export const MALLETS_CATALOG: Mallet[] = [
     { id: 'm_stardust', name: 'Poussière d\'Etoiles', price: 8500, colors: ['#ffffff', '#000000', '#facc15'], type: 'complex', description: 'Éclats cosmiques.' },
 ];
 
+export type Language = 'fr' | 'en';
+
+export const TRANSLATIONS: Record<Language, any> = {
+    fr: {
+        settings: "Réglages",
+        language: "Langue",
+        profile: "Mon Profil Néon",
+        style: "Style Néon",
+        performance: "Performance",
+        account: "Compte",
+        legal: "Légal & Infos",
+        danger_zone: "Zone de Danger",
+        logout: "Déconnexion",
+        score: "Score",
+        record: "Record",
+        coins: "Pièces",
+        badges: "Badges",
+        motion_reduced: "Motion Réduite",
+        sound_fx: "Effets Sonores",
+        edit_password: "Changer Mot de Passe",
+        delete_account: "Supprimer Compte",
+        welcome: "Neon Arcade",
+        play: "Jouer",
+        online_users: "En Ligne",
+        shop: "Boutique",
+        chat: "Chat",
+        social: "Social",
+        home: "Accueil"
+    },
+    en: {
+        settings: "Settings",
+        language: "Language",
+        profile: "My Neon Profile",
+        style: "Neon Style",
+        performance: "Performance",
+        account: "Account",
+        legal: "Legal & Info",
+        danger_zone: "Danger Zone",
+        logout: "Log Out",
+        score: "Score",
+        record: "Record",
+        coins: "Coins",
+        badges: "Badges",
+        motion_reduced: "Reduced Motion",
+        sound_fx: "Sound Effects",
+        edit_password: "Change Password",
+        delete_account: "Delete Account",
+        welcome: "Neon Arcade",
+        play: "Play",
+        online_users: "Online",
+        shop: "Shop",
+        chat: "Chat",
+        social: "Social",
+        home: "Home"
+    }
+};
+
 const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -300,6 +357,8 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
     });
     
+    const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem('neon-language') as Language) || 'fr');
+
     const [username, setUsername] = useState(() => localStorage.getItem('neon-username') || "Joueur Néon");
     const [email, setEmail] = useState(() => localStorage.getItem('neon-email') || "");
     const [currentAvatarId, setCurrentAvatarId] = useState(() => localStorage.getItem('neon-avatar') || "av_bot");
@@ -378,6 +437,13 @@ export const useCurrency = () => {
         }
     }, [accentColor]);
 
+    const setLanguage = (lang: Language) => {
+        setLanguageState(lang);
+        localStorage.setItem('neon-language', lang);
+    };
+
+    const t = useMemo(() => TRANSLATIONS[language], [language]);
+
     const importData = useCallback((data: any) => {
         if (!data) return;
         if (data.coins !== undefined) { setCoins(data.coins); localStorage.setItem('neon-coins', data.coins.toString()); }
@@ -447,18 +513,19 @@ export const useCurrency = () => {
     };
 
     const playerRank = useMemo(() => {
-        if (isSuperUser) return { title: 'ADMINISTRATEUR', color: 'text-red-500', glow: 'shadow-red-500/50' };
+        if (isSuperUser) return { title: language === 'fr' ? 'ADMINISTRATEUR' : 'ADMINISTRATOR', color: 'text-red-500', glow: 'shadow-red-500/50' };
         const count = inventory.length;
-        if (count >= 12) return { title: 'LÉGENDE VIVANTE', color: 'text-amber-400', glow: 'shadow-amber-400/50' };
-        if (count >= 8) return { title: 'MAÎTRE ARCADE', color: 'text-purple-400', glow: 'shadow-purple-400/50' };
-        if (count >= 5) return { title: 'CHASSEUR DE PIXELS', color: 'text-cyan-400', glow: 'shadow-cyan-400/50' };
-        if (count >= 2) return { title: 'EXPLORATEUR', color: 'text-green-400', glow: 'shadow-green-400/50' };
-        return { title: 'VAGABOND NÉON', color: 'text-gray-400', glow: 'shadow-gray-400/20' };
-    }, [inventory, isSuperUser]);
+        if (count >= 12) return { title: language === 'fr' ? 'LÉGENDE VIVANTE' : 'LIVING LEGEND', color: 'text-amber-400', glow: 'shadow-amber-400/50' };
+        if (count >= 8) return { title: language === 'fr' ? 'MAÎTRE ARCADE' : 'ARCADE MASTER', color: 'text-purple-400', glow: 'shadow-purple-400/50' };
+        if (count >= 5) return { title: language === 'fr' ? 'CHASSEUR DE PIXELS' : 'PIXEL HUNTER', color: 'text-cyan-400', glow: 'shadow-cyan-400/50' };
+        if (count >= 2) return { title: language === 'fr' ? 'EXPLORATEUR' : 'EXPLORER', color: 'text-green-400', glow: 'shadow-green-400/50' };
+        return { title: language === 'fr' ? 'VAGABOND NÉON' : 'NEON WANDERER', color: 'text-gray-400', glow: 'shadow-gray-400/20' };
+    }, [inventory, isSuperUser, language]);
 
     return { 
         coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories,
         accentColor, updateAccentColor, privacySettings, togglePrivacy, reducedMotion, toggleReducedMotion,
+        language, setLanguage, t,
         isSuperUser, adminModeActive, toggleAdminMode: () => { const n = !adminModeActive; setAdminModeActive(n); localStorage.setItem('neon-admin-mode', JSON.stringify(n)); },
         refreshData, importData, addCoins, email, updateEmail,
         buyBadge: (id: string, cost: number) => {

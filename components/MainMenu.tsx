@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState, useRef } from 'react';
-import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle, Hexagon, ArrowRight } from 'lucide-react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { Play, Grid3X3, CircleDot, Volume2, VolumeX, Brain, RefreshCw, ShoppingBag, Coins, Trophy, ChevronDown, Edit2, Check, Ghost, Lock, Sparkles, Ship, BrainCircuit, Download, Users, Wind, Activity, Globe, Calendar, CheckCircle, Rocket, LogOut, Copy, Vibrate, VibrateOff, User, Shield, ShieldAlert, Cloud, Palette, Star, Settings, Eye, EyeOff, Hourglass, Hash, Crown, LayoutGrid, Zap, Gamepad2, Puzzle, BarChart2, Layers, Crosshair, Gift, Target, Info, X, AlertTriangle, Hexagon, ArrowRight, Car } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { useHighScores, HighScores } from '../hooks/useHighScores';
@@ -114,7 +114,9 @@ const StackIcon = ({ size, className }: { size?: number | string, className?: st
 );
 
 const GAMES_CONFIG = [
-    { id: 'slither', category: 'ARCADE', name: 'NEON SLITHER', icon: SlitherIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: true, new: true }, reward: 'GAINS' },
+    { id: 'slither', category: 'ARCADE', name: 'NEON SLITHER', icon: SlitherIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS' },
+    { id: 'rush', category: 'PUZZLE', name: 'NEON RUSH', icon: Car, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
+    { id: 'game2048', category: 'PUZZLE', name: 'NEON 2048', icon: Hash, color: 'text-blue-400', bg: 'bg-blue-900/20', border: 'border-blue-500/30', hoverBorder: 'hover:border-blue-400', shadow: 'hover:shadow-[0_0_20px_rgba(37,99,235,0.3)]', glow: 'rgba(37,99,235,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
     { id: 'lumen', category: 'PUZZLE', name: 'LUMEN ORDER', icon: Hexagon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS' },
     { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: Grid3X3, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS' },
     { id: 'arenaclash', category: 'ARCADE', name: 'ARENA CLASH', icon: Crosshair, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS' },
@@ -160,6 +162,8 @@ const LEADERBOARD_GAMES = [
     { id: 'watersort', label: 'NEON MIX', unit: 'Niv', type: 'high', color: 'text-pink-400' },
     { id: 'memory', label: 'MEMORY', unit: 'cps', type: 'low', color: 'text-violet-400' },
     { id: 'mastermind', label: 'NEON MIND', unit: 'cps', type: 'low', color: 'text-indigo-400' },
+    { id: 'game2048', label: '2048', unit: '', type: 'high', color: 'text-blue-400' },
+    { id: 'rush', label: 'RUSH', unit: 'Niv', type: 'high', color: 'text-red-500' },
 ];
 
 const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComplete }: { startX: number, startY: number, targetX: number, targetY: number, delay: number, onComplete: () => void }) => {
@@ -205,7 +209,7 @@ const ArcadeLogo = () => {
 };
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currency, mp, dailyData, onLogout, isAuthenticated = false, onLoginRequest, onlineUsers, liveUsers, onOpenSocial, disabledGamesList = [], activeEvent, eventProgress, highScores }) => {
-    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog, currentMalletId } = currency;
+    const { coins, inventory, catalog, playerRank, username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, addCoins, currentTitleId, titlesCatalog, currentMalletId, t, language } = currency;
     const [showScores, setShowScores] = useState(false);
     const [scoreTab, setScoreTab] = useState<'LOCAL' | 'GLOBAL'>('LOCAL');
     const [activeCategory, setActiveCategory] = useState('ALL');
@@ -318,6 +322,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         }
     };
 
+    const categoriesLocalized = useMemo(() => {
+        return CATEGORIES.map(c => {
+            if (c.id === 'ALL') return { ...c, label: language === 'fr' ? 'TOUT' : 'ALL' };
+            if (c.id === 'ONLINE') return { ...c, label: language === 'fr' ? 'EN LIGNE' : 'ONLINE' };
+            if (c.id === 'PUZZLE') return { ...c, label: language === 'fr' ? 'RÉFLEXION' : 'PUZZLE' };
+            if (c.id === 'STRATEGY') return { ...c, label: language === 'fr' ? 'STRATÉGIE' : 'STRATEGY' };
+            return c;
+        });
+    }, [language]);
+
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto pb-24">
             {flyingCoins.map(coin => <FlyingCoin key={coin.id} startX={coin.startX} startY={coin.startY} targetX={coin.targetX} targetY={coin.targetY} delay={coin.delay} onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))} />)}
@@ -331,14 +345,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         <span className="text-yellow-100 font-mono font-bold text-lg">{coins.toLocaleString()}</span>
                     </div>
                 ) : (
-                    <button onClick={onLoginRequest} className="flex items-center gap-2 bg-neon-blue/20 backdrop-blur-md px-4 py-2 rounded-full border border-neon-blue/50 hover:bg-neon-blue/40 transition-colors animate-pulse"><User className="text-neon-blue" size={20} /><span className="text-neon-blue font-bold text-sm">SE CONNECTER</span></button>
+                    <button onClick={onLoginRequest} className="flex items-center gap-2 bg-neon-blue/20 backdrop-blur-md px-4 py-2 rounded-full border border-neon-blue/50 hover:bg-neon-blue/40 transition-colors animate-pulse"><User className="text-neon-blue" size={20} /><span className="text-neon-blue font-bold text-sm uppercase">{language === 'fr' ? 'SE CONNECTER' : 'LOGIN'}</span></button>
                 )}
                 <div className="flex gap-3">
                     {isAuthenticated && onOpenSocial && (
                         <button 
                             onClick={() => onOpenSocial('COMMUNITY')} 
                             className="flex items-center gap-2 px-3 py-2 bg-green-900/40 text-green-400 rounded-full border border-green-500/30 font-bold text-xs hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.2)] active:scale-95"
-                            title="Amis connectés"
+                            title={language === 'fr' ? 'Amis connectés' : 'Online Friends'}
                         >
                             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_#22c55e]"></div>
                             <Users size={16} />
@@ -373,15 +387,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                  <span className="font-black text-lg uppercase leading-tight drop-shadow-md text-white">{activeEvent.title}</span>
                              </div>
                          </div>
-                         <div className="px-3 py-1 bg-white/20 rounded-lg text-xs font-black tracking-wider animate-pulse border border-white/30 text-white z-10 flex items-center gap-1">
-                             <Info size={12} /> DÉTAILS
+                         <div className="px-3 py-1 bg-white/20 rounded-lg text-xs font-black tracking-wider animate-pulse border border-white/30 text-white z-10 flex items-center gap-1 uppercase">
+                             <Info size={12} /> {language === 'fr' ? 'DÉTAILS' : 'DETAILS'}
                          </div>
                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"></div>
                      </div>
                  )}
                  <div {...bindGlow('var(--neon-accent, #00f3ff)')} className="w-full bg-black/60 border accent-border rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
-                    {isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title="Se déconnecter"><LogOut size={14} /></button>}
+                    {isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title={t.logout}><LogOut size={14} /></button>}
                     <div className="flex items-center w-full gap-3 z-10">
                         <div onClick={() => isAuthenticated ? onSelectGame('shop') : onLoginRequest && onLoginRequest()} className="relative cursor-pointer hover:scale-105 transition-transform shrink-0">
                             {isAuthenticated ? (
@@ -429,8 +443,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                 </>
                             ) : (
                                 <div className="flex flex-col gap-1 items-start">
-                                    <h2 className="text-base font-bold text-gray-400 italic">Mode Visiteur</h2>
-                                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-lg active:scale-95 shadow-[0_0_10px_rgba(0,243,255,0.3)]">SE CONNECTER / CRÉER</button>
+                                    <h2 className="text-base font-bold text-gray-400 italic">{language === 'fr' ? 'Mode Visiteur' : 'Guest Mode'}</h2>
+                                    <button onClick={onLoginRequest} className="text-[10px] bg-neon-blue text-black px-3 py-1.5 rounded font-bold hover:bg-white transition-colors shadow-lg active:scale-95 shadow-[0_0_10px_rgba(0,243,255,0.3)] uppercase">{language === 'fr' ? 'SE CONNECTER / CRÉER' : 'LOGIN / REGISTER'}</button>
                                 </div>
                             )}
                         </div>
@@ -439,7 +453,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  <div {...bindGlow('rgba(34, 197, 94, 0.8)')} className={`w-full bg-black/80 border ${isAuthenticated ? 'border-green-500/30' : 'border-gray-700/50'} rounded-xl p-3 backdrop-blur-md shadow-[0_0_20px_rgba(34, 197, 94,0.1)] relative overflow-hidden group hover:border-green-500/50 hover:shadow-[0_0_35px_rgba(34, 197, 94,0.5)] hover:ring-1 hover:ring-green-500/30 transition-all duration-300 ${!isAuthenticated ? 'opacity-70 grayscale' : ''}`}>
                      <div onClick={() => isAuthenticated && setIsQuestsExpanded(!isQuestsExpanded)} className={`flex items-center justify-between border-white/10 relative z-10 cursor-pointer ${isQuestsExpanded ? 'border-b mb-2 pb-2' : ''}`}>
                          <div className="flex items-center gap-2 overflow-hidden py-1">
-                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap pr-2"><CheckCircle size={16} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> DÉFIS DU JOUR</h3>
+                             <h3 className="text-base font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 flex items-center gap-2 drop-shadow-[0_0_5px_rgba(34,197,94,0.5)] whitespace-nowrap pr-2 uppercase"><CheckCircle size={16} className="text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> {language === 'fr' ? 'DÉFIS DU JOUR' : 'DAILY QUESTS'}</h3>
                              {isAuthenticated && !isQuestsExpanded && (<div className="flex gap-1 ml-1 animate-in fade-in duration-300 shrink-0">{quests.map((q) => (<div key={q.id} title={q.description} className={`w-3 h-3 flex items-center justify-center rounded-full border transition-colors ${q.isCompleted ? 'bg-green-500 border-green-400 shadow-[0_0_5px_#22c55e]' : 'bg-gray-800/50 border-white/10'}`}>{q.isCompleted && <Check size={8} className="text-black" strokeWidth={4} />}</div>))}</div>)}
                          </div>
                          {isAuthenticated ? <ChevronDown size={16} className={`text-green-400 transition-transform duration-300 ${isQuestsExpanded ? 'rotate-180' : ''}`} /> : <Lock size={16} className="text-gray-500" />}
@@ -460,7 +474,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                                              {quest.isCompleted && !quest.isClaimed ? (
                                                  <button onClick={(e) => handleClaim(quest, e)} className="px-3 py-1.5 bg-yellow-400 text-black text-[10px] font-black tracking-wider rounded hover:bg-white shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-pulse flex items-center justify-center gap-1 shrink-0"><Coins size={12} fill="black" /> +{quest.reward}</button>
                                              ) : quest.isClaimed ? (
-                                                 <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 rounded border border-green-500/20 shrink-0"><Check size={12} className="text-green-400" /><span className="text-[10px] font-black text-green-400 tracking-wider">FAIT</span></div>
+                                                 <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 rounded border border-green-500/20 shrink-0"><Check size={12} className="text-green-400" /><span className="text-[10px] font-black text-green-400 tracking-wider uppercase">{language === 'fr' ? 'FAIT' : 'DONE'}</span></div>
                                              ) : (
                                                  <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-mono font-bold bg-yellow-900/10 px-2 py-1 rounded border border-yellow-500/20 shrink-0"><Coins size={10} /> {quest.reward}</div>
                                              )}
@@ -473,19 +487,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      )}
                  </div>
                  <div {...bindGlow('rgba(250, 204, 21, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300 shadow-xl hover:shadow-[0_0_35px_rgba(250, 204, 21, 0.5)] hover:border-yellow-400/50 hover:ring-1 hover:ring-yellow-400/30">
-                    <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between"><div className="flex items-center gap-3"><Trophy size={20} className="text-yellow-400" /><h3 className="text-lg font-bold text-white italic">SCORES & CLASSEMENTS</h3></div><ChevronDown size={20} className={`transition-transform ${showScores ? 'rotate-180' : ''}`} /></button>
+                    <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between"><div className="flex items-center gap-3"><Trophy size={20} className="text-yellow-400" /><h3 className="text-lg font-bold text-white italic uppercase">{language === 'fr' ? 'SCORES & CLASSEMENTS' : 'SCORES & LEADERBOARDS'}</h3></div><ChevronDown size={20} className={`transition-transform ${showScores ? 'rotate-180' : ''}`} /></button>
                     {showScores && (
                         <div className="px-4 pb-4 animate-in fade-in duration-300">
                             <div className="flex bg-black/30 p-1 rounded-lg mb-3">
-                                <button onClick={() => setScoreTab('LOCAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'LOCAL' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white'}`}>MON RECORDS</button>
-                                <button onClick={() => setScoreTab('GLOBAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}>MONDE (HISTOIRE)</button>
+                                <button onClick={() => setScoreTab('LOCAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'LOCAL' ? 'bg-yellow-500 text-black' : 'text-gray-400 hover:text-white uppercase'}`}>{language === 'fr' ? 'MES RECORDS' : 'MY RECORDS'}</button>
+                                <button onClick={() => setScoreTab('GLOBAL')} className={`flex-1 py-1 text-xs font-bold rounded ${scoreTab === 'GLOBAL' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white uppercase'}`}>{language === 'fr' ? 'MONDE' : 'WORLD'}</button>
                             </div>
                             {scoreTab === 'LOCAL' ? (
                                 <div className="space-y-2">
                                     {LEADERBOARD_GAMES.map(game => {
-                                        const score = highScores[game.id];
+                                        const score = highScores[game.id as keyof HighScores];
                                         const displayScore = game.id === 'sudoku' && typeof score === 'object' ? score?.medium : score;
-                                        if (displayScore && displayScore > 0) return (<div key={game.id} className="py-2 border-t border-white/5 flex justify-between"><span className={`text-xs font-bold ${game.color}`}>{game.label}</span><span className="text-xs font-mono">{displayScore.toLocaleString()} {game.unit}</span></div>);
+                                        if (displayScore && (displayScore as number) > 0) return (<div key={game.id} className="py-2 border-t border-white/5 flex justify-between"><span className={`text-xs font-bold ${game.color}`}>{game.label}</span><span className="text-xs font-mono">{(displayScore as number).toLocaleString()} {game.unit}</span></div>);
                                         return null;
                                     })}
                                 </div>
@@ -500,7 +514,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         </div>
                     )}
                 </div>
-                 <div className="flex gap-2 w-full overflow-x-auto pb-2 no-scrollbar px-1">{CATEGORIES.map(cat => (<button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all border ${activeCategory === cat.id ? 'bg-neon-accent text-black border-neon-accent shadow-[0_0_10px_rgba(var(--neon-accent-rgb),0.5)]' : 'bg-gray-900 text-gray-400 border-white/10 hover:border-white/30 hover:text-white'}`}><cat.icon size={14} /> {cat.label}</button>))}</div>
+                 <div className="flex gap-2 w-full overflow-x-auto pb-2 no-scrollbar px-1">{categoriesLocalized.map(cat => (<button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all border ${activeCategory === cat.id ? 'bg-neon-accent text-black border-neon-accent shadow-[0_0_10px_rgba(var(--neon-accent-rgb),0.5)]' : 'bg-gray-900 text-gray-400 border-white/10 hover:border-white/30 hover:text-white'}`}><cat.icon size={14} /> {cat.label}</button>))}</div>
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                     {GAMES_CONFIG.filter(g => { if (activeCategory === 'ALL') return true; if (activeCategory === 'ONLINE') return g.badges.online; return g.category === activeCategory; }).map((game) => {
                         const isDisabled = disabledGamesList.includes(game.id) && !(username === 'Vincent' || currency.adminModeActive);
@@ -508,8 +522,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                             <button key={game.id} onClick={() => handleGameStart(game.id)} disabled={isDisabled} {...(!isDisabled ? bindGlow(game.glow) : {})} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md ${isDisabled ? 'border-gray-800 opacity-60 grayscale cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}>
                                 {!isDisabled && <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>}
                                 <div className="w-full flex justify-end gap-1 relative z-10">
-                                    {game.badges.new && !isDisabled && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse">NEW</div>}
-                                    {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title="En Ligne"><Globe size={10} /></div>}
+                                    {game.badges.new && !isDisabled && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse uppercase">{language === 'fr' ? 'NOUVEAU' : 'NEW'}</div>}
+                                    {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
                                 </div>
                                 <div className={`p-2 rounded-lg bg-gray-900/50 ${!isDisabled ? game.color : 'text-gray-500'} ${!isDisabled && 'group-hover:scale-110'} transition-transform relative z-10 shadow-lg border border-white/5`}><game.icon size={32} /></div>
                                 <div className="text-center relative z-10 w-full"><h3 className={`font-black italic text-sm tracking-wider text-white ${!isDisabled && `group-hover:${game.color}`} transition-colors uppercase`}>{game.name}</h3></div>
@@ -517,7 +531,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         );
                     })}
                  </div>
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v3.1 • NEON SLITHER</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v3.1 • NEON ARCADE</div>
              </div>
         </div>
     );

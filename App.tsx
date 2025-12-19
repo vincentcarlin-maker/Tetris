@@ -21,6 +21,8 @@ import { ArenaClashGame } from './components/arenaclash/ArenaClashGame';
 import { SkyjoGame } from './components/skyjo/SkyjoGame';
 import { LumenOrderGame } from './components/lumen/LumenOrderGame';
 import { SlitherGame } from './components/slither/SlitherGame';
+import { Game2048 } from './components/game2048/Game2048';
+import { RushGame } from './components/rush/RushGame';
 import { Shop } from './components/Shop';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SocialOverlay, FriendRequest } from './components/SocialOverlay';
@@ -37,7 +39,7 @@ import { DB } from './lib/supabaseClient';
 import { AlertTriangle, Info, Construction } from 'lucide-react';
 
 
-type ViewState = 'menu' | 'social' | 'settings' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
+type ViewState = 'menu' | 'social' | 'settings' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'game2048' | 'rush' | 'shop' | 'admin_dashboard';
 type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
 
 const App: React.FC = () => {
@@ -47,7 +49,6 @@ const App: React.FC = () => {
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [isCloudSynced, setIsCloudSynced] = useState(false);
     
-    // Social UI State
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
@@ -113,7 +114,6 @@ const App: React.FC = () => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'FRIEND_REQUEST') {
                 const sender = data.sender;
-                
                 setFriendRequests(prev => {
                     if (prev.some(r => r.id === sender.id)) return prev;
                     const storedFriends = localStorage.getItem('neon_friends');
@@ -122,7 +122,6 @@ const App: React.FC = () => {
                         try { friends = JSON.parse(storedFriends); } catch {}
                     }
                     if (friends.some((f: any) => f.id === sender.id)) return prev;
-
                     audio.playCoin(); 
                     return [...prev, { ...sender, timestamp: Date.now() }];
                 });
@@ -308,7 +307,7 @@ const App: React.FC = () => {
     }, [currency.currentWallpaperId, currency.wallpapersCatalog]);
 
     useEffect(() => {
-        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers', 'runner', 'stack', 'arenaclash', 'skyjo', 'lumen', 'slither'];
+        const gameViews: ViewState[] = ['tetris', 'connect4', 'sudoku', 'breaker', 'pacman', 'memory', 'battleship', 'snake', 'invaders', 'airhockey', 'mastermind', 'uno', 'watersort', 'checkers', 'runner', 'stack', 'arenaclash', 'skyjo', 'lumen', 'slither', 'game2048', 'rush'];
         const isGameView = gameViews.includes(currentView);
         if (isGameView) {
             document.body.classList.add('overflow-hidden');
@@ -373,7 +372,7 @@ const App: React.FC = () => {
         const isRestricted = disabledGames.includes(game);
         const isImmune = currency.username === 'Vincent' || currency.username === 'Test' || currency.adminModeActive;
         if (isRestricted && !isImmune) {
-             setGlobalAlert({ message: "Ce jeu est actuellement désactivé.", type: 'warning' });
+             setGlobalAlert({ message: "Ce jeu a été désactivé par l'administrateur.", type: 'warning' });
              setTimeout(() => setGlobalAlert(null), 2000);
              return;
         }
@@ -492,6 +491,8 @@ const App: React.FC = () => {
                 {currentView === 'skyjo' && isAuthenticated && <SkyjoGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('skyjo', metric, val)} />}
                 {currentView === 'lumen' && isAuthenticated && <LumenOrderGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('lumen', metric, val)} />}
                 {currentView === 'slither' && isAuthenticated && <SlitherGame onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} mp={mp} onReportProgress={(metric, val) => handleGameEvent('slither', metric, val)} />}
+                {currentView === 'game2048' && isAuthenticated && <Game2048 onBack={handleBackToMenu} audio={audio} addCoins={addCoinsWithSoundAndQuest} onReportProgress={(metric, val) => handleGameEvent('game2048', metric, val)} />}
+                {currentView === 'rush' && isAuthenticated && <RushGame onBack={handleBackToMenu} audio={audio} currency={currency} />}
 
                 {currentView === 'menu' && (
                     <MainMenu 
