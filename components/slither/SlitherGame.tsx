@@ -27,12 +27,12 @@ interface Food { id: string; x: number; y: number; val: number; color: string; }
 const WORLD_SIZE = 2000;
 const INITIAL_LENGTH = 15;
 const SEGMENT_DISTANCE = 6; // Distance fixe entre les segments
-const BASE_SPEED = 4.2; // Augmenté de 3.5 pour plus de dynamisme
-const BOOST_SPEED = 8.5; // Augmenté de 7
-const TURN_SPEED = 0.22; // Augmenté de 0.12 pour une rotation beaucoup plus sensible
+const BASE_SPEED = 4.2; 
+const BOOST_SPEED = 8.5; 
+const TURN_SPEED = 0.22; 
 const RADAR_SIZE = 120;
 const DOUBLE_TAP_DELAY = 300; // ms
-const JOYSTICK_DEADZONE = 3; // Réduit de 5 pour capter les micro-mouvements
+const JOYSTICK_DEADZONE = 3; 
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -96,8 +96,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const startGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
-        
-        // Find player's skin and accessory
         const playerSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId) || slitherSkinsCatalog[0];
         const playerAcc = slitherAccessoriesCatalog.find(a => a.id === currentSlitherAccessoryId);
         
@@ -115,7 +113,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         if (onReportProgress) onReportProgress('play', 1);
     };
 
-    // --- HELPER: MOVE WORM LOGIC ---
     const updateWormMovement = (worm: Worm, targetAngle: number, speed: number) => {
         let angleDiff = targetAngle - worm.angle;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
@@ -145,27 +142,21 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         worm.segments = newSegments;
     };
 
-    // --- MULTIPLAYER SYNC ---
-    useEffect(() => {
-        if (gameMode !== 'ONLINE') return;
-        const unsubscribe = mp.subscribe((data: any) => {
-            if (data.type === 'SLITHER_UPDATE') {
-                const remote = data.worm;
-                if (remote.id === mp.peerId) return;
-                const idx = othersRef.current.findIndex(w => w.id === remote.id);
-                if (idx === -1) othersRef.current.push(remote);
-                else othersRef.current[idx] = remote;
+    // --- SMART AI UTILS ---
+    const isWormCollidingAt = (x: number, y: number, radius: number, excludeId: string, allWorms: Worm[]) => {
+        for (const worm of allWorms) {
+            if (worm.isDead) continue;
+            for (let i = 0; i < worm.segments.length; i++) {
+                // If it's our own worm, only check segments far from head
+                if (worm.id === excludeId && i < 10) continue;
+                
+                const seg = worm.segments[i];
+                const dist = Math.hypot(x - seg.x, y - seg.y);
+                if (dist < radius + 15) return true;
             }
-            if (data.type === 'SLITHER_FOOD_EATEN') {
-                foodRef.current = foodRef.current.filter(f => f.id !== data.foodId);
-            }
-            if (data.type === 'SLITHER_KILLED') {
-                const idx = othersRef.current.findIndex(w => w.id === data.id);
-                if (idx !== -1) othersRef.current.splice(idx, 1);
-            }
-        });
-        return () => unsubscribe();
-    }, [gameMode, mp]);
+        }
+        return false;
+    };
 
     // --- UPDATE LOOP ---
     const update = (dt: number) => {
@@ -238,32 +229,78 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         cameraRef.current.x = head.x;
         cameraRef.current.y = head.y;
 
+        // --- IMPROVED BOT AI ---
         if (gameMode === 'SOLO') {
+            const allWorms = [player, ...othersRef.current];
             othersRef.current.forEach(bot => {
                 if (bot.isDead) return;
                 const bHead = bot.segments[0];
                 let botTargetAngle = bot.angle;
-                const margin = 150;
+                
+                // 1. OBSTACLE AVOIDANCE (Higher Priority)
+                const lookAheadDist = 120;
+                const sides = [-0.8, -0.4, 0, 0.4, 0.8]; // Angles to check
+                let blocked = false;
+                let bestSideAngle = bot.angle;
+                let clearestDist = -1;
+
+                // Check world boundaries
+                const margin = 100;
                 if (bHead.x < margin) botTargetAngle = 0;
                 else if (bHead.x > WORLD_SIZE - margin) botTargetAngle = Math.PI;
                 else if (bHead.y < margin) botTargetAngle = Math.PI / 2;
                 else if (bHead.y > WORLD_SIZE - margin) botTargetAngle = -Math.PI / 2;
                 else {
-                    let closestF = null, minDist = 400;
-                    foodRef.current.forEach(f => {
-                        const d = Math.hypot(bHead.x - f.x, bHead.y - f.y);
-                        if (d < minDist) { minDist = d; closestF = f; }
-                    });
-                    if (closestF) botTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
-                    else if (Math.random() > 0.95) botTargetAngle += (Math.random() - 0.5) * 1.5;
+                    // Check other worms
+                    for (const angleOffset of sides) {
+                        const checkAngle = bot.angle + angleOffset;
+                        const cx = bHead.x + Math.cos(checkAngle) * lookAheadDist;
+                        const cy = bHead.y + Math.sin(checkAngle) * lookAheadDist;
+                        
+                        const isHit = isWormCollidingAt(cx, cy, bot.radius, bot.id, allWorms);
+                        if (isHit && angleOffset === 0) blocked = true;
+                        
+                        if (!isHit) {
+                            // This path is clear, steer towards it
+                            if (Math.abs(angleOffset) > 0.1) {
+                                botTargetAngle = checkAngle;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 2. FOOD SEEKING (Only if not blocked)
+                    if (!blocked) {
+                        let closestF = null, minDist = 500;
+                        foodRef.current.forEach(f => {
+                            const d = Math.hypot(bHead.x - f.x, bHead.y - f.y);
+                            if (d < minDist) { minDist = d; closestF = f; }
+                        });
+                        if (closestF) {
+                            botTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
+                            // Only boost if bot is large enough and food is valuable
+                            bot.isBoost = (bot.segments.length > 20 && closestF.val > 2);
+                        } else {
+                            bot.isBoost = false;
+                            if (Math.random() > 0.98) botTargetAngle += (Math.random() - 0.5) * 1.5;
+                        }
+                    } else {
+                        bot.isBoost = true; // Panic boost to get away
+                    }
                 }
-                updateWormMovement(bot, botTargetAngle, BASE_SPEED);
-                if (Math.hypot(bHead.x - head.x, bHead.y - head.y) < 30) handleDeath();
+
+                const speed = bot.isBoost ? BOOST_SPEED : BASE_SPEED;
+                updateWormMovement(bot, botTargetAngle, speed);
+
+                // Bot death logic
+                if (Math.hypot(bHead.x - head.x, bHead.y - head.y) < 25) handleDeath();
                 else {
                     player.segments.forEach((pSeg, pIdx) => {
                         if (pIdx > 2 && Math.hypot(bHead.x - pSeg.x, bHead.y - pSeg.y) < 18) {
                             bot.isDead = true;
-                            bot.segments.forEach((s, idx) => { if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 3, color: bot.skin?.primaryColor || bot.color }); });
+                            bot.segments.forEach((s, idx) => { 
+                                if(idx % 2 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); 
+                            });
                         }
                     });
                 }
@@ -279,10 +316,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
         const allWorms = [player, ...othersRef.current];
         const sortedWorms = [...allWorms].sort((a,b) => b.score - a.score);
-        
         const myRankIndex = sortedWorms.findIndex(w => w.id === player.id);
         setRank({ current: myRankIndex + 1, total: sortedWorms.length });
-        
         const lb = sortedWorms.slice(0, 10).map(w => ({ name: w.name, score: w.score, isMe: w.id === player.id }));
         setLeaderboard(lb);
     };
@@ -389,7 +424,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             ctx.arc(0, -radius * 0.8, radius * 0.8, Math.PI, 0);
             ctx.fill();
             ctx.stroke();
-            // Gem central
             ctx.fillStyle = '#fff';
             ctx.fillRect(-2, -radius * 1.6, 4, 4);
         } else if (type === 'HAT') {
@@ -413,7 +447,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         } else if (type === 'CAP') {
             ctx.fillStyle = color;
             ctx.beginPath(); ctx.arc(0, -radius * 0.6, radius * 0.8, Math.PI, 0); ctx.fill(); ctx.stroke();
-            ctx.fillRect(0, -radius * 0.7, radius * 1.2, radius * 0.2); // Visière
+            ctx.fillRect(0, -radius * 0.7, radius * 1.2, radius * 0.2);
         } else if (type === 'COWBOY') {
             ctx.fillStyle = color;
             ctx.beginPath(); ctx.ellipse(0, -radius * 0.5, radius * 1.5, radius * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -510,63 +544,26 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const radius = worm.radius || 10;
 
         ctx.save();
-        
-        // Rendu segment par segment pour les motifs (de la queue à la tête)
         for (let i = segs.length - 1; i >= 0; i--) {
             const seg = segs[i];
             const isHead = i === 0;
-            
             ctx.beginPath();
             ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
-            
-            // Logique de motif
-            if (pattern === 'solid') {
-                ctx.fillStyle = primary;
-            } else if (pattern === 'stripes') {
-                ctx.fillStyle = Math.floor(i / 3) % 2 === 0 ? primary : secondary;
-            } else if (pattern === 'dots') {
-                ctx.fillStyle = primary;
-            } else if (pattern === 'checker') {
-                ctx.fillStyle = i % 2 === 0 ? primary : secondary;
-            } else if (pattern === 'rainbow') {
-                const hue = (i * 10 + Date.now() / 20) % 360;
-                ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
-            } else if (pattern === 'grid') {
-                ctx.fillStyle = secondary;
-            } else {
-                ctx.fillStyle = primary;
-            }
-            
-            // Effet de boost
-            if (worm.isBoost) {
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#fff';
-            } else {
-                ctx.shadowBlur = isHead ? 15 : 5;
-                ctx.shadowColor = glow;
-            }
-            
+            if (pattern === 'solid') ctx.fillStyle = primary;
+            else if (pattern === 'stripes') ctx.fillStyle = Math.floor(i / 3) % 2 === 0 ? primary : secondary;
+            else if (pattern === 'dots') ctx.fillStyle = primary;
+            else if (pattern === 'checker') ctx.fillStyle = i % 2 === 0 ? primary : secondary;
+            else if (pattern === 'rainbow') { const hue = (i * 10 + Date.now() / 20) % 360; ctx.fillStyle = `hsl(${hue}, 100%, 60%)`; }
+            else if (pattern === 'grid') ctx.fillStyle = secondary;
+            else ctx.fillStyle = primary;
+            if (worm.isBoost) { ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; }
+            else { ctx.shadowBlur = isHead ? 15 : 5; ctx.shadowColor = glow; }
             ctx.fill();
-            
-            // Sous-motif (ex: pois ou grille)
-            if (pattern === 'dots' && i % 4 === 0) {
-                ctx.beginPath();
-                ctx.arc(seg.x, seg.y, radius * 0.4, 0, Math.PI * 2);
-                ctx.fillStyle = secondary;
-                ctx.fill();
-            } else if (pattern === 'grid' && i % 2 === 0) {
-                ctx.strokeStyle = primary;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(seg.x - radius*0.5, seg.y - radius*0.5, radius, radius);
-            }
-
-            // Bordure fine
+            if (pattern === 'dots' && i % 4 === 0) { ctx.beginPath(); ctx.arc(seg.x, seg.y, radius * 0.4, 0, Math.PI * 2); ctx.fillStyle = secondary; ctx.fill(); }
+            else if (pattern === 'grid' && i % 2 === 0) { ctx.strokeStyle = primary; ctx.lineWidth = 1; ctx.strokeRect(seg.x - radius*0.5, seg.y - radius*0.5, radius, radius); }
             ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            ctx.lineWidth = 1; ctx.stroke();
         }
-
-        // Yeux et nom (sur la tête)
         const head = segs[0];
         const eyeOffset = 8;
         const pupilOffset = 2.5; 
@@ -575,27 +572,16 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const eye1Y = head.y + Math.sin(eyeAngle + 0.6) * eyeOffset;
         const eye2X = head.x + Math.cos(eyeAngle - 0.6) * eyeOffset;
         const eye2Y = head.y + Math.sin(eyeAngle - 0.6) * eyeOffset;
-        
-        ctx.fillStyle = 'white';
-        ctx.shadowBlur = 5; ctx.shadowColor = 'white';
+        ctx.fillStyle = 'white'; ctx.shadowBlur = 5; ctx.shadowColor = 'white';
         ctx.beginPath(); ctx.arc(eye1X, eye1Y, 6, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(eye2X, eye2Y, 6, 0, Math.PI * 2); ctx.fill();
-        
-        ctx.fillStyle = 'black';
-        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'black'; ctx.shadowBlur = 0;
         ctx.beginPath(); ctx.arc(eye1X + Math.cos(eyeAngle) * pupilOffset, eye1Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
-        
-        // Affichage de l'accessoire
-        if (worm.accessory && worm.accessory.id !== 'sa_none') {
-            drawAccessory(ctx, head.x, head.y, worm.angle, worm.accessory, radius);
-        }
-
+        if (worm.accessory && worm.accessory.id !== 'sa_none') drawAccessory(ctx, head.x, head.y, worm.angle, worm.accessory, radius);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.font = 'bold 14px Rajdhani';
-        ctx.textAlign = 'center';
+        ctx.font = 'bold 14px Rajdhani'; ctx.textAlign = 'center';
         ctx.fillText(worm.name, head.x, head.y - 35);
-        
         ctx.restore();
     };
 
@@ -617,17 +603,10 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const handleInputStart = (x: number, y: number) => {
         if (gameState !== 'PLAYING') return;
-        
         const now = Date.now();
         const diff = now - lastTapTimeRef.current;
-        
-        if (diff < DOUBLE_TAP_DELAY) {
-            setIsBoosting(prev => !prev);
-            playMove();
-        }
-        
+        if (diff < DOUBLE_TAP_DELAY) { setIsBoosting(prev => !prev); playMove(); }
         lastTapTimeRef.current = now;
-        
         joystickOriginRef.current = { x, y };
         joystickActiveRef.current = true;
         joystickVectorRef.current = { x: 0, y: 0 };
@@ -636,22 +615,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const handleInputMove = (x: number, y: number) => {
         if (!joystickActiveRef.current || !joystickOriginRef.current) return;
-        
-        joystickVectorRef.current = {
-            x: x - joystickOriginRef.current.x,
-            y: y - joystickOriginRef.current.y
-        };
+        joystickVectorRef.current = { x: x - joystickOriginRef.current.x, y: y - joystickOriginRef.current.y };
     };
 
-    const handleInputEnd = () => {
-        joystickActiveRef.current = false;
-        joystickOriginRef.current = null;
-    };
+    const handleInputEnd = () => { joystickActiveRef.current = false; joystickOriginRef.current = null; };
 
     const handleLocalBack = () => {
-        if (gameState === 'PLAYING') {
-            if (window.confirm("Quitter la partie en cours ?")) onBack();
-        } else onBack();
+        if (gameState === 'PLAYING') { if (window.confirm("Quitter la partie en cours ?")) onBack(); } else onBack();
     };
 
     return (
