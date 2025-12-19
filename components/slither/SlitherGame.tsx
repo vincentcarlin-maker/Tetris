@@ -27,7 +27,7 @@ interface Food { id: string; x: number; y: number; val: number; color: string; }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; color: string; size: number; }
 
 // --- CONSTANTS ---
-const WORLD_SIZE = 2000;
+const WORLD_SIZE = 10000; // Carte 5x plus large/longue -> 25x plus de surface (Sensation de 10x plus grand)
 const INITIAL_LENGTH = 15;
 const SEGMENT_DISTANCE = 5; 
 const BASE_SPEED = 4.2; 
@@ -36,6 +36,10 @@ const TURN_SPEED = 0.18;
 const RADAR_SIZE = 120;
 const DOUBLE_TAP_DELAY = 300; 
 const JOYSTICK_DEADZONE = 3; 
+
+const INITIAL_FOOD_COUNT = 4000;
+const MIN_FOOD_REGEN = 3500;
+const BOT_COUNT = 80;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -82,8 +86,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     // --- INITIALIZATION ---
     const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin, accessory?: SlitherAccessory): Worm => {
-        const x = Math.random() * (WORLD_SIZE - 400) + 200;
-        const y = Math.random() * (WORLD_SIZE - 400) + 200;
+        const x = Math.random() * (WORLD_SIZE - 1000) + 500;
+        const y = Math.random() * (WORLD_SIZE - 1000) + 500;
         const segments: Point[] = [];
         for (let i = 0; i < INITIAL_LENGTH; i++) {
             segments.push({ x: x - i * SEGMENT_DISTANCE, y });
@@ -131,8 +135,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         playerWormRef.current = spawnWorm(mp.peerId || 'player', username, playerSkin.primaryColor, playerSkin, playerAcc);
         foodRef.current = [];
         particlesRef.current = [];
-        spawnFood(300);
-        othersRef.current = mode === 'SOLO' ? Array.from({length: 12}, (_, i) => spawnWorm(`bot_${i}`, `CyberBot ${i+1}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
+        spawnFood(INITIAL_FOOD_COUNT);
+        othersRef.current = mode === 'SOLO' ? Array.from({length: BOT_COUNT}, (_, i) => spawnWorm(`bot_${i}`, `CyberBot ${i+1}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
         setGameState('PLAYING');
         setScore(0);
         setRank({ current: 0, total: 0 });
@@ -162,7 +166,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             const dy = curr.y - prev.y;
             const angle = Math.atan2(dy, dx);
 
-            // La distance entre segments reste fixe pour la fluidité, mais le rendu visuel est plus gros
             newSegments.push({
                 x: prev.x + Math.cos(angle) * SEGMENT_DISTANCE,
                 y: prev.y + Math.sin(angle) * SEGMENT_DISTANCE
@@ -175,12 +178,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const isWormCollidingAt = (x: number, y: number, radius: number, excludeId: string, allWorms: Worm[]) => {
         for (const worm of allWorms) {
             if (worm.isDead) continue;
-            // On ne vérifie pas la collision avec sa propre tête (indices 0 à 10 approx)
+            // Optimization: skip if worm is too far away
+            if (Math.abs(worm.segments[0].x - x) > 1000 || Math.abs(worm.segments[0].y - y) > 1000) continue;
+
             const startIdx = worm.id === excludeId ? 10 : 0;
             for (let i = startIdx; i < worm.segments.length; i += 2) { 
                 const seg = worm.segments[i];
                 const distSq = (x - seg.x)**2 + (y - seg.y)**2;
-                // Collision basée sur le rayon du ver touché + marge
                 if (distSq < (worm.radius + radius * 0.5)**2) return true;
             }
         }
@@ -232,7 +236,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 player.segments.pop();
                 player.score = Math.max(0, player.score - 2);
                 setScore(player.score);
-                // On met à jour le rayon si le score baisse (boost)
                 player.radius = calculateWormRadius(player.score);
                 const tail = player.segments[player.segments.length - 1];
                 foodRef.current.push({ id: `boost_f_${Date.now()}`, x: tail.x, y: tail.y, val: 1, color: player.skin?.primaryColor || player.color });
@@ -246,15 +249,12 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             handleDeath();
         }
 
-        // Consommation nourriture Joueur
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             const distSq = (head.x - f.x)**2 + (head.y - f.y)**2;
-            // Distance d'absorption corrélée au rayon de la tête
             if (distSq < (player.radius + 15)**2) {
                 player.score += f.val * 5;
                 setScore(player.score);
-                // Mise à jour de l'épaisseur du ver
                 player.radius = calculateWormRadius(player.score);
                 
                 playCoin();
@@ -264,19 +264,18 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 }
                 foodRef.current.splice(i, 1);
                 if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId: f.id });
-                if (foodRef.current.length < 250) spawnFood(50);
+                if (foodRef.current.length < MIN_FOOD_REGEN) spawnFood(100);
             }
         }
 
-        // Collisions du joueur avec les autres
         othersRef.current.forEach(other => {
             if (other.isDead) return;
+            // Early exit for far worms
+            if (Math.abs(other.segments[0].x - head.x) > 1000 || Math.abs(other.segments[0].y - head.y) > 1000) return;
+
             for (let sIdx = 0; sIdx < other.segments.length; sIdx += 2) {
-                // On ne meurt pas en touchant sa propre queue (déjà géré par startIdx dans isWormCollidingAt)
-                // Mais ici c'est un ver différent
                 const seg = other.segments[sIdx];
                 const dSq = (head.x - seg.x)**2 + (head.y - seg.y)**2;
-                // Collision si ma tête touche le corps de l'autre (basé sur son rayon actuel)
                 if (dSq < (other.radius + 5)**2) {
                     handleDeath();
                     return;
@@ -297,7 +296,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 let collisionFound = false;
                 let clearAngle = bot.angle;
 
-                const margin = 120;
+                const margin = 200;
                 if (bHead.x < margin) { clearAngle = 0; collisionFound = true; }
                 else if (bHead.x > WORLD_SIZE - margin) { clearAngle = Math.PI; collisionFound = true; }
                 else if (bHead.y < margin) { clearAngle = Math.PI / 2; collisionFound = true; }
@@ -320,8 +319,10 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 if (!collisionFound) {
                     bot.aiDecisionTimer = (bot.aiDecisionTimer || 0) - 1;
                     if (bot.aiDecisionTimer <= 0) {
-                        let closestF = null, minDistSq = 600**2;
+                        let closestF = null, minDistSq = 800**2;
+                        // Optimize: bots search only nearby food
                         foodRef.current.forEach(f => {
+                            if (Math.abs(f.x - bHead.x) > 800 || Math.abs(f.y - bHead.y) > 800) return;
                             const dSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
                             if (dSq < minDistSq) { minDistSq = dSq; closestF = f; }
                         });
@@ -357,30 +358,30 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     }
                 }
 
-                // Collision Bot contre Joueur
                 const distToPlayerHead = (bHead.x - head.x)**2 + (bHead.y - head.y)**2;
-                // Si les têtes se percutent, le plus petit meurt (ou les deux)
                 if (distToPlayerHead < (bot.radius + player.radius)**2) {
                      handleDeath();
                 } else {
-                    for (let pIdx = 0; pIdx < player.segments.length; pIdx += 2) {
-                        if (pIdx > 3) {
-                            const pSeg = player.segments[pIdx];
-                            const dSq = (bHead.x - pSeg.x)**2 + (bHead.y - pSeg.y)**2;
-                            if (dSq < (player.radius + 5)**2) {
-                                bot.isDead = true;
-                                spawnParticles(bHead.x, bHead.y, bot.color, 15);
-                                bot.segments.forEach((s, idx) => { 
-                                    if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); 
-                                });
-                                break;
+                    if (Math.abs(bHead.x - head.x) < 1000 && Math.abs(bHead.y - head.y) < 1000) {
+                        for (let pIdx = 0; pIdx < player.segments.length; pIdx += 2) {
+                            if (pIdx > 3) {
+                                const pSeg = player.segments[pIdx];
+                                const dSq = (bHead.x - pSeg.x)**2 + (bHead.y - pSeg.y)**2;
+                                if (dSq < (player.radius + 5)**2) {
+                                    bot.isDead = true;
+                                    spawnParticles(bHead.x, bHead.y, bot.color, 15);
+                                    bot.segments.forEach((s, idx) => { 
+                                        if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); 
+                                    });
+                                    break;
+                                }
                             }
                         }
                     }
                 }
             });
             othersRef.current = othersRef.current.filter(b => !b.isDead);
-            if (othersRef.current.length < 12) othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Bot " + (Math.floor(Math.random()*100)), COLORS[Math.floor(Math.random()*COLORS.length)]));
+            if (othersRef.current.length < BOT_COUNT) othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Bot " + (Math.floor(Math.random()*1000)), COLORS[Math.floor(Math.random()*COLORS.length)]));
         }
 
         if (gameMode === 'ONLINE' && Date.now() - lastNetworkUpdateRef.current > 50) {
@@ -436,27 +437,46 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             offsetY += (Math.random() - 0.5) * shakeRef.current;
         }
 
-        ctx.save();
-        
-        // Ajustement de zoom dynamique si le ver devient trop gros
         const zoom = Math.max(0.6, 1.0 - (player.radius - 12) * 0.015);
+        
+        // Calculate viewport bounds for culling
+        const viewW = ctx.canvas.width / zoom + 400;
+        const viewH = ctx.canvas.height / zoom + 400;
+        const minX = cam.x - viewW / 2;
+        const maxX = cam.x + viewW / 2;
+        const minY = cam.y - viewH / 2;
+        const maxY = cam.y + viewH / 2;
+
+        ctx.save();
         ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
         ctx.scale(zoom, zoom);
         ctx.translate(-ctx.canvas.width/2, -ctx.canvas.height/2);
-
         ctx.translate(offsetX, offsetY);
         
+        // Background Grid
         ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= WORLD_SIZE; i += 100) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_SIZE); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_SIZE, i); ctx.stroke();
+        ctx.lineWidth = 2;
+        const gridStep = 200;
+        const gridStartX = Math.floor(minX / gridStep) * gridStep;
+        const gridEndX = Math.ceil(maxX / gridStep) * gridStep;
+        const gridStartY = Math.floor(minY / gridStep) * gridStep;
+        const gridEndY = Math.ceil(maxY / gridStep) * gridStep;
+
+        for (let i = Math.max(0, gridStartX); i <= Math.min(WORLD_SIZE, gridEndX); i += gridStep) {
+            ctx.beginPath(); ctx.moveTo(i, Math.max(0, gridStartY)); ctx.lineTo(i, Math.min(WORLD_SIZE, gridEndY)); ctx.stroke();
         }
+        for (let i = Math.max(0, gridStartY); i <= Math.min(WORLD_SIZE, gridEndY); i += gridStep) {
+            ctx.beginPath(); ctx.moveTo(Math.max(0, gridStartX), i); ctx.lineTo(Math.min(WORLD_SIZE, gridEndX), i); ctx.stroke();
+        }
+        
         ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 20;
         ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
+        // Render Food with Culling
         foodRef.current.forEach(f => {
+            if (f.x < minX || f.x > maxX || f.y < minY || f.y > maxY) return;
+
             const grad = ctx.createRadialGradient(f.x - 2, f.y - 2, 0, f.x, f.y, 4 + f.val);
             grad.addColorStop(0, '#fff');
             grad.addColorStop(0.3, f.color);
@@ -477,7 +497,12 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             ctx.globalAlpha = 1.0;
         });
 
-        othersRef.current.forEach(worm => drawWorm(ctx, worm));
+        // Others with Culling
+        othersRef.current.forEach(worm => {
+            if (worm.segments[0].x < minX - 500 || worm.segments[0].x > maxX + 500 || worm.segments[0].y < minY - 500 || worm.segments[0].y > maxY + 500) return;
+            drawWorm(ctx, worm);
+        });
+
         if (gameState !== 'DYING') drawWorm(ctx, player);
         if (gameState === 'PLAYING') drawDirectionArrow(ctx, player);
         ctx.restore();
@@ -527,11 +552,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                                pattern === 'rainbow' ? `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)` :
                                primary;
 
-            // 3D EFFECT PER SEGMENT
             ctx.shadowBlur = isHead ? 20 : 5;
             ctx.shadowColor = worm.isBoost ? '#fff' : glow;
             
-            // Sphere shading gradient
             const bodyGrad = ctx.createRadialGradient(
                 seg.x - radius * 0.3, 
                 seg.y - radius * 0.3, 
@@ -547,17 +570,15 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 bodyGrad.addColorStop(0.6, secondary);
                 bodyGrad.addColorStop(1, '#000');
             } else {
-                bodyGrad.addColorStop(0, '#fff'); // Spéculaire
+                bodyGrad.addColorStop(0, '#fff');
                 bodyGrad.addColorStop(0.2, segmentColor);
-                bodyGrad.addColorStop(1, 'rgba(0,0,0,0.6)'); // Ombre propre
+                bodyGrad.addColorStop(1, 'rgba(0,0,0,0.6)');
             }
 
             ctx.fillStyle = bodyGrad;
             ctx.beginPath(); ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2); ctx.fill();
-            
             ctx.shadowBlur = 0;
             
-            // Specular Highlight (The 3D "white dot")
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.beginPath(); 
             ctx.ellipse(seg.x - radius * 0.35, seg.y - radius * 0.35, radius * 0.3, radius * 0.2, Math.PI / 4, 0, Math.PI * 2); 
@@ -683,7 +704,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                         <Zap size={64} className="text-indigo-400" />
                     </div>
                     <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">NEON SLITHER</h1>
-                    <p className="text-gray-400 text-sm mb-10 max-w-sm text-center leading-relaxed">Dirige ton ver néon dans l'arène. Mange pour grandir, évite les impacts. <br/><span className="text-indigo-300 font-bold uppercase mt-2 block">Turbo : Double-tap sur l'écran</span><br/><span className="text-cyan-400 font-bold uppercase mt-1 block">Direction : Glissez n'importe où</span></p>
+                    <p className="text-gray-400 text-sm mb-10 max-w-sm text-center leading-relaxed">Dirige ton ver néon dans l'arène géante. Mange pour grandir, évite les impacts. <br/><span className="text-indigo-300 font-bold uppercase mt-2 block">Turbo : Double-tap sur l'écran</span><br/><span className="text-cyan-400 font-bold uppercase mt-1 block">Direction : Glissez n'importe où</span></p>
                     
                     <div className="flex flex-col gap-5 w-full max-w-xs">
                         <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)] active:scale-95 group">
