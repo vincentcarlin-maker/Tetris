@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, ShoppingBag, Frame, Image, Type, Disc, Pipette } from 'lucide-react';
-import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, Mallet, SlitherSkin } from '../hooks/useCurrency';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, ShoppingBag, Frame, Image, Type, Disc, Pipette, Glasses, X } from 'lucide-react';
+import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, Mallet, SlitherSkin, SlitherAccessory } from '../hooks/useCurrency';
 
 interface ShopProps {
     onBack: () => void;
@@ -16,9 +16,10 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         currentTitleId, selectTitle, buyTitle, ownedTitles, titlesCatalog,
         currentMalletId, selectMallet, buyMallet, ownedMallets, malletsCatalog,
         currentSlitherSkinId, selectSlitherSkin, buySlitherSkin, ownedSlitherSkins, slitherSkinsCatalog,
+        currentSlitherAccessoryId, selectSlitherAccessory, buySlitherAccessory, ownedSlitherAccessories, slitherAccessoriesCatalog,
     } = currency;
 
-    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'SLITHER' | 'WALLPAPERS' | 'TITLES' | 'MALLETS'>('BADGES');
+    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'SLITHER' | 'ACCESSORIES' | 'WALLPAPERS' | 'TITLES' | 'MALLETS'>('BADGES');
 
     const handleBuyBadge = (badge: Badge) => {
         if (coins >= badge.price && !inventory.includes(badge.id)) {
@@ -41,6 +42,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const handleBuySlitherSkin = (skin: SlitherSkin) => {
         if (coins >= skin.price && !ownedSlitherSkins.includes(skin.id)) {
             buySlitherSkin(skin.id, skin.price);
+        }
+    };
+
+    const handleBuySlitherAccessory = (acc: SlitherAccessory) => {
+        if (coins >= acc.price && !ownedSlitherAccessories.includes(acc.id)) {
+            buySlitherAccessory(acc.id, acc.price);
         }
     };
 
@@ -80,11 +87,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         return (
             <div className="w-16 h-16 rounded-full border-2 border-white/50 relative shadow-lg" style={bgStyle}>
                 <div className="absolute inset-0 rounded-full border-4 border-black/20"></div>
-                {mallet.type === 'flower' && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                       <div className="w-full h-full rounded-full border-[6px] border-dashed border-white/30 animate-[spin_10s_linear_infinite]"></div>
-                    </div>
-                )}
             </div>
         );
     };
@@ -122,6 +124,37 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         );
     };
 
+    const renderAccessoryPreview = (acc: SlitherAccessory) => {
+        return (
+            <div className="w-16 h-16 rounded-xl bg-gray-800 border border-white/10 flex items-center justify-center relative overflow-hidden group shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+                {acc.type === 'CROWN' && <div className="w-10 h-8 bg-yellow-400 rounded-sm relative shadow-[0_0_10px_#facc15]">
+                    <div className="absolute -top-2 left-0 w-3 h-3 bg-yellow-400" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div>
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-yellow-400" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div>
+                    <div className="absolute -top-2 right-0 w-3 h-3 bg-yellow-400" style={{clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div>
+                </div>}
+                {acc.type === 'HAT' && acc.id !== 'sa_none' && <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 bg-white rounded-t-sm shadow-[0_0_10px_white]"></div>
+                    <div className="w-12 h-1.5 bg-white rounded-full"></div>
+                </div>}
+                {acc.type === 'GLASSES' && <div className="flex gap-1 items-center">
+                    <div className="w-6 h-4 bg-cyan-400 rounded-sm shadow-[0_0_8px_#22d3ee] border border-white/40"></div>
+                    <div className="w-2 h-0.5 bg-white"></div>
+                    <div className="w-6 h-4 bg-cyan-400 rounded-sm shadow-[0_0_8px_#22d3ee] border border-white/40"></div>
+                </div>}
+                {acc.type === 'NINJA' && <div className="w-12 h-3 bg-red-600 rounded-full shadow-[0_0_10px_#ef4444] flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>}
+                {acc.type === 'VIKING' && <div className="relative">
+                    <div className="w-10 h-6 bg-slate-400 rounded-t-full shadow-[0_0_10px_#94a3b8]"></div>
+                    <div className="absolute -top-3 -left-2 w-4 h-6 bg-white rounded-tr-full transform -rotate-45"></div>
+                    <div className="absolute -top-3 -right-2 w-4 h-6 bg-white rounded-tl-full transform rotate(45deg)"></div>
+                </div>}
+                {acc.id === 'sa_none' && <X className="text-gray-600" size={32} />}
+            </div>
+        );
+    };
+
     return (
         <div className="flex flex-col h-full w-full bg-black/20 relative overflow-hidden font-sans text-white">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-900/10 via-black to-transparent pointer-events-none"></div>
@@ -142,7 +175,8 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                     <button onClick={() => setActiveTab('BADGES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'BADGES' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>BADGES</button>
                     <button onClick={() => setActiveTab('AVATARS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'AVATARS' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>AVATARS</button>
                     <button onClick={() => setActiveTab('FRAMES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'FRAMES' ? 'bg-pink-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>CADRES</button>
-                    <button onClick={() => setActiveTab('SLITHER')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'SLITHER' ? 'bg-indigo-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>SLITHER</button>
+                    <button onClick={() => setActiveTab('SLITHER')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'SLITHER' ? 'bg-indigo-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>COULEURS</button>
+                    <button onClick={() => setActiveTab('ACCESSORIES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'ACCESSORIES' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>ACCESSOIRES</button>
                     <button onClick={() => setActiveTab('WALLPAPERS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'WALLPAPERS' ? 'bg-green-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>FONDS</button>
                     <button onClick={() => setActiveTab('TITLES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'TITLES' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>TITRES</button>
                     <button onClick={() => setActiveTab('MALLETS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'MALLETS' ? 'bg-cyan-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>MAILLETS</button>
@@ -242,6 +276,29 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                         <button onClick={() => selectSlitherSkin(skin.id)} disabled={isSelected} className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
                                     ) : (
                                         <button onClick={() => handleBuySlitherSkin(skin)} disabled={!canAfford} className={`w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{skin.price}</span></button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+                {activeTab === 'ACCESSORIES' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {slitherAccessoriesCatalog.map(acc => {
+                            const isOwned = ownedSlitherAccessories.includes(acc.id);
+                            const isSelected = currentSlitherAccessoryId === acc.id;
+                            const canAfford = coins >= acc.price;
+                            return (
+                                <div key={acc.id} className={`p-3 rounded-xl border ${isSelected ? 'bg-orange-900/20 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
+                                    <div className="mb-3">
+                                        {renderAccessoryPreview(acc)}
+                                    </div>
+                                    <h3 className="font-bold text-sm text-white mb-1">{acc.name}</h3>
+                                    <p className="text-[10px] text-gray-500 mb-3 leading-tight px-2 h-8">{acc.description}</p>
+                                    {isOwned ? (
+                                        <button onClick={() => selectSlitherAccessory(acc.id)} disabled={isSelected} className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-orange-600 text-white hover:bg-orange-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
+                                    ) : (
+                                        <button onClick={() => handleBuySlitherAccessory(acc)} disabled={!canAfford} className={`w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{acc.price}</span></button>
                                     )}
                                 </div>
                             );

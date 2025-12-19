@@ -3,7 +3,7 @@ import { Home, RefreshCw, Trophy, Coins, Zap, HelpCircle, User, Globe, Play, Arr
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
-import { useCurrency, SlitherSkin } from '../../hooks/useCurrency';
+import { useCurrency, SlitherSkin, SlitherAccessory } from '../../hooks/useCurrency';
 import { TutorialOverlay } from '../Tutorials';
 
 // --- TYPES ---
@@ -14,7 +14,8 @@ interface Worm {
     segments: Point[];
     angle: number;
     color: string; // Background color fallback
-    skin?: SlitherSkin; // New: selected skin
+    skin?: SlitherSkin; 
+    accessory?: SlitherAccessory; // New: equipped accessory
     score: number;
     isBoost: boolean;
     isDead: boolean;
@@ -36,7 +37,7 @@ const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d'
 
 export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any }> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { username, currentAvatarId, currentSlitherSkinId, slitherSkinsCatalog } = useCurrency();
+    const { username, currentAvatarId, currentSlitherSkinId, slitherSkinsCatalog, currentSlitherAccessoryId, slitherAccessoriesCatalog } = useCurrency();
 
     const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
@@ -64,14 +65,14 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const bestScore = highScores.slither || 0;
 
     // --- INITIALIZATION ---
-    const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin): Worm => {
+    const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin, accessory?: SlitherAccessory): Worm => {
         const x = Math.random() * (WORLD_SIZE - 400) + 200;
         const y = Math.random() * (WORLD_SIZE - 400) + 200;
         const segments: Point[] = [];
         for (let i = 0; i < INITIAL_LENGTH; i++) {
             segments.push({ x: x - i * SEGMENT_DISTANCE, y });
         }
-        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, score: 0, isBoost: false, isDead: false, radius: 10 };
+        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, accessory, score: 0, isBoost: false, isDead: false, radius: 10 };
     };
 
     const spawnFood = (count: number = 1) => {
@@ -89,10 +90,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const startGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
         
-        // Find player's skin
+        // Find player's skin and accessory
         const playerSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId) || slitherSkinsCatalog[0];
+        const playerAcc = slitherAccessoriesCatalog.find(a => a.id === currentSlitherAccessoryId);
         
-        playerWormRef.current = spawnWorm(mp.peerId || 'player', username, playerSkin.primaryColor, playerSkin);
+        playerWormRef.current = spawnWorm(mp.peerId || 'player', username, playerSkin.primaryColor, playerSkin, playerAcc);
         foodRef.current = [];
         spawnFood(300);
         othersRef.current = mode === 'SOLO' ? Array.from({length: 12}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
@@ -352,6 +354,79 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.restore();
     };
 
+    const drawAccessory = (ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, accessory: SlitherAccessory, radius: number) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = accessory.color;
+        
+        if (accessory.type === 'CROWN') {
+            ctx.fillStyle = '#ffe600';
+            ctx.beginPath();
+            ctx.moveTo(-radius, -radius * 0.5);
+            ctx.lineTo(-radius, -radius * 1.5);
+            ctx.lineTo(-radius * 0.6, -radius * 1.0);
+            ctx.lineTo(0, -radius * 1.8);
+            ctx.lineTo(radius * 0.6, -radius * 1.0);
+            ctx.lineTo(radius, -radius * 1.5);
+            ctx.lineTo(radius, -radius * 0.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        } else if (accessory.type === 'HAT') {
+            ctx.fillStyle = '#111';
+            // Base du chapeau
+            ctx.beginPath();
+            ctx.ellipse(0, -radius * 0.4, radius * 1.2, radius * 0.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Haut du chapeau
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.4);
+            ctx.strokeRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.4);
+        } else if (accessory.type === 'GLASSES') {
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.4)';
+            ctx.beginPath();
+            ctx.roundRect(0, -radius * 0.4, radius * 1.5, radius * 0.8, 4);
+            ctx.fill();
+            ctx.stroke();
+        } else if (accessory.type === 'NINJA') {
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.roundRect(-radius * 1.1, -radius * 0.3, radius * 2.2, radius * 0.6, 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (accessory.type === 'VIKING') {
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.arc(0, -radius * 0.3, radius * 0.9, Math.PI, 0);
+            ctx.fill();
+            ctx.stroke();
+            // Cornes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(-radius * 0.8, -radius * 0.5);
+            ctx.quadraticCurveTo(-radius * 1.5, -radius * 1.5, -radius * 1.2, -radius * 2);
+            ctx.lineTo(-radius * 0.5, -radius * 0.5);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(radius * 0.8, -radius * 0.5);
+            ctx.quadraticCurveTo(radius * 1.5, -radius * 1.5, radius * 1.2, -radius * 2);
+            ctx.lineTo(radius * 0.5, -radius * 0.5);
+            ctx.fill();
+        }
+        
+        ctx.restore();
+    };
+
     const drawWorm = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         const segs = worm.segments;
         if (segs.length < 2) return;
@@ -440,10 +515,15 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.beginPath(); ctx.arc(eye1X + Math.cos(eyeAngle) * pupilOffset, eye1Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
         
+        // Affichage de l'accessoire
+        if (worm.accessory && worm.accessory.id !== 'sa_none') {
+            drawAccessory(ctx, head.x, head.y, worm.angle, worm.accessory, radius);
+        }
+
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = 'bold 14px Rajdhani';
         ctx.textAlign = 'center';
-        ctx.fillText(worm.name, head.x, head.y - 30);
+        ctx.fillText(worm.name, head.x, head.y - 35);
         
         ctx.restore();
     };

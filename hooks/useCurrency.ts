@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc, Pipette } from 'lucide-react';
+import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc, Pipette, Glasses } from 'lucide-react';
 
 export interface Badge {
   id: string;
@@ -35,6 +35,15 @@ export interface SlitherSkin {
     secondaryColor: string;
     glowColor: string;
     pattern?: 'solid' | 'stripes' | 'dots' | 'checker' | 'rainbow' | 'grid';
+    description: string;
+}
+
+export interface SlitherAccessory {
+    id: string;
+    name: string;
+    price: number;
+    type: 'CROWN' | 'HAT' | 'GLASSES' | 'NINJA' | 'VIKING';
+    color: string;
     description: string;
 }
 
@@ -120,6 +129,15 @@ export const SLITHER_SKINS_CATALOG: SlitherSkin[] = [
     { id: 'ss_gold', name: 'Légende Dorée', price: 5000, primaryColor: '#ffe600', secondaryColor: '#aa9900', glowColor: '#ffe600', pattern: 'solid', description: 'Réservé aux maîtres du ver.' },
 ];
 
+export const SLITHER_ACCESSORIES_CATALOG: SlitherAccessory[] = [
+    { id: 'sa_none', name: 'Aucun', price: 0, type: 'HAT', color: 'transparent', description: 'Garder la tête libre.' },
+    { id: 'sa_crown', name: 'Couronne Royale', price: 5000, type: 'CROWN', color: '#ffe600', description: 'Le roi de l\'arène.' },
+    { id: 'sa_tophat', name: 'Haut-de-forme', price: 1500, type: 'HAT', color: '#ffffff', description: 'Un ver distingué.' },
+    { id: 'sa_sunglasses', name: 'Cyber Lunettes', price: 1000, type: 'GLASSES', color: '#00f3ff', description: 'Style futuriste garanti.' },
+    { id: 'sa_ninja', name: 'Bandeau Ninja', price: 2000, type: 'NINJA', color: '#ef4444', description: 'Maître du camouflage.' },
+    { id: 'sa_viking', name: 'Casque Viking', price: 3000, type: 'VIKING', color: '#94a3b8', description: 'Prêt pour le combat.' },
+];
+
 export const FRAMES_CATALOG: Frame[] = [
     { id: 'fr_none', name: 'Aucun', price: 0, cssClass: 'border-white/10', description: 'Simple et efficace.' },
     { id: 'fr_neon_blue', name: 'Néon Bleu', price: 500, cssClass: 'border-cyan-400 shadow-[0_0_10px_#22d3ee] animate-pulse', description: 'Une lueur froide.' },
@@ -153,7 +171,7 @@ export const WALLPAPERS_CATALOG: Wallpaper[] = [
     { id: 'bg_stars', name: 'Espace Profond', price: 2000, cssValue: 'radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)', description: 'Perdu dans les étoiles.' },
     { id: 'bg_blueprint', name: 'Blueprint', price: 2500, cssValue: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px), #003366', description: 'Plan technique.', bgSize: '40px 40px' },
     { id: 'bg_sunset', name: 'Sunset Rétro', price: 3500, cssValue: 'linear-gradient(to bottom, #2b1055, #7597de)', description: 'Ambiance années 80.' },
-    { id: 'bg_aurora', name: 'Aurore', price: 4000, cssValue: 'linear-gradient(to bottom, #000000, #0f2027, #203a43, #2c5364)', description: 'Lumières du nord.' },
+    { id: 'bg_aurora', name: 'Aurore', price: 4000, cssValue: 'linear-gradient(to bottom, #000000, #0f2027, #203a43, #203a43, #2c5364)', description: 'Lumières du nord.' },
     { id: 'bg_circuit', name: 'Circuit', price: 4500, cssValue: 'radial-gradient(#003300 2px, transparent 2.5px), radial-gradient(#003300 2px, transparent 2.5px), #001100', bgSize: '20px 20px, 20px 20px', description: 'Tech verte.' },
     { id: 'bg_matrix', name: 'Le Code', price: 5000, cssValue: 'linear-gradient(0deg, rgba(0,0,0,0.9), rgba(0,20,0,0.9)), repeating-linear-gradient(0deg, transparent 0, transparent 2px, #0f0 3px)', description: 'Vous voyez la matrice.' },
     { id: 'bg_tokyo', name: 'Tokyo Night', price: 6500, cssValue: 'radial-gradient(circle at 20% 80%, rgba(255,0,150,0.5) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(0,243,255,0.5) 0%, transparent 50%), #0a0a12', description: 'Lumières de la ville.' },
@@ -226,6 +244,11 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-owned-slither-skins') || '["ss_cyan"]'); } catch { return ["ss_cyan"]; }
     });
 
+    const [currentSlitherAccessoryId, setCurrentSlitherAccessoryId] = useState(() => localStorage.getItem('neon-slither-accessory') || "sa_none");
+    const [ownedSlitherAccessories, setOwnedSlitherAccessories] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-slither-accessories') || '["sa_none"]'); } catch { return ["sa_none"]; }
+    });
+
     const [currentWallpaperId, setCurrentWallpaperId] = useState(() => localStorage.getItem('neon-wallpaper') || "bg_brick");
     const [ownedWallpapers, setOwnedWallpapers] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-owned-wallpapers') || '["bg_brick"]'); } catch { return ["bg_brick"]; }
@@ -257,7 +280,6 @@ export const useCurrency = () => {
     });
     const isSuperUser = username === 'Vincent';
 
-    // Mise à jour de l'accentuation de couleur sur tout le document
     useEffect(() => {
         const root = document.documentElement;
         if (accentColor === 'default') {
@@ -294,6 +316,8 @@ export const useCurrency = () => {
         if (data.ownedFrames) { setOwnedFrames(data.ownedFrames); localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames)); }
         if (data.slitherSkinId) { setCurrentSlitherSkinId(data.slitherSkinId); localStorage.setItem('neon-slither-skin', data.slitherSkinId); }
         if (data.ownedSlitherSkins) { setOwnedSlitherSkins(data.ownedSlitherSkins); localStorage.setItem('neon-owned-slither-skins', JSON.stringify(data.ownedSlitherSkins)); }
+        if (data.slitherAccessoryId) { setCurrentSlitherAccessoryId(data.slitherAccessoryId); localStorage.setItem('neon-slither-accessory', data.slitherAccessoryId); }
+        if (data.ownedSlitherAccessories) { setOwnedSlitherAccessories(data.ownedSlitherAccessories); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify(data.ownedSlitherAccessories)); }
         if (data.wallpaperId) { setCurrentWallpaperId(data.wallpaperId); localStorage.setItem('neon-wallpaper', data.wallpaperId); }
         if (data.ownedWallpapers) { setOwnedWallpapers(data.ownedWallpapers); localStorage.setItem('neon-owned-wallpapers', JSON.stringify(data.ownedWallpapers)); }
         if (data.titleId) { setCurrentTitleId(data.titleId); localStorage.setItem('neon-title', data.titleId); }
@@ -360,7 +384,7 @@ export const useCurrency = () => {
     }, [inventory, isSuperUser]);
 
     return { 
-        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins,
+        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories,
         accentColor, updateAccentColor, privacySettings, togglePrivacy, reducedMotion, toggleReducedMotion,
         isSuperUser, adminModeActive, toggleAdminMode: () => { const n = !adminModeActive; setAdminModeActive(n); localStorage.setItem('neon-admin-mode', JSON.stringify(n)); },
         refreshData, importData, addCoins, email, updateEmail,
@@ -377,6 +401,9 @@ export const useCurrency = () => {
         currentSlitherSkinId, selectSlitherSkin: (id: string) => { setCurrentSlitherSkinId(id); localStorage.setItem('neon-slither-skin', id); },
         buySlitherSkin: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherSkins(p => [...p, id]); localStorage.setItem('neon-owned-slither-skins', JSON.stringify([...ownedSlitherSkins, id])); } },
         slitherSkinsCatalog: SLITHER_SKINS_CATALOG,
+        currentSlitherAccessoryId, selectSlitherAccessory: (id: string) => { setCurrentSlitherAccessoryId(id); localStorage.setItem('neon-slither-accessory', id); },
+        buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
+        slitherAccessoriesCatalog: SLITHER_ACCESSORIES_CATALOG,
         currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
         buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
         wallpapersCatalog: WALLPAPERS_CATALOG,
