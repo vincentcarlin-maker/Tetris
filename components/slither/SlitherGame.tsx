@@ -30,9 +30,9 @@ interface Particle { x: number; y: number; vx: number; vy: number; life: number;
 const WORLD_SIZE = 20000; 
 const INITIAL_LENGTH = 15;
 const SEGMENT_DISTANCE = 5; 
-const BASE_SPEED = 4.2; 
-const BOOST_SPEED = 8.5; 
-const TURN_SPEED = 0.18; 
+const BASE_SPEED = 6.5; // Augmenté de 4.2 à 6.5
+const BOOST_SPEED = 14.5; // Augmenté de 8.5 à 14.5
+const TURN_SPEED = 0.22; // Légèrement augmenté de 0.18 pour garder le contrôle
 const RADAR_SIZE = 120;
 const DOUBLE_TAP_DELAY = 300; 
 const JOYSTICK_DEADZONE = 3; 
@@ -350,7 +350,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 for (let i = foodRef.current.length - 1; i >= 0; i--) {
                     const f = foodRef.current[i];
                     if (Math.abs(bHead.x - f.x) > 80 || Math.abs(bHead.y - f.y) > 80) continue;
-                    const distSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
+                    const distSq = (bHead.x - f.x)**2 + (head.y - f.y)**2;
                     if (distSq < (bot.radius + 15)**2) {
                         bot.score += f.val * 5;
                         bot.radius = calculateWormRadius(bot.score);
