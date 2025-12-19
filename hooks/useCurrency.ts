@@ -44,9 +44,8 @@ export interface SlitherAccessory {
     id: string;
     name: string;
     price: number;
-    type: 'CROWN' | 'HAT' | 'VISOR' | 'NINJA' | 'HALO' | 'HORNS' | 'CAT_EARS' | 'HEADPHONES' | 'WITCH' | 'VIKING' | 'HERO' | 'DRAGON';
+    type: 'CROWN' | 'HAT' | 'GLASSES' | 'NINJA' | 'VIKING' | 'HALO' | 'HORNS' | 'CAT_EARS' | 'MOUSTACHE' | 'MONOCLE' | 'EYEPATCH' | 'BERET' | 'CAP' | 'FEZ' | 'SOMBRERO' | 'TIARA' | 'WITCH' | 'COWBOY' | 'MASK' | 'FLOWER' | 'STAR' | 'ROBOT' | 'DEVIL' | 'ANGEL' | 'HERO';
     color: string;
-    secondaryColor?: string;
     description: string;
 }
 
@@ -77,39 +76,133 @@ export interface Mallet {
 }
 
 export const SLITHER_SKINS_CATALOG: SlitherSkin[] = [
+    // --- LES CLASSIQUES (0 - 500) ---
     { id: 'ss_cyan', name: 'Cyan Néon', price: 0, primaryColor: '#00f3ff', secondaryColor: '#0088ff', glowColor: '#00f3ff', pattern: 'solid', rarity: 'COMMON', description: 'Le look original.' },
     { id: 'ss_pink', name: 'Rose Flash', price: 200, primaryColor: '#ff00ff', secondaryColor: '#cc00cc', glowColor: '#ff00ff', pattern: 'solid', rarity: 'COMMON', description: 'Vibrant et assumé.' },
+    { id: 'ss_lime', name: 'Lime Toxique', price: 200, primaryColor: '#ccff00', secondaryColor: '#88aa00', glowColor: '#ccff00', pattern: 'solid', rarity: 'COMMON', description: 'Attention, corrosif !' },
+    { id: 'ss_orange', name: 'Orange Feu', price: 200, primaryColor: '#ff9d00', secondaryColor: '#cc6600', glowColor: '#ff9d00', pattern: 'solid', rarity: 'COMMON', description: 'Chaleur intense.' },
+    { id: 'ss_purple', name: 'Violet Royal', price: 200, primaryColor: '#9d00ff', secondaryColor: '#6600cc', glowColor: '#9d00ff', pattern: 'solid', rarity: 'COMMON', description: 'Mystique.' },
+    { id: 'ss_red', name: 'Rouge Sang', price: 200, primaryColor: '#ff4d4d', secondaryColor: '#990000', glowColor: '#ff4d4d', pattern: 'solid', rarity: 'COMMON', description: 'Agressif.' },
+    { id: 'ss_yellow', name: 'Jaune Solaire', price: 200, primaryColor: '#ffe600', secondaryColor: '#aa9900', glowColor: '#ffe600', pattern: 'solid', rarity: 'COMMON', description: 'Brillant.' },
+    { id: 'ss_white', name: 'Blanc Pur', price: 500, primaryColor: '#ffffff', secondaryColor: '#cccccc', glowColor: '#ffffff', pattern: 'solid', rarity: 'COMMON', description: 'Éclat céleste.' },
+    
+    // --- MÉTALLIQUES (750 - 1500) ---
+    { id: 'ss_steel', name: 'Acier Poli', price: 750, primaryColor: '#94a3b8', secondaryColor: '#475569', glowColor: '#ffffff', pattern: 'metallic', rarity: 'RARE', description: 'Reflets industriels.' },
     { id: 'ss_gold', name: 'Or Pur', price: 1500, primaryColor: '#fbbf24', secondaryColor: '#b45309', glowColor: '#fbbf24', pattern: 'metallic', rarity: 'RARE', description: 'La marque du luxe.' },
+    { id: 'ss_silver', name: 'Argent Lunaire', price: 1200, primaryColor: '#e2e8f0', secondaryColor: '#94a3b8', glowColor: '#e2e8f0', pattern: 'metallic', rarity: 'RARE', description: 'Éclat de lune.' },
+    { id: 'ss_bronze', name: 'Bronze Antique', price: 800, primaryColor: '#d97706', secondaryColor: '#78350f', glowColor: '#d97706', pattern: 'metallic', rarity: 'RARE', description: 'Style vintage.' },
+    { id: 'ss_copper', name: 'Cuivre Brûlé', price: 900, primaryColor: '#ea580c', secondaryColor: '#9a3412', glowColor: '#ea580c', pattern: 'metallic', rarity: 'RARE', description: 'Conducteur d\'énergie.' },
     { id: 'ss_obsidian', name: 'Obsidienne', price: 1500, primaryColor: '#1e293b', secondaryColor: '#020617', glowColor: '#9d00ff', pattern: 'metallic', rarity: 'RARE', description: 'Verre volcanique.' },
-    { id: 'ss_rainbow_flow', name: 'Flux Chroma', price: 15000, primaryColor: '#ff0000', secondaryColor: '#ffffff', glowColor: '#00f3ff', pattern: 'rainbow', rarity: 'LEGENDARY', description: 'Toutes les fréquences.' },
-    { id: 'ss_void', name: 'Le Vide', price: 25000, primaryColor: '#000000', secondaryColor: '#000000', glowColor: '#ffffff', pattern: 'pulse', rarity: 'LEGENDARY', description: 'La fin de tout.' },
-];
+    { id: 'ss_emerald_met', name: 'Émeraude Chrome', price: 1300, primaryColor: '#10b981', secondaryColor: '#064e3b', glowColor: '#10b981', pattern: 'metallic', rarity: 'RARE', description: 'Précieux et brillant.' },
+    { id: 'ss_ruby_met', name: 'Rubis Chrome', price: 1300, primaryColor: '#ef4444', secondaryColor: '#7f1d1d', glowColor: '#ef4444', pattern: 'metallic', rarity: 'RARE', description: 'Éclat rubis.' },
 
-export const SLITHER_ACCESSORIES_CATALOG: SlitherAccessory[] = [
-    { id: 'sa_none', name: 'Aucun', price: 0, type: 'HAT', color: 'transparent', description: 'Tête nue.' },
-    { id: 'sa_crown_gold', name: 'Couronne Royale', price: 5000, type: 'CROWN', color: '#facc15', secondaryColor: '#854d0e', description: 'Le roi de l\'arène.' },
-    { id: 'sa_tophat_black', name: 'Haut-de-forme', price: 2000, type: 'HAT', color: '#111827', secondaryColor: '#374151', description: 'Style classique.' },
-    { id: 'sa_visor_cyber', name: 'Visière Cyber', price: 3500, type: 'VISOR', color: '#00f3ff', secondaryColor: '#1e40af', description: 'Vision tactique.' },
-    { id: 'sa_viking', name: 'Casque Viking', price: 4500, type: 'VIKING', color: '#94a3b8', secondaryColor: '#475569', description: 'Guerrier du nord.' },
-    { id: 'sa_halo_gold', name: 'Auréole Céleste', price: 5000, type: 'HALO', color: '#fffbeb', secondaryColor: '#facc15', description: 'Lumière divine.' },
-    { id: 'sa_horns_devil', name: 'Cornes Démoniaques', price: 5000, type: 'HORNS', color: '#ef4444', secondaryColor: '#7f1d1d', description: 'Petit diable.' },
-    { id: 'sa_headphones', name: 'Casque Audio', price: 3000, type: 'HEADPHONES', color: '#ec4899', secondaryColor: '#701a75', description: 'Rythme de glisse.' },
-    { id: 'sa_witch', name: 'Chapeau Sorcier', price: 4000, type: 'WITCH', color: '#4c1d95', secondaryColor: '#2e1065', description: 'Magie noire.' },
-    { id: 'sa_dragon', name: 'Cornes de Dragon', price: 8000, type: 'DRAGON', color: '#22c55e', secondaryColor: '#14532d', description: 'Ancêtre mythique.' },
+    // --- MOTIFS (1000 - 2500) ---
+    { id: 'ss_zebra', name: 'Zèbre Néon', price: 1000, primaryColor: '#ffffff', secondaryColor: '#000000', glowColor: '#ffffff', pattern: 'stripes', rarity: 'RARE', description: 'Rayures élégantes.' },
+    { id: 'ss_tiger', name: 'Tigre Cyber', price: 1200, primaryColor: '#ff9d00', secondaryColor: '#000000', glowColor: '#ff9d00', pattern: 'stripes', rarity: 'RARE', description: 'Prédateur néon.' },
+    { id: 'ss_checker', name: 'Damier Rétro', price: 1000, primaryColor: '#ffffff', secondaryColor: '#333333', glowColor: '#00f3ff', pattern: 'checker', rarity: 'RARE', description: 'Arcade classique.' },
+    { id: 'ss_leopard', name: 'Léopard Cyan', price: 1500, primaryColor: '#00f3ff', secondaryColor: '#000000', glowColor: '#00f3ff', pattern: 'dots', rarity: 'EPIC', description: 'Agilité tachetée.' },
+    { id: 'ss_dots_pink', name: 'Pois Flash', price: 1100, primaryColor: '#ff00ff', secondaryColor: '#ffffff', glowColor: '#ff00ff', pattern: 'dots', rarity: 'RARE', description: 'Look pop.' },
+    { id: 'ss_army', name: 'Camouflage Cyber', price: 1400, primaryColor: '#22c55e', secondaryColor: '#064e3b', glowColor: '#22c55e', pattern: 'grid', rarity: 'RARE', description: 'Invisible sur la grille.' },
+    { id: 'ss_snake_skin', name: 'Écailles Vrai', price: 2000, primaryColor: '#10b981', secondaryColor: '#facc15', glowColor: '#10b981', pattern: 'checker', rarity: 'EPIC', description: 'Comme un vrai.' },
+    { id: 'ss_candy', name: 'Sucre d\'Orge', price: 1800, primaryColor: '#ff0000', secondaryColor: '#ffffff', glowColor: '#ff0000', pattern: 'stripes', rarity: 'EPIC', description: 'Délicieusement rapide.' },
+
+    // --- COSMIQUES (3000 - 5000) ---
+    { id: 'ss_galaxy', name: 'Galaxie Profonde', price: 3500, primaryColor: '#312e81', secondaryColor: '#1e1b4b', glowColor: '#a855f7', pattern: 'pulse', rarity: 'EPIC', description: 'Poussière d\'étoiles.' },
+    { id: 'ss_nebula', name: 'Nébuleuse', price: 4000, primaryColor: '#ec4899', secondaryColor: '#1e1b4b', glowColor: '#ec4899', pattern: 'pulse', rarity: 'EPIC', description: 'Gaz stellaire.' },
+    { id: 'ss_supernova', name: 'Supernova', price: 4500, primaryColor: '#fbbf24', secondaryColor: '#ef4444', glowColor: '#fbbf24', pattern: 'pulse', rarity: 'EPIC', description: 'Explosion cosmique.' },
+    { id: 'ss_blackhole', name: 'Trou Noir', price: 5000, primaryColor: '#000000', secondaryColor: '#312e81', glowColor: '#00f3ff', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Rien ne s\'échappe.' },
+    { id: 'ss_starlight', name: 'Étoilé', price: 3800, primaryColor: '#ffffff', secondaryColor: '#0f172a', glowColor: '#ffffff', pattern: 'dots', rarity: 'EPIC', description: 'Ciel de nuit.' },
+    { id: 'ss_mars', name: 'Planète Rouge', price: 3200, primaryColor: '#7f1d1d', secondaryColor: '#f87171', glowColor: '#ef4444', pattern: 'pulse', rarity: 'EPIC', description: 'Vibes martiennes.' },
+    { id: 'ss_jupiter', name: 'Jupiter', price: 3500, primaryColor: '#b45309', secondaryColor: '#d97706', glowColor: '#facc15', pattern: 'stripes', rarity: 'EPIC', description: 'La géante gazeuse.' },
+
+    // --- ÉLÉMENTS & MAGIE (6000 - 10000) ---
+    { id: 'ss_magma', name: 'Magma Ardent', price: 6500, primaryColor: '#ef4444', secondaryColor: '#ea580c', glowColor: '#ef4444', pattern: 'pulse', rarity: 'LEGENDARY', description: 'La lave qui coule.' },
+    { id: 'ss_ice_peak', name: 'Glace Éternelle', price: 6500, primaryColor: '#22d3ee', secondaryColor: '#ffffff', glowColor: '#22d3ee', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Froid absolu.' },
+    { id: 'ss_thunder', name: 'Foudre Bleue', price: 7000, primaryColor: '#00f3ff', secondaryColor: '#1e3a8a', glowColor: '#ffffff', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Électrisant.' },
+    { id: 'ss_toxic_waste', name: 'Déchet Toxique', price: 6000, primaryColor: '#4ade80', secondaryColor: '#064e3b', glowColor: '#4ade80', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Radioactif.' },
+    { id: 'ss_holy', name: 'Lueur Divine', price: 8500, primaryColor: '#fffbeb', secondaryColor: '#fef3c7', glowColor: '#facc15', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Lumière pure.' },
+    { id: 'ss_chaos', name: 'Ombre du Chaos', price: 8500, primaryColor: '#000000', secondaryColor: '#7f1d1d', glowColor: '#ef4444', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Destruction.' },
+    { id: 'ss_forest_spirit', name: 'Esprit de Forêt', price: 7500, primaryColor: '#10b981', secondaryColor: '#064e3b', glowColor: '#34d399', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Énergie vitale.' },
+
+    // --- LÉGENDAIRES UNIQUES (15000+) ---
+    { id: 'ss_rainbow_flow', name: 'Flux Chroma', price: 15000, primaryColor: '#ff0000', secondaryColor: '#ffffff', glowColor: '#00f3ff', pattern: 'rainbow', rarity: 'LEGENDARY', description: 'Toutes les fréquences.' },
+    { id: 'ss_diamond_core', name: 'Cœur de Diamant', price: 20000, primaryColor: '#ffffff', secondaryColor: '#bae6fd', glowColor: '#38bdf8', pattern: 'metallic', rarity: 'LEGENDARY', description: 'Indestructible.' },
+    { id: 'ss_void', name: 'Le Vide', price: 25000, primaryColor: '#000000', secondaryColor: '#000000', glowColor: '#ffffff', pattern: 'pulse', rarity: 'LEGENDARY', description: 'La fin de tout.' },
+    { id: 'ss_cyber_pulse', name: 'Pulse Cyberpunk', price: 18000, primaryColor: '#ff00ff', secondaryColor: '#00f3ff', glowColor: '#ff00ff', pattern: 'grid', rarity: 'LEGENDARY', description: 'Future Noir.' },
+    { id: 'ss_golden_dragon', name: 'Dragon d\'Or', price: 50000, primaryColor: '#fbbf24', secondaryColor: '#d97706', glowColor: '#fbbf24', pattern: 'checker', rarity: 'LEGENDARY', description: 'Le souverain de l\'arène.' },
+    { id: 'ss_plasma_storm', name: 'Tempête Plasma', price: 16000, primaryColor: '#a855f7', secondaryColor: '#06b6d4', glowColor: '#a855f7', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Énergie cinétique.' },
+    { id: 'ss_matrix_core', name: 'Code Source', price: 17000, primaryColor: '#00ff00', secondaryColor: '#000000', glowColor: '#00ff00', pattern: 'grid', rarity: 'LEGENDARY', description: 'Vous voyez les lignes.' },
+    { id: 'ss_blood_moon', name: 'Lune de Sang', price: 14000, primaryColor: '#450a0a', secondaryColor: '#ef4444', glowColor: '#ef4444', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Nuit de chasse.' },
+    { id: 'ss_hologram', name: 'Hologramme', price: 19000, primaryColor: '#00f3ff', secondaryColor: '#ffffff', glowColor: '#00f3ff', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Immatériel.' },
+    { id: 'ss_dark_fire', name: 'Feu Sombre', price: 22000, primaryColor: '#000000', secondaryColor: '#ea580c', glowColor: '#ea580c', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Chaleur froide.' },
+    { id: 'ss_infinity', name: 'Infini', price: 100000, primaryColor: '#ffffff', secondaryColor: '#000000', glowColor: '#ffffff', pattern: 'rainbow', rarity: 'LEGENDARY', description: 'L\'ultime trophée.' },
 ];
 
 export const BADGES_CATALOG: Badge[] = [
   { id: 'b_recruit', name: 'Recrue Néon', price: 100, icon: Smile, description: 'Bienvenue dans l\'arcade.', color: 'text-blue-400' },
+  { id: 'b_gamer', name: 'Gamer', price: 500, icon: Zap, description: 'Tu commences à chauffer.', color: 'text-yellow-400' },
+  { id: 'b_sniper', name: 'Précision', price: 1000, icon: Target, description: 'Dans le mille.', color: 'text-red-500' },
+  { id: 'b_ghost', name: 'Fantôme', price: 1500, icon: Ghost, description: 'Invisible mais présent.', color: 'text-purple-400' },
+  { id: 'b_star', name: 'Star', price: 2500, icon: Star, description: 'Tu brilles de mille feux.', color: 'text-pink-500' },
+  { id: 'b_flame', name: 'En Feu', price: 4000, icon: Flame, description: 'Impossible de t\'arrêter.', color: 'text-orange-500' },
+  { id: 'b_hexa', name: 'Cyber', price: 6000, icon: Hexagon, description: 'Architecture parfaite.', color: 'text-cyan-400' },
+  { id: 'b_heart', name: 'Vie Extra', price: 8000, icon: Heart, description: 'L\'amour du jeu.', color: 'text-red-400' },
+  { id: 'b_rocket', name: 'Turbo', price: 10000, icon: Rocket, description: 'Vers l\'infini.', color: 'text-indigo-400' },
+  { id: 'b_gem', name: 'Richesse', price: 15000, icon: Gem, description: 'Le luxe ultime.', color: 'text-emerald-400' },
+  { id: 'b_champion', name: 'Champion', price: 25000, icon: Trophy, description: 'Le sommet du podium.', color: 'text-yellow-300' },
   { id: 'b_king', name: 'Roi Néon', price: 50000, icon: Crown, description: 'Tu possèdes l\'arcade.', color: 'text-amber-400' },
 ];
 
 export const AVATARS_CATALOG: Avatar[] = [
     { id: 'av_bot', name: 'Néon Bot', price: 0, icon: Bot, color: 'text-cyan-400', bgGradient: 'from-cyan-900/50 to-blue-900/50' },
     { id: 'av_human', name: 'Humain', price: 0, icon: User, color: 'text-gray-200', bgGradient: 'from-gray-800/50 to-slate-800/50' },
+    { id: 'av_cat', name: 'Néon Cat', price: 1000, icon: Cat, color: 'text-pink-400', bgGradient: 'from-pink-900/50 to-purple-900/50' },
+    { id: 'av_unicorn', name: 'Licorne', price: 5000, icon: Sparkles, color: 'text-white', bgGradient: 'from-pink-300 via-purple-300 to-indigo-300 shadow-[inset_0_0_20px_rgba(255,255,255,0.5)]' },
+    { id: 'av_flower', name: 'Fleur', price: 1500, icon: Flower, color: 'text-fuchsia-400', bgGradient: 'from-fuchsia-900/50 to-pink-900/50' },
+    { id: 'av_love', name: 'Love', price: 2000, icon: Heart, color: 'text-red-500', bgGradient: 'from-red-900/50 to-rose-900/50' },
+    { id: 'av_ring', name: 'Bague', price: 4000, icon: Gem, color: 'text-cyan-200', bgGradient: 'from-yellow-400/60 via-yellow-600/60 to-amber-700/60 ring-2 ring-yellow-400/50' },
+    { id: 'av_bag', name: 'Sac', price: 2000, icon: ShoppingBag, color: 'text-rose-400', bgGradient: 'from-rose-900/50 to-red-900/50' },
+    { id: 'av_rainbow', name: 'Arc-en-ciel', price: 6000, icon: Rainbow, color: 'text-indigo-300', bgGradient: 'from-red-500/30 via-green-500/30 to-blue-500/30' },
+    { id: 'av_sun', name: 'Soleil', price: 2500, icon: Sun, color: 'text-orange-400', bgGradient: 'from-orange-900/50 to-yellow-900/50' },
+    { id: 'av_moon', name: 'Lune', price: 2500, icon: Moon, color: 'text-indigo-300', bgGradient: 'from-indigo-900/50 to-slate-900/50' },
+    { id: 'av_ice', name: 'Glace', price: 3000, icon: Snowflake, color: 'text-cyan-200', bgGradient: 'from-cyan-900/50 to-white/10' },
+    { id: 'av_water', name: 'Eau', price: 3000, icon: Droplets, color: 'text-blue-400', bgGradient: 'from-blue-900/50 to-cyan-900/50' },
+    { id: 'av_music', name: 'Musique', price: 2500, icon: Music, color: 'text-violet-400', bgGradient: 'from-violet-900/50 to-fuchsia-900/50' },
+    { id: 'av_anchor', name: 'Ancre', price: 2000, icon: Anchor, color: 'text-teal-400', bgGradient: 'from-teal-900/50 to-cyan-900/50' },
+    { id: 'av_magic', name: 'Magie', price: 3000, icon: Sparkles, color: 'text-purple-300', bgGradient: 'from-purple-900/50 to-indigo-900/50' },
+    { id: 'av_precious', name: 'Précieux', price: 5000, icon: Gem, color: 'text-cyan-300', bgGradient: 'from-cyan-900/50 to-emerald-900/50' },
+    { id: 'av_smile', name: 'Good Vibes', price: 500, icon: Smile, color: 'text-yellow-400', bgGradient: 'from-yellow-900/50 to-orange-900/50' },
+    { id: 'av_zap', name: 'Voltage', price: 1000, icon: Zap, color: 'text-blue-400', bgGradient: 'from-blue-900/50 to-cyan-900/50' },
+    { id: 'av_game', name: 'Pro Gamer', price: 2000, icon: Gamepad2, color: 'text-purple-400', bgGradient: 'from-purple-900/50 to-pink-900/50' },
+    { id: 'av_music_dj', name: 'DJ Néon', price: 3000, icon: Headphones, color: 'text-pink-400', bgGradient: 'from-pink-900/50 to-rose-900/50' },
+    { id: 'av_skull', name: 'Hardcore', price: 5000, icon: Skull, color: 'text-red-500', bgGradient: 'from-red-900/50 to-orange-900/50' },
+    { id: 'av_ghost', name: 'Spectre', price: 7500, icon: Ghost, color: 'text-indigo-400', bgGradient: 'from-indigo-900/50 to-violet-900/50' },
+    { id: 'av_rocket', name: 'Cosmique', price: 10000, icon: Rocket, color: 'text-emerald-400', bgGradient: 'from-emerald-900/50 to-teal-900/50' },
+    { id: 'av_king', name: 'Le King', price: 25000, icon: Crown, color: 'text-amber-400', bgGradient: 'from-amber-900/50 to-yellow-900/50' },
+];
+
+export const SLITHER_ACCESSORIES_CATALOG: SlitherAccessory[] = [
+    { id: 'sa_none', name: 'Aucun', price: 0, type: 'HAT', color: 'transparent', description: 'Garder la tête libre.' },
+    { id: 'sa_crown_gold', name: 'Couronne d\'Or', price: 5000, type: 'CROWN', color: '#ffe600', description: 'Le roi de l\'arène.' },
+    { id: 'sa_crown_silver', name: 'Couronne d\'Argent', price: 4000, type: 'CROWN', color: '#e2e8f0', description: 'Éclat métallique.' },
+    { id: 'sa_tiara_pink', name: 'Diadème Rose', price: 3500, type: 'TIARA', color: '#ff00ff', description: 'Élégance néon.' },
+    { id: 'sa_tophat_black', name: 'Haut-de-forme Noir', price: 1500, type: 'HAT', color: '#111827', description: 'Un ver distingué.' },
+    { id: 'sa_beret_red', name: 'Béret Rouge', price: 1000, type: 'BERET', color: '#ef4444', description: 'L\'artiste de l\'arène.' },
+    { id: 'sa_cap_red', name: 'Casquette Rouge', price: 800, type: 'CAP', color: '#ef4444', description: 'Ver sportif.' },
+    { id: 'sa_cowboy_brown', name: 'Chapeau Cowboy', price: 2500, type: 'COWBOY', color: '#78350f', description: 'Le shérif glissant.' },
+    { id: 'sa_witch', name: 'Chapeau de Sorcier', price: 4500, type: 'WITCH', color: '#4c1d95', description: 'Magie noire.' },
+    { id: 'sa_sunglasses_black', name: 'Cyber Lunettes', price: 1000, type: 'GLASSES', color: '#00f3ff', description: 'Style futuriste.' },
+    { id: 'sa_ninja_red', name: 'Bandeau Ninja Rouge', price: 2000, type: 'NINJA', color: '#ef4444', description: 'Maître du camouflage.' },
+    { id: 'sa_halo_gold', name: 'Auréole Céleste', price: 5000, type: 'HALO', color: '#ffe600', description: 'Ver angélique.' },
+    { id: 'sa_horns_red', name: 'Cornes Démoniaques', price: 5000, type: 'HORNS', color: '#ef4444', description: 'Petit diable.' },
 ];
 
 export const FRAMES_CATALOG: Frame[] = [
     { id: 'fr_none', name: 'Aucun', price: 0, cssClass: 'border-white/10', description: 'Simple et efficace.' },
+    { id: 'fr_neon_blue', name: 'Néon Bleu', price: 500, cssClass: 'border-cyan-400 shadow-[0_0_10px_#22d3ee] animate-pulse', description: 'Une lueur froide.' },
+    { id: 'fr_neon_pink', name: 'Néon Rose', price: 500, cssClass: 'border-pink-500 shadow-[0_0_10px_#ec4899] animate-pulse', description: 'Flashy et stylé.' },
+    { id: 'fr_toxic', name: 'Toxique', price: 1500, cssClass: 'border-lime-500 shadow-[0_0_15px_#84cc16] bg-[radial-gradient(circle,transparent_40%,rgba(132,204,22,0.3)_100%)]', description: 'Attention, corrosif.' },
+    { id: 'fr_gold', name: 'Or Pur', price: 2500, cssClass: 'border-yellow-400 shadow-[0_0_15px_#facc15] bg-gradient-to-br from-yellow-300/20 to-yellow-600/20', description: 'Le luxe absolu.' },
 ];
 
 export const WALLPAPERS_CATALOG: Wallpaper[] = [
@@ -118,11 +211,73 @@ export const WALLPAPERS_CATALOG: Wallpaper[] = [
 
 export const TITLES_CATALOG: Title[] = [
     { id: 't_none', name: '', price: 0, color: 'text-gray-500', description: 'Aucun titre.' },
+    { id: 't_novice', name: 'NOVICE', price: 100, color: 'text-gray-400', description: 'On commence tous quelque part.' },
 ];
 
 export const MALLETS_CATALOG: Mallet[] = [
+    // --- LES CLASSIQUES (0 - 500) ---
     { id: 'm_classic', name: 'Classique Cyan', price: 0, colors: ['#00f3ff'], type: 'basic', description: 'Le standard de l\'arcade.' },
+    { id: 'm_basic_pink', name: 'Simple Rose', price: 200, colors: ['#ff00ff'], type: 'basic', description: 'Un classique vibrant.' },
+    { id: 'm_basic_yellow', name: 'Simple Jaune', price: 200, colors: ['#ffe600'], type: 'basic', description: 'Eclat pur.' },
+    { id: 'm_basic_green', name: 'Simple Vert', price: 200, colors: ['#00ff9d'], type: 'basic', description: 'Énergie naturelle.' },
+    { id: 'm_fire', name: 'Feu Solaire', price: 500, colors: ['#ff4500'], type: 'basic', description: 'Une frappe brûlante.' },
+    { id: 'm_poison', name: 'Venin', price: 500, colors: ['#a3e635'], type: 'basic', description: 'Rapide et toxique.' },
+    { id: 'm_obsidian', name: 'Obsidienne', price: 500, colors: ['#1e293b'], type: 'basic', description: 'Frappe sombre.' },
+    { id: 'm_ghost', name: 'Spectre', price: 500, colors: ['#e2e8f0'], type: 'basic', description: 'Presque invisible.' },
+
+    // --- DÉGRADÉS NÉON (750 - 2000) ---
+    { id: 'm_plasma', name: 'Plasma Pink', price: 1000, colors: ['#ff00ff', '#9d00ff'], type: 'gradient', description: 'Énergie pure.' },
+    { id: 'm_arctic', name: 'Cristal', price: 1000, colors: ['#ffffff', '#00f3ff'], type: 'gradient', description: 'Froid comme la glace.' },
+    { id: 'm_sunset', name: 'Crépuscule', price: 1200, colors: ['#f97316', '#ef4444'], type: 'gradient', description: 'Couleurs du soir.' },
+    { id: 'm_ocean', name: 'Abysse', price: 1200, colors: ['#1e3a8a', '#06b6d4'], type: 'gradient', description: 'Profondeur marine.' },
+    { id: 'm_forest', name: 'Amazonie', price: 1200, colors: ['#064e3b', '#22c55e'], type: 'gradient', description: 'Force de la jungle.' },
+    { id: 'm_electric', name: 'Voltage', price: 1500, colors: ['#facc15', '#00f3ff'], type: 'gradient', description: 'Haute tension.' },
+    { id: 'm_cyber', name: 'Cyberpunk', price: 1800, colors: ['#ff00ff', '#00f3ff'], type: 'gradient', description: 'Le futur maintenant.' },
+    { id: 'm_nebula', name: 'Nébuleuse', price: 2000, colors: ['#7c3aed', '#db2777'], type: 'gradient', description: 'Gaz stellaire.' },
+
+    // --- MÉTALLIQUES & LUXE (2500 - 5000) ---
+    { id: 'm_iron', name: 'Fer Forgé', price: 2500, colors: ['#475569', '#1e293b'], type: 'gradient', description: 'Solidité brute.' },
+    { id: 'm_silver', name: 'Argent Pur', price: 3000, colors: ['#e2e8f0', '#94a3b8'], type: 'gradient', description: 'Éclat métallique.' },
     { id: 'm_gold', name: 'Or Pur', price: 5000, colors: ['#facc15', '#a16207'], type: 'gradient', description: 'Le luxe de la victoire.' },
+    { id: 'm_ruby', name: 'Rubis Noir', price: 4500, colors: ['#ef4444', '#000000'], type: 'gradient', description: 'Pierre précieuse sombre.' },
+    { id: 'm_emerald', name: 'Émeraude', price: 4500, colors: ['#10b981', '#064e3b'], type: 'gradient', description: 'Éclat vert précieux.' },
+    { id: 'm_sapphire', name: 'Saphir', price: 4500, colors: ['#3b82f6', '#1e3a8a'], type: 'gradient', description: 'Bleu royal intense.' },
+    { id: 'm_platinum', name: 'Platine', price: 5000, colors: ['#ffffff', '#cbd5e1'], type: 'gradient', description: 'Rareté absolue.' },
+
+    // --- MOTIFS SPÉCIAUX (2000 - 4000) ---
+    { id: 'm_target', name: 'Précision', price: 2000, colors: ['#ffffff', '#ff0000'], type: 'target', description: 'Visez juste.' },
+    { id: 'm_bullseye', name: 'Plein Centre', price: 2500, colors: ['#000000', '#00ff00'], type: 'target', description: 'Focus total.' },
+    { id: 'm_flower_pink', name: 'Lotus', price: 3000, colors: ['#ff00ff', '#ffffff'], type: 'flower', description: 'Éclat floral.' },
+    { id: 'm_flower_blue', name: 'Iris', price: 3000, colors: ['#00f3ff', '#1e3a8a'], type: 'flower', description: 'Zenitude néon.' },
+    { id: 'm_toxic_ring', name: 'Biohazard', price: 3500, colors: ['#000000', '#ccff00'], type: 'target', description: 'Danger imminent.' },
+    { id: 'm_vortex', name: 'Vortex', price: 4000, colors: ['#000000', '#9d00ff'], type: 'target', description: 'Aspiration vers la victoire.' },
+
+    // --- ÉLÉMENTAIRES & NATURE (6000 - 9000) ---
+    { id: 'm_magma', name: 'Magma', price: 6000, colors: ['#ff4500', '#000000', '#ff0000'], type: 'complex', description: 'Fusion volcanique.' },
+    { id: 'm_thunder', name: 'Foudre', price: 7000, colors: ['#00f3ff', '#ffffff', '#1e3a8a'], type: 'complex', description: 'Électrisant.' },
+    { id: 'm_toxic_slime', name: 'Slime', price: 6500, colors: ['#ccff00', '#064e3b', '#ccff00'], type: 'complex', description: 'Visqueux mais efficace.' },
+    { id: 'm_ice_age', name: 'Glaciaire', price: 7500, colors: ['#ffffff', '#93c5fd', '#1e3a8a'], type: 'complex', description: 'Zéro absolu.' },
+    { id: 'm_solar_flare', name: 'Éruption', price: 8000, colors: ['#facc15', '#f97316', '#ef4444'], type: 'complex', description: 'Tempête solaire.' },
+    { id: 'm_abyss_depth', name: 'Abyssal', price: 8500, colors: ['#000000', '#1e1b4b', '#3b82f6'], type: 'complex', description: 'Le noir des profondeurs.' },
+
+    // --- LÉGENDAIRES (10000 - 50000) ---
+    { id: 'm_rainbow', name: 'Chroma', price: 10000, colors: ['#ff0000', '#00ff00', '#0000ff'], type: 'complex', description: 'Toutes les fréquences.' },
+    { id: 'm_void', name: 'Le Vide', price: 15000, colors: ['#000000', '#000000', '#ffffff'], type: 'complex', description: 'L\'absence de lumière.' },
+    { id: 'm_matrix', name: 'Code Source', price: 20000, colors: ['#00ff00', '#000000', '#00ff00'], type: 'complex', description: 'Entrez dans la simulation.' },
+    { id: 'm_galaxy_master', name: 'Galactique', price: 25000, colors: ['#4c1d95', '#ec4899', '#3b82f6'], type: 'complex', description: 'Souverain de l\'espace.' },
+    { id: 'm_supernova_legend', name: 'Supernova', price: 30000, colors: ['#ffffff', '#fbbf24', '#ef4444'], type: 'complex', description: 'Explosion finale.' },
+    { id: 'm_diamond_core', name: 'Cœur de Diamant', price: 40000, colors: ['#ffffff', '#bae6fd', '#ffffff'], type: 'complex', description: 'Indestructible.' },
+    { id: 'm_infinity_mallet', name: 'L\'Infini', price: 50000, colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'], type: 'complex', description: 'L\'ultime maillet.' },
+
+    // --- ÉDITIONS SPÉCIALES ---
+    { id: 'm_zebra_cyber', name: 'Zèbre Cyber', price: 4000, colors: ['#ffffff', '#000000', '#ffffff'], type: 'complex', description: 'Rayures futuristes.' },
+    { id: 'm_neon_pulse', name: 'Pulsation', price: 5500, colors: ['#00f3ff', '#000000', '#ff00ff'], type: 'complex', description: 'Rythme visuel.' },
+    { id: 'm_lava_lamp', name: 'Lava Lamp', price: 6000, colors: ['#f97316', '#9d00ff'], type: 'gradient', description: 'Psychédélique.' },
+    { id: 'm_arctic_storm', name: 'Blizzard', price: 7000, colors: ['#e2e8f0', '#ffffff', '#00f3ff'], type: 'complex', description: 'Froid tourbillonnant.' },
+    { id: 'm_cyber_dragon', name: 'Dragon', price: 12000, colors: ['#ef4444', '#facc15', '#000000'], type: 'complex', description: 'Souffle de feu.' },
+    { id: 'm_hologram', name: 'Hologramme', price: 18000, colors: ['#a5f3fc', '#ffffff', '#a5f3fc'], type: 'complex', description: 'Immatériel.' },
+    { id: 'm_midnight', name: 'Minuit', price: 3500, colors: ['#0f172a', '#334155'], type: 'gradient', description: 'Ciel nocturne.' },
+    { id: 'm_stardust', name: 'Poussière d\'Etoiles', price: 8500, colors: ['#ffffff', '#000000', '#facc15'], type: 'complex', description: 'Éclats cosmiques.' },
 ];
 
 const hexToRgb = (hex: string) => {

@@ -12,7 +12,6 @@ export interface HighScores {
   arenaclash: number; 
   lumen: number; 
   slither: number;
-  blockpuzzle: number;
   sudoku: { [difficulty: string]: number }; 
   memory: number; 
   mastermind?: number; 
@@ -34,7 +33,6 @@ const initialHighScores: HighScores = {
   arenaclash: 0,
   lumen: 0,
   slither: 0,
-  blockpuzzle: 0,
   sudoku: {},
   memory: 0,
   mastermind: 0,
@@ -57,7 +55,6 @@ export const useHighScores = () => {
         const parsed = JSON.parse(stored);
         if (!parsed.sudoku) parsed.sudoku = {};
         if (!parsed.slither) parsed.slither = 0;
-        if (!parsed.blockpuzzle) parsed.blockpuzzle = 0;
         setHighScores(parsed);
       } else {
         const newScores = { ...initialHighScores };
@@ -73,7 +70,7 @@ export const useHighScores = () => {
     setHighScores(prev => {
       const newScores = JSON.parse(JSON.stringify(prev)); 
       let shouldUpdate = false;
-      if (['tetris', 'breaker', 'pacman', 'snake', 'invaders', 'game2048', 'watersort', 'runner', 'stack', 'arenaclash', 'lumen', 'rush', 'slither', 'blockpuzzle'].includes(game)) {
+      if (['tetris', 'breaker', 'pacman', 'snake', 'invaders', 'game2048', 'watersort', 'runner', 'stack', 'arenaclash', 'lumen', 'rush', 'slither'].includes(game)) {
          const current = prev[game] || 0;
          if (value > (current as number)) {
              // @ts-ignore
