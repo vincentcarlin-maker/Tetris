@@ -466,6 +466,228 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.restore();
     };
 
+    const drawAccessory = (ctx: CanvasRenderingContext2D, head: Point, angle: number, radius: number, acc: SlitherAccessory) => {
+        ctx.save();
+        ctx.translate(head.x, head.y);
+        ctx.rotate(angle);
+        
+        const type = acc.type;
+        const color = acc.color;
+        const sec = acc.secondaryColor || '#ffffff';
+
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
+
+        if (type === 'CROWN') {
+            // Gold Crown with 3D ring
+            const w = radius * 2;
+            const h = radius * 1.5;
+            
+            // Back parts of crown points
+            ctx.fillStyle = acc.secondaryColor || '#d97706';
+            ctx.beginPath();
+            ctx.moveTo(-w/2, -radius);
+            ctx.lineTo(-w/2, -radius - 15);
+            ctx.lineTo(-w/4, -radius - 5);
+            ctx.lineTo(0, -radius - 15);
+            ctx.lineTo(w/4, -radius - 5);
+            ctx.lineTo(w/2, -radius - 15);
+            ctx.lineTo(w/2, -radius);
+            ctx.fill();
+
+            // Main ring (gradient for 3D)
+            const ringGrad = ctx.createLinearGradient(-w/2, 0, w/2, 0);
+            ringGrad.addColorStop(0, '#92400e');
+            ringGrad.addColorStop(0.5, color);
+            ringGrad.addColorStop(1, '#92400e');
+            ctx.fillStyle = ringGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, -radius, w/2, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Central Jewel
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(0, -radius - 10, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ef4444';
+            ctx.stroke();
+        } 
+        else if (type === 'HALO') {
+            // Floating 3D ring
+            ctx.shadowBlur = 20;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.ellipse(0, -radius - 20, radius * 1.2, radius * 0.4, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            // Glow overlay
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        else if (type === 'HORNS') {
+            // 3D Devil Horns
+            const drawHorn = (side: number) => {
+                ctx.save();
+                ctx.scale(side, 1);
+                ctx.translate(radius * 0.5, -radius * 0.5);
+                
+                const grad = ctx.createLinearGradient(0, 0, 10, -20);
+                grad.addColorStop(0, sec);
+                grad.addColorStop(1, color);
+                
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(15, -5, 10, -25);
+                ctx.quadraticCurveTo(0, -15, -5, 5);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.stroke();
+                ctx.restore();
+            };
+            drawHorn(1);
+            drawHorn(-1);
+        }
+        else if (type === 'VISOR') {
+            // Cyber Visor wrapping eyes
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.4)';
+            ctx.beginPath();
+            ctx.ellipse(radius * 0.6, 0, radius * 0.8, radius * 1.2, 0, -Math.PI/2, Math.PI/2);
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            // Highlight
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(radius * 0.8, -radius * 0.5);
+            ctx.lineTo(radius * 0.8, radius * 0.5);
+            ctx.stroke();
+        }
+        else if (type === 'VIKING') {
+            // 3D Viking helmet with horns
+            const helmetGrad = ctx.createRadialGradient(0, -radius, 0, 0, -radius, radius);
+            helmetGrad.addColorStop(0, sec);
+            helmetGrad.addColorStop(1, '#475569');
+            ctx.fillStyle = helmetGrad;
+            ctx.beginPath();
+            ctx.arc(0, -radius * 0.5, radius * 0.9, Math.PI, 0);
+            ctx.fill();
+            ctx.stroke();
+
+            // Horns
+            const drawVHorn = (side: number) => {
+                ctx.save();
+                ctx.scale(side, 1);
+                ctx.translate(radius * 0.7, -radius * 0.8);
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(10, -5, 15, -20);
+                ctx.lineTo(5, -5);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            };
+            drawVHorn(1);
+            drawVHorn(-1);
+        }
+        else if (type === 'HAT') {
+            // Classic Top Hat 3D
+            ctx.fillStyle = color;
+            // Brim
+            ctx.beginPath();
+            ctx.ellipse(0, -radius * 0.6, radius * 1.3, radius * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Top part
+            ctx.fillStyle = sec;
+            ctx.fillRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.2);
+            ctx.strokeRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.2);
+            // Band
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(-radius * 0.7, -radius * 0.8, radius * 1.4, 6);
+        }
+        else if (type === 'HEADPHONES') {
+            // Cool cyber headphones
+            const drawEar = (side: number) => {
+                ctx.save();
+                ctx.translate(0, radius * side * 0.8);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+                // Glow inner
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(0,0, radius * 0.2, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            };
+            drawEar(1);
+            drawEar(-1);
+            // Connecting band
+            ctx.strokeStyle = sec;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 1.1, -Math.PI/2, Math.PI/2, true);
+            ctx.stroke();
+        }
+        else if (type === 'CAT_EARS') {
+            const drawCatEar = (side: number) => {
+                ctx.save();
+                ctx.scale(1, side);
+                ctx.translate(0, -radius * 0.8);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(0, -15);
+                ctx.lineTo(10, 0);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.moveTo(-5, 0);
+                ctx.lineTo(0, -8);
+                ctx.lineTo(5, 0);
+                ctx.fill();
+                ctx.restore();
+            };
+            drawCatEar(1);
+            drawCatEar(-1);
+        }
+        else if (type === 'NINJA') {
+            // Ninja bandana with tails
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.rect(-radius, -radius * 0.3, radius * 2, radius * 0.6);
+            ctx.fill();
+            // Tails at back
+            ctx.save();
+            ctx.translate(-radius, 0);
+            ctx.rotate(Math.sin(Date.now()/200) * 0.2);
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.lineTo(-20, -5);
+            ctx.lineTo(-15, 5);
+            ctx.fill();
+            ctx.restore();
+            // Metal plate
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(radius * 0.5, -4, 10, 8);
+        }
+
+        ctx.restore();
+    };
+
     const drawWorm = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         const segs = worm.segments;
         if (segs.length < 2) return;
@@ -477,11 +699,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const radius = worm.radius || 12;
 
         ctx.save();
+        // DRAW BODY (Reverse order to have head on top)
         for (let i = segs.length - 1; i >= 0; i--) {
             const seg = segs[i];
             const isHead = i === 0;
             const segmentColor = pattern === 'solid' ? primary : 
                                pattern === 'stripes' ? (Math.floor(i / 3) % 2 === 0 ? primary : secondary) :
+                               pattern === 'dots' ? (i % 5 === 0 ? secondary : primary) :
                                pattern === 'checker' ? (i % 2 === 0 ? primary : secondary) :
                                pattern === 'rainbow' ? `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)` :
                                primary;
@@ -524,17 +748,35 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         }
 
         const head = segs[0];
+
+        // DRAW ACCESSORY
+        if (worm.accessory && worm.accessory.id !== 'sa_none') {
+            drawAccessory(ctx, head, worm.angle, radius, worm.accessory);
+        }
+
+        // EYES
         const eyeOffset = 8;
         const eyeAngle = worm.angle;
-        const eyePositions = [{ x: head.x + Math.cos(eyeAngle + 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle + 0.6) * eyeOffset }, { x: head.x + Math.cos(eyeAngle - 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle - 0.6) * eyeOffset }];
+        const eyePositions = [
+            { x: head.x + Math.cos(eyeAngle + 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle + 0.6) * eyeOffset }, 
+            { x: head.x + Math.cos(eyeAngle - 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle - 0.6) * eyeOffset }
+        ];
         eyePositions.forEach(pos => {
             const eyeGrad = ctx.createRadialGradient(pos.x - 2, pos.y - 2, 1, pos.x, pos.y, 6);
-            eyeGrad.addColorStop(0, '#fff'); eyeGrad.addColorStop(0.8, '#eee'); eyeGrad.addColorStop(1, '#999');
-            ctx.fillStyle = eyeGrad; ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(pos.x + Math.cos(eyeAngle) * 2, pos.y + Math.sin(eyeAngle) * 2, 3, 0, Math.PI * 2); ctx.fill();
+            eyeGrad.addColorStop(0, '#fff'); 
+            eyeGrad.addColorStop(0.8, '#eee'); 
+            eyeGrad.addColorStop(1, '#999');
+            ctx.fillStyle = eyeGrad; 
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#000'; 
+            ctx.beginPath(); ctx.arc(pos.x + Math.cos(eyeAngle) * 2, pos.y + Math.sin(eyeAngle) * 2, 3, 0, Math.PI * 2); ctx.fill();
         });
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.font = 'bold 14px Rajdhani'; ctx.textAlign = 'center';
-        ctx.fillText(worm.name, head.x, head.y - 35);
+
+        // NAME TAG
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; 
+        ctx.font = 'bold 14px Rajdhani'; 
+        ctx.textAlign = 'center';
+        ctx.fillText(worm.name, head.x, head.y - (worm.accessory ? 45 : 35));
         ctx.restore();
     };
 

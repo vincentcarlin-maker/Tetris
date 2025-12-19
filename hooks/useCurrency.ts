@@ -44,8 +44,9 @@ export interface SlitherAccessory {
     id: string;
     name: string;
     price: number;
-    type: 'CROWN' | 'HAT' | 'GLASSES' | 'NINJA' | 'VIKING' | 'HALO' | 'HORNS' | 'CAT_EARS' | 'MOUSTACHE' | 'MONOCLE' | 'EYEPATCH' | 'BERET' | 'CAP' | 'FEZ' | 'SOMBRERO' | 'TIARA' | 'WITCH' | 'COWBOY' | 'MASK' | 'FLOWER' | 'STAR' | 'ROBOT' | 'DEVIL' | 'ANGEL' | 'HERO';
+    type: 'CROWN' | 'HAT' | 'GLASSES' | 'NINJA' | 'VIKING' | 'HALO' | 'HORNS' | 'CAT_EARS' | 'MOUSTACHE' | 'MONOCLE' | 'EYEPATCH' | 'BERET' | 'CAP' | 'FEZ' | 'SOMBRERO' | 'TIARA' | 'WITCH' | 'COWBOY' | 'MASK' | 'FLOWER' | 'STAR' | 'ROBOT' | 'DEVIL' | 'ANGEL' | 'HERO' | 'VISOR' | 'HEADPHONES' | 'DRAGON_HORNS';
     color: string;
+    secondaryColor?: string;
     description: string;
 }
 
@@ -183,18 +184,18 @@ export const AVATARS_CATALOG: Avatar[] = [
 
 export const SLITHER_ACCESSORIES_CATALOG: SlitherAccessory[] = [
     { id: 'sa_none', name: 'Aucun', price: 0, type: 'HAT', color: 'transparent', description: 'Garder la tête libre.' },
-    { id: 'sa_crown_gold', name: 'Couronne d\'Or', price: 5000, type: 'CROWN', color: '#ffe600', description: 'Le roi de l\'arène.' },
-    { id: 'sa_crown_silver', name: 'Couronne d\'Argent', price: 4000, type: 'CROWN', color: '#e2e8f0', description: 'Éclat métallique.' },
-    { id: 'sa_tiara_pink', name: 'Diadème Rose', price: 3500, type: 'TIARA', color: '#ff00ff', description: 'Élégance néon.' },
-    { id: 'sa_tophat_black', name: 'Haut-de-forme Noir', price: 1500, type: 'HAT', color: '#111827', description: 'Un ver distingué.' },
-    { id: 'sa_beret_red', name: 'Béret Rouge', price: 1000, type: 'BERET', color: '#ef4444', description: 'L\'artiste de l\'arène.' },
-    { id: 'sa_cap_red', name: 'Casquette Rouge', price: 800, type: 'CAP', color: '#ef4444', description: 'Ver sportif.' },
-    { id: 'sa_cowboy_brown', name: 'Chapeau Cowboy', price: 2500, type: 'COWBOY', color: '#78350f', description: 'Le shérif glissant.' },
-    { id: 'sa_witch', name: 'Chapeau de Sorcier', price: 4500, type: 'WITCH', color: '#4c1d95', description: 'Magie noire.' },
-    { id: 'sa_sunglasses_black', name: 'Cyber Lunettes', price: 1000, type: 'GLASSES', color: '#00f3ff', description: 'Style futuriste.' },
-    { id: 'sa_ninja_red', name: 'Bandeau Ninja Rouge', price: 2000, type: 'NINJA', color: '#ef4444', description: 'Maître du camouflage.' },
-    { id: 'sa_halo_gold', name: 'Auréole Céleste', price: 5000, type: 'HALO', color: '#ffe600', description: 'Ver angélique.' },
-    { id: 'sa_horns_red', name: 'Cornes Démoniaques', price: 5000, type: 'HORNS', color: '#ef4444', description: 'Petit diable.' },
+    { id: 'sa_crown_gold', name: 'Couronne Royale', price: 5000, type: 'CROWN', color: '#fbbf24', secondaryColor: '#d97706', description: 'Le souverain de l\'arène.' },
+    { id: 'sa_viking', name: 'Casque Viking', price: 4500, type: 'VIKING', color: '#94a3b8', secondaryColor: '#ffffff', description: 'La force brute.' },
+    { id: 'sa_visor_cyber', name: 'Visière Cyber', price: 3000, type: 'VISOR', color: '#00f3ff', secondaryColor: '#0044ff', description: 'Analyse tactique.' },
+    { id: 'sa_ninja_red', name: 'Bandeau Ninja', price: 2000, type: 'NINJA', color: '#ef4444', description: 'Maître du camouflage.' },
+    { id: 'sa_halo_gold', name: 'Auréole Céleste', price: 5000, type: 'HALO', color: '#fffbeb', secondaryColor: '#facc15', description: 'Une lueur d\'innocence.' },
+    { id: 'sa_horns_devil', name: 'Cornes Démoniaques', price: 5000, type: 'HORNS', color: '#ff0000', secondaryColor: '#450a0a', description: 'Petit diable.' },
+    { id: 'sa_cat_ears', name: 'Oreilles de Chat', price: 2500, type: 'CAT_EARS', color: '#ff00ff', description: 'Mignon mais mortel.' },
+    { id: 'sa_tophat', name: 'Haut-de-forme', price: 1500, type: 'HAT', color: '#111827', secondaryColor: '#374151', description: 'Un ver de classe.' },
+    { id: 'sa_headphones', name: 'Casque Audio', price: 3500, type: 'HEADPHONES', color: '#00ff9d', secondaryColor: '#064e3b', description: 'Rythme de glisse.' },
+    { id: 'sa_witch', name: 'Chapeau Sorcier', price: 4000, type: 'WITCH', color: '#4c1d95', secondaryColor: '#d946ef', description: 'Magie ancienne.' },
+    { id: 'sa_dragon', name: 'Cornes de Dragon', price: 7500, type: 'DRAGON_HORNS', color: '#f97316', secondaryColor: '#ff0000', description: 'Ancêtre mythique.' },
+    { id: 'sa_hero', name: 'Masque Héros', price: 3000, type: 'HERO', color: '#3b82f6', secondaryColor: '#ffffff', description: 'Justice glissante.' },
 ];
 
 export const FRAMES_CATALOG: Frame[] = [

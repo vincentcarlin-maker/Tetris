@@ -87,7 +87,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
 
         return (
             <div className="relative w-24 h-24 flex items-center justify-center">
-                {/* 3D Orb Effect Layers */}
                 <div className="w-16 h-16 rounded-full border-2 relative overflow-hidden shadow-2xl transition-transform group-hover:scale-110" 
                      style={{ 
                          background: backgroundStyle, 
@@ -95,9 +94,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                          borderColor: 'rgba(255,255,255,0.4)', 
                          boxShadow: `0 0 25px ${skin.glowColor}80` 
                      }}>
-                    {/* Shadow Layer for depth */}
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,transparent_30%,rgba(0,0,0,0.5)_100%)]"></div>
-                    {/* Inner highlight (3D shine) */}
                     <div className="absolute top-2 left-2 w-8 h-8 bg-gradient-to-br from-white/60 to-transparent rounded-full blur-[1px]"></div>
                 </div>
             </div>
@@ -107,26 +104,33 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const renderAccessoryPreview = (acc: SlitherAccessory) => {
         const type = acc.type;
         const color = acc.color;
+        const sec = acc.secondaryColor || '#ffffff';
 
         return (
-            <div className="w-16 h-16 rounded-xl bg-gray-800 border border-white/10 flex items-center justify-center relative overflow-hidden group shadow-lg">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
-                {type === 'CROWN' && <div className="w-10 h-8 rounded-sm relative shadow-lg" style={{backgroundColor: color, boxShadow: `0 0 10px ${color}`}}><div className="absolute -top-2 left-0 w-3 h-3" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="absolute -top-2 right-0 w-3 h-3" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div></div>}
-                {type === 'TIARA' && <div className="w-10 h-6 border-2 rounded-t-full relative" style={{borderColor: color, boxShadow: `0 0 10px ${color}`}}><div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full"></div></div>}
-                {type === 'HAT' && <div className="flex flex-col items-center"><div className="w-8 h-8 rounded-t-sm shadow-md" style={{backgroundColor: color}}></div><div className="w-12 h-1.5 bg-gray-700 rounded-full"></div></div>}
-                {type === 'CAP' && <div className="flex flex-col items-center"><div className="w-8 h-6 rounded-t-full" style={{backgroundColor: color}}></div><div className="w-10 h-1 bg-white/20 rounded-full"></div></div>}
-                {type === 'GLASSES' && <div className="flex gap-1 items-center"><div className="w-6 h-4 rounded-sm shadow-md" style={{backgroundColor: color, opacity: 0.7}}></div><div className="w-2 h-0.5 bg-white"></div><div className="w-6 h-4 rounded-sm shadow-md" style={{backgroundColor: color, opacity: 0.7}}></div></div>}
-                {type === 'NINJA' && <div className="w-12 h-3 rounded-full flex items-center justify-center shadow-md" style={{backgroundColor: color}}><div className="w-2 h-2 bg-white rounded-full"></div></div>}
-                {type === 'VIKING' && <div className="relative"><div className="w-10 h-6 bg-slate-400 rounded-t-full shadow-md"></div><div className="absolute -top-3 -left-2 w-4 h-6 bg-white rounded-tr-full transform -rotate-45"></div><div className="absolute -top-3 -right-2 w-4 h-6 bg-white rounded-tl-full transform rotate(45deg)"></div></div>}
-                {type === 'HALO' && <div className="w-10 h-3 border-2 rounded-full animate-pulse" style={{borderColor: color, boxShadow: `0 0 10px ${color}`}}></div>}
-                {type === 'HORNS' && <div className="flex gap-4"><div className="w-2 h-6 rounded-t-full transform -rotate-12" style={{backgroundColor: color}}></div><div className="w-2 h-6 rounded-t-full transform rotate(12)" style={{backgroundColor: color}}></div></div>}
-                {type === 'CAT_EARS' && <div className="flex gap-4"><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div></div>}
-                {type === 'MOUSTACHE' && <div className="flex gap-1"><div className="w-5 h-2 rounded-full" style={{backgroundColor: color}}></div><div className="w-5 h-2 rounded-full" style={{backgroundColor: color}}></div></div>}
-                {type === 'STAR' && <Star size={32} style={{color: color, filter: `drop-shadow(0 0 8px ${color})`}} fill="currentColor" />}
-                {type === 'FLOWER' && <Flower size={32} style={{color: color}} fill="currentColor" />}
-                {type === 'ROBOT' && <div className="flex flex-col items-center"><div className="w-1 h-6 bg-gray-400"></div><div className="w-3 h-3 rounded-full" style={{backgroundColor: color, boxShadow: `0 0 10px ${color}`}}></div ></div>}
-                {type === 'HERO' && <div className="w-12 h-4 rounded-md border" style={{backgroundColor: color, borderColor: 'white'}}></div>}
-                {acc.id === 'sa_none' && <X className="text-gray-600" size={32} />}
+            <div className="w-20 h-20 bg-gray-900/50 rounded-2xl border border-white/10 flex items-center justify-center relative overflow-hidden group shadow-xl">
+                 <div className="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-500/30 absolute"></div>
+                 <div className="relative z-10 transform scale-125">
+                    {/* Simplified canvas-like preview for shop using CSS shapes */}
+                    {type === 'CROWN' && (
+                        <div className="flex flex-col items-center">
+                            <div className="flex gap-0.5">
+                                <div className="w-2 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div>
+                                <div className="w-3 h-5" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div>
+                                <div className="w-2 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div>
+                            </div>
+                            <div className="w-8 h-2 rounded-full border border-white/50" style={{backgroundColor: sec}}></div>
+                        </div>
+                    )}
+                    {type === 'HALO' && <div className="w-10 h-3 border-2 rounded-full animate-pulse" style={{borderColor: color, boxShadow: `0 0 10px ${color}`}}></div>}
+                    {type === 'HORNS' && <div className="flex gap-4"><div className="w-2 h-6 rounded-t-full transform -rotate-12" style={{backgroundColor: color}}></div><div className="w-2 h-6 rounded-t-full transform rotate(12)" style={{backgroundColor: color}}></div></div>}
+                    {type === 'VISOR' && <div className="w-10 h-4 rounded-full border-2 bg-cyan-500/30" style={{borderColor: color}}></div>}
+                    {type === 'VIKING' && <div className="flex flex-col items-center"><div className="flex gap-6"><div className="w-2 h-4 bg-white transform -rotate-45"></div><div className="w-2 h-4 bg-white transform rotate-45"></div></div><div className="w-8 h-4 rounded-t-full" style={{backgroundColor: color}}></div></div>}
+                    {type === 'HEADPHONES' && <div className="flex items-center gap-6"><div className="w-3 h-5 rounded-md" style={{backgroundColor: color}}></div><div className="w-3 h-5 rounded-md" style={{backgroundColor: color}}></div><div className="absolute w-10 h-4 border-t-2 rounded-t-full" style={{borderColor: sec}}></div></div>}
+                    {type === 'HAT' && <div className="flex flex-col items-center"><div className="w-6 h-6" style={{backgroundColor: sec}}></div><div className="w-10 h-1.5 rounded-full" style={{backgroundColor: color}}></div></div>}
+                    {type === 'NINJA' && <div className="w-12 h-2 rounded-full relative" style={{backgroundColor: color}}><div className="absolute right-0 top-0 w-4 h-1 bg-red-600 rotate-45 origin-right"></div></div>}
+                    {type === 'CAT_EARS' && <div className="flex gap-4"><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div></div>}
+                    {acc.id === 'sa_none' && <X className="text-gray-600" size={32} />}
+                 </div>
             </div>
         );
     };
@@ -223,7 +227,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             <>
                                 <SectionHeader title="Skins 3D Volumétriques" icon={Pipette} color="text-indigo-400" />
                                 
-                                {/* Filters for Slither */}
                                 <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-gray-900/60 p-4 rounded-3xl border border-white/10 backdrop-blur-md">
                                     <div className="relative flex-1">
                                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -276,11 +279,8 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                         );
                                     })}
                                 </div>
-                                {filteredSlitherSkins.length === 0 && (
-                                    <div className="p-12 text-center text-gray-600 italic border-2 border-dashed border-white/5 rounded-3xl">Aucun skin trouvé dans cette catégorie.</div>
-                                )}
 
-                                <SectionHeader title="Accessoires de Tête" icon={Glasses} color="text-purple-400" />
+                                <SectionHeader title="Accessoires Premium 3D" icon={Glasses} color="text-purple-400" />
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pb-24">
                                     {slitherAccessoriesCatalog.map(acc => {
                                         const isOwned = ownedSlitherAccessories.includes(acc.id);
@@ -301,7 +301,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </div>
                             </>
                         )}
-
+                        {/* Player, Ambiance, Gear sections remain same as before but inside the new structure */}
                         {activeGroup === 'PLAYER' && (
                             <>
                                 <SectionHeader title="Avatars Néon" icon={User} color="text-cyan-400" />
@@ -329,7 +329,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </div>
                             </>
                         )}
-
                         {activeGroup === 'AMBIANCE' && (
                             <>
                                 <SectionHeader title="Fonds d'Écran" icon={Image} color="text-emerald-400" />
@@ -357,7 +356,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </div>
                             </>
                         )}
-
                         {activeGroup === 'GEAR' && (
                             <>
                                 <SectionHeader title="Skins Maillets" icon={Disc} color="text-pink-400" />
