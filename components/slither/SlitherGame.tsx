@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Zap, HelpCircle, User, Globe, Play, ArrowLeft, Loader2, LogOut, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Shield, Skull } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -182,7 +183,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const update = (dt: number) => {
         if (gameState === 'MENU' || gameState === 'GAMEOVER') return;
         
-        // Mettre à jour les particules même après la mort
         particlesRef.current.forEach(p => {
             p.x += p.vx;
             p.y += p.vy;
@@ -196,7 +196,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const player = playerWormRef.current;
         if (!player) return;
 
-        // Si le joueur est en train de mourir, on ne traite plus ses inputs ni ses collisions
         if (gameState === 'DYING') {
             cameraRef.current.x = player.segments[0].x;
             cameraRef.current.y = player.segments[0].y;
@@ -237,7 +236,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             handleDeath();
         }
 
-        // Nourriture
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             const distSq = (head.x - f.x)**2 + (head.y - f.y)**2;
@@ -255,7 +253,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             }
         }
 
-        // Collisions
         othersRef.current.forEach(other => {
             if (other.isDead) return;
             for (let sIdx = 0; sIdx < other.segments.length; sIdx += 2) {
@@ -273,7 +270,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         cameraRef.current.x = head.x;
         cameraRef.current.y = head.y;
 
-        // BOT AI
         if (gameMode === 'SOLO') {
             const allWorms = [player, ...othersRef.current];
             othersRef.current.forEach(bot => {
@@ -376,14 +372,12 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         joystickActiveRef.current = false;
         joystickOriginRef.current = null;
         
-        // Explosion de particules du joueur
         const head = player.segments[0];
         spawnParticles(head.x, head.y, player.skin?.primaryColor || player.color, 60);
         shakeRef.current = 15;
         
         playExplosion();
         
-        // Délai avant l'écran de Game Over
         setTimeout(() => {
             setGameState('GAMEOVER');
             playGameOver();
@@ -403,7 +397,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         let offsetX = -cam.x + ctx.canvas.width / 2;
         let offsetY = -cam.y + ctx.canvas.height / 2;
         
-        // Screenshake logic
         if (shakeRef.current > 0) {
             offsetX += (Math.random() - 0.5) * shakeRef.current;
             offsetY += (Math.random() - 0.5) * shakeRef.current;
@@ -431,7 +424,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             ctx.beginPath(); ctx.arc(f.x, f.y, 4 + f.val, 0, Math.PI * 2); ctx.fill();
         });
 
-        // Dessiner les particules
         particlesRef.current.forEach(p => {
             ctx.fillStyle = p.color;
             ctx.globalAlpha = p.life;
@@ -494,17 +486,41 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                                pattern === 'rainbow' ? `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)` :
                                primary;
 
+            // 3D EFFECT PER SEGMENT
             ctx.shadowBlur = isHead ? 20 : 5;
             ctx.shadowColor = worm.isBoost ? '#fff' : glow;
-            const bodyGrad = ctx.createRadialGradient(seg.x - radius * 0.3, seg.y - radius * 0.3, radius * 0.1, seg.x, seg.y, radius);
-            bodyGrad.addColorStop(0, '#fff');
-            bodyGrad.addColorStop(0.2, segmentColor);
-            bodyGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
+            
+            // Sphere shading gradient
+            const bodyGrad = ctx.createRadialGradient(
+                seg.x - radius * 0.3, 
+                seg.y - radius * 0.3, 
+                radius * 0.1, 
+                seg.x, 
+                seg.y, 
+                radius
+            );
+            
+            if (pattern === 'metallic') {
+                bodyGrad.addColorStop(0, '#fff');
+                bodyGrad.addColorStop(0.3, primary);
+                bodyGrad.addColorStop(0.6, secondary);
+                bodyGrad.addColorStop(1, '#000');
+            } else {
+                bodyGrad.addColorStop(0, '#fff'); // Spéculaire
+                bodyGrad.addColorStop(0.2, segmentColor);
+                bodyGrad.addColorStop(1, 'rgba(0,0,0,0.6)'); // Ombre propre
+            }
+
             ctx.fillStyle = bodyGrad;
             ctx.beginPath(); ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2); ctx.fill();
+            
             ctx.shadowBlur = 0;
+            
+            // Specular Highlight (The 3D "white dot")
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.beginPath(); ctx.ellipse(seg.x - radius * 0.3, seg.y - radius * 0.3, radius * 0.3, radius * 0.2, Math.PI / 4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); 
+            ctx.ellipse(seg.x - radius * 0.35, seg.y - radius * 0.35, radius * 0.3, radius * 0.2, Math.PI / 4, 0, Math.PI * 2); 
+            ctx.fill();
         }
 
         const head = segs[0];

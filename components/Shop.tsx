@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, User, Image, Type, Disc, Pipette, Glasses, X, ChevronRight, LayoutGrid, Star, Palette, Sparkles, UserCircle, Frame, Zap, Flower } from 'lucide-react';
+import { ArrowLeft, Lock, Check, Coins, User, Image, Type, Disc, Pipette, Glasses, X, ChevronRight, LayoutGrid, Star, Palette, Sparkles, UserCircle, Frame, Zap, Flower, Filter, Search } from 'lucide-react';
 import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, Mallet, SlitherSkin, SlitherAccessory } from '../hooks/useCurrency';
 
 interface ShopProps {
@@ -22,6 +23,8 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     } = currency;
 
     const [activeGroup, setActiveGroup] = useState<ShopGroup>(null);
+    const [slitherFilter, setSlitherFilter] = useState<'ALL' | 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY'>('ALL');
+    const [slitherSearch, setSlitherSearch] = useState('');
 
     // --- ACTIONS D'ACHAT ---
     const handleBuyBadge = (badge: Badge) => {
@@ -75,16 +78,27 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const renderSlitherPreview = (skin: SlitherSkin) => {
         const pattern = skin.pattern || 'solid';
         let backgroundStyle = `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`;
+        
         if (pattern === 'stripes') backgroundStyle = `repeating-linear-gradient(90deg, ${skin.primaryColor}, ${skin.primaryColor} 10px, ${skin.secondaryColor} 10px, ${skin.secondaryColor} 20px)`;
         else if (pattern === 'dots') backgroundStyle = `radial-gradient(${skin.secondaryColor} 20%, transparent 20%), radial-gradient(${skin.secondaryColor} 20%, ${skin.primaryColor} 20%)`;
         else if (pattern === 'checker') backgroundStyle = `conic-gradient(${skin.primaryColor} 90deg, ${skin.secondaryColor} 90deg 180deg, ${skin.primaryColor} 180deg 270deg, ${skin.secondaryColor} 270deg)`;
-        else if (pattern === 'rainbow') backgroundStyle = `linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)`;
+        else if (pattern === 'rainbow') backgroundStyle = `linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff)`;
         else if (pattern === 'grid') backgroundStyle = `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px), ${skin.secondaryColor}`;
 
         return (
-            <div className="relative w-24 h-12 flex items-center justify-center">
-                <div className="w-20 h-6 rounded-full border-2 shadow-lg overflow-hidden" style={{ background: backgroundStyle, backgroundSize: pattern === 'dots' ? '10px 10px' : (pattern === 'checker' ? '12px 12px' : (pattern === 'grid' ? '8px 8px' : 'auto')), borderColor: 'rgba(255,255,255,0.3)', boxShadow: `0 0 15px ${skin.glowColor}` }}>
-                    <div className="absolute top-1/2 left-3 -translate-y-1/2 w-2 h-2 bg-white rounded-full opacity-60"></div>
+            <div className="relative w-24 h-24 flex items-center justify-center">
+                {/* 3D Orb Effect Layers */}
+                <div className="w-16 h-16 rounded-full border-2 relative overflow-hidden shadow-2xl transition-transform group-hover:scale-110" 
+                     style={{ 
+                         background: backgroundStyle, 
+                         backgroundSize: pattern === 'dots' ? '10px 10px' : (pattern === 'checker' ? '12px 12px' : (pattern === 'grid' ? '8px 8px' : 'auto')), 
+                         borderColor: 'rgba(255,255,255,0.4)', 
+                         boxShadow: `0 0 25px ${skin.glowColor}80` 
+                     }}>
+                    {/* Shadow Layer for depth */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,transparent_30%,rgba(0,0,0,0.5)_100%)]"></div>
+                    {/* Inner highlight (3D shine) */}
+                    <div className="absolute top-2 left-2 w-8 h-8 bg-gradient-to-br from-white/60 to-transparent rounded-full blur-[1px]"></div>
                 </div>
             </div>
         );
@@ -109,7 +123,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 {type === 'CAT_EARS' && <div className="flex gap-4"><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div><div className="w-4 h-4" style={{backgroundColor: color, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'}}></div></div>}
                 {type === 'MOUSTACHE' && <div className="flex gap-1"><div className="w-5 h-2 rounded-full" style={{backgroundColor: color}}></div><div className="w-5 h-2 rounded-full" style={{backgroundColor: color}}></div></div>}
                 {type === 'STAR' && <Star size={32} style={{color: color, filter: `drop-shadow(0 0 8px ${color})`}} fill="currentColor" />}
-                {/* Fix: Added missing Flower icon to imports */}
                 {type === 'FLOWER' && <Flower size={32} style={{color: color}} fill="currentColor" />}
                 {type === 'ROBOT' && <div className="flex flex-col items-center"><div className="w-1 h-6 bg-gray-400"></div><div className="w-3 h-3 rounded-full" style={{backgroundColor: color, boxShadow: `0 0 10px ${color}`}}></div ></div>}
                 {type === 'HERO' && <div className="w-12 h-4 rounded-md border" style={{backgroundColor: color, borderColor: 'white'}}></div>}
@@ -128,12 +141,16 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         </div>
     );
 
+    const filteredSlitherSkins = slitherSkinsCatalog.filter(skin => {
+        if (slitherFilter !== 'ALL' && skin.rarity !== slitherFilter) return false;
+        if (slitherSearch && !skin.name.toLowerCase().includes(slitherSearch.toLowerCase())) return false;
+        return true;
+    });
+
     return (
         <div className="flex flex-col h-full w-full bg-[#05050a] relative overflow-hidden font-sans text-white">
-            {/* Background dynamic glow */}
             <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             
-            {/* Header */}
             <div className="w-full max-w-4xl mx-auto flex items-center justify-between p-4 z-20 shrink-0">
                 <div className="flex items-center gap-3">
                     <button onClick={activeGroup ? () => setActiveGroup(null) : onBack} className="p-2.5 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg">
@@ -155,9 +172,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
 
             <div className="flex-1 w-full max-w-4xl mx-auto px-4 pb-24 overflow-y-auto custom-scrollbar z-10">
                 {!activeGroup ? (
-                    /* --- CHOIX DES CATÉGORIES PRINCIPALES --- */
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* CARTE PROFIL */}
                         <button onClick={() => setActiveGroup('PLAYER')} className="group relative h-48 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-cyan-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/40 via-blue-900/40 to-black"></div>
                             <div className="absolute top-0 right-0 p-8 text-white/5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform"><UserCircle size={140} /></div>
@@ -169,19 +184,17 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             <div className="absolute bottom-4 right-8 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all"><ChevronRight size={24} className="text-cyan-400" /></div>
                         </button>
 
-                        {/* CARTE SLITHER */}
                         <button onClick={() => setActiveGroup('SLITHER')} className="group relative h-48 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-indigo-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/40 via-purple-900/40 to-black"></div>
                             <div className="absolute top-0 right-0 p-8 text-white/5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform"><Zap size={140} /></div>
                             <div className="absolute inset-0 p-8 flex flex-col justify-end items-start text-left">
                                 <Sparkles size={32} className="text-indigo-400 mb-3 drop-shadow-[0_0_10px_#818cf8]" />
                                 <h2 className="text-2xl font-black italic tracking-tight uppercase">Neon Slither</h2>
-                                <p className="text-xs text-gray-400 font-bold tracking-widest mt-1">SKINS • ACCESSOIRES • EFFETS</p>
+                                <p className="text-xs text-gray-400 font-bold tracking-widest mt-1">50+ SKINS 3D • ACCESSOIRES</p>
                             </div>
                             <div className="absolute bottom-4 right-8 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all"><ChevronRight size={24} className="text-indigo-400" /></div>
                         </button>
 
-                        {/* CARTE AMBIANCE */}
                         <button onClick={() => setActiveGroup('AMBIANCE')} className="group relative h-48 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-emerald-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/40 via-green-900/40 to-black"></div>
                             <div className="absolute top-0 right-0 p-8 text-white/5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform"><Image size={140} /></div>
@@ -193,7 +206,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             <div className="absolute bottom-4 right-8 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all"><ChevronRight size={24} className="text-emerald-400" /></div>
                         </button>
 
-                        {/* CARTE ÉQUIPEMENT */}
                         <button onClick={() => setActiveGroup('GEAR')} className="group relative h-48 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-pink-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-pink-600/40 via-rose-900/40 to-black"></div>
                             <div className="absolute top-0 right-0 p-8 text-white/5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform"><Disc size={140} /></div>
@@ -206,10 +218,90 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                         </button>
                     </div>
                 ) : (
-                    /* --- VUE DÉTAILLÉE PAR COLLECTION --- */
                     <div className="animate-in fade-in slide-in-from-right-4 duration-400">
-                        
-                        {/* --- COLLECTION JOUEUR --- */}
+                        {activeGroup === 'SLITHER' && (
+                            <>
+                                <SectionHeader title="Skins 3D Volumétriques" icon={Pipette} color="text-indigo-400" />
+                                
+                                {/* Filters for Slither */}
+                                <div className="flex flex-col sm:flex-row gap-3 mb-6 bg-gray-900/60 p-4 rounded-3xl border border-white/10 backdrop-blur-md">
+                                    <div className="relative flex-1">
+                                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                                        <input 
+                                            type="text" 
+                                            placeholder="Rechercher un skin..." 
+                                            value={slitherSearch}
+                                            onChange={e => setSlitherSearch(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs outline-none focus:border-indigo-500 transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex gap-1 overflow-x-auto no-scrollbar">
+                                        {(['ALL', 'COMMON', 'RARE', 'EPIC', 'LEGENDARY'] as const).map(f => (
+                                            <button 
+                                                key={f} 
+                                                onClick={() => setSlitherFilter(f)}
+                                                className={`px-3 py-2 rounded-xl text-[10px] font-black tracking-widest border transition-all ${slitherFilter === f ? 'bg-indigo-600 text-white border-indigo-400' : 'bg-black/40 text-gray-500 border-white/5 hover:text-white'}`}
+                                            >
+                                                {f}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {filteredSlitherSkins.map(skin => {
+                                        const isOwned = ownedSlitherSkins.includes(skin.id);
+                                        const isSelected = currentSlitherSkinId === skin.id;
+                                        const canAfford = coins >= skin.price;
+                                        
+                                        const rarityColor = 
+                                            skin.rarity === 'LEGENDARY' ? 'text-yellow-400 border-yellow-500/50 bg-yellow-900/20' :
+                                            skin.rarity === 'EPIC' ? 'text-purple-400 border-purple-500/50 bg-purple-900/20' :
+                                            skin.rarity === 'RARE' ? 'text-blue-400 border-blue-500/50 bg-blue-900/20' :
+                                            'text-gray-400 border-white/10 bg-gray-900/40';
+
+                                        return (
+                                            <div key={skin.id} className={`p-4 rounded-3xl border flex flex-col items-center text-center transition-all group relative overflow-hidden ${isSelected ? 'bg-indigo-900/30 border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10 hover:bg-gray-700/60' : 'bg-gray-900/60 border-white/5'}`}>
+                                                <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full border text-[8px] font-black ${rarityColor}`}>{skin.rarity}</div>
+                                                <div className="mb-2">{renderSlitherPreview(skin)}</div>
+                                                <h3 className="font-black text-xs text-white mb-1 truncate w-full">{skin.name}</h3>
+                                                <p className="text-[9px] text-gray-500 mb-4 h-6 line-clamp-2 leading-tight px-1">{skin.description}</p>
+                                                
+                                                {isOwned ? (
+                                                    <button onClick={() => selectSlitherSkin(skin.id)} disabled={isSelected} className={`w-full py-2.5 rounded-2xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 border border-green-500/30 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg'}`}>{isSelected ? 'SÉLECTIONNÉ' : 'CHOISIR'}</button>
+                                                ) : (
+                                                    <button onClick={() => handleBuySlitherSkin(skin)} disabled={!canAfford} className={`w-full py-2.5 rounded-2xl text-[10px] font-black flex items-center justify-center gap-1.5 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{skin.price.toLocaleString()} <Coins size={12} /></button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {filteredSlitherSkins.length === 0 && (
+                                    <div className="p-12 text-center text-gray-600 italic border-2 border-dashed border-white/5 rounded-3xl">Aucun skin trouvé dans cette catégorie.</div>
+                                )}
+
+                                <SectionHeader title="Accessoires de Tête" icon={Glasses} color="text-purple-400" />
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pb-24">
+                                    {slitherAccessoriesCatalog.map(acc => {
+                                        const isOwned = ownedSlitherAccessories.includes(acc.id);
+                                        const isSelected = currentSlitherAccessoryId === acc.id;
+                                        const canAfford = coins >= acc.price;
+                                        return (
+                                            <div key={acc.id} className={`p-4 rounded-3xl border ${isSelected ? 'bg-purple-900/20 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all group`}>
+                                                <div className="mb-4 transition-transform group-hover:scale-110">{renderAccessoryPreview(acc)}</div>
+                                                <h3 className="font-black text-[11px] text-white mb-3 h-8 line-clamp-2 leading-tight">{acc.name}</h3>
+                                                {isOwned ? (
+                                                    <button onClick={() => selectSlitherAccessory(acc.id)} disabled={isSelected} className={`w-full py-2.5 rounded-2xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 border border-green-500/30 cursor-default' : 'bg-purple-600 text-white hover:bg-purple-500 shadow-lg'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
+                                                ) : (
+                                                    <button onClick={() => handleBuySlitherAccessory(acc)} disabled={!canAfford} className={`w-full py-2.5 rounded-2xl text-[10px] font-black flex items-center justify-center gap-1.5 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{acc.price.toLocaleString()} <Coins size={12} /></button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+
                         {activeGroup === 'PLAYER' && (
                             <>
                                 <SectionHeader title="Avatars Néon" icon={User} color="text-cyan-400" />
@@ -235,121 +327,9 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                         );
                                     })}
                                 </div>
-
-                                <SectionHeader title="Cadres de Prestige" icon={Frame} color="text-pink-400" />
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {framesCatalog.map(frame => {
-                                        const isOwned = ownedFrames.includes(frame.id);
-                                        const isSelected = currentFrameId === frame.id;
-                                        const canAfford = coins >= frame.price;
-                                        return (
-                                            <div key={frame.id} className={`p-3 rounded-2xl border ${isSelected ? 'bg-pink-900/20 border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.2)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
-                                                <div className="relative mb-3 pt-1">
-                                                    <div className={`w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center border-4 ${frame.cssClass}`}><User size={32} className="text-gray-500" /></div>
-                                                    {isSelected && <div className="absolute -top-1 -right-2 w-6 h-6 bg-green-500 rounded-full border-2 border-black flex items-center justify-center text-black"><Check size={14} strokeWidth={4} /></div>}
-                                                </div>
-                                                <h3 className="font-bold text-xs text-white mb-1">{frame.name}</h3>
-                                                <p className="text-[9px] text-gray-500 mb-3 lifting-tight px-1 h-6 line-clamp-2">{frame.description}</p>
-                                                {isOwned ? (
-                                                    <button onClick={() => selectFrame(frame.id)} disabled={isSelected} className={`w-full py-2 rounded-xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-pink-600 text-white hover:bg-pink-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
-                                                ) : (
-                                                    <button onClick={() => handleBuyFrame(frame)} disabled={!canAfford} className={`w-full py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{frame.price} <Coins size={10} /></button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <SectionHeader title="Titres Légendaires" icon={Type} color="text-orange-400" />
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {titlesCatalog.map(title => {
-                                        const isOwned = ownedTitles.includes(title.id);
-                                        const isSelected = currentTitleId === title.id;
-                                        const canAfford = coins >= title.price;
-                                        return (
-                                            <div key={title.id} className={`p-3 rounded-2xl border ${isSelected ? 'bg-orange-900/20 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
-                                                <div className="h-12 w-full flex items-center justify-center mb-2 bg-black/40 rounded-xl border border-white/5 shadow-inner"><span className={`font-black text-[10px] uppercase tracking-widest ${title.color}`}>{title.name || '(AUCUN)'}</span></div>
-                                                <h3 className="font-bold text-xs text-white mb-1">{title.name || 'Vide'}</h3>
-                                                {isOwned ? (
-                                                    <button onClick={() => selectTitle(title.id)} disabled={isSelected} className={`w-full py-2 rounded-xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-orange-500 text-white hover:bg-orange-400'}`}>{isSelected ? 'ACTIF' : 'ACTIVER'}</button>
-                                                ) : (
-                                                    <button onClick={() => handleBuyTitle(title)} disabled={!canAfford} className={`w-full py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{title.price} <Coins size={10} /></button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <SectionHeader title="Badges de Réussite" icon={Star} color="text-yellow-400" />
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {catalog.map(badge => {
-                                        const isOwned = inventory.includes(badge.id);
-                                        const canAfford = coins >= badge.price;
-                                        const Icon = badge.icon;
-                                        return (
-                                            <div key={badge.id} className={`p-3 rounded-2xl border ${isOwned ? 'bg-yellow-900/20 border-yellow-500/30' : 'bg-gray-800/60 border-white/5'} flex flex-col items-center text-center transition-all relative overflow-hidden group`}>
-                                                <div className={`p-4 rounded-full mb-2 ${isOwned ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-700/50 text-gray-500 group-hover:text-gray-300'} transition-transform group-hover:scale-110`}>
-                                                    <Icon size={24} className={isOwned ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]' : ''} />
-                                                </div>
-                                                <h3 className={`font-bold text-xs mb-1 ${isOwned ? 'text-yellow-200' : 'text-gray-300'}`}>{badge.name}</h3>
-                                                {isOwned ? (
-                                                    <div className="mt-auto px-3 py-1.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-[9px] font-black tracking-widest flex items-center gap-1 uppercase"><Check size={10} /> POSSÉDÉ</div>
-                                                ) : (
-                                                    <button onClick={() => handleBuyBadge(badge)} disabled={!canAfford} className={`mt-auto w-full py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{badge.price} <Coins size={10} /></button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
                             </>
                         )}
 
-                        {/* --- COLLECTION SLITHER --- */}
-                        {activeGroup === 'SLITHER' && (
-                            <>
-                                <SectionHeader title="Couleurs & Motifs" icon={Pipette} color="text-indigo-400" />
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {slitherSkinsCatalog.map(skin => {
-                                        const isOwned = ownedSlitherSkins.includes(skin.id);
-                                        const isSelected = currentSlitherSkinId === skin.id;
-                                        const canAfford = coins >= skin.price;
-                                        return (
-                                            <div key={skin.id} className={`p-4 rounded-2xl border ${isSelected ? 'bg-indigo-900/20 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all group`}>
-                                                <div className="mb-4 transition-transform group-hover:scale-110">{renderSlitherPreview(skin)}</div>
-                                                <h3 className="font-bold text-xs text-white mb-3">{skin.name}</h3>
-                                                {isOwned ? (
-                                                    <button onClick={() => selectSlitherSkin(skin.id)} disabled={isSelected} className={`w-full py-2 rounded-xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
-                                                ) : (
-                                                    <button onClick={() => handleBuySlitherSkin(skin)} disabled={!canAfford} className={`w-full py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{skin.price} <Coins size={10} /></button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <SectionHeader title="Accessoires de Tête" icon={Glasses} color="text-purple-400" />
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pb-24">
-                                    {slitherAccessoriesCatalog.map(acc => {
-                                        const isOwned = ownedSlitherAccessories.includes(acc.id);
-                                        const isSelected = currentSlitherAccessoryId === acc.id;
-                                        const canAfford = coins >= acc.price;
-                                        return (
-                                            <div key={acc.id} className={`p-4 rounded-2xl border ${isSelected ? 'bg-purple-900/20 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all group`}>
-                                                <div className="mb-4 transition-transform group-hover:scale-110">{renderAccessoryPreview(acc)}</div>
-                                                <h3 className="font-bold text-[11px] text-white mb-3 h-8 line-clamp-2 leading-tight">{acc.name}</h3>
-                                                {isOwned ? (
-                                                    <button onClick={() => selectSlitherAccessory(acc.id)} disabled={isSelected} className={`w-full py-2 rounded-xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-purple-600 text-white hover:bg-purple-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
-                                                ) : (
-                                                    <button onClick={() => handleBuySlitherAccessory(acc)} disabled={!canAfford} className={`w-full py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{acc.price} <Coins size={10} /></button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </>
-                        )}
-
-                        {/* --- COLLECTION AMBIANCE --- */}
                         {activeGroup === 'AMBIANCE' && (
                             <>
                                 <SectionHeader title="Fonds d'Écran" icon={Image} color="text-emerald-400" />
@@ -378,7 +358,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             </>
                         )}
 
-                        {/* --- COLLECTION ÉQUIPEMENT --- */}
                         {activeGroup === 'GEAR' && (
                             <>
                                 <SectionHeader title="Skins Maillets" icon={Disc} color="text-pink-400" />
@@ -406,7 +385,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 )}
             </div>
 
-            {/* Bouton de retour rapide flottant */}
             {activeGroup && (
                 <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 animate-in slide-in-from-bottom-2 duration-300">
                     <button onClick={() => setActiveGroup(null)} className="px-6 py-3 bg-gray-900 border border-white/20 rounded-full text-xs font-black tracking-widest text-white shadow-2xl hover:bg-white hover:text-black transition-all flex items-center gap-2 backdrop-blur-md">
