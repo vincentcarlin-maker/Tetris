@@ -32,6 +32,7 @@ const BOOST_SPEED = 7;
 const TURN_SPEED = 0.12;
 const RADAR_SIZE = 120;
 const DOUBLE_TAP_DELAY = 300; // ms
+const JOYSTICK_DEADZONE = 5;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -54,6 +55,12 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const foodRef = useRef<Food[]>([]);
     const cameraRef = useRef<Point>({ x: 0, y: 0 });
     const mouseRef = useRef<Point & { down: boolean }>({ x: 0, y: 0, down: false });
+    
+    // Joystick Refs
+    const joystickOriginRef = useRef<Point | null>(null);
+    const joystickActiveRef = useRef(false);
+    const joystickVectorRef = useRef<Point>({ x: 0, y: 0 });
+
     const lastTapTimeRef = useRef<number>(0);
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
@@ -166,13 +173,15 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const player = playerWormRef.current;
         if (!player || player.isDead) return;
 
-        const canvas = canvasRef.current;
         let playerTargetAngle = player.angle;
-        if (canvas) {
-            const rect = canvas.getBoundingClientRect();
-            const tx = mouseRef.current.x - rect.width / 2;
-            const ty = mouseRef.current.y - rect.height / 2;
-            playerTargetAngle = Math.atan2(ty, tx);
+        
+        if (joystickActiveRef.current) {
+            const vx = joystickVectorRef.current.x;
+            const vy = joystickVectorRef.current.y;
+            const dist = Math.sqrt(vx * vx + vy * vy);
+            if (dist > JOYSTICK_DEADZONE) {
+                playerTargetAngle = Math.atan2(vy, vx);
+            }
         }
 
         const canBoost = player.segments.length > INITIAL_LENGTH;
@@ -284,6 +293,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         player.isDead = true;
         setGameState('GAMEOVER');
         setIsBoosting(false);
+        joystickActiveRef.current = false;
+        joystickOriginRef.current = null;
         playExplosion();
         playGameOver();
         updateHighScore('slither', player.score);
@@ -325,15 +336,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const drawDirectionArrow = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         if (worm.isDead) return;
         const head = worm.segments[0];
-        const centerX = ctx.canvas.width / 2;
-        const centerY = ctx.canvas.height / 2;
-        const dx = mouseRef.current.x - centerX;
-        const dy = mouseRef.current.y - centerY;
-        const inputDist = Math.sqrt(dx * dx + dy * dy);
-        const minArrowDist = 55;
-        const maxArrowDist = 180;
-        const sensitivity = 0.6;
-        const arrowDist = Math.min(maxArrowDist, minArrowDist + inputDist * sensitivity);
+        const arrowDist = 80;
         const arrowSize = 12;
         const tx = head.x + Math.cos(worm.angle) * arrowDist;
         const ty = head.y + Math.sin(worm.angle) * arrowDist;
@@ -544,8 +547,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         return () => cancelAnimationFrame(animationFrameRef.current);
     }, [gameState, gameMode, isBoosting]);
 
-    const handleAction = () => {
+    const handleInputStart = (x: number, y: number) => {
         if (gameState !== 'PLAYING') return;
+        
         const now = Date.now();
         const diff = now - lastTapTimeRef.current;
         
@@ -555,6 +559,25 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         }
         
         lastTapTimeRef.current = now;
+        
+        joystickOriginRef.current = { x, y };
+        joystickActiveRef.current = true;
+        joystickVectorRef.current = { x: 0, y: 0 };
+        resumeAudio();
+    };
+
+    const handleInputMove = (x: number, y: number) => {
+        if (!joystickActiveRef.current || !joystickOriginRef.current) return;
+        
+        joystickVectorRef.current = {
+            x: x - joystickOriginRef.current.x,
+            y: y - joystickOriginRef.current.y
+        };
+    };
+
+    const handleInputEnd = () => {
+        joystickActiveRef.current = false;
+        joystickOriginRef.current = null;
     };
 
     const handleLocalBack = () => {
@@ -569,11 +592,14 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 ref={canvasRef} 
                 width={window.innerWidth} 
                 height={window.innerHeight} 
-                className="w-full h-full cursor-none"
-                onMouseMove={(e) => { mouseRef.current.x = e.clientX; mouseRef.current.y = e.clientY; }}
-                onMouseDown={handleAction}
-                onTouchMove={(e) => { mouseRef.current.x = e.touches[0].clientX; mouseRef.current.y = e.touches[0].clientY; }}
-                onTouchStart={(e) => { handleAction(); resumeAudio(); }}
+                className="w-full h-full"
+                onMouseMove={(e) => handleInputMove(e.clientX, e.clientY)}
+                onMouseDown={(e) => handleInputStart(e.clientX, e.clientY)}
+                onMouseUp={handleInputEnd}
+                onMouseLeave={handleInputEnd}
+                onTouchMove={(e) => handleInputMove(e.touches[0].clientX, e.touches[0].clientY)}
+                onTouchStart={(e) => handleInputStart(e.touches[0].clientX, e.touches[0].clientY)}
+                onTouchEnd={handleInputEnd}
             />
 
             <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
@@ -624,7 +650,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                         <Zap size={64} className="text-indigo-400" />
                     </div>
                     <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">NEON SLITHER</h1>
-                    <p className="text-gray-400 text-sm mb-10 max-w-sm text-center leading-relaxed">Dirige ton ver néon dans l'arène. Mange pour grandir, évite les impacts. <br/><span className="text-indigo-300 font-bold uppercase mt-2 block">Turbo : Double-tap sur l'écran</span></p>
+                    <p className="text-gray-400 text-sm mb-10 max-w-sm text-center leading-relaxed">Dirige ton ver néon dans l'arène. Mange pour grandir, évite les impacts. <br/><span className="text-indigo-300 font-bold uppercase mt-2 block">Turbo : Double-tap sur l'écran</span><br/><span className="text-cyan-400 font-bold uppercase mt-1 block">Direction : Glissez n'importe où</span></p>
                     
                     <div className="flex flex-col gap-5 w-full max-w-xs">
                         <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(79,70,229,0.4)] active:scale-95 group">
