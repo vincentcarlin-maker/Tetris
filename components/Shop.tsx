@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, ShoppingBag, Frame, Image, Type, Disc } from 'lucide-react';
-import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, Mallet } from '../hooks/useCurrency';
+import { ArrowLeft, Lock, Check, Coins, Shield, User, Circle, ShoppingBag, Frame, Image, Type, Disc, Pipette } from 'lucide-react';
+import { useCurrency, Badge, Avatar, Frame as FrameType, Wallpaper, Title, Mallet, SlitherSkin } from '../hooks/useCurrency';
 
 interface ShopProps {
     onBack: () => void;
@@ -16,9 +15,10 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         currentWallpaperId, selectWallpaper, buyWallpaper, ownedWallpapers, wallpapersCatalog,
         currentTitleId, selectTitle, buyTitle, ownedTitles, titlesCatalog,
         currentMalletId, selectMallet, buyMallet, ownedMallets, malletsCatalog,
+        currentSlitherSkinId, selectSlitherSkin, buySlitherSkin, ownedSlitherSkins, slitherSkinsCatalog,
     } = currency;
 
-    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'WALLPAPERS' | 'TITLES' | 'MALLETS'>('BADGES');
+    const [activeTab, setActiveTab] = useState<'BADGES' | 'AVATARS' | 'FRAMES' | 'SLITHER' | 'WALLPAPERS' | 'TITLES' | 'MALLETS'>('BADGES');
 
     const handleBuyBadge = (badge: Badge) => {
         if (coins >= badge.price && !inventory.includes(badge.id)) {
@@ -35,6 +35,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const handleBuyFrame = (frame: FrameType) => {
         if (coins >= frame.price && !ownedFrames.includes(frame.id)) {
             buyFrame(frame.id, frame.price);
+        }
+    };
+
+    const handleBuySlitherSkin = (skin: SlitherSkin) => {
+        if (coins >= skin.price && !ownedSlitherSkins.includes(skin.id)) {
+            buySlitherSkin(skin.id, skin.price);
         }
     };
 
@@ -83,6 +89,24 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         );
     };
 
+    const renderSlitherPreview = (skin: SlitherSkin) => {
+        return (
+            <div className="relative w-24 h-12 flex items-center justify-center">
+                <div 
+                    className="w-20 h-5 rounded-full border-2 shadow-lg"
+                    style={{ 
+                        background: `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`,
+                        borderColor: 'rgba(255,255,255,0.3)',
+                        boxShadow: `0 0 15px ${skin.glowColor}`
+                    }}
+                >
+                    <div className="absolute top-1/2 left-3 -translate-y-1/2 w-2 h-2 bg-white rounded-full opacity-60"></div>
+                    <div className="absolute top-1/2 left-6 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-40"></div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="flex flex-col h-full w-full bg-black/20 relative overflow-hidden font-sans text-white">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-900/10 via-black to-transparent pointer-events-none"></div>
@@ -103,6 +127,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                     <button onClick={() => setActiveTab('BADGES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'BADGES' ? 'bg-yellow-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>BADGES</button>
                     <button onClick={() => setActiveTab('AVATARS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'AVATARS' ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>AVATARS</button>
                     <button onClick={() => setActiveTab('FRAMES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'FRAMES' ? 'bg-pink-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>CADRES</button>
+                    <button onClick={() => setActiveTab('SLITHER')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'SLITHER' ? 'bg-indigo-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>SLITHER</button>
                     <button onClick={() => setActiveTab('WALLPAPERS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'WALLPAPERS' ? 'bg-green-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>FONDS</button>
                     <button onClick={() => setActiveTab('TITLES')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'TITLES' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>TITRES</button>
                     <button onClick={() => setActiveTab('MALLETS')} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${activeTab === 'MALLETS' ? 'bg-cyan-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>MAILLETS</button>
@@ -179,6 +204,29 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                         <button onClick={() => selectFrame(frame.id)} disabled={isSelected} className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-pink-600 text-white hover:bg-pink-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
                                     ) : (
                                         <button onClick={() => handleBuyFrame(frame)} disabled={!canAfford} className={`w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{frame.price}</span></button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+                {activeTab === 'SLITHER' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {slitherSkinsCatalog.map(skin => {
+                            const isOwned = ownedSlitherSkins.includes(skin.id);
+                            const isSelected = currentSlitherSkinId === skin.id;
+                            const canAfford = coins >= skin.price;
+                            return (
+                                <div key={skin.id} className={`p-3 rounded-xl border ${isSelected ? 'bg-indigo-900/20 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.3)]' : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'} flex flex-col items-center text-center transition-all`}>
+                                    <div className="mb-3">
+                                        {renderSlitherPreview(skin)}
+                                    </div>
+                                    <h3 className="font-bold text-sm text-white mb-1">{skin.name}</h3>
+                                    <p className="text-[10px] text-gray-500 mb-3 leading-tight px-2 h-8">{skin.description}</p>
+                                    {isOwned ? (
+                                        <button onClick={() => selectSlitherSkin(skin.id)} disabled={isSelected} className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-500'}`}>{isSelected ? 'ÉQUIPÉ' : 'ÉQUIPER'}</button>
+                                    ) : (
+                                        <button onClick={() => handleBuySlitherSkin(skin)} disabled={!canAfford} className={`w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${canAfford ? 'bg-yellow-500 text-black hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>ACHETER <span className="bg-black/20 px-1.5 rounded ml-1">{skin.price}</span></button>
                                     )}
                                 </div>
                             );

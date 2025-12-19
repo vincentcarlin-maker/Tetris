@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc } from 'lucide-react';
+import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc, Pipette } from 'lucide-react';
 
 export interface Badge {
   id: string;
@@ -25,6 +24,16 @@ export interface Frame {
     name: string;
     price: number;
     cssClass: string;
+    description: string;
+}
+
+export interface SlitherSkin {
+    id: string;
+    name: string;
+    price: number;
+    primaryColor: string;
+    secondaryColor: string;
+    glowColor: string;
     description: string;
 }
 
@@ -95,6 +104,15 @@ export const AVATARS_CATALOG: Avatar[] = [
     { id: 'av_ghost', name: 'Spectre', price: 7500, icon: Ghost, color: 'text-indigo-400', bgGradient: 'from-indigo-900/50 to-violet-900/50' },
     { id: 'av_rocket', name: 'Cosmique', price: 10000, icon: Rocket, color: 'text-emerald-400', bgGradient: 'from-emerald-900/50 to-teal-900/50' },
     { id: 'av_king', name: 'Le King', price: 25000, icon: Crown, color: 'text-amber-400', bgGradient: 'from-amber-900/50 to-yellow-900/50' },
+];
+
+export const SLITHER_SKINS_CATALOG: SlitherSkin[] = [
+    { id: 'ss_cyan', name: 'Cyan Classique', price: 0, primaryColor: '#00f3ff', secondaryColor: '#0088ff', glowColor: '#00f3ff', description: 'La couleur originelle du néon.' },
+    { id: 'ss_pink', name: 'Rose Flash', price: 500, primaryColor: '#ff00ff', secondaryColor: '#cc00cc', glowColor: '#ff00ff', description: 'Pour briller dans l\'obscurité.' },
+    { id: 'ss_toxic', name: 'Venin Toxique', price: 1000, primaryColor: '#00ff9d', secondaryColor: '#00aa66', glowColor: '#00ff9d', description: 'Une lueur radioactive redoutable.' },
+    { id: 'ss_gold', name: 'Légende Dorée', price: 5000, primaryColor: '#ffe600', secondaryColor: '#aa9900', glowColor: '#ffe600', description: 'Réservé aux maîtres du ver.' },
+    { id: 'ss_sunset', name: 'Crépuscule', price: 1500, primaryColor: '#ff4d4d', secondaryColor: '#992222', glowColor: '#ff4d4d', description: 'Inspiré des nuits de Tokyo.' },
+    { id: 'ss_void', name: 'Spectre du Néant', price: 3000, primaryColor: '#9d00ff', secondaryColor: '#4400aa', glowColor: '#9d00ff', description: 'Surgi des profondeurs de l\'espace.' },
 ];
 
 export const FRAMES_CATALOG: Frame[] = [
@@ -198,6 +216,11 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-owned-frames') || '["fr_none"]'); } catch { return ["fr_none"]; }
     });
 
+    const [currentSlitherSkinId, setCurrentSlitherSkinId] = useState(() => localStorage.getItem('neon-slither-skin') || "ss_cyan");
+    const [ownedSlitherSkins, setOwnedSlitherSkins] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-slither-skins') || '["ss_cyan"]'); } catch { return ["ss_cyan"]; }
+    });
+
     const [currentWallpaperId, setCurrentWallpaperId] = useState(() => localStorage.getItem('neon-wallpaper') || "bg_brick");
     const [ownedWallpapers, setOwnedWallpapers] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-owned-wallpapers') || '["bg_brick"]'); } catch { return ["bg_brick"]; }
@@ -264,6 +287,8 @@ export const useCurrency = () => {
         if (data.ownedAvatars) { setOwnedAvatars(data.ownedAvatars); localStorage.setItem('neon_owned_avatars', JSON.stringify(data.ownedAvatars)); }
         if (data.frameId) { setCurrentFrameId(data.frameId); localStorage.setItem('neon-frame', data.frameId); }
         if (data.ownedFrames) { setOwnedFrames(data.ownedFrames); localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames)); }
+        if (data.slitherSkinId) { setCurrentSlitherSkinId(data.slitherSkinId); localStorage.setItem('neon-slither-skin', data.slitherSkinId); }
+        if (data.ownedSlitherSkins) { setOwnedSlitherSkins(data.ownedSlitherSkins); localStorage.setItem('neon-owned-slither-skins', JSON.stringify(data.ownedSlitherSkins)); }
         if (data.wallpaperId) { setCurrentWallpaperId(data.wallpaperId); localStorage.setItem('neon-wallpaper', data.wallpaperId); }
         if (data.ownedWallpapers) { setOwnedWallpapers(data.ownedWallpapers); localStorage.setItem('neon-owned-wallpapers', JSON.stringify(data.ownedWallpapers)); }
         if (data.titleId) { setCurrentTitleId(data.titleId); localStorage.setItem('neon-title', data.titleId); }
@@ -330,7 +355,7 @@ export const useCurrency = () => {
     }, [inventory, isSuperUser]);
 
     return { 
-        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets,
+        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins,
         accentColor, updateAccentColor, privacySettings, togglePrivacy, reducedMotion, toggleReducedMotion,
         isSuperUser, adminModeActive, toggleAdminMode: () => { const n = !adminModeActive; setAdminModeActive(n); localStorage.setItem('neon-admin-mode', JSON.stringify(n)); },
         refreshData, importData, addCoins, email, updateEmail,
@@ -344,6 +369,9 @@ export const useCurrency = () => {
         currentFrameId, selectFrame: (id: string) => { setCurrentFrameId(id); localStorage.setItem('neon-frame', id); },
         buyFrame: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedFrames(p => [...p, id]); localStorage.setItem('neon-owned-frames', JSON.stringify([...ownedFrames, id])); } },
         framesCatalog: FRAMES_CATALOG,
+        currentSlitherSkinId, selectSlitherSkin: (id: string) => { setCurrentSlitherSkinId(id); localStorage.setItem('neon-slither-skin', id); },
+        buySlitherSkin: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherSkins(p => [...p, id]); localStorage.setItem('neon-owned-slither-skins', JSON.stringify([...ownedSlitherSkins, id])); } },
+        slitherSkinsCatalog: SLITHER_SKINS_CATALOG,
         currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
         buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
         wallpapersCatalog: WALLPAPERS_CATALOG,

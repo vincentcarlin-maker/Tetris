@@ -3,7 +3,7 @@ import { Home, RefreshCw, Trophy, Coins, Zap, HelpCircle, User, Globe, Play, Arr
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
-import { useCurrency } from '../../hooks/useCurrency';
+import { useCurrency, SlitherSkin } from '../../hooks/useCurrency';
 import { TutorialOverlay } from '../Tutorials';
 
 // --- TYPES ---
@@ -13,7 +13,8 @@ interface Worm {
     name: string;
     segments: Point[];
     angle: number;
-    color: string;
+    color: string; // Background color fallback
+    skin?: SlitherSkin; // New: selected skin
     score: number;
     isBoost: boolean;
     isDead: boolean;
@@ -35,7 +36,7 @@ const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d'
 
 export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any }> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { username, currentAvatarId } = useCurrency();
+    const { username, currentAvatarId, currentSlitherSkinId, slitherSkinsCatalog } = useCurrency();
 
     const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
@@ -63,14 +64,14 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const bestScore = highScores.slither || 0;
 
     // --- INITIALIZATION ---
-    const spawnWorm = (id: string, name: string, color: string): Worm => {
+    const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin): Worm => {
         const x = Math.random() * (WORLD_SIZE - 400) + 200;
         const y = Math.random() * (WORLD_SIZE - 400) + 200;
         const segments: Point[] = [];
         for (let i = 0; i < INITIAL_LENGTH; i++) {
             segments.push({ x: x - i * SEGMENT_DISTANCE, y });
         }
-        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, score: 0, isBoost: false, isDead: false, radius: 10 };
+        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, score: 0, isBoost: false, isDead: false, radius: 10 };
     };
 
     const spawnFood = (count: number = 1) => {
@@ -87,7 +88,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const startGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
-        playerWormRef.current = spawnWorm(mp.peerId || 'player', username, COLORS[0]);
+        
+        // Find player's skin
+        const playerSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId) || slitherSkinsCatalog[0];
+        
+        playerWormRef.current = spawnWorm(mp.peerId || 'player', username, playerSkin.primaryColor, playerSkin);
         foodRef.current = [];
         spawnFood(300);
         othersRef.current = mode === 'SOLO' ? Array.from({length: 12}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
@@ -163,14 +168,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         let playerTargetAngle = player.angle;
         if (canvas) {
             const rect = canvas.getBoundingClientRect();
-            // tx et ty sont relatifs au centre de l'écran (où se trouve la tête du ver)
-            // Cela permet de diriger le ver en touchant n'importe quelle direction sur l'écran
             const tx = mouseRef.current.x - rect.width / 2;
             const ty = mouseRef.current.y - rect.height / 2;
             playerTargetAngle = Math.atan2(ty, tx);
         }
 
-        // Le boost s'arrête si la taille est trop petite
         const canBoost = player.segments.length > INITIAL_LENGTH;
         if (!canBoost && isBoosting) setIsBoosting(false);
 
@@ -184,7 +186,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 player.score = Math.max(0, player.score - 2);
                 setScore(player.score);
                 const tail = player.segments[player.segments.length - 1];
-                foodRef.current.push({ id: `boost_f_${Date.now()}`, x: tail.x, y: tail.y, val: 1, color: player.color });
+                foodRef.current.push({ id: `boost_f_${Date.now()}`, x: tail.x, y: tail.y, val: 1, color: player.skin?.primaryColor || player.color });
             }
         }
 
@@ -250,7 +252,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     player.segments.forEach((pSeg, pIdx) => {
                         if (pIdx > 2 && Math.hypot(bHead.x - pSeg.x, bHead.y - pSeg.y) < 18) {
                             bot.isDead = true;
-                            bot.segments.forEach((s, idx) => { if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 3, color: bot.color }); });
+                            bot.segments.forEach((s, idx) => { if(idx % 3 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 3, color: bot.skin?.primaryColor || bot.color }); });
                         }
                     });
                 }
@@ -314,67 +316,80 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         });
         othersRef.current.forEach(worm => drawWorm(ctx, worm));
         drawWorm(ctx, player);
-        drawDirectionArrow(ctx, player); // Flèche pour le joueur uniquement
+        drawDirectionArrow(ctx, player);
         ctx.restore();
     };
 
     const drawDirectionArrow = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         if (worm.isDead) return;
         const head = worm.segments[0];
-        
-        // Calculer la distance entre le centre de l'écran et la position de la souris/touche
         const centerX = ctx.canvas.width / 2;
         const centerY = ctx.canvas.height / 2;
         const dx = mouseRef.current.x - centerX;
         const dy = mouseRef.current.y - centerY;
         const inputDist = Math.sqrt(dx * dx + dy * dy);
-
-        // Mapper la distance d'entrée à la distance de la flèche (min 50, max 180)
-        // Plus on éloigne le doigt, plus la flèche s'éloigne.
         const minArrowDist = 55;
         const maxArrowDist = 180;
-        const sensitivity = 0.6; // Contrôle la vitesse à laquelle la flèche s'éloigne
-        
+        const sensitivity = 0.6;
         const arrowDist = Math.min(maxArrowDist, minArrowDist + inputDist * sensitivity);
         const arrowSize = 12;
-
         const tx = head.x + Math.cos(worm.angle) * arrowDist;
         const ty = head.y + Math.sin(worm.angle) * arrowDist;
-
         ctx.save();
         ctx.translate(tx, ty);
         ctx.rotate(worm.angle);
-        
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.shadowBlur = 10;
         ctx.shadowColor = 'white';
-
         ctx.beginPath();
         ctx.moveTo(-arrowSize, -arrowSize);
         ctx.lineTo(0, 0);
         ctx.lineTo(-arrowSize, arrowSize);
         ctx.stroke();
-
         ctx.restore();
     };
 
     const drawWorm = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         const segs = worm.segments;
         if (segs.length < 2) return;
+        
+        // Colors & Neon Config
+        const primary = worm.skin?.primaryColor || worm.color;
+        const secondary = worm.skin?.secondaryColor || primary;
+        const glow = worm.skin?.glowColor || primary;
+
         ctx.lineWidth = 22;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = worm.color;
-        ctx.shadowBlur = worm.isBoost ? 25 : 12;
-        ctx.shadowColor = worm.color;
+        
+        // Dynamic color for boost
+        if (worm.isBoost) {
+            const grad = ctx.createLinearGradient(segs[0].x, segs[0].y, segs[segs.length-1].x, segs[segs.length-1].y);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.2, primary);
+            grad.addColorStop(1, secondary);
+            ctx.strokeStyle = grad;
+            ctx.shadowBlur = 35;
+        } else {
+            ctx.strokeStyle = primary;
+            ctx.shadowBlur = 12;
+        }
+        
+        ctx.shadowColor = glow;
         ctx.beginPath();
         ctx.moveTo(segs[0].x, segs[0].y);
         for (let i = 1; i < segs.length; i++) ctx.lineTo(segs[i].x, segs[i].y);
         ctx.stroke();
+        
+        // Detail border
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.shadowBlur = 0;
+        ctx.stroke();
+
         const head = segs[0];
         const eyeOffset = 8;
         const pupilOffset = 2.5; 
@@ -419,9 +434,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const diff = now - lastTapTimeRef.current;
         
         if (diff < DOUBLE_TAP_DELAY) {
-            // Double Tap detected
             setIsBoosting(prev => !prev);
-            playMove(); // Petit son de confirmation
+            playMove();
         }
         
         lastTapTimeRef.current = now;
