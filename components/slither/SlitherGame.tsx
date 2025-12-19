@@ -26,7 +26,7 @@ interface Food { id: string; x: number; y: number; val: number; color: string; }
 // --- CONSTANTS ---
 const WORLD_SIZE = 2000;
 const INITIAL_LENGTH = 15;
-const SEGMENT_DISTANCE = 6; // Distance fixe entre les segments
+const SEGMENT_DISTANCE = 5; // Réduit pour un aspect "tube" plus lisse
 const BASE_SPEED = 4.2; 
 const BOOST_SPEED = 8.5; 
 const TURN_SPEED = 0.22; 
@@ -79,7 +79,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         for (let i = 0; i < INITIAL_LENGTH; i++) {
             segments.push({ x: x - i * SEGMENT_DISTANCE, y });
         }
-        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, accessory, score: 0, isBoost: false, isDead: false, radius: 10 };
+        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, accessory, score: 0, isBoost: false, isDead: false, radius: 12 };
     };
 
     const spawnFood = (count: number = 1) => {
@@ -147,9 +147,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         for (const worm of allWorms) {
             if (worm.isDead) continue;
             for (let i = 0; i < worm.segments.length; i++) {
-                // If it's our own worm, only check segments far from head
                 if (worm.id === excludeId && i < 10) continue;
-                
                 const seg = worm.segments[i];
                 const dist = Math.hypot(x - seg.x, y - seg.y);
                 if (dist < radius + 15) return true;
@@ -165,7 +163,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         if (!player || player.isDead) return;
 
         let playerTargetAngle = player.angle;
-        
         if (joystickActiveRef.current) {
             const vx = joystickVectorRef.current.x;
             const vy = joystickVectorRef.current.y;
@@ -229,47 +226,34 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         cameraRef.current.x = head.x;
         cameraRef.current.y = head.y;
 
-        // --- IMPROVED BOT AI ---
         if (gameMode === 'SOLO') {
             const allWorms = [player, ...othersRef.current];
             othersRef.current.forEach(bot => {
                 if (bot.isDead) return;
                 const bHead = bot.segments[0];
                 let botTargetAngle = bot.angle;
-                
-                // 1. OBSTACLE AVOIDANCE (Higher Priority)
                 const lookAheadDist = 120;
-                const sides = [-0.8, -0.4, 0, 0.4, 0.8]; // Angles to check
+                const sides = [-0.8, -0.4, 0, 0.4, 0.8]; 
                 let blocked = false;
-                let bestSideAngle = bot.angle;
-                let clearestDist = -1;
 
-                // Check world boundaries
                 const margin = 100;
                 if (bHead.x < margin) botTargetAngle = 0;
                 else if (bHead.x > WORLD_SIZE - margin) botTargetAngle = Math.PI;
                 else if (bHead.y < margin) botTargetAngle = Math.PI / 2;
                 else if (bHead.y > WORLD_SIZE - margin) botTargetAngle = -Math.PI / 2;
                 else {
-                    // Check other worms
                     for (const angleOffset of sides) {
                         const checkAngle = bot.angle + angleOffset;
                         const cx = bHead.x + Math.cos(checkAngle) * lookAheadDist;
                         const cy = bHead.y + Math.sin(checkAngle) * lookAheadDist;
-                        
                         const isHit = isWormCollidingAt(cx, cy, bot.radius, bot.id, allWorms);
                         if (isHit && angleOffset === 0) blocked = true;
-                        
-                        if (!isHit) {
-                            // This path is clear, steer towards it
-                            if (Math.abs(angleOffset) > 0.1) {
-                                botTargetAngle = checkAngle;
-                                break;
-                            }
+                        if (!isHit && Math.abs(angleOffset) > 0.1) {
+                            botTargetAngle = checkAngle;
+                            break;
                         }
                     }
 
-                    // 2. FOOD SEEKING (Only if not blocked)
                     if (!blocked) {
                         let closestF = null, minDist = 500;
                         foodRef.current.forEach(f => {
@@ -278,21 +262,19 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                         });
                         if (closestF) {
                             botTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
-                            // Only boost if bot is large enough and food is valuable
                             bot.isBoost = (bot.segments.length > 20 && closestF.val > 2);
                         } else {
                             bot.isBoost = false;
                             if (Math.random() > 0.98) botTargetAngle += (Math.random() - 0.5) * 1.5;
                         }
                     } else {
-                        bot.isBoost = true; // Panic boost to get away
+                        bot.isBoost = true; 
                     }
                 }
 
                 const speed = bot.isBoost ? BOOST_SPEED : BASE_SPEED;
                 updateWormMovement(bot, botTargetAngle, speed);
 
-                // Bot death logic
                 if (Math.hypot(bHead.x - head.x, bHead.y - head.y) < 25) handleDeath();
                 else {
                     player.segments.forEach((pSeg, pIdx) => {
@@ -335,7 +317,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         updateHighScore('slither', player.score);
         const coins = Math.floor(player.score / 50);
         if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
-        if (onReportProgress) onReportProgress('score', player.score);
     };
 
     const draw = (ctx: CanvasRenderingContext2D) => {
@@ -347,6 +328,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const offsetY = -cam.y + ctx.canvas.height / 2;
         ctx.save();
         ctx.translate(offsetX, offsetY);
+        
         ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
         ctx.lineWidth = 1;
         for (let i = 0; i <= WORLD_SIZE; i += 100) {
@@ -356,12 +338,16 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
         ctx.lineWidth = 10;
         ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
         foodRef.current.forEach(f => {
-            ctx.fillStyle = f.color;
-            ctx.shadowBlur = 15; ctx.shadowColor = f.color;
+            const grad = ctx.createRadialGradient(f.x - 2, f.y - 2, 0, f.x, f.y, 4 + f.val);
+            grad.addColorStop(0, '#fff');
+            grad.addColorStop(0.3, f.color);
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
             ctx.beginPath(); ctx.arc(f.x, f.y, 4 + f.val, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
         });
+
         othersRef.current.forEach(worm => drawWorm(ctx, worm));
         drawWorm(ctx, player);
         drawDirectionArrow(ctx, player);
@@ -392,146 +378,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.restore();
     };
 
-    const drawAccessory = (ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, accessory: SlitherAccessory, radius: number) => {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
-        
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#fff';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = accessory.color;
-        
-        const type = accessory.type;
-        const color = accessory.color;
-
-        if (type === 'CROWN') {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.moveTo(-radius, -radius * 0.5);
-            ctx.lineTo(-radius, -radius * 1.5);
-            ctx.lineTo(-radius * 0.6, -radius * 1.0);
-            ctx.lineTo(0, -radius * 1.8);
-            ctx.lineTo(radius * 0.6, -radius * 1.0);
-            ctx.lineTo(radius, -radius * 1.5);
-            ctx.lineTo(radius, -radius * 0.5);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-        } else if (type === 'TIARA') {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(0, -radius * 0.8, radius * 0.8, Math.PI, 0);
-            ctx.fill();
-            ctx.stroke();
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(-2, -radius * 1.6, 4, 4);
-        } else if (type === 'HAT') {
-            ctx.fillStyle = '#111';
-            ctx.beginPath(); ctx.ellipse(0, -radius * 0.4, radius * 1.2, radius * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = color;
-            ctx.fillRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.4);
-            ctx.strokeRect(-radius * 0.7, -radius * 1.8, radius * 1.4, radius * 1.4);
-        } else if (type === 'BERET') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.ellipse(0, -radius * 0.8, radius * 1.1, radius * 0.5, 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        } else if (type === 'FEZ') {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.moveTo(-radius * 0.6, -radius * 0.3);
-            ctx.lineTo(-radius * 0.4, -radius * 1.4);
-            ctx.lineTo(radius * 0.4, -radius * 1.4);
-            ctx.lineTo(radius * 0.6, -radius * 0.3);
-            ctx.closePath();
-            ctx.fill(); ctx.stroke();
-        } else if (type === 'CAP') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.arc(0, -radius * 0.6, radius * 0.8, Math.PI, 0); ctx.fill(); ctx.stroke();
-            ctx.fillRect(0, -radius * 0.7, radius * 1.2, radius * 0.2);
-        } else if (type === 'COWBOY') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.ellipse(0, -radius * 0.5, radius * 1.5, radius * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(-radius * 0.7, -radius * 0.5);
-            ctx.quadraticCurveTo(0, -radius * 2.2, radius * 0.7, -radius * 0.5);
-            ctx.fill(); ctx.stroke();
-        } else if (type === 'WITCH') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.ellipse(0, -radius * 0.3, radius * 1.4, radius * 0.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(-radius * 0.8, -radius * 0.3);
-            ctx.lineTo(0, -radius * 2.5);
-            ctx.lineTo(radius * 0.8, -radius * 0.3);
-            ctx.fill(); ctx.stroke();
-        } else if (type === 'SOMBRERO') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.ellipse(0, -radius * 0.3, radius * 2, radius * 0.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.beginPath(); ctx.arc(0, -radius * 0.5, radius * 0.8, Math.PI, 0); ctx.fill(); ctx.stroke();
-        } else if (type === 'GLASSES' || type === 'MONOCLE' || type === 'EYEPATCH') {
-            ctx.fillStyle = color;
-            if (type === 'MONOCLE') {
-                ctx.beginPath(); ctx.arc(radius * 0.5, 0, radius * 0.5, 0, Math.PI * 2); ctx.stroke();
-            } else if (type === 'EYEPATCH') {
-                ctx.fillStyle = '#000';
-                ctx.beginPath(); ctx.arc(radius * 0.5, 0, radius * 0.6, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(-radius, -radius * 0.5); ctx.lineTo(radius, 0); ctx.stroke();
-            } else {
-                ctx.globalAlpha = 0.6;
-                ctx.fillRect(0, -radius * 0.4, radius * 1.5, radius * 0.8);
-                ctx.globalAlpha = 1;
-                ctx.strokeRect(0, -radius * 0.4, radius * 1.5, radius * 0.8);
-            }
-        } else if (type === 'NINJA') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.roundRect(-radius * 1.1, -radius * 0.3, radius * 2.2, radius * 0.6, 2); ctx.fill(); ctx.stroke();
-        } else if (type === 'VIKING') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.arc(0, -radius * 0.3, radius * 0.9, Math.PI, 0); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = '#fff';
-            ctx.beginPath(); ctx.moveTo(-radius * 0.8, -radius * 0.5); ctx.lineTo(-radius * 1.5, -radius * 1.5); ctx.lineTo(-radius * 0.5, -radius * 0.5); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(radius * 0.8, -radius * 0.5); ctx.lineTo(radius * 1.5, -radius * 1.5); ctx.lineTo(radius * 0.5, -radius * 0.5); ctx.fill();
-        } else if (type === 'HALO') {
-            ctx.strokeStyle = color; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.ellipse(0, -radius * 1.5, radius, radius * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
-        } else if (type === 'HORNS' || type === 'DEVIL') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.moveTo(-radius * 0.5, -radius * 0.8); ctx.quadraticCurveTo(-radius * 1.2, -radius * 2, -radius * 0.2, -radius * 2.2); ctx.lineTo(-radius * 0.2, -radius * 0.8); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(radius * 0.5, -radius * 0.8); ctx.quadraticCurveTo(radius * 1.2, -radius * 2, radius * 0.2, -radius * 2.2); ctx.lineTo(radius * 0.2, -radius * 0.8); ctx.fill();
-        } else if (type === 'CAT_EARS') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.moveTo(-radius * 0.8, -radius * 0.5); ctx.lineTo(-radius * 1.2, -radius * 1.5); ctx.lineTo(-radius * 0.2, -radius * 0.8); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(radius * 0.8, -radius * 0.5); ctx.lineTo(radius * 1.2, -radius * 1.5); ctx.lineTo(radius * 0.2, -radius * 0.8); ctx.fill();
-        } else if (type === 'MOUSTACHE') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.ellipse(-radius * 0.4, radius * 0.6, radius * 0.6, radius * 0.2, 0.2, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(radius * 0.4, radius * 0.6, radius * 0.6, radius * 0.2, -0.2, 0, Math.PI * 2); ctx.fill();
-        } else if (type === 'FLOWER') {
-            ctx.fillStyle = color;
-            for(let i=0; i<5; i++) {
-                ctx.beginPath(); ctx.arc(Math.cos(i*1.2)*8, -radius-8 + Math.sin(i*1.2)*8, 6, 0, Math.PI*2); ctx.fill();
-            }
-            ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(0, -radius-8, 4, 0, Math.PI*2); ctx.fill();
-        } else if (type === 'STAR') {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            for(let i=0; i<5; i++) {
-                ctx.lineTo(Math.cos((18+i*72)/180*Math.PI)*15, -radius-15 + Math.sin((18+i*72)/180*Math.PI)*15);
-                ctx.lineTo(Math.cos((54+i*72)/180*Math.PI)*7, -radius-15 + Math.sin((54+i*72)/180*Math.PI)*7);
-            }
-            ctx.fill();
-        } else if (type === 'ROBOT') {
-            ctx.strokeStyle = color; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(0, -radius); ctx.lineTo(0, -radius*2); ctx.stroke();
-            ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, -radius*2, 4, 0, Math.PI*2); ctx.fill();
-        } else if (type === 'HERO' || type === 'MASK') {
-            ctx.fillStyle = color;
-            ctx.beginPath(); ctx.roundRect(-radius, -radius*0.2, radius*2, radius*0.8, 5); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-radius*0.4, 0, 3, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(radius*0.4, 0, 3, 0, Math.PI*2); ctx.fill();
-        }
-
-        ctx.restore();
-    };
-
     const drawWorm = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         const segs = worm.segments;
         if (segs.length < 2) return;
@@ -541,44 +387,83 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const primary = skin?.primaryColor || worm.color;
         const secondary = skin?.secondaryColor || primary;
         const glow = skin?.glowColor || primary;
-        const radius = worm.radius || 10;
+        const radius = worm.radius || 12;
 
         ctx.save();
+        // On dessine de la queue vers la tête pour que la tête soit au-dessus
         for (let i = segs.length - 1; i >= 0; i--) {
             const seg = segs[i];
             const isHead = i === 0;
+            
+            // --- EFFET 3D VOLUMÉTRIQUE ---
+            const segmentColor = pattern === 'solid' ? primary : 
+                               pattern === 'stripes' ? (Math.floor(i / 3) % 2 === 0 ? primary : secondary) :
+                               pattern === 'checker' ? (i % 2 === 0 ? primary : secondary) :
+                               pattern === 'rainbow' ? `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)` :
+                               primary;
+
+            // 1. Ombre portée légère
+            ctx.shadowBlur = isHead ? 20 : 5;
+            ctx.shadowColor = worm.isBoost ? '#fff' : glow;
+
+            // 2. Corps principal avec dégradé radial (Shading)
+            const bodyGrad = ctx.createRadialGradient(
+                seg.x - radius * 0.3, seg.y - radius * 0.3, radius * 0.1,
+                seg.x, seg.y, radius
+            );
+            bodyGrad.addColorStop(0, '#fff'); // Point le plus éclairé
+            bodyGrad.addColorStop(0.2, segmentColor);
+            bodyGrad.addColorStop(1, 'rgba(0,0,0,0.4)'); // Ombre sur les bords
+
+            ctx.fillStyle = bodyGrad;
             ctx.beginPath();
             ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
-            if (pattern === 'solid') ctx.fillStyle = primary;
-            else if (pattern === 'stripes') ctx.fillStyle = Math.floor(i / 3) % 2 === 0 ? primary : secondary;
-            else if (pattern === 'dots') ctx.fillStyle = primary;
-            else if (pattern === 'checker') ctx.fillStyle = i % 2 === 0 ? primary : secondary;
-            else if (pattern === 'rainbow') { const hue = (i * 10 + Date.now() / 20) % 360; ctx.fillStyle = `hsl(${hue}, 100%, 60%)`; }
-            else if (pattern === 'grid') ctx.fillStyle = secondary;
-            else ctx.fillStyle = primary;
-            if (worm.isBoost) { ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; }
-            else { ctx.shadowBlur = isHead ? 15 : 5; ctx.shadowColor = glow; }
             ctx.fill();
-            if (pattern === 'dots' && i % 4 === 0) { ctx.beginPath(); ctx.arc(seg.x, seg.y, radius * 0.4, 0, Math.PI * 2); ctx.fillStyle = secondary; ctx.fill(); }
-            else if (pattern === 'grid' && i % 2 === 0) { ctx.strokeStyle = primary; ctx.lineWidth = 1; ctx.strokeRect(seg.x - radius*0.5, seg.y - radius*0.5, radius, radius); }
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-            ctx.lineWidth = 1; ctx.stroke();
+
+            // 3. Spécularité (Le petit "shine" blanc sur le dessus)
+            ctx.shadowBlur = 0; // On retire le glow pour le reflet net
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            // Une petite ellipse décentrée pour simuler la réflexion de la lumière
+            ctx.ellipse(seg.x - radius * 0.3, seg.y - radius * 0.3, radius * 0.3, radius * 0.2, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. Détails des motifs (dots/grid)
+            if (pattern === 'dots' && i % 4 === 0) {
+                ctx.fillStyle = secondary;
+                ctx.beginPath(); ctx.arc(seg.x, seg.y, radius * 0.3, 0, Math.PI * 2); ctx.fill();
+            }
         }
+
+        // --- DESSIN DES YEUX (Sur la tête) ---
         const head = segs[0];
         const eyeOffset = 8;
-        const pupilOffset = 2.5; 
         const eyeAngle = worm.angle;
-        const eye1X = head.x + Math.cos(eyeAngle + 0.6) * eyeOffset;
-        const eye1Y = head.y + Math.sin(eyeAngle + 0.6) * eyeOffset;
-        const eye2X = head.x + Math.cos(eyeAngle - 0.6) * eyeOffset;
-        const eye2Y = head.y + Math.sin(eyeAngle - 0.6) * eyeOffset;
-        ctx.fillStyle = 'white'; ctx.shadowBlur = 5; ctx.shadowColor = 'white';
-        ctx.beginPath(); ctx.arc(eye1X, eye1Y, 6, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(eye2X, eye2Y, 6, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'black'; ctx.shadowBlur = 0;
-        ctx.beginPath(); ctx.arc(eye1X + Math.cos(eyeAngle) * pupilOffset, eye1Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
-        if (worm.accessory && worm.accessory.id !== 'sa_none') drawAccessory(ctx, head.x, head.y, worm.angle, worm.accessory, radius);
+        
+        // Positions des yeux avec volume
+        const eyePositions = [
+            { x: head.x + Math.cos(eyeAngle + 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle + 0.6) * eyeOffset },
+            { x: head.x + Math.cos(eyeAngle - 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle - 0.6) * eyeOffset }
+        ];
+
+        eyePositions.forEach(pos => {
+            // Globe oculaire 3D
+            const eyeGrad = ctx.createRadialGradient(pos.x - 2, pos.y - 2, 1, pos.x, pos.y, 6);
+            eyeGrad.addColorStop(0, '#fff');
+            eyeGrad.addColorStop(0.8, '#eee');
+            eyeGrad.addColorStop(1, '#999');
+            
+            ctx.fillStyle = eyeGrad;
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2); ctx.fill();
+            
+            // Pupille
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); 
+            ctx.arc(pos.x + Math.cos(eyeAngle) * 2, pos.y + Math.sin(eyeAngle) * 2, 3, 0, Math.PI * 2); 
+            ctx.fill();
+        });
+
+        // Nom du joueur
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = 'bold 14px Rajdhani'; ctx.textAlign = 'center';
         ctx.fillText(worm.name, head.x, head.y - 35);
