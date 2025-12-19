@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Zap, HelpCircle, User, Globe, Play, ArrowLeft, Loader2, LogOut, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Shield, Skull } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -60,13 +59,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     // --- INITIALIZATION ---
     const spawnWorm = (id: string, name: string, color: string): Worm => {
-        const x = Math.random() * (WORLD_SIZE - 200) + 100;
-        const y = Math.random() * (WORLD_SIZE - 200) + 100;
+        const x = Math.random() * (WORLD_SIZE - 400) + 200;
+        const y = Math.random() * (WORLD_SIZE - 400) + 200;
         const segments: Point[] = [];
         for (let i = 0; i < INITIAL_LENGTH; i++) {
             segments.push({ x: x - i * SEGMENT_DISTANCE, y });
         }
-        return { id, name, segments, angle: 0, color, score: 0, isBoost: false, isDead: false, radius: 10 };
+        return { id, name, segments, angle: Math.random() * Math.PI * 2, color, score: 0, isBoost: false, isDead: false, radius: 10 };
     };
 
     const spawnFood = (count: number = 1) => {
@@ -110,7 +109,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         
         const newSegments = [{ x: nextX, y: nextY }];
 
-        // 3. Les segments suivent à distance fixe (Logic de chaînage stable)
+        // 3. Les segments suivent à distance fixe
         let prev = newSegments[0];
         for (let i = 1; i < worm.segments.length; i++) {
             const curr = worm.segments[i];
@@ -166,7 +165,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             playerTargetAngle = Math.atan2(ty, tx);
         }
 
-        // Gestion Boost (Consomme de la longueur)
         player.isBoost = mouseRef.current.down && player.segments.length > INITIAL_LENGTH;
         const currentSpeed = player.isBoost ? BOOST_SPEED : BASE_SPEED;
         
@@ -176,7 +174,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 player.segments.pop();
                 player.score = Math.max(0, player.score - 2);
                 setScore(player.score);
-                // On laisse un peu de nourriture derrière
                 const tail = player.segments[player.segments.length - 1];
                 foodRef.current.push({ id: `boost_f_${Date.now()}`, x: tail.x, y: tail.y, val: 1, color: player.color });
             }
@@ -184,20 +181,17 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
         updateWormMovement(player, playerTargetAngle, currentSpeed);
 
-        // Bords du monde
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) {
             handleDeath();
         }
 
-        // 2. Collision avec Nourriture
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             if (Math.hypot(head.x - f.x, head.y - f.y) < 25) {
                 player.score += f.val * 5;
                 setScore(player.score);
                 playCoin();
-                // Ajout de segments sans jitter
                 for (let j = 0; j < f.val; j++) {
                     const tail = player.segments[player.segments.length - 1];
                     player.segments.push({ ...tail });
@@ -208,11 +202,10 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             }
         }
 
-        // 3. Collision avec les autres
         othersRef.current.forEach(other => {
             if (other.isDead) return;
             other.segments.forEach((seg, sIdx) => {
-                if (sIdx > 3) { // On ne meurt pas en touchant sa propre tête ou le cou de l'autre
+                if (sIdx > 3) {
                     if (Math.hypot(head.x - seg.x, head.y - seg.y) < 18) {
                         handleDeath();
                     }
@@ -220,33 +213,42 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             });
         });
 
-        // 4. Update Camera
         cameraRef.current.x = head.x;
         cameraRef.current.y = head.y;
 
-        // 5. Bot AI (Solo)
         if (gameMode === 'SOLO') {
             othersRef.current.forEach(bot => {
                 if (bot.isDead) return;
                 
+                const bHead = bot.segments[0];
                 let botTargetAngle = bot.angle;
-                let closestF = null, minDist = 250;
                 
-                foodRef.current.forEach(f => {
-                    const d = Math.hypot(bot.segments[0].x - f.x, bot.segments[0].y - f.y);
-                    if (d < minDist) { minDist = d; closestF = f; }
-                });
+                // 1. Évitement des bords (Priorité haute)
+                const margin = 150;
+                if (bHead.x < margin) botTargetAngle = 0; // Aller vers la droite
+                else if (bHead.x > WORLD_SIZE - margin) botTargetAngle = Math.PI; // Aller vers la gauche
+                else if (bHead.y < margin) botTargetAngle = Math.PI / 2; // Aller vers le bas
+                else if (bHead.y > WORLD_SIZE - margin) botTargetAngle = -Math.PI / 2; // Aller vers le haut
+                else {
+                    // 2. Recherche de nourriture (Rayon augmenté)
+                    let closestF = null, minDist = 400;
+                    foodRef.current.forEach(f => {
+                        const d = Math.hypot(bHead.x - f.x, bHead.y - f.y);
+                        if (d < minDist) { minDist = d; closestF = f; }
+                    });
 
-                if (closestF) {
-                    botTargetAngle = Math.atan2((closestF as any).y - bot.segments[0].y, (closestF as any).x - bot.segments[0].x);
-                } else if (Math.random() > 0.98) {
-                    botTargetAngle += (Math.random() - 0.5) * 2;
+                    if (closestF) {
+                        botTargetAngle = Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x);
+                    } else {
+                        // 3. Déplacement erratique mais fluide
+                        if (Math.random() > 0.95) {
+                            botTargetAngle += (Math.random() - 0.5) * 1.5;
+                        }
+                    }
                 }
 
                 updateWormMovement(bot, botTargetAngle, BASE_SPEED);
 
-                // Bot collision avec joueur
-                const bHead = bot.segments[0];
                 if (Math.hypot(bHead.x - head.x, bHead.y - head.y) < 30) {
                      handleDeath();
                 } else {
@@ -264,13 +266,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             if (othersRef.current.length < 12) othersRef.current.push(spawnWorm(`bot_${Date.now()}`, "CyberBot", COLORS[Math.floor(Math.random()*COLORS.length)]));
         }
 
-        // Online sync
         if (gameMode === 'ONLINE' && Date.now() - lastNetworkUpdateRef.current > 50) {
             mp.sendData({ type: 'SLITHER_UPDATE', worm: player });
             lastNetworkUpdateRef.current = Date.now();
         }
 
-        // Leaderboard
         const lb = [player, ...othersRef.current].map(w => ({ name: w.name, score: w.score, isMe: w.id === player.id })).sort((a,b) => b.score - a.score).slice(0, 10);
         setLeaderboard(lb);
     };
@@ -302,7 +302,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.save();
         ctx.translate(offsetX, offsetY);
 
-        // Grille de fond cyber
         ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
         ctx.lineWidth = 1;
         for (let i = 0; i <= WORLD_SIZE; i += 100) {
@@ -314,7 +313,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.lineWidth = 10;
         ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-        // Nourriture (Particules lumineuses)
         foodRef.current.forEach(f => {
             ctx.fillStyle = f.color;
             ctx.shadowBlur = 15; ctx.shadowColor = f.color;
@@ -322,10 +320,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             ctx.shadowBlur = 0;
         });
 
-        // Autres vers
         othersRef.current.forEach(worm => drawWorm(ctx, worm));
-
-        // Joueur
         drawWorm(ctx, player);
 
         ctx.restore();
@@ -335,7 +330,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const segs = worm.segments;
         if (segs.length < 2) return;
 
-        // Corps
         ctx.lineWidth = 22;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -352,19 +346,16 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // --- DÉTAILS DE LA TÊTE (YEUX) ---
         const head = segs[0];
         const eyeOffset = 8;
         const pupilOffset = 2.5; 
         const eyeAngle = worm.angle;
         
-        // Coordonnées des yeux (Blanc)
         const eye1X = head.x + Math.cos(eyeAngle + 0.6) * eyeOffset;
         const eye1Y = head.y + Math.sin(eyeAngle + 0.6) * eyeOffset;
         const eye2X = head.x + Math.cos(eyeAngle - 0.6) * eyeOffset;
         const eye2Y = head.y + Math.sin(eyeAngle - 0.6) * eyeOffset;
 
-        // Dessiner le blanc des yeux
         ctx.fillStyle = 'white';
         ctx.shadowBlur = 5; ctx.shadowColor = 'white';
         ctx.beginPath();
@@ -374,7 +365,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.arc(eye2X, eye2Y, 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // Dessiner les pupilles (Noir) qui regardent vers l'avant
         ctx.fillStyle = 'black';
         ctx.shadowBlur = 0;
         ctx.beginPath();
@@ -384,7 +374,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2);
         ctx.fill();
         
-        // Nom
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = 'bold 14px Rajdhani';
         ctx.textAlign = 'center';
@@ -430,7 +419,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 onTouchEnd={() => { mouseRef.current.down = false; }}
             />
 
-            {/* HUD */}
             <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
                 <button onClick={handleLocalBack} className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 hover:bg-white/20 active:scale-95 transition-all shadow-xl"><Home size={24}/></button>
                 <div className="flex flex-col">
@@ -449,7 +437,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 ))}
             </div>
 
-            {/* Radar (Minimap) */}
             {gameState === 'PLAYING' && (
                 <div 
                     className="absolute bottom-8 right-8 z-30 rounded-full bg-black/70 border-2 border-white/20 shadow-2xl backdrop-blur-md overflow-hidden pointer-events-none"
