@@ -40,6 +40,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
     const [score, setScore] = useState(0);
+    const [rank, setRank] = useState({ current: 0, total: 0 });
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [showTutorial, setShowTutorial] = useState(false);
     const [leaderboard, setLeaderboard] = useState<{name: string, score: number, isMe: boolean}[]>([]);
@@ -92,6 +93,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         othersRef.current = mode === 'SOLO' ? Array.from({length: 12}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
         setGameState('PLAYING');
         setScore(0);
+        setRank({ current: 0, total: 0 });
         setEarnedCoins(0);
         setIsBoosting(false);
         resumeAudio();
@@ -161,6 +163,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         let playerTargetAngle = player.angle;
         if (canvas) {
             const rect = canvas.getBoundingClientRect();
+            // tx et ty sont relatifs au centre de l'écran (où se trouve la tête du ver)
+            // Cela permet de diriger le ver en touchant n'importe quelle direction sur l'écran
             const tx = mouseRef.current.x - rect.width / 2;
             const ty = mouseRef.current.y - rect.height / 2;
             playerTargetAngle = Math.atan2(ty, tx);
@@ -260,7 +264,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             lastNetworkUpdateRef.current = Date.now();
         }
 
-        const lb = [player, ...othersRef.current].map(w => ({ name: w.name, score: w.score, isMe: w.id === player.id })).sort((a,b) => b.score - a.score).slice(0, 10);
+        const allWorms = [player, ...othersRef.current];
+        const sortedWorms = [...allWorms].sort((a,b) => b.score - a.score);
+        
+        const myRankIndex = sortedWorms.findIndex(w => w.id === player.id);
+        setRank({ current: myRankIndex + 1, total: sortedWorms.length });
+        
+        const lb = sortedWorms.slice(0, 10).map(w => ({ name: w.name, score: w.score, isMe: w.id === player.id }));
         setLeaderboard(lb);
     };
 
@@ -311,7 +321,21 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const drawDirectionArrow = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         if (worm.isDead) return;
         const head = worm.segments[0];
-        const arrowDist = 60;
+        
+        // Calculer la distance entre le centre de l'écran et la position de la souris/touche
+        const centerX = ctx.canvas.width / 2;
+        const centerY = ctx.canvas.height / 2;
+        const dx = mouseRef.current.x - centerX;
+        const dy = mouseRef.current.y - centerY;
+        const inputDist = Math.sqrt(dx * dx + dy * dy);
+
+        // Mapper la distance d'entrée à la distance de la flèche (min 50, max 180)
+        // Plus on éloigne le doigt, plus la flèche s'éloigne.
+        const minArrowDist = 55;
+        const maxArrowDist = 180;
+        const sensitivity = 0.6; // Contrôle la vitesse à laquelle la flèche s'éloigne
+        
+        const arrowDist = Math.min(maxArrowDist, minArrowDist + inputDist * sensitivity);
         const arrowSize = 12;
 
         const tx = head.x + Math.cos(worm.angle) * arrowDist;
@@ -427,6 +451,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 <div className="flex flex-col">
                     <span className="text-[10px] text-cyan-400 font-black tracking-[0.3em] uppercase">Masse Néon</span>
                     <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">{score}</span>
+                    <span className="text-[10px] text-yellow-400 font-bold uppercase mt-1">Rang: {rank.current} / {rank.total}</span>
                 </div>
             </div>
 
