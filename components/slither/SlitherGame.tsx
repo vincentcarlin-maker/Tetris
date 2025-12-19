@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Zap, HelpCircle, User, Globe, Play, ArrowLeft, Loader2, LogOut, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Shield, Skull } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -74,6 +73,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const { playCoin, playMove, playExplosion, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
+    const highScore = highScores.slither || 0;
 
     // --- INITIALIZATION ---
     const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin, accessory?: SlitherAccessory): Worm => {
@@ -324,6 +324,20 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
                 updateWormMovement(bot, bot.aiTargetAngle || bot.angle, bot.isBoost ? BOOST_SPEED : BASE_SPEED);
                 if (!collisionFound && Math.random() > 0.95) bot.isBoost = false;
+
+                // --- BOTS FOOD CONSUMPTION ---
+                for (let i = foodRef.current.length - 1; i >= 0; i--) {
+                    const f = foodRef.current[i];
+                    const distSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
+                    if (distSq < 25**2) {
+                        bot.score += f.val * 5;
+                        for (let j = 0; j < f.val; j++) {
+                            const tail = bot.segments[bot.segments.length - 1];
+                            bot.segments.push({ ...tail });
+                        }
+                        foodRef.current.splice(i, 1);
+                    }
+                }
 
                 const distToPlayerHead = (bHead.x - head.x)**2 + (bHead.y - head.y)**2;
                 if (distToPlayerHead < 25**2) {
