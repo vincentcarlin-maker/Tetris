@@ -592,11 +592,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 </div>
             )}
 
-            <div className="absolute top-6 right-6 z-20 bg-black/60 border border-white/10 p-4 rounded-2xl w-48 backdrop-blur-xl shadow-2xl">
-                <h4 className="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-3 border-b border-white/10 pb-2 flex items-center gap-2"><Trophy size={12}/> Leaderboard</h4>
+            <div className="absolute top-6 right-6 z-20 bg-black/20 border border-white/5 p-2.5 rounded-2xl w-36 backdrop-blur-md shadow-2xl">
+                <h4 className="text-[9px] font-black text-yellow-400 uppercase tracking-widest mb-2 border-b border-white/5 pb-1.5 flex items-center gap-2"><Trophy size={10}/> Records</h4>
                 {leaderboard.map((u, i) => (
-                    <div key={i} className={`flex justify-between text-[11px] mb-1.5 ${u.isMe ? 'text-cyan-400 font-black animate-pulse' : 'text-gray-400'}`}>
-                        <span className="truncate w-32">{i+1}. {u.name}</span>
+                    <div key={i} className={`flex justify-between text-[9px] mb-1 ${u.isMe ? 'text-cyan-400 font-black animate-pulse' : 'text-gray-400'}`}>
+                        <span className="truncate w-20">{i+1}. {u.name}</span>
                         <span className="font-mono">{u.score}</span>
                     </div>
                 ))}
