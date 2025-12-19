@@ -39,6 +39,11 @@ const JOYSTICK_DEADZONE = 3;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
+// Helper pour calculer le rayon basé sur le score (croissance comme Slither.io)
+const calculateWormRadius = (score: number) => {
+    return 12 + Math.min(38, Math.sqrt(score) * 0.45);
+};
+
 export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any }> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { username, currentAvatarId, currentSlitherSkinId, slitherSkinsCatalog, currentSlitherAccessoryId, slitherAccessoriesCatalog } = useCurrency();
@@ -85,7 +90,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         }
         return { 
             id, name, segments, angle: Math.random() * Math.PI * 2, color, skin, accessory, 
-            score: 0, isBoost: false, isDead: false, radius: 12,
+            score: 0, isBoost: false, isDead: false, radius: calculateWormRadius(0),
             aiTargetAngle: Math.random() * Math.PI * 2,
             aiDecisionTimer: 0
         };
@@ -157,6 +162,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             const dy = curr.y - prev.y;
             const angle = Math.atan2(dy, dx);
 
+            // La distance entre segments reste fixe pour la fluidité, mais le rendu visuel est plus gros
             newSegments.push({
                 x: prev.x + Math.cos(angle) * SEGMENT_DISTANCE,
                 y: prev.y + Math.sin(angle) * SEGMENT_DISTANCE
@@ -169,11 +175,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const isWormCollidingAt = (x: number, y: number, radius: number, excludeId: string, allWorms: Worm[]) => {
         for (const worm of allWorms) {
             if (worm.isDead) continue;
+            // On ne vérifie pas la collision avec sa propre tête (indices 0 à 10 approx)
             const startIdx = worm.id === excludeId ? 10 : 0;
             for (let i = startIdx; i < worm.segments.length; i += 2) { 
                 const seg = worm.segments[i];
                 const distSq = (x - seg.x)**2 + (y - seg.y)**2;
-                if (distSq < (radius + 15)**2) return true;
+                // Collision basée sur le rayon du ver touché + marge
+                if (distSq < (worm.radius + radius * 0.5)**2) return true;
             }
         }
         return false;
@@ -224,6 +232,8 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 player.segments.pop();
                 player.score = Math.max(0, player.score - 2);
                 setScore(player.score);
+                // On met à jour le rayon si le score baisse (boost)
+                player.radius = calculateWormRadius(player.score);
                 const tail = player.segments[player.segments.length - 1];
                 foodRef.current.push({ id: `boost_f_${Date.now()}`, x: tail.x, y: tail.y, val: 1, color: player.skin?.primaryColor || player.color });
             }
@@ -236,12 +246,17 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             handleDeath();
         }
 
+        // Consommation nourriture Joueur
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             const distSq = (head.x - f.x)**2 + (head.y - f.y)**2;
-            if (distSq < 25**2) {
+            // Distance d'absorption corrélée au rayon de la tête
+            if (distSq < (player.radius + 15)**2) {
                 player.score += f.val * 5;
                 setScore(player.score);
+                // Mise à jour de l'épaisseur du ver
+                player.radius = calculateWormRadius(player.score);
+                
                 playCoin();
                 for (let j = 0; j < f.val; j++) {
                     const tail = player.segments[player.segments.length - 1];
@@ -253,16 +268,18 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             }
         }
 
+        // Collisions du joueur avec les autres
         othersRef.current.forEach(other => {
             if (other.isDead) return;
             for (let sIdx = 0; sIdx < other.segments.length; sIdx += 2) {
-                if (sIdx > 3) {
-                    const seg = other.segments[sIdx];
-                    const dSq = (head.x - seg.x)**2 + (head.y - seg.y)**2;
-                    if (dSq < 18**2) {
-                        handleDeath();
-                        return;
-                    }
+                // On ne meurt pas en touchant sa propre queue (déjà géré par startIdx dans isWormCollidingAt)
+                // Mais ici c'est un ver différent
+                const seg = other.segments[sIdx];
+                const dSq = (head.x - seg.x)**2 + (head.y - seg.y)**2;
+                // Collision si ma tête touche le corps de l'autre (basé sur son rayon actuel)
+                if (dSq < (other.radius + 5)**2) {
+                    handleDeath();
+                    return;
                 }
             }
         });
@@ -275,7 +292,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             othersRef.current.forEach(bot => {
                 if (bot.isDead) return;
                 const bHead = bot.segments[0];
-                const lookAhead = 150;
+                const lookAhead = 100 + bot.radius * 2;
                 const rays = [0, -0.5, 0.5, -1.0, 1.0];
                 let collisionFound = false;
                 let clearAngle = bot.angle;
@@ -325,12 +342,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 updateWormMovement(bot, bot.aiTargetAngle || bot.angle, bot.isBoost ? BOOST_SPEED : BASE_SPEED);
                 if (!collisionFound && Math.random() > 0.95) bot.isBoost = false;
 
-                // --- BOTS FOOD CONSUMPTION ---
+                // Bots mangent nourriture
                 for (let i = foodRef.current.length - 1; i >= 0; i--) {
                     const f = foodRef.current[i];
                     const distSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
-                    if (distSq < 25**2) {
+                    if (distSq < (bot.radius + 10)**2) {
                         bot.score += f.val * 5;
+                        bot.radius = calculateWormRadius(bot.score);
                         for (let j = 0; j < f.val; j++) {
                             const tail = bot.segments[bot.segments.length - 1];
                             bot.segments.push({ ...tail });
@@ -339,15 +357,17 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     }
                 }
 
+                // Collision Bot contre Joueur
                 const distToPlayerHead = (bHead.x - head.x)**2 + (bHead.y - head.y)**2;
-                if (distToPlayerHead < 25**2) {
+                // Si les têtes se percutent, le plus petit meurt (ou les deux)
+                if (distToPlayerHead < (bot.radius + player.radius)**2) {
                      handleDeath();
                 } else {
                     for (let pIdx = 0; pIdx < player.segments.length; pIdx += 2) {
                         if (pIdx > 3) {
                             const pSeg = player.segments[pIdx];
                             const dSq = (bHead.x - pSeg.x)**2 + (bHead.y - pSeg.y)**2;
-                            if (dSq < 18**2) {
+                            if (dSq < (player.radius + 5)**2) {
                                 bot.isDead = true;
                                 spawnParticles(bHead.x, bHead.y, bot.color, 15);
                                 bot.segments.forEach((s, idx) => { 
@@ -417,6 +437,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         }
 
         ctx.save();
+        
+        // Ajustement de zoom dynamique si le ver devient trop gros
+        const zoom = Math.max(0.6, 1.0 - (player.radius - 12) * 0.015);
+        ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-ctx.canvas.width/2, -ctx.canvas.height/2);
+
         ctx.translate(offsetX, offsetY);
         
         ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
@@ -459,7 +486,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const drawDirectionArrow = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         if (worm.isDead) return;
         const head = worm.segments[0];
-        const arrowDist = 80;
+        const arrowDist = 40 + worm.radius;
         const arrowSize = 12;
         const tx = head.x + Math.cos(worm.angle) * arrowDist;
         const ty = head.y + Math.sin(worm.angle) * arrowDist;
@@ -488,7 +515,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const primary = skin?.primaryColor || worm.color;
         const secondary = skin?.secondaryColor || primary;
         const glow = skin?.glowColor || primary;
-        const radius = worm.radius || 12;
+        const radius = worm.radius;
 
         ctx.save();
         for (let i = segs.length - 1; i >= 0; i--) {
@@ -538,17 +565,18 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         }
 
         const head = segs[0];
-        const eyeOffset = 8;
+        const eyeOffset = radius * 0.6;
         const eyeAngle = worm.angle;
         const eyePositions = [{ x: head.x + Math.cos(eyeAngle + 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle + 0.6) * eyeOffset }, { x: head.x + Math.cos(eyeAngle - 0.6) * eyeOffset, y: head.y + Math.sin(eyeAngle - 0.6) * eyeOffset }];
         eyePositions.forEach(pos => {
-            const eyeGrad = ctx.createRadialGradient(pos.x - 2, pos.y - 2, 1, pos.x, pos.y, 6);
+            const eyeSize = radius * 0.4;
+            const eyeGrad = ctx.createRadialGradient(pos.x - eyeSize*0.3, pos.y - eyeSize*0.3, 1, pos.x, pos.y, eyeSize);
             eyeGrad.addColorStop(0, '#fff'); eyeGrad.addColorStop(0.8, '#eee'); eyeGrad.addColorStop(1, '#999');
-            ctx.fillStyle = eyeGrad; ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(pos.x + Math.cos(eyeAngle) * 2, pos.y + Math.sin(eyeAngle) * 2, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = eyeGrad; ctx.beginPath(); ctx.arc(pos.x, pos.y, eyeSize, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(pos.x + Math.cos(eyeAngle) * (eyeSize*0.3), pos.y + Math.sin(eyeAngle) * (eyeSize*0.3), eyeSize*0.5, 0, Math.PI * 2); ctx.fill();
         });
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.font = 'bold 14px Rajdhani'; ctx.textAlign = 'center';
-        ctx.fillText(worm.name, head.x, head.y - 35);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.font = `bold ${Math.max(12, radius*0.8)}px Rajdhani`; ctx.textAlign = 'center';
+        ctx.fillText(worm.name, head.x, head.y - (radius + 20));
         ctx.restore();
     };
 
@@ -617,7 +645,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             </div>
 
             {isBoosting && gameState === 'PLAYING' && (
-                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-indigo-600/40 border border-indigo-400 rounded-full flex items-center gap-2 animate-pulse">
+                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 px-4 py-2 bg-indigo-600/40 border border-indigo-400 rounded-full flex items-center gap-2 animate-pulse">
                     <Zap size={16} className="text-yellow-400 fill-yellow-400" />
                     <span className="text-xs font-black tracking-widest text-white">TURBO ACTIF</span>
                 </div>
