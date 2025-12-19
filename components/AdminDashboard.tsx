@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, 
@@ -8,7 +9,7 @@ import {
     LogOut, TrendingUp, PieChart, MessageSquare, Gift, Star, Target, Palette, 
     Copy, Layers, Bell, RefreshCcw, CreditCard, ShoppingCart, History, AlertOctagon,
     Banknote, Percent, User, BookOpen, Sliders, TrendingDown, MicOff, Key, Crown,
-    Mail, Inbox, Send, Smartphone as PhoneIcon, Loader2, Info
+    Mail, Inbox, Send, Smartphone as PhoneIcon, Loader2, Info, LifeBuoy
 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { AVATARS_CATALOG, FRAMES_CATALOG } from '../hooks/useCurrency';
@@ -114,8 +115,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const [userDetailTab, setUserDetailTab] = useState<'GENERAL' | 'HISTORY' | 'ADMIN'>('GENERAL');
 
     // Notifications State
-    const [notifTab, setNotifTab] = useState<'INAPP' | 'PUSH' | 'EMAIL'>('INAPP');
+    const [notifTab, setNotifTab] = useState<'INAPP' | 'SUPPORT' | 'PUSH' | 'EMAIL'>('INAPP');
     const [notifHistory, setNotifHistory] = useState<{id: number, type: string, target: string, content: string, time: number}[]>([]);
+    const [supportMessages, setSupportMessages] = useState<any[]>([]);
     
     // Push State
     const [pushTitle, setPushTitle] = useState('');
@@ -187,18 +189,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         loadData();
     }, []);
 
-    // Sync selected user with updated profiles list to reflect changes in real-time (like stats)
+    // Charger les messages support quand on bascule sur l'onglet
     useEffect(() => {
-        if (selectedUser && profiles.length > 0) {
-            const updatedProfile = profiles.find(p => p.username === selectedUser.username);
-            if (updatedProfile) {
-                // Only update if data actually changed to avoid loop
-                if (JSON.stringify(updatedProfile.data) !== JSON.stringify(selectedUser.data)) {
-                    setSelectedUser(updatedProfile);
-                }
-            }
+        if (activeSection === 'NOTIFICATIONS' && notifTab === 'SUPPORT') {
+            loadSupport();
         }
-    }, [profiles, selectedUser]);
+    }, [activeSection, notifTab]);
+
+    const loadSupport = async () => {
+        if (!isSupabaseConfigured) return;
+        setLoading(true);
+        const msgs = await DB.getSupportMessages();
+        setSupportMessages(msgs);
+        setLoading(false);
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -626,7 +630,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     };
 
     // --- AGGREGATES ---
-    // Calcul de la masse monétaire en excluant Vincent si le God Mode est activé
     const totalCoins = profiles.reduce((acc, p) => {
         if (p.username === 'Vincent') {
             const isGodMode = localStorage.getItem('neon-admin-mode') === 'true';
@@ -635,7 +638,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         return acc + (p.data?.coins || 0);
     }, 0);
 
-    // Calcul du nombre de joueurs comptabilisés (pour la moyenne)
     const economyPlayersCount = profiles.reduce((acc, p) => {
         if (p.username === 'Vincent') {
              const isGodMode = localStorage.getItem('neon-admin-mode') === 'true';
@@ -646,17 +648,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     const activeUsers = onlineUsers.filter(u => u.status === 'online').length;
 
-    // Total Items Bought (Approximation based on inventory lengths)
     const totalItemsSold = profiles.reduce((acc, p) => {
         return acc + (p.data?.inventory?.length || 0) + (p.data?.ownedAvatars?.length || 0) + (p.data?.ownedFrames?.length || 0);
     }, 0);
 
-    // Suspicious Users (Abuse Detection)
     const suspiciousUsers = useMemo(() => {
         return profiles.filter(p => (p.data?.coins || 0) >= abuseThreshold).sort((a, b) => b.data.coins - a.data.coins);
     }, [profiles, abuseThreshold]);
 
-    // Mock Transactions (Pour démo)
     const mockTransactions = useMemo(() => {
         const actions = ['ACHAT_SKIN', 'GAIN_JEU', 'BONUS_JOUR', 'CADEAU_ADMIN'];
         return Array.from({length: 20}).map((_, i) => {
@@ -671,9 +670,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 time: new Date(Date.now() - Math.floor(Math.random() * 86400000)).toLocaleTimeString()
             };
         });
-    }, [profiles]); // Recalc only when profiles change
+    }, [profiles]);
 
-    // --- CALCULATED STATS ---
     const gamePopularity = useMemo(() => {
         const stats: Record<string, number> = {};
         profiles.forEach(p => {
@@ -684,7 +682,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 }
             });
         });
-        // Convert to array and sort
         return Object.entries(stats)
             .map(([id, count]) => {
                 const gameName = GAMES_LIST.find(g => g.id === id)?.name || id;
@@ -703,22 +700,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     const renderNotifications = () => (
         <div className="animate-in fade-in h-full flex flex-col">
-            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
-                <button onClick={() => setNotifTab('INAPP')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${notifTab === 'INAPP' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4 overflow-x-auto no-scrollbar">
+                <button onClick={() => setNotifTab('INAPP')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${notifTab === 'INAPP' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <Megaphone size={14}/> IN-APP BROADCAST
                 </button>
-                <button onClick={() => setNotifTab('PUSH')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${notifTab === 'PUSH' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setNotifTab('SUPPORT')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${notifTab === 'SUPPORT' ? 'bg-cyan-600 text-white shadow-[0_0_10px_#22d3ee]' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                    <LifeBuoy size={14}/> TICKETS SUPPORT
+                </button>
+                <button onClick={() => setNotifTab('PUSH')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${notifTab === 'PUSH' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <PhoneIcon size={14}/> NOTIFICATIONS PUSH
                 </button>
-                <button onClick={() => setNotifTab('EMAIL')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${notifTab === 'EMAIL' ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setNotifTab('EMAIL')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${notifTab === 'EMAIL' ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <Mail size={14}/> EMAILING
                 </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
                 
-                {/* LEFT: ACTION FORM */}
-                <div className="bg-gray-800 p-6 rounded-xl border border-white/10 flex flex-col overflow-y-auto">
+                {/* LEFT: ACTION FORM / LIST */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-white/10 flex flex-col overflow-y-auto custom-scrollbar">
                     {notifTab === 'INAPP' && (
                         <div className="space-y-4">
                             <h3 className="text-lg font-bold text-blue-400 flex items-center gap-2"><Radio size={20}/> MESSAGE EN DIRECT</h3>
@@ -741,6 +741,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                 <button onClick={(e) => handleBroadcast(e, 'warning')} className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
                                     <AlertTriangle size={18}/> ALERTE
                                 </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {notifTab === 'SUPPORT' && (
+                        <div className="space-y-4 h-full flex flex-col">
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-lg font-bold text-cyan-400 flex items-center gap-2"><LifeBuoy size={20}/> TICKETS REÇUS</h3>
+                                <button onClick={loadSupport} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors">
+                                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                                </button>
+                            </div>
+                            
+                            <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                                {supportMessages.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500 italic">Aucun message pour le moment.</div>
+                                ) : (
+                                    supportMessages.map(msg => {
+                                        // On tente d'extraire l'objet du message s'il respecte le format [SUPPORT][OBJ:...]
+                                        const objMatch = msg.text.match(/\[OBJ:(.*?)\]/);
+                                        const subject = objMatch ? objMatch[1] : "Sujet Inconnu";
+                                        const body = msg.text.replace(/\[SUPPORT\].*?\]/, '').trim();
+                                        
+                                        return (
+                                            <div key={msg.id} className="bg-black/40 border border-white/10 rounded-xl p-4 hover:border-cyan-500/50 transition-all group">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-8 h-8 rounded-lg bg-cyan-900/30 flex items-center justify-center text-cyan-400 font-black border border-cyan-500/20">
+                                                            {msg.sender_id.substring(0,1).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-xs font-black text-white">{msg.sender_id}</div>
+                                                            <div className="text-[9px] text-gray-500 font-mono">{new Date(msg.created_at).toLocaleString()}</div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[9px] bg-cyan-900/30 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded font-bold uppercase">NOUVEAU</span>
+                                                </div>
+                                                <div className="text-xs font-bold text-cyan-200 mb-1">OBJET : {subject}</div>
+                                                <div className="text-sm text-gray-300 leading-relaxed bg-black/20 p-2 rounded-lg">{body}</div>
+                                                <div className="mt-3 flex justify-end gap-2">
+                                                    <button onClick={() => alert("Fonctionnalité de réponse bientôt disponible !")} className="text-[10px] font-black text-cyan-400 hover:text-white uppercase px-2 py-1">Répondre</button>
+                                                    <button className="text-[10px] font-black text-red-400 hover:text-white uppercase px-2 py-1">Archiver</button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
                     )}
@@ -890,12 +937,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 <div className="bg-gray-800 p-4 rounded-xl border border-white/10 shadow-lg">
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                            <p className="text-gray-400 text-xs font-bold uppercase">Alertes Système</p>
-                            <h3 className="text-3xl font-black text-red-500">0</h3>
+                            <p className="text-gray-400 text-xs font-bold uppercase">Tickets Support</p>
+                            <h3 className="text-3xl font-black text-red-500">{supportMessages.length}</h3>
                         </div>
-                        <div className="p-2 bg-red-500/20 rounded-lg text-red-400"><AlertTriangle size={20}/></div>
+                        <div className="p-2 bg-red-500/20 rounded-lg text-red-400"><LifeBuoy size={20}/></div>
                     </div>
-                    <div className="text-xs text-green-400">Système opérationnel</div>
+                    <div className="text-xs text-yellow-400 flex items-center gap-1">Action requise</div>
                 </div>
             </div>
 
@@ -1274,36 +1321,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     );
                 })}
             </div>
-
-            {/* EVENT ANALYTICS MODAL */}
-            {showEventAnalytics && (
-                <div className="fixed inset-0 z-[160] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowEventAnalytics(null)}>
-                    <div className="bg-gray-900 w-full max-w-lg rounded-2xl border border-white/20 shadow-2xl p-6 relative" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setShowEventAnalytics(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X/></button>
-                        <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2"><BarChart2 className="text-blue-400"/> ANALYTIQUES ÉVÉNEMENT</h3>
-                        
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-black/30 p-4 rounded-xl border border-white/5 text-center">
-                                <p className="text-xs text-gray-500 font-bold uppercase">Participation</p>
-                                <p className="text-3xl font-black text-white">42%</p>
-                                <p className="text-[10px] text-green-400">+5% vs avg</p>
-                            </div>
-                            <div className="bg-black/30 p-4 rounded-xl border border-white/5 text-center">
-                                <p className="text-xs text-gray-500 font-bold uppercase">Taux Complétion</p>
-                                <p className="text-3xl font-black text-yellow-400">15%</p>
-                                <p className="text-[10px] text-gray-400">Standard</p>
-                            </div>
-                        </div>
-                        
-                        <div className="bg-black/30 p-4 rounded-xl border border-white/5 h-40 flex items-end justify-between gap-2 px-6 pb-2">
-                             {[30, 50, 45, 80, 60, 95, 40].map((h, i) => (
-                                <div key={i} className="w-full bg-blue-500/50 hover:bg-blue-400 rounded-t" style={{ height: `${h}%` }}></div>
-                             ))}
-                        </div>
-                        <p className="text-center text-xs text-gray-500 mt-2">Activité sur les 7 derniers jours</p>
-                    </div>
-                </div>
-            )}
         </div>
     );
 
@@ -1674,9 +1691,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             ))}
                         </div>
 
-                        {/* ... (Event form content unchanged) ... */}
                         <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
-                            {/* ... Content of Event Modal ... */}
                              {eventTab === 'GENERAL' && (
                                 <>
                                     <div>
@@ -1741,7 +1756,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                     </div>
                                 </>
                             )}
-                             {/* ... Other Tabs same logic ... */}
                         </div>
 
                         <div className="p-4 border-t border-white/10 bg-black/40">
@@ -1753,17 +1767,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 </div>
             )}
 
-            {/* EVENT ANALYTICS MODAL */}
-            {showEventAnalytics && (
-                <div className="fixed inset-0 z-[160] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowEventAnalytics(null)}>
-                    {/* ... Analytics Content ... */}
-                </div>
-            )}
-
             {/* GAME EDIT MODAL */}
             {editingGame && (
                 <div className="fixed inset-0 z-[160] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setEditingGame(null)}>
-                     {/* ... Game Edit Modal Content ... */}
                      <div className="bg-gray-900 w-full max-w-lg rounded-2xl border border-white/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                         
                         {/* Modal Header */}
@@ -1886,7 +1892,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                 </div>
                              )}
                         </div>
-                         {/* Footer Actions */}
                         <div className="p-4 border-t border-white/10 bg-black/40 flex gap-4">
                             <button onClick={() => setEditingGame(null)} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-lg transition-colors">ANNULER</button>
                             <button onClick={handleSaveGameEdit} className="flex-[2] py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg">

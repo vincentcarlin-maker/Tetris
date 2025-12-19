@@ -289,5 +289,21 @@ export const DB = {
     markAllAsRead: async (receiverId: string) => {
         if (!supabase) return;
         try { await supabase.from('messages').update({ read: true }).eq('receiver_id', receiverId).eq('read', false); } catch (e) {}
+    },
+
+    // --- SUPPORT FUNCTIONS ---
+    getSupportMessages: async () => {
+        if (!supabase) return [];
+        try {
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('receiver_id', 'SYSTEM_SUPPORT')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            return [];
+        }
     }
 };

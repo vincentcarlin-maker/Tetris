@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck, Languages } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck, Languages, HelpCircle } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -10,6 +10,7 @@ interface SettingsMenuProps {
     onBack: () => void;
     onLogout: () => void;
     onOpenDashboard: () => void;
+    onOpenContact: () => void;
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
     highScores: HighScores;
@@ -32,7 +33,7 @@ const GAME_LABELS: Record<string, string> = {
 
 type LegalTab = 'CGU' | 'PRIVACY' | 'MENTIONS';
 
-export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, audio, currency, highScores }) => {
+export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, onOpenDashboard, onOpenContact, audio, currency, highScores }) => {
     const { t, language, setLanguage } = currency;
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [legalTab, setLegalTab] = useState<LegalTab | null>(null);
@@ -218,7 +219,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
 
             <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pt-6 pb-24">
                 <div className="flex items-center justify-between mb-2">
-                    <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
+                    <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"><ArrowLeft size={20} /></button>
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(192,38,211,0.5)] uppercase">{t.settings}</h1>
                     <div className="w-10"></div>
                 </div>
@@ -396,6 +397,13 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             </div>
                         )}
                     </div>
+                </div>
+
+                <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><HelpCircle size={16} className="text-neon-blue" /> {t.support}</h3>
+                    <button onClick={onOpenContact} className="w-full py-3 bg-neon-blue/10 border border-neon-blue/30 hover:bg-neon-blue/20 text-neon-blue rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                        <Mail size={18} /> {t.contact.toUpperCase()}
+                    </button>
                 </div>
 
                 <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-5 backdrop-blur-md">

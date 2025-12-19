@@ -285,9 +285,7 @@ export const MALLETS_CATALOG: Mallet[] = [
     { id: 'm_stardust', name: 'Poussière d\'Etoiles', price: 8500, colors: ['#ffffff', '#000000', '#facc15'], type: 'complex', description: 'Éclats cosmiques.' },
 ];
 
-export type Language = 'fr' | 'en';
-
-export const TRANSLATIONS: Record<Language, any> = {
+export const TRANSLATIONS: Record<string, any> = {
     fr: {
         settings: "Réglages",
         language: "Langue",
@@ -312,7 +310,9 @@ export const TRANSLATIONS: Record<Language, any> = {
         shop: "Boutique",
         chat: "Chat",
         social: "Social",
-        home: "Accueil"
+        home: "Accueil",
+        contact: "Nous Contacter",
+        support: "Support & Aide"
     },
     en: {
         settings: "Settings",
@@ -338,7 +338,9 @@ export const TRANSLATIONS: Record<Language, any> = {
         shop: "Shop",
         chat: "Chat",
         social: "Social",
-        home: "Home"
+        home: "Home",
+        contact: "Contact Us",
+        support: "Support & Help"
     }
 };
 
@@ -357,7 +359,7 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
     });
     
-    const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem('neon-language') as Language) || 'fr');
+    const [language, setLanguageState] = useState<string>(() => (localStorage.getItem('neon-language')) || 'fr');
 
     const [username, setUsername] = useState(() => localStorage.getItem('neon-username') || "Joueur Néon");
     const [email, setEmail] = useState(() => localStorage.getItem('neon-email') || "");
@@ -437,12 +439,12 @@ export const useCurrency = () => {
         }
     }, [accentColor]);
 
-    const setLanguage = (lang: Language) => {
+    const setLanguage = (lang: string) => {
         setLanguageState(lang);
         localStorage.setItem('neon-language', lang);
     };
 
-    const t = useMemo(() => TRANSLATIONS[language], [language]);
+    const t = useMemo(() => TRANSLATIONS[language] || TRANSLATIONS.fr, [language]);
 
     const importData = useCallback((data: any) => {
         if (!data) return;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
@@ -24,6 +25,7 @@ import { Shop } from './components/Shop';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SocialOverlay, FriendRequest } from './components/SocialOverlay';
 import { SettingsMenu } from './components/SettingsMenu';
+import { ContactOverlay } from './components/ContactOverlay';
 import { LoginScreen } from './components/LoginScreen';
 import { BottomNav } from './components/BottomNav';
 import { useGameAudio } from './hooks/useGameAudio';
@@ -36,7 +38,7 @@ import { DB } from './lib/supabaseClient';
 import { AlertTriangle, Info, Construction } from 'lucide-react';
 
 
-type ViewState = 'menu' | 'social' | 'settings' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
+type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
 type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
 
 const App: React.FC = () => {
@@ -422,7 +424,7 @@ const App: React.FC = () => {
         );
     }
 
-    const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social', 'settings'].includes(currentView);
+    const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social', 'settings', 'contact'].includes(currentView);
 
     const handleOpenSocial = (tab: SocialTab) => {
         if (!isAuthenticated) { setShowLoginModal(true); return; }
@@ -464,7 +466,10 @@ const App: React.FC = () => {
                     />
                 )}
                 {currentView === 'settings' && isAuthenticated && (
-                    <SettingsMenu onBack={handleBackToMenu} onLogout={handleLogout} onOpenDashboard={() => setCurrentView('admin_dashboard')} audio={audio} currency={currency} highScores={highScores} />
+                    <SettingsMenu onBack={handleBackToMenu} onLogout={handleLogout} onOpenDashboard={() => setCurrentView('admin_dashboard')} onOpenContact={() => setCurrentView('contact')} audio={audio} currency={currency} highScores={highScores} />
+                )}
+                {currentView === 'contact' && isAuthenticated && (
+                    <ContactOverlay onBack={() => setCurrentView('settings')} audio={audio} currency={currency} />
                 )}
                 {currentView === 'shop' && isAuthenticated && <Shop onBack={handleBackToMenu} currency={currency} />}
                 {currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser && <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={onlineUsers} />}
