@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, 
@@ -78,6 +77,7 @@ const SECTIONS = [
 ];
 
 const GAMES_LIST = [
+    { id: 'slither', name: 'Neon Slither', version: '1.0' },
     { id: 'tetris', name: 'Tetris', version: '2.1' },
     { id: 'connect4', name: 'Connect 4', version: '1.5' },
     { id: 'sudoku', name: 'Sudoku', version: '1.2' },
