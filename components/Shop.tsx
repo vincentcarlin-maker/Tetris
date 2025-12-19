@@ -90,18 +90,33 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     };
 
     const renderSlitherPreview = (skin: SlitherSkin) => {
+        const pattern = skin.pattern || 'solid';
+        let backgroundStyle = `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`;
+        
+        if (pattern === 'stripes') {
+            backgroundStyle = `repeating-linear-gradient(90deg, ${skin.primaryColor}, ${skin.primaryColor} 10px, ${skin.secondaryColor} 10px, ${skin.secondaryColor} 20px)`;
+        } else if (pattern === 'dots') {
+            backgroundStyle = `radial-gradient(${skin.secondaryColor} 20%, transparent 20%), radial-gradient(${skin.secondaryColor} 20%, ${skin.primaryColor} 20%)`;
+        } else if (pattern === 'checker') {
+            backgroundStyle = `conic-gradient(${skin.primaryColor} 90deg, ${skin.secondaryColor} 90deg 180deg, ${skin.primaryColor} 180deg 270deg, ${skin.secondaryColor} 270deg)`;
+        } else if (pattern === 'rainbow') {
+            backgroundStyle = `linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)`;
+        } else if (pattern === 'grid') {
+            backgroundStyle = `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px), ${skin.secondaryColor}`;
+        }
+
         return (
             <div className="relative w-24 h-12 flex items-center justify-center">
                 <div 
-                    className="w-20 h-5 rounded-full border-2 shadow-lg"
+                    className="w-20 h-6 rounded-full border-2 shadow-lg overflow-hidden"
                     style={{ 
-                        background: `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`,
+                        background: backgroundStyle,
+                        backgroundSize: pattern === 'dots' ? '10px 10px' : (pattern === 'checker' ? '12px 12px' : (pattern === 'grid' ? '8px 8px' : 'auto')),
                         borderColor: 'rgba(255,255,255,0.3)',
                         boxShadow: `0 0 15px ${skin.glowColor}`
                     }}
                 >
                     <div className="absolute top-1/2 left-3 -translate-y-1/2 w-2 h-2 bg-white rounded-full opacity-60"></div>
-                    <div className="absolute top-1/2 left-6 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-40"></div>
                 </div>
             </div>
         );

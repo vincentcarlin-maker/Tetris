@@ -34,6 +34,7 @@ export interface SlitherSkin {
     primaryColor: string;
     secondaryColor: string;
     glowColor: string;
+    pattern?: 'solid' | 'stripes' | 'dots' | 'checker' | 'rainbow' | 'grid';
     description: string;
 }
 
@@ -107,12 +108,16 @@ export const AVATARS_CATALOG: Avatar[] = [
 ];
 
 export const SLITHER_SKINS_CATALOG: SlitherSkin[] = [
-    { id: 'ss_cyan', name: 'Cyan Classique', price: 0, primaryColor: '#00f3ff', secondaryColor: '#0088ff', glowColor: '#00f3ff', description: 'La couleur originelle du néon.' },
-    { id: 'ss_pink', name: 'Rose Flash', price: 500, primaryColor: '#ff00ff', secondaryColor: '#cc00cc', glowColor: '#ff00ff', description: 'Pour briller dans l\'obscurité.' },
-    { id: 'ss_toxic', name: 'Venin Toxique', price: 1000, primaryColor: '#00ff9d', secondaryColor: '#00aa66', glowColor: '#00ff9d', description: 'Une lueur radioactive redoutable.' },
-    { id: 'ss_gold', name: 'Légende Dorée', price: 5000, primaryColor: '#ffe600', secondaryColor: '#aa9900', glowColor: '#ffe600', description: 'Réservé aux maîtres du ver.' },
-    { id: 'ss_sunset', name: 'Crépuscule', price: 1500, primaryColor: '#ff4d4d', secondaryColor: '#992222', glowColor: '#ff4d4d', description: 'Inspiré des nuits de Tokyo.' },
-    { id: 'ss_void', name: 'Spectre du Néant', price: 3000, primaryColor: '#9d00ff', secondaryColor: '#4400aa', glowColor: '#9d00ff', description: 'Surgi des profondeurs de l\'espace.' },
+    { id: 'ss_cyan', name: 'Cyan Classique', price: 0, primaryColor: '#00f3ff', secondaryColor: '#0088ff', glowColor: '#00f3ff', pattern: 'solid', description: 'La couleur originelle du néon.' },
+    { id: 'ss_zebra', name: 'Zèbre Néon', price: 750, primaryColor: '#ffffff', secondaryColor: '#000000', glowColor: '#ffffff', pattern: 'stripes', description: 'Des rayures élégantes pour filer dans l\'arène.' },
+    { id: 'ss_tiger', name: 'Tigre de Feu', price: 1250, primaryColor: '#ff9d00', secondaryColor: '#000000', glowColor: '#ff9d00', pattern: 'stripes', description: 'L\'instinct du prédateur.' },
+    { id: 'ss_leopard', name: 'Léopard Cyan', price: 1500, primaryColor: '#00f3ff', secondaryColor: '#000000', glowColor: '#00f3ff', pattern: 'dots', description: 'Un motif tacheté pour les plus agiles.' },
+    { id: 'ss_rainbow', name: 'Flux Chroma', price: 2500, primaryColor: '#ff0000', secondaryColor: '#ffffff', glowColor: '#ff00ff', pattern: 'rainbow', description: 'Toutes les couleurs du spectre en mouvement.' },
+    { id: 'ss_checker', name: 'Damier Retro', price: 1000, primaryColor: '#ffffff', secondaryColor: '#333333', glowColor: '#00f3ff', pattern: 'checker', description: 'Un style classique de borne d\'arcade.' },
+    { id: 'ss_grid', name: 'Tron Grid', price: 2000, primaryColor: '#00f3ff', secondaryColor: '#001122', glowColor: '#00f3ff', pattern: 'grid', description: 'Directement sorti de la Grille.' },
+    { id: 'ss_pink', name: 'Rose Flash', price: 500, primaryColor: '#ff00ff', secondaryColor: '#cc00cc', glowColor: '#ff00ff', pattern: 'solid', description: 'Pour briller dans l\'obscurité.' },
+    { id: 'ss_toxic', name: 'Venin Toxique', price: 1000, primaryColor: '#00ff9d', secondaryColor: '#00aa66', glowColor: '#00ff9d', pattern: 'solid', description: 'Une lueur radioactive redoutable.' },
+    { id: 'ss_gold', name: 'Légende Dorée', price: 5000, primaryColor: '#ffe600', secondaryColor: '#aa9900', glowColor: '#ffe600', pattern: 'solid', description: 'Réservé aux maîtres du ver.' },
 ];
 
 export const FRAMES_CATALOG: Frame[] = [

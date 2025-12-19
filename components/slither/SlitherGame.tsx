@@ -356,40 +356,71 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const segs = worm.segments;
         if (segs.length < 2) return;
         
-        // Colors & Neon Config
-        const primary = worm.skin?.primaryColor || worm.color;
-        const secondary = worm.skin?.secondaryColor || primary;
-        const glow = worm.skin?.glowColor || primary;
+        const skin = worm.skin;
+        const pattern = skin?.pattern || 'solid';
+        const primary = skin?.primaryColor || worm.color;
+        const secondary = skin?.secondaryColor || primary;
+        const glow = skin?.glowColor || primary;
+        const radius = worm.radius || 10;
 
-        ctx.lineWidth = 22;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        ctx.save();
         
-        // Dynamic color for boost
-        if (worm.isBoost) {
-            const grad = ctx.createLinearGradient(segs[0].x, segs[0].y, segs[segs.length-1].x, segs[segs.length-1].y);
-            grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.2, primary);
-            grad.addColorStop(1, secondary);
-            ctx.strokeStyle = grad;
-            ctx.shadowBlur = 35;
-        } else {
-            ctx.strokeStyle = primary;
-            ctx.shadowBlur = 12;
+        // Rendu segment par segment pour les motifs (de la queue à la tête)
+        for (let i = segs.length - 1; i >= 0; i--) {
+            const seg = segs[i];
+            const isHead = i === 0;
+            
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2);
+            
+            // Logique de motif
+            if (pattern === 'solid') {
+                ctx.fillStyle = primary;
+            } else if (pattern === 'stripes') {
+                ctx.fillStyle = Math.floor(i / 3) % 2 === 0 ? primary : secondary;
+            } else if (pattern === 'dots') {
+                ctx.fillStyle = primary;
+            } else if (pattern === 'checker') {
+                ctx.fillStyle = i % 2 === 0 ? primary : secondary;
+            } else if (pattern === 'rainbow') {
+                const hue = (i * 10 + Date.now() / 20) % 360;
+                ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+            } else if (pattern === 'grid') {
+                ctx.fillStyle = secondary;
+            } else {
+                ctx.fillStyle = primary;
+            }
+            
+            // Effet de boost
+            if (worm.isBoost) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#fff';
+            } else {
+                ctx.shadowBlur = isHead ? 15 : 5;
+                ctx.shadowColor = glow;
+            }
+            
+            ctx.fill();
+            
+            // Sous-motif (ex: pois ou grille)
+            if (pattern === 'dots' && i % 4 === 0) {
+                ctx.beginPath();
+                ctx.arc(seg.x, seg.y, radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = secondary;
+                ctx.fill();
+            } else if (pattern === 'grid' && i % 2 === 0) {
+                ctx.strokeStyle = primary;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(seg.x - radius*0.5, seg.y - radius*0.5, radius, radius);
+            }
+
+            // Bordure fine
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
         }
-        
-        ctx.shadowColor = glow;
-        ctx.beginPath();
-        ctx.moveTo(segs[0].x, segs[0].y);
-        for (let i = 1; i < segs.length; i++) ctx.lineTo(segs[i].x, segs[i].y);
-        ctx.stroke();
-        
-        // Detail border
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.shadowBlur = 0;
-        ctx.stroke();
 
+        // Yeux et nom (sur la tête)
         const head = segs[0];
         const eyeOffset = 8;
         const pupilOffset = 2.5; 
@@ -398,18 +429,23 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const eye1Y = head.y + Math.sin(eyeAngle + 0.6) * eyeOffset;
         const eye2X = head.x + Math.cos(eyeAngle - 0.6) * eyeOffset;
         const eye2Y = head.y + Math.sin(eyeAngle - 0.6) * eyeOffset;
+        
         ctx.fillStyle = 'white';
         ctx.shadowBlur = 5; ctx.shadowColor = 'white';
         ctx.beginPath(); ctx.arc(eye1X, eye1Y, 6, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(eye2X, eye2Y, 6, 0, Math.PI * 2); ctx.fill();
+        
         ctx.fillStyle = 'black';
         ctx.shadowBlur = 0;
         ctx.beginPath(); ctx.arc(eye1X + Math.cos(eyeAngle) * pupilOffset, eye1Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(eye2X + Math.cos(eyeAngle) * pupilOffset, eye2Y + Math.sin(eyeAngle) * pupilOffset, 3, 0, Math.PI * 2); ctx.fill();
+        
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.font = 'bold 14px Rajdhani';
         ctx.textAlign = 'center';
         ctx.fillText(worm.name, head.x, head.y - 30);
+        
+        ctx.restore();
     };
 
     const loop = (time: number) => {
