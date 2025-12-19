@@ -4,7 +4,6 @@ import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency, SlitherSkin, SlitherAccessory } from '../../hooks/useCurrency';
-import { TutorialOverlay } from '../Tutorials';
 
 // --- TYPES ---
 interface Point { x: number; y: number; }
@@ -30,15 +29,15 @@ interface Particle { x: number; y: number; vx: number; vy: number; life: number;
 const WORLD_SIZE = 20000; 
 const INITIAL_LENGTH = 15;
 const SEGMENT_DISTANCE = 5; 
-const BASE_SPEED = 6.5; 
-const BOOST_SPEED = 14.5; 
-const TURN_SPEED = 0.22; 
+const BASE_SPEED = 4.5; // Ajusté pour le calcul Delta Time
+const BOOST_SPEED = 9.5; 
+const TURN_SPEED = 0.18; 
 const RADAR_SIZE = 120;
 const JOYSTICK_DEADZONE = 3; 
 
-const BOT_COUNT = 1000; 
-const INITIAL_FOOD_COUNT = 15000; 
-const MIN_FOOD_REGEN = 12000;
+const BOT_COUNT = 250; // Nombre de bots optimisé pour la fluidité (Delta Time compensera)
+const INITIAL_FOOD_COUNT = 8000; 
+const MIN_FOOD_REGEN = 6000;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -79,7 +78,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const { playCoin, playMove, playExplosion, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
-    const highScore = highScores.slither || 0;
 
     // --- INITIALIZATION ---
     const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin, accessory?: SlitherAccessory): Worm => {
@@ -137,19 +135,21 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         setIsBoosting(false);
         isBoostingRef.current = false;
         resumeAudio();
-        lastTimeRef.current = Date.now();
+        lastTimeRef.current = performance.now();
         if (onReportProgress) onReportProgress('play', 1);
     };
 
-    const updateWormMovement = (worm: Worm, targetAngle: number, speed: number) => {
+    const updateWormMovement = (worm: Worm, targetAngle: number, speed: number, speedFactor: number) => {
         let angleDiff = targetAngle - worm.angle;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        worm.angle += angleDiff * TURN_SPEED;
+        
+        // Rotation sensible au Delta Time
+        worm.angle += angleDiff * TURN_SPEED * speedFactor;
 
         const head = worm.segments[0];
-        const nextX = head.x + Math.cos(worm.angle) * speed;
-        const nextY = head.y + Math.sin(worm.angle) * speed;
+        const nextX = head.x + Math.cos(worm.angle) * speed * speedFactor;
+        const nextY = head.y + Math.sin(worm.angle) * speed * speedFactor;
         
         const newSegments = [{ x: nextX, y: nextY }];
 
@@ -160,6 +160,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             const dy = curr.y - prev.y;
             const angle = Math.atan2(dy, dx);
 
+            // Les segments suivent toujours à distance fixe, peu importe le FPS
             newSegments.push({
                 x: prev.x + Math.cos(angle) * SEGMENT_DISTANCE,
                 y: prev.y + Math.sin(angle) * SEGMENT_DISTANCE
@@ -172,7 +173,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const isWormCollidingAt = (x: number, y: number, radius: number, excludeId: string, allWorms: Worm[]) => {
         for (const worm of allWorms) {
             if (worm.isDead) continue;
-            if (Math.abs(worm.segments[0].x - x) > 1000 || Math.abs(worm.segments[0].y - y) > 1000) continue;
+            // Culling spatial pour les collisions
+            if (Math.abs(worm.segments[0].x - x) > 800 || Math.abs(worm.segments[0].y - y) > 800) continue;
+
             const startIdx = worm.id === excludeId ? 12 : 0;
             for (let i = startIdx; i < worm.segments.length; i += 3) { 
                 const seg = worm.segments[i];
@@ -183,14 +186,20 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         return false;
     };
 
-    // --- UPDATE LOOP ---
     const update = (dt: number) => {
         if (gameState === 'MENU' || gameState === 'GAMEOVER') return;
         
-        particlesRef.current.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.02; });
+        // Normalisation du Delta Time (basé sur 60 FPS = 16.67ms)
+        const speedFactor = dt / 16.67;
+
+        particlesRef.current.forEach(p => { 
+            p.x += p.vx * speedFactor; 
+            p.y += p.vy * speedFactor; 
+            p.life -= 0.02 * speedFactor; 
+        });
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
 
-        if (shakeRef.current > 0) shakeRef.current *= 0.9;
+        if (shakeRef.current > 0) shakeRef.current *= Math.pow(0.9, speedFactor);
         if (shakeRef.current < 0.5) shakeRef.current = 0;
 
         const player = playerWormRef.current;
@@ -222,8 +231,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const currentSpeed = player.isBoost ? BOOST_SPEED : BASE_SPEED;
         
         if (player.isBoost) {
-            boostCounterRef.current++;
-            if (boostCounterRef.current % 8 === 0) { // Un peu plus rapide la conso pour équilibrer la vitesse
+            boostCounterRef.current += speedFactor;
+            if (boostCounterRef.current >= 8) { 
+                boostCounterRef.current = 0;
                 player.segments.pop();
                 player.score = Math.max(0, player.score - 2);
                 setScore(player.score);
@@ -233,12 +243,12 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             }
         }
 
-        updateWormMovement(player, playerTargetAngle, currentSpeed);
+        updateWormMovement(player, playerTargetAngle, currentSpeed, speedFactor);
 
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) handleDeath();
 
-        // Collisions nourriture
+        // Collisions nourriture (optimisé)
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             if (Math.abs(head.x - f.x) > 100 || Math.abs(head.y - f.y) > 100) continue;
@@ -261,7 +271,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         // Collisions vers
         othersRef.current.forEach(other => {
             if (other.isDead) return;
-            if (Math.abs(other.segments[0].x - head.x) > 1200 || Math.abs(other.segments[0].y - head.y) > 1200) return;
+            if (Math.abs(other.segments[0].x - head.x) > 1000 || Math.abs(other.segments[0].y - head.y) > 1000) return;
             for (let sIdx = 0; sIdx < other.segments.length; sIdx += 3) {
                 const seg = other.segments[sIdx];
                 const dSq = (head.x - seg.x)**2 + (head.y - seg.y)**2;
@@ -277,11 +287,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             othersRef.current.forEach(bot => {
                 if (bot.isDead) return;
                 const bHead = bot.segments[0];
-                bot.aiDecisionTimer = (bot.aiDecisionTimer || 0) - 1;
+                bot.aiDecisionTimer = (bot.aiDecisionTimer || 0) - speedFactor;
 
                 if (bot.aiDecisionTimer <= 0) {
                     const lookAhead = 120 + bot.radius * 2;
-                    const rays = [0, -0.5, 0.5, -1.0, 1.0, -1.5, 1.5];
+                    const rays = [0, -0.5, 0.5, -1.0, 1.0];
                     let collisionFound = false;
                     let clearAngle = bot.angle;
                     const margin = 200;
@@ -307,7 +317,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     if (!collisionFound) {
                         let closestF = null, minDistSq = 700**2;
                         for (let f of foodRef.current) {
-                            if (Math.abs(f.x - bHead.x) > 500 || Math.abs(f.y - bHead.y) > 500) continue;
+                            if (Math.abs(f.x - bHead.x) > 400 || Math.abs(f.y - bHead.y) > 400) continue;
                             const dSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
                             if (dSq < minDistSq) { minDistSq = dSq; closestF = f; }
                         }
@@ -320,27 +330,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     }
                 }
 
-                updateWormMovement(bot, bot.aiTargetAngle || bot.angle, bot.isBoost ? BOOST_SPEED : BASE_SPEED);
+                updateWormMovement(bot, bot.aiTargetAngle || bot.angle, bot.isBoost ? BOOST_SPEED : BASE_SPEED, speedFactor);
                 if (Math.random() > 0.98) bot.isBoost = false;
 
-                for (let i = foodRef.current.length - 1; i >= 0; i--) {
-                    const f = foodRef.current[i];
-                    if (Math.abs(bHead.x - f.x) > 80 || Math.abs(bHead.y - f.y) > 80) continue;
-                    const distSq = (bHead.x - f.x)**2 + (head.y - f.y)**2;
-                    if (distSq < (bot.radius + 15)**2) {
-                        bot.score += f.val * 5;
-                        bot.radius = calculateWormRadius(bot.score);
-                        for (let j = 0; j < f.val; j++) {
-                            const tail = bot.segments[bot.segments.length - 1];
-                            bot.segments.push({ ...tail });
-                        }
-                        foodRef.current.splice(i, 1);
-                    }
-                }
-
+                // Collision Bot contre Joueur
                 const distToPlayerHead = (bHead.x - head.x)**2 + (bHead.y - head.y)**2;
                 if (distToPlayerHead < (bot.radius + player.radius)**2) handleDeath();
-                else if (Math.abs(bHead.x - head.x) < 1200 && Math.abs(bHead.y - head.y) < 1200) {
+                else if (Math.abs(bHead.x - head.x) < 800 && Math.abs(bHead.y - head.y) < 800) {
                     for (let pIdx = 0; pIdx < player.segments.length; pIdx += 4) {
                         if (pIdx > 5) {
                             const pSeg = player.segments[pIdx];
@@ -361,13 +357,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             if (othersRef.current.length < BOT_COUNT) othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Bot " + (Math.floor(Math.random()*2000)), COLORS[Math.floor(Math.random()*COLORS.length)]));
         }
 
-        if (gameMode === 'ONLINE' && Date.now() - lastNetworkUpdateRef.current > 50) {
-            mp.sendData({ type: 'SLITHER_UPDATE', worm: player });
-            lastNetworkUpdateRef.current = Date.now();
-        }
-
-        const allWorms = [player, ...othersRef.current];
-        const sortedWorms = [...allWorms].sort((a,b) => b.score - a.score);
+        const sortedWorms = [player, ...othersRef.current].sort((a,b) => b.score - a.score);
         setRank({ current: sortedWorms.findIndex(w => w.id === player.id) + 1, total: sortedWorms.length });
         setLeaderboard(sortedWorms.slice(0, 10).map(w => ({ name: w.name, score: w.score, isMe: w.id === player.id })));
     };
@@ -474,7 +464,19 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         ctx.restore();
     };
 
-    const loop = (time: number) => { update(time - lastTimeRef.current); lastTimeRef.current = time; if (canvasRef.current) { const ctx = canvasRef.current.getContext('2d'); if (ctx) draw(ctx); } animationFrameRef.current = requestAnimationFrame(loop); };
+    const loop = (time: number) => {
+        if (!lastTimeRef.current) lastTimeRef.current = time;
+        const dt = time - lastTimeRef.current;
+        lastTimeRef.current = time;
+        
+        update(dt);
+        
+        if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            if (ctx) draw(ctx);
+        }
+        animationFrameRef.current = requestAnimationFrame(loop);
+    };
 
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
@@ -554,7 +556,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     <Zap size={64} className="text-indigo-400 mb-8 animate-glow" />
                     <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">NEON SLITHER</h1>
                     <div className="flex flex-col gap-5 w-full max-w-xs">
-                        <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">SOLO (1000 BOTS)</button>
+                        <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">SOLO (250 BOTS)</button>
                         <button onClick={() => startGame('ONLINE')} className="px-8 py-5 bg-gray-900 border-2 border-green-500 text-green-400 font-black tracking-widest rounded-2xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">MULTIJOUEUR</button>
                     </div>
                     <p className="mt-8 text-gray-500 text-xs text-center">PC: Espace pour Turbo • Mobile: Bouton Turbo</p>
