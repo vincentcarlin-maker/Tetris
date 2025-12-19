@@ -37,9 +37,9 @@ const RADAR_SIZE = 120;
 const DOUBLE_TAP_DELAY = 300; 
 const JOYSTICK_DEADZONE = 3; 
 
-const INITIAL_FOOD_COUNT = 4000;
-const MIN_FOOD_REGEN = 3500;
-const BOT_COUNT = 80;
+const INITIAL_FOOD_COUNT = 8000;
+const MIN_FOOD_REGEN = 6000;
+const BOT_COUNT = 250;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
