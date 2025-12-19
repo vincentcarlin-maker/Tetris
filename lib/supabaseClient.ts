@@ -262,6 +262,17 @@ export const DB = {
         } catch (e) { return null; }
     },
 
+    deleteMessage: async (id: number) => {
+        if (!supabase) return { success: false };
+        try {
+            const { error } = await supabase.from('messages').delete().eq('id', id);
+            if (error) throw error;
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e };
+        }
+    },
+
     sendFriendRequestDB: async (senderId: string, receiverId: string) => {
         if (!supabase) return null;
         return await DB.sendMessage(senderId, receiverId, 'CMD:FRIEND_REQUEST');

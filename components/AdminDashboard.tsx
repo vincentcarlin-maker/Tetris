@@ -118,6 +118,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const [notifTab, setNotifTab] = useState<'INAPP' | 'SUPPORT' | 'PUSH' | 'EMAIL'>('INAPP');
     const [notifHistory, setNotifHistory] = useState<{id: number, type: string, target: string, content: string, time: number}[]>([]);
     const [supportMessages, setSupportMessages] = useState<any[]>([]);
+    const [replyingTo, setReplyingTo] = useState<any | null>(null);
+    const [replyText, setReplyText] = useState('');
+    const [isSendingReply, setIsSendingReply] = useState(false);
     
     // Push State
     const [pushTitle, setPushTitle] = useState('');
@@ -629,6 +632,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         return stats;
     };
 
+    const handleDeleteSupportMessage = async (id: number) => {
+        if (!window.confirm("Voulez-vous supprimer ce ticket ?")) return;
+        const res = await DB.deleteMessage(id);
+        if (res.success) {
+            setSupportMessages(prev => prev.filter(m => m.id !== id));
+        } else {
+            alert("Erreur lors de la suppression.");
+        }
+    };
+
+    const handleSendSupportReply = async () => {
+        if (!replyingTo || !replyText.trim() || isSendingReply) return;
+        setIsSendingReply(true);
+        try {
+            const formattedReply = `[SUPPORT_REPLY] ${replyText.trim()}`;
+            // On envoie la réponse du compte SYSTEM_SUPPORT vers l'utilisateur d'origine
+            await DB.sendMessage('SYSTEM_SUPPORT', replyingTo.sender_id, formattedReply);
+            
+            // Notification visuelle de succès
+            alert("Réponse envoyée avec succès !");
+            setReplyingTo(null);
+            setReplyText('');
+        } catch (e) {
+            alert("Erreur lors de l'envoi de la réponse.");
+        } finally {
+            setIsSendingReply(false);
+        }
+    };
+
     // --- AGGREGATES ---
     const totalCoins = profiles.reduce((acc, p) => {
         if (p.username === 'Vincent') {
@@ -781,8 +813,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                                 <div className="text-xs font-bold text-cyan-200 mb-1">OBJET : {subject}</div>
                                                 <div className="text-sm text-gray-300 leading-relaxed bg-black/20 p-2 rounded-lg">{body}</div>
                                                 <div className="mt-3 flex justify-end gap-2">
-                                                    <button onClick={() => alert("Fonctionnalité de réponse bientôt disponible !")} className="text-[10px] font-black text-cyan-400 hover:text-white uppercase px-2 py-1">Répondre</button>
-                                                    <button className="text-[10px] font-black text-red-400 hover:text-white uppercase px-2 py-1">Archiver</button>
+                                                    <button onClick={() => setReplyingTo(msg)} className="text-[10px] font-black text-cyan-400 hover:text-white uppercase px-2 py-1">Répondre</button>
+                                                    <button onClick={() => handleDeleteSupportMessage(msg.id)} className="text-[10px] font-black text-red-400 hover:text-white uppercase px-2 py-1">Supprimer</button>
                                                 </div>
                                             </div>
                                         );
@@ -898,6 +930,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     </div>
                 </div>
             </div>
+
+            {/* REPLY OVERLAY */}
+            {replyingTo && (
+                <div className="fixed inset-0 z-[600] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+                    <div className="bg-gray-900 w-full max-w-lg rounded-3xl border-2 border-cyan-500/50 shadow-[0_0_50px_rgba(34,211,238,0.3)] flex flex-col relative overflow-hidden">
+                        <div className="p-6 border-b border-white/10 bg-gray-800/50 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-black text-white flex items-center gap-2 italic tracking-tight"><Send className="text-cyan-400" /> RÉPONDRE AU SIGNAL</h3>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">DESTINATAIRE : {replyingTo.sender_id}</p>
+                            </div>
+                            <button onClick={() => setReplyingTo(null)} className="p-2 bg-black/40 hover:bg-white/10 rounded-full text-white transition-colors"><X size={24}/></button>
+                        </div>
+                        
+                        <div className="p-6 flex flex-col gap-4">
+                            <div className="bg-black/30 p-4 rounded-xl border border-white/5">
+                                <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest block mb-2">Message Original</span>
+                                <p className="text-xs text-gray-400 italic line-clamp-3">{replyingTo.text.replace(/\[SUPPORT\].*?\]/, '').trim()}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-cyan-400 uppercase tracking-widest ml-1">Votre Réponse</label>
+                                <textarea 
+                                    value={replyText}
+                                    onChange={e => setReplyText(e.target.value)}
+                                    placeholder="Écrivez votre message ici..."
+                                    className="w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-cyan-400 outline-none h-48 resize-none shadow-inner"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <button 
+                                onClick={handleSendSupportReply}
+                                disabled={!replyText.trim() || isSendingReply}
+                                className={`w-full py-4 rounded-2xl font-black text-lg italic tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 ${!replyText.trim() || isSendingReply ? 'bg-gray-800 text-gray-500 border border-white/10' : 'bg-cyan-500 text-black shadow-[0_0_20px_rgba(34,211,238,0.5)] hover:bg-white'}`}
+                            >
+                                {isSendingReply ? <Loader2 size={24} className="animate-spin" /> : <><Send size={20} /> ENVOYER LE SIGNAL</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 
