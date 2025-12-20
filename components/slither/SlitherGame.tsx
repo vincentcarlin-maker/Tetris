@@ -28,7 +28,8 @@ interface Food { id: string; x: number; y: number; val: number; color: string; }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; color: string; size: number; }
 
 // --- CONSTANTS ---
-const WORLD_SIZE = 20000; 
+// Reduced World Size for easier player encounters in online mode
+const WORLD_SIZE = 4000; 
 const INITIAL_LENGTH = 15;
 const SEGMENT_DISTANCE = 5; 
 const BASE_SPEED = 4.5; 
@@ -37,9 +38,9 @@ const TURN_SPEED = 0.18;
 const RADAR_SIZE = 120;
 const JOYSTICK_DEADZONE = 3; 
 
-const BOT_COUNT = 250; 
-const INITIAL_FOOD_COUNT = 8000; 
-const MIN_FOOD_REGEN = 6000;
+const BOT_COUNT = 50; 
+const INITIAL_FOOD_COUNT = 1500; 
+const MIN_FOOD_REGEN = 1000;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
@@ -148,8 +149,10 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     }, [mp.subscribe]);
 
     const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin, accessory?: SlitherAccessory): Worm => {
-        const x = Math.random() * (WORLD_SIZE - 2000) + 1000;
-        const y = Math.random() * (WORLD_SIZE - 2000) + 1000;
+        // Spawn closer to center to ensure players find each other in smaller world
+        const margin = 500;
+        const x = Math.random() * (WORLD_SIZE - margin*2) + margin;
+        const y = Math.random() * (WORLD_SIZE - margin*2) + margin;
         const segments: Point[] = [];
         for (let i = 0; i < INITIAL_LENGTH; i++) {
             segments.push({ x: x - i * SEGMENT_DISTANCE, y });
@@ -194,10 +197,25 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const handleJoinServer = (serverId: string) => {
         setCurrentServer(serverId);
         setGameMode('ONLINE');
-        if (!mp.isConnected) mp.connect();
+        
+        // Use the new Public Room method for MMO style connection
+        mp.joinPublicRoom(serverId);
+        
         mp.updateSelfInfo(username, currentAvatarId, undefined, serverId);
         startGameLogic();
         othersRef.current = []; 
+    };
+    
+    const handleLocalBack = () => {
+        if (gameState === 'MENU') {
+            onBack();
+        } else {
+            if (gameMode === 'ONLINE') {
+                mp.leaveGame();
+                setGameMode('SOLO');
+            }
+            setGameState('MENU');
+        }
     };
 
     const startGameLogic = () => {
@@ -682,7 +700,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             {gameState === 'PLAYING' && (
                 <>
                     <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
-                        <button onClick={() => { if (window.confirm("Quitter ?")) { mp.updateSelfInfo(username, currentAvatarId); onBack(); } }} className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"><Home size={24}/></button>
+                        <button onClick={() => { if (window.confirm("Quitter ?")) { mp.updateSelfInfo(username, currentAvatarId); handleLocalBack(); } }} className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"><Home size={24}/></button>
                         <div className="flex flex-col">
                             <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">{score}</span>
                             <span className="text-[10px] text-indigo-400 font-bold uppercase">Rang: {rank.current} / {rank.total}</span>

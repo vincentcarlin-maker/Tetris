@@ -274,6 +274,28 @@ export const useMultiplayer = () => {
         
     }, []);
 
+    const joinPublicRoom = useCallback((roomId: string) => {
+        if (!myIdRef.current) return;
+        
+        // Join specific channel without handshake
+        subscribeToGameChannel(roomId);
+        
+        // Update Lobby Presence
+        lobbyChannelRef.current?.track({
+            ...myInfoRef.current,
+            status: 'in_game'
+        });
+
+        // Set state directly to IN_GAME
+        setState(prev => ({
+            ...prev,
+            mode: 'in_game',
+            isHost: false, 
+            gameOpponent: null, 
+            isMyTurn: true 
+        }));
+    }, []);
+
     const sendData = useCallback((data: any) => {
         // Send to Game Channel if in game
         if (stateRef.current.mode === 'in_game' && gameChannelRef.current) {
@@ -373,6 +395,7 @@ export const useMultiplayer = () => {
         disconnect,
         createRoom,
         joinRoom,
+        joinPublicRoom, // NEW METHOD
         updateSelfInfo,
         sendData,
         sendTo,
