@@ -58,15 +58,6 @@ const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string
     black: { border: 'border-purple-500', text: 'text-white', shadow: 'shadow-purple-500/50', bg: 'bg-gray-900', gradient: 'from-purple-600 via-pink-600 to-blue-600' },
 };
 
-const REACTIONS = [
-    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
-    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
-    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500', anim: 'animate-pulse' },
-    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500', anim: 'animate-ping' },
-    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
-    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
-];
-
 const generateDeck = (): Card[] => {
     let deck: Card[] = [];
     let idCounter = 0;
@@ -227,7 +218,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     useEffect(() => { if (gameMode === 'SOLO' && turn === 'CPU' && gameState === 'playing' && !isAnimating) { const timer = setTimeout(() => { const topCard = discardPile[discardPile.length - 1]; const validIndices = cpuHand.map((c, i) => ({c, i})).filter(({c}) => c.color === activeColor || c.value === topCard.value || c.color === 'black'); if (validIndices.length > 0) { validIndices.sort((a, b) => { if (a.c.color === 'black') return 1; if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1; return 0; }); const move = validIndices[0]; animateCardPlay(move.c, move.i, 'CPU'); } else { drawCard('CPU', 1); setTurn('PLAYER'); } }, 1500); return () => clearTimeout(timer); } }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating, gameMode]);
 
     const sendChat = (e?: React.FormEvent) => { if (e) e.preventDefault(); if (!chatInput.trim() || mp.mode !== 'in_game') return; const msg: ChatMessage = { id: Date.now(), text: chatInput.trim(), senderName: username, isMe: true, timestamp: Date.now() }; setChatHistory(prev => [...prev, msg]); mp.sendData({ type: 'CHAT', text: msg.text, senderName: username }); setChatInput(''); };
-    const sendReaction = (reactionId: string) => { if (gameMode === 'ONLINE' && mp.mode === 'in_game') { setActiveReaction({ id: reactionId, isMe: true }); mp.sendData({ type: 'REACTION', id: reactionId }); setTimeout(() => setActiveReaction(null), 3000); } };
     const handleLocalBack = () => { if (phase === 'GAME' || (gameMode === 'ONLINE' && onlineStep === 'lobby')) backToMenu(); else onBack(); };
 
     const CardView = ({ card, onClick, faceUp = true, small = false, style }: { card: Card, onClick?: (e: React.MouseEvent) => void, faceUp?: boolean, small?: boolean, style?: React.CSSProperties }) => {

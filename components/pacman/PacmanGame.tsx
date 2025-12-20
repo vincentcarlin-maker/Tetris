@@ -65,12 +65,10 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans touch-none select-none p-4">
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-yellow-400/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
-                {/* Fixed missing ArrowLeft here */}
-                <button onClick={() => setGameStep('MENU')} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><ArrowLeft size={20} /></button>
+                <button onClick={() => setGameStep('MENU')} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
                 <h1 className="text-2xl font-black italic text-yellow-400">NEON EATER</h1>
                 <div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-yellow-400"><HelpCircle size={20} /></button><button onClick={() => startGame(difficulty)} className="p-2 bg-gray-800 rounded-lg text-gray-400"><RefreshCw size={20} /></button></div>
             </div>
-            {/* Reste du code du jeu... */}
         </div>
     );
 };
