@@ -700,7 +700,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 user,
                 action,
                 amount,
-                time: new Date(Date.now() - Math.floor(Math.random() * 86400000)).toLocaleTimeString()
+                fullDate: new Date(Date.now() - Math.floor(Math.random() * 86400000)).toLocaleString()
             };
         });
     }, [profiles]);
@@ -1089,17 +1089,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     const renderEconomy = () => (
         <div className="animate-in fade-in h-full flex flex-col">
-            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
-                <button onClick={() => setEcoTab('OVERVIEW')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'OVERVIEW' ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4 overflow-x-auto no-scrollbar">
+                <button onClick={() => setEcoTab('OVERVIEW')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'OVERVIEW' ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <Activity size={14}/> VUE D'ENSEMBLE
                 </button>
-                <button onClick={() => setEcoTab('CONFIG')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'CONFIG' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setEcoTab('CONFIG')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'CONFIG' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <Settings size={14}/> CONFIGURATION
                 </button>
-                <button onClick={() => setEcoTab('TRANSACTIONS')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'TRANSACTIONS' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setEcoTab('TRANSACTIONS')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'TRANSACTIONS' ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <History size={14}/> HISTORIQUE
                 </button>
-                <button onClick={() => setEcoTab('ABUSE')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'ABUSE' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setEcoTab('ABUSE')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'ABUSE' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <AlertOctagon size={14}/> DÉTECTION ABUS
                 </button>
             </div>
@@ -1186,33 +1186,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 )}
 
                 {ecoTab === 'TRANSACTIONS' && (
-                    <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-800 text-gray-400 font-bold uppercase text-[10px]">
-                                <tr>
-                                    <th className="p-4">Date/Heure</th>
-                                    <th className="p-4">Utilisateur</th>
-                                    <th className="p-4">Action</th>
-                                    <th className="p-4 text-right">Montant</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {mockTransactions.map((tx, i) => (
-                                    <tr key={i} className="hover:bg-white/5">
-                                        <td className="p-4 text-gray-500 font-mono text-xs">{tx.time}</td>
-                                        <td className="p-4 font-bold text-white">{tx.user}</td>
-                                        <td className="p-4 text-xs">
-                                            <span className={`px-2 py-1 rounded ${tx.action.includes('ACHAT') ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                                                {tx.action}
-                                            </span>
-                                        </td>
-                                        <td className={`p-4 text-right font-mono font-bold ${tx.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {tx.amount > 0 ? '+' : ''}{tx.amount}
-                                        </td>
+                    <div className="bg-black/80 border border-white/20 rounded-2xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-2 duration-300">
+                        <div className="p-4 bg-gray-800/80 border-b border-white/10 flex justify-between items-center">
+                            <h4 className="font-black text-sm text-purple-400 italic tracking-widest flex items-center gap-2">
+                                <History size={16}/> RÉGISTRE DES OPÉRATIONS
+                            </h4>
+                            <span className="text-[10px] bg-purple-900/30 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold">TEMPS RÉEL</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm border-collapse">
+                                <thead className="bg-black/60 text-gray-400 font-black uppercase text-[10px] tracking-widest">
+                                    <tr>
+                                        <th className="p-5 border-b border-white/5">Date & Heure</th>
+                                        <th className="p-5 border-b border-white/5">Utilisateur</th>
+                                        <th className="p-5 border-b border-white/5">Opération</th>
+                                        <th className="p-5 border-b border-white/5 text-right">Flux</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-white/5 bg-gray-900/30">
+                                    {mockTransactions.map((tx, i) => (
+                                        <tr key={i} className="hover:bg-white/[0.03] transition-colors group">
+                                            <td className="p-5 text-gray-400 font-mono text-xs whitespace-nowrap">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock size={12} className="text-gray-600" />
+                                                    {tx.fullDate}
+                                                </div>
+                                            </td>
+                                            <td className="p-5 font-bold text-white group-hover:text-cyan-400 transition-colors">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded bg-gray-800 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 uppercase">
+                                                        {tx.user.substring(0,1)}
+                                                    </div>
+                                                    {tx.user}
+                                                </div>
+                                            </td>
+                                            <td className="p-5">
+                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${
+                                                    tx.action.includes('ACHAT') ? 'bg-red-500/10 text-red-400 border-red-500/30' : 
+                                                    tx.action.includes('GAIN') ? 'bg-green-500/10 text-green-400 border-green-500/30' :
+                                                    tx.action.includes('CADEAU') ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                                                    'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+                                                }`}>
+                                                    {tx.action}
+                                                </span>
+                                            </td>
+                                            <td className={`p-5 text-right font-mono font-black text-lg ${tx.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    {tx.amount > 0 ? '+' : ''}{tx.amount}
+                                                    <Coins size={14} className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'} />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="p-4 bg-black/40 border-t border-white/5 text-center">
+                            <button className="text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-colors">Charger plus d'entrées</button>
+                        </div>
                     </div>
                 )}
 
@@ -1332,7 +1363,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             </div>
                             <div>
                                 <div className="font-bold text-white">Jeux Bêta / Expérimental</div>
-                                <div className="text-xs text-gray-500">Affiche les jeux en cours de développement.</div>
+                                <div className="text-xs text-gray-500">En cours de développement.</div>
                             </div>
                         </div>
                         <button onClick={() => toggleFlag('beta_games')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.beta_games ? 'bg-purple-500' : 'bg-gray-600'}`}>
@@ -1348,7 +1379,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             </div>
                             <div>
                                 <div className="font-bold text-white">Chat Global (Jeux)</div>
-                                <div className="text-xs text-gray-500">Active le chat et les réactions dans les jeux multijoueurs.</div>
+                                <div className="text-xs text-gray-500">Active le chat et les réactions.</div>
                             </div>
                         </div>
                         <button onClick={() => toggleFlag('global_chat')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.global_chat ? 'bg-cyan-500' : 'bg-gray-600'}`}>
