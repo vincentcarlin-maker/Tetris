@@ -1,10 +1,11 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull, Server, Signal, Wifi } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency, SlitherSkin, SlitherAccessory } from '../../hooks/useCurrency';
+import { OnlineUser } from '../../hooks/useSupabase';
 
 // --- TYPES ---
 interface Point { x: number; y: number; }
@@ -42,21 +43,27 @@ const MIN_FOOD_REGEN = 6000;
 
 const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d', '#ff9f43'];
 
+const SERVERS = [
+    { id: 'slither_main', name: 'NEON CITY (EU)', region: 'Europe', max: 50, ping: 45 },
+    { id: 'slither_us', name: 'SOLAR DUST (US)', region: 'USA', max: 50, ping: 120 }, // Fake server for UI demo
+];
+
 const calculateWormRadius = (score: number) => {
     return 12 + Math.min(48, Math.sqrt(score) * 0.4);
 };
 
-export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any }> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
+export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any, onlineUsers: OnlineUser[] }> = ({ onBack, audio, addCoins, mp, onReportProgress, onlineUsers }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { username, currentAvatarId, currentSlitherSkinId, slitherSkinsCatalog, currentSlitherAccessoryId, slitherAccessoriesCatalog } = useCurrency();
 
-    const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'DYING' | 'GAMEOVER'>('MENU');
+    const [gameState, setGameState] = useState<'MENU' | 'SERVER_SELECT' | 'PLAYING' | 'DYING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
     const [score, setScore] = useState(0);
     const [rank, setRank] = useState({ current: 0, total: 0 });
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [leaderboard, setLeaderboard] = useState<{name: string, score: number, isMe: boolean}[]>([]);
     const [isBoosting, setIsBoosting] = useState(false);
+    const [currentServer, setCurrentServer] = useState<string | null>(null);
 
     // Logic Refs
     const playerWormRef = useRef<Worm | null>(null);
@@ -76,11 +83,72 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const lastTimeRef = useRef<number>(0);
     const lastNetworkUpdateRef = useRef<number>(0);
     const boostCounterRef = useRef<number>(0);
+    const handleDataRef = useRef<(data: any) => void>(null);
 
     const { playCoin, playMove, playExplosion, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
 
     // --- INITIALIZATION ---
+    useEffect(() => {
+        // Tag user activity
+        if (gameState === 'MENU' || gameState === 'SERVER_SELECT') {
+            mp.updateSelfInfo(username, currentAvatarId, undefined, 'slither_menu');
+        } else if (gameMode === 'ONLINE' && currentServer) {
+            mp.updateSelfInfo(username, currentAvatarId, undefined, currentServer);
+        } else {
+            mp.updateSelfInfo(username, currentAvatarId, undefined, 'slither_solo');
+        }
+    }, [username, currentAvatarId, mp, gameState, gameMode, currentServer]);
+
+    // Handle Network Data
+    useEffect(() => {
+        handleDataRef.current = (data: any) => {
+            if (gameMode !== 'ONLINE') return;
+            
+            if (data.type === 'SLITHER_UPDATE') {
+                const remoteWorm = data.worm;
+                const existingIdx = othersRef.current.findIndex(w => w.id === remoteWorm.id);
+                
+                if (existingIdx !== -1) {
+                    othersRef.current[existingIdx] = { ...othersRef.current[existingIdx], ...remoteWorm };
+                } else {
+                    // New player joined
+                    const newWorm: Worm = {
+                        ...remoteWorm,
+                        segments: remoteWorm.segments.map((p: any) => ({...p})) // Deep copy
+                    };
+                    othersRef.current.push(newWorm);
+                }
+            }
+
+            if (data.type === 'SLITHER_FOOD_EATEN') {
+                const idx = foodRef.current.findIndex(f => f.id === data.foodId);
+                if (idx !== -1) foodRef.current.splice(idx, 1);
+            }
+            
+            if (data.type === 'SLITHER_PLAYER_DIED') {
+                const deadId = data.wormId;
+                const idx = othersRef.current.findIndex(w => w.id === deadId);
+                if (idx !== -1) {
+                    const deadWorm = othersRef.current[idx];
+                    spawnParticles(deadWorm.segments[0].x, deadWorm.segments[0].y, deadWorm.color, 40);
+                    // Drop food
+                    deadWorm.segments.forEach((s, i) => { 
+                         if(i % 3 === 0) foodRef.current.push({ id: `f_dead_${deadId}_${i}`, x: s.x, y: s.y, val: 2, color: deadWorm.color }); 
+                    });
+                    othersRef.current.splice(idx, 1);
+                }
+            }
+        };
+    });
+
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (handleDataRef.current) handleDataRef.current(data);
+        });
+        return () => unsubscribe();
+    }, [mp.subscribe]);
+
     const spawnWorm = (id: string, name: string, color: string, skin?: SlitherSkin, accessory?: SlitherAccessory): Worm => {
         const x = Math.random() * (WORLD_SIZE - 2000) + 1000;
         const y = Math.random() * (WORLD_SIZE - 2000) + 1000;
@@ -119,8 +187,27 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         }
     };
 
-    const startGame = (mode: 'SOLO' | 'ONLINE') => {
-        setGameMode(mode);
+    const startSoloGame = () => {
+        setGameMode('SOLO');
+        startGameLogic();
+        othersRef.current = Array.from({length: BOT_COUNT}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i+1}`, COLORS[Math.floor(Math.random() * COLORS.length)]));
+    };
+
+    const handleJoinServer = (serverId: string) => {
+        setCurrentServer(serverId);
+        setGameMode('ONLINE');
+        
+        // Connect to global lobby if not connected (should be handled by App, but safe to check)
+        if (!mp.isConnected) mp.connect();
+        
+        // Update presence to indicate we are in this room
+        mp.updateSelfInfo(username, currentAvatarId, undefined, serverId);
+        
+        startGameLogic();
+        othersRef.current = []; // Clear bots, will fill with network players
+    };
+
+    const startGameLogic = () => {
         const playerSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId) || slitherSkinsCatalog[0];
         const playerAcc = slitherAccessoriesCatalog.find(a => a.id === currentSlitherAccessoryId);
         
@@ -128,7 +215,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         foodRef.current = [];
         particlesRef.current = [];
         spawnFood(INITIAL_FOOD_COUNT);
-        othersRef.current = mode === 'SOLO' ? Array.from({length: BOT_COUNT}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i+1}`, COLORS[Math.floor(Math.random() * COLORS.length)])) : [];
+        
         setGameState('PLAYING');
         setScore(0);
         setRank({ current: 0, total: 0 });
@@ -188,10 +275,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     };
 
     const update = (dt: number) => {
-        if (gameState === 'MENU' || gameState === 'GAMEOVER') return;
+        if (gameState === 'MENU' || gameState === 'SERVER_SELECT' || gameState === 'GAMEOVER') return;
         
         // Normalisation du Delta Time (basé sur 60 FPS = 16.67ms)
         const speedFactor = dt / 16.67;
+        const now = Date.now();
 
         particlesRef.current.forEach(p => { 
             p.x += p.vx * speedFactor; 
@@ -205,6 +293,30 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
         const player = playerWormRef.current;
         if (!player) return;
+
+        // Broadcast Position (Online Mode)
+        if (gameMode === 'ONLINE') {
+            if (now - lastNetworkUpdateRef.current > 40) { // 25fps broadcast
+                mp.sendData({
+                    type: 'SLITHER_UPDATE',
+                    worm: {
+                        id: player.id,
+                        name: player.name,
+                        segments: player.segments, // Send full segments for smoothing
+                        color: player.color,
+                        skin: player.skin,
+                        score: player.score,
+                        radius: player.radius,
+                        angle: player.angle,
+                        isBoost: player.isBoost
+                    }
+                });
+                lastNetworkUpdateRef.current = now;
+            }
+            
+            // Cleanup stale players
+            // In a real implementation we would track last update time
+        }
 
         if (gameState === 'DYING') {
             cameraRef.current.x = player.segments[0].x;
@@ -368,6 +480,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         if (!player || player.isDead || gameState === 'DYING') return;
         player.isDead = true;
         setGameState('DYING');
+        
+        if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_PLAYER_DIED', wormId: player.id });
+        
         setIsBoosting(false);
         isBoostingRef.current = false;
         joystickActiveRef.current = false;
@@ -523,6 +638,55 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const handleInputEnd = () => { joystickActiveRef.current = false; joystickOriginRef.current = null; };
 
+    // --- VIEW RENDERERS ---
+
+    const renderServerSelect = () => {
+        return (
+             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020205]/95 backdrop-blur-xl p-8">
+                 <h2 className="text-4xl font-black text-white italic mb-8 flex items-center gap-3">
+                     <Globe size={40} className="text-cyan-400" /> SÉLECTION SERVEUR
+                 </h2>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
+                     {SERVERS.map(server => {
+                         // Count players on this server
+                         const count = onlineUsers.filter(u => u.gameActivity === server.id).length;
+                         const load = count / server.max;
+                         const loadColor = load > 0.8 ? 'bg-red-500' : load > 0.5 ? 'bg-yellow-500' : 'bg-green-500';
+                         
+                         return (
+                             <button 
+                                key={server.id} 
+                                onClick={() => handleJoinServer(server.id)}
+                                className="bg-gray-900 border-2 border-white/10 hover:border-cyan-400 rounded-2xl p-6 text-left transition-all hover:scale-105 group relative overflow-hidden"
+                             >
+                                 <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
+                                     <Server size={64} />
+                                 </div>
+                                 
+                                 <h3 className="text-xl font-bold text-white mb-1 group-hover:text-cyan-300">{server.name}</h3>
+                                 <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-4">{server.region}</p>
+                                 
+                                 <div className="flex items-center justify-between mt-auto">
+                                     <div className="flex items-center gap-2">
+                                         <div className="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                             <div className={`h-full ${loadColor}`} style={{ width: `${Math.min(100, load * 100)}%` }}></div>
+                                         </div>
+                                         <span className="text-xs font-mono text-white">{count}/{server.max}</span>
+                                     </div>
+                                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                         <Signal size={12} className={server.ping < 50 ? 'text-green-500' : 'text-yellow-500'} />
+                                         {server.ping}ms
+                                     </div>
+                                 </div>
+                             </button>
+                         );
+                     })}
+                 </div>
+                 <button onClick={() => setGameState('MENU')} className="mt-8 text-gray-500 hover:text-white underline text-sm">Retour</button>
+             </div>
+        );
+    };
+
     return (
         <div className="h-full w-full flex flex-col items-center justify-center bg-[#020205] relative overflow-hidden font-sans select-none touch-none">
             <canvas ref={canvasRef} width={window.innerWidth} height={window.innerHeight} className="w-full h-full"
@@ -535,26 +699,26 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 onTouchEnd={handleInputEnd}
             />
 
-            <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
-                <button onClick={() => { if (gameState === 'PLAYING') { if (window.confirm("Quitter ?")) onBack(); } else onBack(); }} className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"><Home size={24}/></button>
-                <div className="flex flex-col">
-                    <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">{score}</span>
-                    <span className="text-[10px] text-yellow-400 font-bold uppercase">Rang: {rank.current} / {rank.total}</span>
-                </div>
-            </div>
-
-            <div className="absolute top-6 right-6 z-20 bg-black/20 border border-white/5 p-2.5 rounded-2xl w-36 backdrop-blur-md shadow-2xl">
-                <h4 className="text-[9px] font-black text-yellow-400 uppercase tracking-widest mb-2 border-b border-white/5 pb-1.5 flex items-center gap-2"><Trophy size={10}/> Records</h4>
-                {leaderboard.map((u, i) => (
-                    <div key={i} className={`flex justify-between text-[9px] mb-1 ${u.isMe ? 'text-cyan-400 font-black animate-pulse' : 'text-gray-400'}`}>
-                        <span className="truncate w-20">{i+1}. {u.name}</span>
-                        <span className="font-mono">{u.score}</span>
-                    </div>
-                ))}
-            </div>
-
             {gameState === 'PLAYING' && (
                 <>
+                    <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
+                        <button onClick={() => { if (window.confirm("Quitter ?")) { mp.updateSelfInfo(username, currentAvatarId); onBack(); } }} className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"><Home size={24}/></button>
+                        <div className="flex flex-col">
+                            <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">{score}</span>
+                            <span className="text-[10px] text-yellow-400 font-bold uppercase">Rang: {rank.current} / {rank.total}</span>
+                        </div>
+                    </div>
+
+                    <div className="absolute top-6 right-6 z-20 bg-black/20 border border-white/5 p-2.5 rounded-2xl w-36 backdrop-blur-md shadow-2xl">
+                        <h4 className="text-[9px] font-black text-yellow-400 uppercase tracking-widest mb-2 border-b border-white/5 pb-1.5 flex items-center gap-2"><Trophy size={10}/> Records</h4>
+                        {leaderboard.map((u, i) => (
+                            <div key={i} className={`flex justify-between text-[9px] mb-1 ${u.isMe ? 'text-cyan-400 font-black animate-pulse' : 'text-gray-400'}`}>
+                                <span className="truncate w-20">{i+1}. {u.name}</span>
+                                <span className="font-mono">{u.score}</span>
+                            </div>
+                        ))}
+                    </div>
+                
                     <div className="absolute bottom-8 right-8 z-30 rounded-full bg-black/70 border-2 border-white/20 shadow-2xl backdrop-blur-md overflow-hidden pointer-events-none w-[120px] h-[120px]">
                         {othersRef.current.map(worm => <div key={worm.id} className="absolute rounded-full bg-pink-500 shadow-[0_0_4px_pink] w-0.5 h-0.5" style={{ left: (worm.segments[0].x / WORLD_SIZE) * 120, top: (worm.segments[0].y / WORLD_SIZE) * 120 }} />)}
                         {playerWormRef.current && <div className="absolute rounded-full bg-white shadow-[0_0_8px_white] w-1 h-1 animate-pulse" style={{ left: (playerWormRef.current.segments[0].x / WORLD_SIZE) * 120, top: (playerWormRef.current.segments[0].y / WORLD_SIZE) * 120 }} />}
@@ -578,13 +742,15 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     <Zap size={64} className="text-indigo-400 mb-8 animate-glow" />
                     <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">CYBER SERPENT</h1>
                     <div className="flex flex-col gap-5 w-full max-w-xs">
-                        <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">SOLO (250 BOTS)</button>
-                        <button onClick={() => startGame('ONLINE')} className="px-8 py-5 bg-gray-900 border-2 border-green-500 text-green-400 font-black tracking-widest rounded-2xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">MULTIJOUEUR</button>
+                        <button onClick={startSoloGame} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">SOLO (250 BOTS)</button>
+                        <button onClick={() => setGameState('SERVER_SELECT')} className="px-8 py-5 bg-gray-900 border-2 border-green-500 text-green-400 font-black tracking-widest rounded-2xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">MULTIJOUEUR</button>
                     </div>
                     <p className="mt-8 text-gray-500 text-xs text-center">PC: Espace pour Turbo • Mobile: Bouton Turbo</p>
                     <button onClick={onBack} className="mt-4 text-gray-600 text-sm font-bold hover:text-white uppercase">Menu</button>
                 </div>
             )}
+
+            {gameState === 'SERVER_SELECT' && renderServerSelect()}
 
             {gameState === 'GAMEOVER' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl animate-in zoom-in p-8 text-center">
@@ -593,7 +759,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     <p className="text-5xl font-black text-white font-mono mb-10">{score}</p>
                     {earnedCoins > 0 && <div className="mb-10 flex items-center gap-3 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500/50"><Coins className="text-yellow-400" size={28} /><span className="text-yellow-100 font-black text-2xl">+{earnedCoins}</span></div>}
                     <div className="flex gap-4 w-full max-w-xs">
-                        <button onClick={() => startGame(gameMode)} className="flex-1 py-4 bg-indigo-600 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 shadow-xl flex items-center justify-center gap-2 active:scale-95"><RefreshCw size={24} /> REJOUER</button>
+                        <button onClick={() => { if(gameMode === 'ONLINE' && currentServer) handleJoinServer(currentServer); else startSoloGame(); }} className="flex-1 py-4 bg-indigo-600 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 shadow-xl flex items-center justify-center gap-2 active:scale-95"><RefreshCw size={24} /> REJOUER</button>
                         <button onClick={() => setGameState('MENU')} className="flex-1 py-4 bg-gray-800 text-gray-300 font-bold rounded-2xl hover:bg-gray-700">MENU</button>
                     </div>
                 </div>
