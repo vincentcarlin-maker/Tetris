@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X, Trophy, Calendar, Zap, Star } from 'lucide-react';
+import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X, Trophy, Calendar, Zap, Star, ShieldCheck, LifeBuoy } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency, BADGES_CATALOG } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -59,6 +60,8 @@ const GAME_NAMES: Record<string, string> = {
     'stack': 'Stack', 'arenaclash': 'Arena Clash', 'skyjo': 'Skyjo', 'lumen': 'Lumen', 'shop': 'Boutique', 'menu': 'Menu'
 };
 
+const SUPPORT_ID = 'SYSTEM_SUPPORT';
+
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ 
     audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured, 
     onUnreadChange, friendRequests, setFriendRequests, activeTabOverride, onTabChangeOverride 
@@ -113,6 +116,20 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                     return [...prev, ...newReqs];
                 });
             });
+
+            // Charger l'historique du support s'il existe
+            DB.getMessages(username, SUPPORT_ID).then(msgs => {
+                if (msgs && msgs.length > 0) {
+                    const formatted = msgs.map((m: any) => ({
+                        id: m.id.toString(),
+                        senderId: m.sender_id,
+                        text: m.text,
+                        timestamp: new Date(m.created_at).getTime(),
+                        read: m.read
+                    }));
+                    setMessages(prev => ({ ...prev, [SUPPORT_ID]: formatted }));
+                }
+            });
         }
     }, [isConnectedToSupabase, username, setFriendRequests]);
 
@@ -142,16 +159,16 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 }
                 
                 const senderUsername = newMsg.sender_id;
-                const senderId = stateRef.current.onlineUsers.find(u => u.name === senderUsername)?.id || senderUsername;
+                const senderId = senderUsername === SUPPORT_ID ? SUPPORT_ID : (stateRef.current.onlineUsers.find(u => u.name === senderUsername)?.id || senderUsername);
                 
                 setMessages(prev => {
                     const chat = prev[senderId] || [];
-                    return { ...prev, [senderId]: [...chat, { id: newMsg.id.toString(), senderId, text: newMsg.text, timestamp: new Date(newMsg.created_at).getTime(), read: false }] };
+                    return { ...prev, [senderId]: [...chat, { id: newMsg.id.toString(), senderId: senderUsername, text: newMsg.text, timestamp: new Date(newMsg.created_at).getTime(), read: false }] };
                 });
 
                 if (stateRef.current.activeChatId !== senderId) {
                     setUnreadCount(c => c + 1);
-                    setNotificationPreview({ senderId, senderName: senderUsername, text: newMsg.text });
+                    setNotificationPreview({ senderId, senderName: senderUsername === SUPPORT_ID ? 'Support' : senderUsername, text: newMsg.text });
                     setTimeout(() => setNotificationPreview(null), 5000);
                     playCoin();
                 } else {
@@ -214,11 +231,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         if (isConnectedToSupabase) {
             setIsLoadingHistory(true);
             try {
-                await DB.markMessagesAsRead(friend.name, username);
-                const history = await DB.getMessages(username, friend.name);
+                const targetName = friend.id === SUPPORT_ID ? SUPPORT_ID : friend.name;
+                await DB.markMessagesAsRead(targetName, username);
+                const history = await DB.getMessages(username, targetName);
                 const formatted = history.map((m: any) => ({
                     id: m.id.toString(),
-                    senderId: m.sender_id === username ? username : friend.id,
+                    senderId: m.sender_id,
                     text: m.text,
                     timestamp: new Date(m.created_at).getTime(),
                     read: m.read
@@ -246,8 +264,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 playCoin();
             }, 1000);
         } else if (isConnectedToSupabase) {
-            const friend = friends.find(f => f.id === activeChatId) || { name: activeChatId };
-            const res = await DB.sendMessage(username, friend.name, text);
+            const targetName = activeChatId === SUPPORT_ID ? SUPPORT_ID : (friends.find(f => f.id === activeChatId) || { name: activeChatId }).name;
+            const formattedText = activeChatId === SUPPORT_ID ? `[SUPPORT][OBJ:Message Direct] ${text}` : text;
+            
+            const res = await DB.sendMessage(username, targetName, formattedText);
             if (res) {
                 setMessages(prev => ({ ...prev, [activeChatId]: (prev[activeChatId] || []).map(m => m.id === tempId ? { ...m, id: res.id.toString(), pending: false } : m) }));
             }
@@ -364,11 +384,22 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }, []);
     }, [onlineUsers, mp.peerId, username]);
 
-    const activeFriend = useMemo(() => friends.find(f => f.id === activeChatId), [activeChatId, friends]);
+    const activeFriend = useMemo(() => {
+        if (activeChatId === SUPPORT_ID) {
+            return { 
+                id: SUPPORT_ID, 
+                name: 'Support Technique', 
+                avatarId: 'av_bot', 
+                frameId: 'fr_neon_blue',
+                status: 'online', 
+                lastSeen: Date.now() 
+            } as Friend;
+        }
+        return friends.find(f => f.id === activeChatId);
+    }, [activeChatId, friends]);
 
     const handlePlayerClick = async (player: any) => {
         playLand();
-        // Si les stats manquent et que Supabase est là, on tente de récupérer le profil complet
         if (isConnectedToSupabase && player.name) {
             const profile = await DB.getUserProfile(player.name);
             if (profile && profile.data) {
@@ -465,7 +496,27 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                            {filteredFriends.length === 0 ? (
+                            {/* CARTE SUPPORT TECHNIQUE */}
+                            {messages[SUPPORT_ID] && (
+                                <div onClick={() => openChat({id: SUPPORT_ID, name: 'Support Technique', avatarId: 'av_bot', frameId: 'fr_neon_blue', status: 'online', lastSeen: Date.now()} as any)} className="flex items-center gap-3 p-3 hover:bg-cyan-900/20 rounded-2xl cursor-pointer transition-all group border border-cyan-500/20 bg-gray-800/60 mb-2 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
+                                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-600 to-blue-800 flex items-center justify-center relative border-2 border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.3)]`}>
+                                        <LifeBuoy size={24} className="text-white" />
+                                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900 shadow-[0_0_5px_#22c55e]"></div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-center mb-0.5">
+                                            <span className="font-black text-sm text-cyan-400 group-hover:text-white truncate flex items-center gap-1"><ShieldCheck size={12}/> SUPPORT TECHNIQUE</span>
+                                            <span className="text-[10px] text-gray-500 whitespace-nowrap">{new Date(messages[SUPPORT_ID][messages[SUPPORT_ID].length - 1].timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                        </div>
+                                        <p className={`text-xs truncate ${messages[SUPPORT_ID]?.some(m => !m.read && m.senderId !== username) ? 'text-white font-bold' : 'text-gray-400 italic'}`}>
+                                            {messages[SUPPORT_ID][messages[SUPPORT_ID].length - 1].text.replace(/\[SUPPORT_REPLY\]/, '')}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {filteredFriends.length === 0 && !messages[SUPPORT_ID] ? (
                                 <div className="flex flex-col items-center justify-center py-20 text-gray-600">
                                     <MessageSquare size={48} className="opacity-20 mb-4" />
                                     <p className="text-sm font-bold">Aucune discussion active</p>
@@ -503,7 +554,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {isLoadingHistory && <div className="flex justify-center py-4"><div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div></div>}
                             {messages[activeChatId!]?.map((msg) => (
-                                <div key={msg.id} className={`flex ${msg.senderId === username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}><div className={`max-w-[85%] flex flex-col ${msg.senderId === username ? 'items-end' : 'items-start'}`}><div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-lg relative border ${msg.senderId === username ? 'bg-gradient-to-br from-cyan-600 to-blue-700 text-white border-white/20 rounded-br-none' : 'bg-gray-800 text-gray-100 border-white/5 rounded-bl-none'}`}>{msg.text}<div className="flex items-center gap-1 mt-1 opacity-50 justify-end"><span className="text-[8px] font-mono">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>{msg.senderId === username && msg.pending && <Clock size={8} className="animate-pulse" />}</div></div></div></div>
+                                <div key={msg.id} className={`flex ${msg.senderId === username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}><div className={`max-w-[85%] flex flex-col ${msg.senderId === username ? 'items-end' : 'items-start'}`}><div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-lg relative border ${msg.senderId === username ? 'bg-gradient-to-br from-cyan-600 to-blue-700 text-white border-white/20 rounded-br-none' : 'bg-gray-800 text-gray-100 border-white/5 rounded-bl-none'}`}>{msg.text.replace(/\[SUPPORT_REPLY\]/, '')}<div className="flex items-center gap-1 mt-1 opacity-50 justify-end"><span className="text-[8px] font-mono">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>{msg.senderId === username && msg.pending && <Clock size={8} className="animate-pulse" />}</div></div></div></div>
                             ))}
                             <div ref={chatEndRef} />
                         </div>
