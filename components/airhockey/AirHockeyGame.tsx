@@ -775,8 +775,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     
                     {/* Title Section */}
-                    <div className="mb-6 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
-                         <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter">
+                    <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
+                         <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter pr-4">
                             NEON<br className="md:hidden"/> HOCKEY
                         </h1>
                     </div>
