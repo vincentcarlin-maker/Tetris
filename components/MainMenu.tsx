@@ -483,7 +483,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                      )}
                  </div>
                  <div {...bindGlow('rgba(250, 204, 21, 0.8)')} className="w-full bg-black/60 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300 shadow-xl hover:shadow-[0_0_35px_rgba(250, 204, 21, 0.5)] hover:border-yellow-400/50 hover:ring-1 hover:ring-yellow-400/30">
-                    <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between"><div className="flex items-center gap-3"><Trophy size={20} className="text-yellow-400" /><h3 className="text-lg font-bold text-white italic uppercase">{language === 'fr' ? 'SCORES & CLASSEMENTS' : 'SCORES & LEADERBOARDS'}</h3></div><ChevronDown size={20} className={`transition-transform ${showScores ? 'rotate-180' : ''}`} /></button>
+                    <button onClick={() => setShowScores(s => !s)} className="w-full p-4 flex items-center justify-between"><div className="flex items-center gap-3"><Trophy size={20} className="text-yellow-400" /><h3 className="text-lg font-bold text-white italic uppercase">{language === 'fr' ? 'SCORES & CLASSEMENTS' : 'SCORES & LEADERBOARDS'}</h3></div><ChevronDown size={20} className={`transition-transform duration-300 ${showScores ? 'rotate-180' : ''}`} /></button>
                     {showScores && (
                         <div className="px-4 pb-4 animate-in fade-in duration-300">
                             <div className="flex bg-black/30 p-1 rounded-lg mb-3">
@@ -512,7 +512,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                 </div>
                  <div className="flex gap-2 w-full overflow-x-auto pb-2 no-scrollbar px-1">{categoriesLocalized.map(cat => (<button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all border ${activeCategory === cat.id ? 'bg-neon-accent text-black border-neon-accent shadow-[0_0_10px_rgba(var(--neon-accent-rgb),0.5)]' : 'bg-gray-900 text-gray-400 border-white/10 hover:border-white/30 hover:text-white'}`}><cat.icon size={14} /> {cat.label}</button>))}</div>
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                    {GAMES_CONFIG.filter(g => { if (activeCategory === 'ALL') return true; if (activeCategory === 'ONLINE') return g.badges.online; return g.category === activeCategory; }).map((game) => {
+                    {GAMES_CONFIG
+                        .filter(g => { if (activeCategory === 'ALL') return true; if (activeCategory === 'ONLINE') return g.badges.online; return g.category === activeCategory; })
+                        .sort((a, b) => {
+                            const aDisabled = disabledGamesList.includes(a.id);
+                            const bDisabled = disabledGamesList.includes(b.id);
+                            if (aDisabled === bDisabled) return 0;
+                            return aDisabled ? 1 : -1;
+                        })
+                        .map((game) => {
                         const isGloballyDisabled = disabledGamesList.includes(game.id);
                         const isAdmin = username === 'Vincent' || currency.adminModeActive;
                         const isPlayable = !isGloballyDisabled || isAdmin;
