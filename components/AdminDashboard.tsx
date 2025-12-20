@@ -110,6 +110,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const [giftAmount, setGiftAmount] = useState(500);
     const [isGifting, setIsGifting] = useState(false);
     const [broadcastMsg, setBroadcastMsg] = useState('');
+    const [realTransactions, setRealTransactions] = useState<any[]>([]);
     
     // User Management State
     const [userFilter, setUserFilter] = useState<'ALL' | 'ONLINE' | 'BANNED' | 'STAFF'>('ALL');
@@ -198,13 +199,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         if (activeSection === 'NOTIFICATIONS' && notifTab === 'SUPPORT') {
             loadSupport();
         }
-    }, [activeSection, notifTab]);
+        if (activeSection === 'ECONOMY' && ecoTab === 'TRANSACTIONS') {
+            loadTransactions();
+        }
+    }, [activeSection, notifTab, ecoTab]);
 
     const loadSupport = async () => {
         if (!isSupabaseConfigured) return;
         setLoading(true);
         const msgs = await DB.getSupportMessages();
         setSupportMessages(msgs);
+        setLoading(false);
+    };
+
+    const loadTransactions = async () => {
+        if (!isSupabaseConfigured) return;
+        setLoading(true);
+        const txs = await DB.getTransactions(50);
+        setRealTransactions(txs);
         setLoading(false);
     };
 
@@ -367,6 +379,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             // 1. Update DB (Source of Truth)
             if (isSupabaseConfigured) {
                 await DB.updateUserData(selectedUser.username, { coins: newAmount });
+                await DB.recordTransaction(selectedUser.username, 'CADEAU_ADMIN', amountToAdd);
             }
             
             // 2. Broadcast to user (if online) to update their local state instantly
@@ -688,22 +701,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const suspiciousUsers = useMemo(() => {
         return profiles.filter(p => (p.data?.coins || 0) >= abuseThreshold).sort((a, b) => b.data.coins - a.data.coins);
     }, [profiles, abuseThreshold]);
-
-    const mockTransactions = useMemo(() => {
-        const actions = ['ACHAT_SKIN', 'GAIN_JEU', 'BONUS_JOUR', 'CADEAU_ADMIN'];
-        return Array.from({length: 20}).map((_, i) => {
-            const user = profiles[Math.floor(Math.random() * profiles.length)]?.username || 'Guest';
-            const action = actions[Math.floor(Math.random() * actions.length)];
-            const amount = action === 'ACHAT_SKIN' ? -500 : action === 'CADEAU_ADMIN' ? 1000 : 50;
-            return {
-                id: i,
-                user,
-                action,
-                amount,
-                fullDate: new Date(Date.now() - Math.floor(Math.random() * 86400000)).toLocaleString()
-            };
-        });
-    }, [profiles]);
 
     const gamePopularity = useMemo(() => {
         const stats: Record<string, number> = {};
@@ -1204,20 +1201,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5 bg-gray-900/30">
-                                    {mockTransactions.map((tx, i) => (
-                                        <tr key={i} className="hover:bg-white/[0.03] transition-colors group">
+                                    {realTransactions.map((tx, i) => (
+                                        <tr key={tx.id || i} className="hover:bg-white/[0.03] transition-colors group">
                                             <td className="p-5 text-gray-400 font-mono text-xs whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
                                                     <Clock size={12} className="text-gray-600" />
-                                                    {tx.fullDate}
+                                                    {new Date(tx.created_at).toLocaleString()}
                                                 </div>
                                             </td>
                                             <td className="p-5 font-bold text-white group-hover:text-cyan-400 transition-colors">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded bg-gray-800 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 uppercase">
-                                                        {tx.user.substring(0,1)}
+                                                        {tx.username.substring(0,1)}
                                                     </div>
-                                                    {tx.user}
+                                                    {tx.username}
                                                 </div>
                                             </td>
                                             <td className="p-5">
@@ -1238,11 +1235,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                             </td>
                                         </tr>
                                     ))}
+                                    {realTransactions.length === 0 && (
+                                        <tr><td colSpan={4} className="p-10 text-center text-gray-600 italic">Aucune transaction enregistrée.</td></tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
                         <div className="p-4 bg-black/40 border-t border-white/5 text-center">
-                            <button className="text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-colors">Charger plus d'entrées</button>
+                            <button onClick={loadTransactions} className="text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-colors">Rafraîchir les données</button>
                         </div>
                     </div>
                 )}
