@@ -433,7 +433,7 @@ const App: React.FC = () => {
         );
     }
 
-    const isGameActive = !['menu', 'shop', 'social', 'settings', 'contact'].includes(currentView);
+    const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social', 'settings', 'contact'].includes(currentView);
     const isCurrentGameDisabled = disabledGames.includes(currentView) && !isImmuneUser;
 
     const handleOpenSocial = (tab: SocialTab) => {
@@ -442,7 +442,7 @@ const App: React.FC = () => {
         setCurrentView('social');
     };
 
-    const shouldShowBottomNav = !isGameActive && currentView !== 'admin_dashboard';
+    const shouldShowBottomNav = !isGameActive;
 
     return (
         <div className="flex flex-col h-full w-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -459,13 +459,11 @@ const App: React.FC = () => {
             )}
 
             {showLoginModal && (
-                <div className="fixed inset-0 z-[400]">
-                    <LoginScreen 
-                        onLogin={handleLogin} 
-                        onCancel={() => setShowLoginModal(false)}
-                        onAttemptLogin={loginAndFetchProfile}
-                    />
-                </div>
+                <LoginScreen 
+                    onLogin={handleLogin} 
+                    onCancel={() => setShowLoginModal(false)}
+                    onAttemptLogin={loginAndFetchProfile}
+                />
             )}
 
             <div className="flex-1 overflow-auto">
