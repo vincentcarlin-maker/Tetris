@@ -45,6 +45,7 @@ const calculateWormRadius = (score: number) => {
     return 12 + Math.min(48, Math.sqrt(score) * 0.4);
 };
 
+// FIX: Added React to imports to resolve the 'Cannot find namespace React' error for React.FC
 export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: any, mp: any, onReportProgress?: any }> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { username, currentAvatarId, currentSlitherSkinId, slitherSkinsCatalog, currentSlitherAccessoryId, slitherAccessoriesCatalog } = useCurrency();
@@ -248,7 +249,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) handleDeath();
 
-        // Collisions nourriture (optimisé)
+        // Collisions nourriture pour le joueur
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             if (Math.abs(head.x - f.x) > 100 || Math.abs(head.y - f.y) > 100) continue;
@@ -332,6 +333,23 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
                 updateWormMovement(bot, bot.aiTargetAngle || bot.angle, bot.isBoost ? BOOST_SPEED : BASE_SPEED, speedFactor);
                 if (Math.random() > 0.98) bot.isBoost = false;
+
+                // --- NOUVEAUTÉ : COLLISION NOURRITURE POUR LES BOTS ---
+                for (let i = foodRef.current.length - 1; i >= 0; i--) {
+                    const f = foodRef.current[i];
+                    if (Math.abs(bHead.x - f.x) > 100 || Math.abs(bHead.y - f.y) > 100) continue;
+                    const distSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
+                    if (distSq < (bot.radius + 15)**2) {
+                        bot.score += f.val * 5;
+                        bot.radius = calculateWormRadius(bot.score);
+                        for (let j = 0; j < f.val; j++) {
+                            const tail = bot.segments[bot.segments.length - 1];
+                            bot.segments.push({ ...tail });
+                        }
+                        foodRef.current.splice(i, 1);
+                        if (foodRef.current.length < MIN_FOOD_REGEN) spawnFood(100);
+                    }
+                }
 
                 // Collision Bot contre Joueur
                 const distToPlayerHead = (bHead.x - head.x)**2 + (bHead.y - head.y)**2;
