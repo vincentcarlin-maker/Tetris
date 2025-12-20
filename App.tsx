@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MainMenu } from './components/MainMenu';
 import { TetrisGame } from './components/TetrisGame';
@@ -432,7 +431,7 @@ const App: React.FC = () => {
         setCurrentView('social');
     };
 
-    const shouldShowBottomNav = !isGameActive;
+    const shouldShowBottomNav = !isGameActive && currentView !== 'admin_dashboard';
 
     return (
         <div className="flex flex-col h-full w-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
