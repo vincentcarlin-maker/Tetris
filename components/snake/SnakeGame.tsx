@@ -395,10 +395,10 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
                 <div className="fixed top-1/4 right-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
                 <div className="fixed bottom-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
 
-                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-center py-12 md:py-0">
+                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     
                     {/* Title Section */}
-                    <div className="mb-8 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
+                    <div className="mb-6 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
                          <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-emerald-300 to-teal-300 drop-shadow-[0_0_30px_rgba(34,197,94,0.6)] tracking-tighter">
                             NEON<br className="md:hidden"/> SNAKE
                         </h1>
@@ -408,11 +408,11 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
                         
                         {/* CLASSIC CARD */}
-                        <button onClick={() => initGame('CLASSIC')} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        <button onClick={() => initGame('CLASSIC')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             
                             <div className="relative z-10">
-                                <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-green-500/20 flex items-center justify-center border border-green-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-green-500/20 flex items-center justify-center border border-green-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
                                     <Play size={32} className="text-green-400 fill-green-400" />
                                 </div>
                                 <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-green-300 transition-colors">CLASSIQUE</h2>
@@ -427,12 +427,12 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
                         </button>
 
                         {/* NEON CARD */}
-                        <button onClick={() => initGame('NEON')} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        <button onClick={() => initGame('NEON')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMTY4LCA4NSwgMjQ3LCAwLjEpIi8+PC9zdmc+')] opacity-20"></div>
 
                             <div className="relative z-10">
-                                <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                                     <Zap size={32} className="text-purple-400" />
                                 </div>
                                 <div className="flex items-center gap-3 mb-2">

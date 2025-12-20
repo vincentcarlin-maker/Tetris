@@ -750,10 +750,10 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
 
                     {/* Content Container - min-h-full for centering, py for spacing */}
-                    <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-center py-12 md:py-0">
+                    <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                         
                         {/* Title Section */}
-                        <div className="mb-8 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
+                        <div className="mb-6 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
                             <div className="flex items-center justify-center gap-6 mb-4">
                                 <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse" />
                                 <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(129,140,248,0.6)] tracking-tighter">
@@ -770,11 +770,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
                             
                             {/* SOLO CARD */}
-                            <button onClick={startSoloGame} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-indigo-500/50 hover:shadow-[0_0_50px_rgba(99,102,241,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <button onClick={startSoloGame} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-indigo-500/50 hover:shadow-[0_0_50px_rgba(99,102,241,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 
                                 <div className="relative z-10">
-                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(99,102,241,0.3)]">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(99,102,241,0.3)]">
                                         <User size={32} className="text-indigo-400" />
                                     </div>
                                     <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-indigo-300 transition-colors">SOLO</h2>
@@ -789,11 +789,11 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                             </button>
 
                             {/* MULTI CARD */}
-                            <button onClick={() => setGameState('SERVER_SELECT')} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <button onClick={() => setGameState('SERVER_SELECT')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                                 <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 
                                 <div className="relative z-10">
-                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-green-500/20 flex items-center justify-center border border-green-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-green-500/20 flex items-center justify-center border border-green-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
                                         <Globe size={32} className="text-green-400" />
                                     </div>
                                     <div className="flex items-center gap-3 mb-2">
