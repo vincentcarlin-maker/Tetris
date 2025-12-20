@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Pause, RotateCcw, XCircle, HelpCircle, Zap, Shield, Clock, Hexagon, Apple, Banana, Cherry, Tornado, Bomb, Move } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Pause, RotateCcw, XCircle, HelpCircle, Zap, Shield, Clock, Hexagon, Apple, Banana, Cherry, Tornado, Bomb, Move, User } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { TutorialOverlay } from '../Tutorials';
@@ -386,13 +386,77 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
 
     if (view === 'MENU') {
         return (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in">
-                <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#4ade80]">NEON SNAKE</h1>
-                <div className="flex flex-col gap-4 w-full max-w-[280px] mt-8">
-                    <button onClick={() => initGame('CLASSIC')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group"><Play size={24} className="text-green-500 group-hover:text-white"/> CLASSIQUE</button>
-                    <button onClick={() => initGame('NEON')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(168,85,247,0.3)] active:scale-95 group relative overflow-hidden"><div className="absolute inset-0 bg-purple-500/10 animate-pulse"></div><Zap size={24} className="text-purple-500 group-hover:text-white z-10"/> <span className="z-10">REVISITÉ (NÉON)</span></button>
+            <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
+                {/* Background layers */}
+                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-900/40 via-[#050510] to-black pointer-events-none"></div>
+                <div className="fixed inset-0 bg-[linear-gradient(rgba(34,197,94,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+
+                {/* Floating Particles/Orbs for ambience - fixed position */}
+                <div className="fixed top-1/4 right-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+                <div className="fixed bottom-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
+
+                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-center py-12 md:py-0">
+                    
+                    {/* Title Section */}
+                    <div className="mb-8 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
+                         <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-emerald-300 to-teal-300 drop-shadow-[0_0_30px_rgba(34,197,94,0.6)] tracking-tighter">
+                            NEON<br className="md:hidden"/> SNAKE
+                        </h1>
+                    </div>
+
+                    {/* Game Modes Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
+                        
+                        {/* CLASSIC CARD */}
+                        <button onClick={() => initGame('CLASSIC')} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            
+                            <div className="relative z-10">
+                                <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-green-500/20 flex items-center justify-center border border-green-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                                    <Play size={32} className="text-green-400 fill-green-400" />
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-green-300 transition-colors">CLASSIQUE</h2>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                    L'expérience originale. Grandissez sans fin, évitez les murs. Pure adresse.
+                                </p>
+                            </div>
+
+                            <div className="relative z-10 flex items-center gap-2 text-green-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                JOUER MAINTENANT <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+
+                        {/* NEON CARD */}
+                        <button onClick={() => initGame('NEON')} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMTY4LCA4NSwgMjQ3LCAwLjEpIi8+PC9zdmc+')] opacity-20"></div>
+
+                            <div className="relative z-10">
+                                <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                                    <Zap size={32} className="text-purple-400" />
+                                </div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors">NEON REMIX</h2>
+                                    <span className="px-2 py-0.5 rounded bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 text-[10px] font-black animate-pulse">FUN</span>
+                                </div>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                    Niveaux dynamiques, téléporteurs, pièges et fruits spéciaux. Le chaos total !
+                                </p>
+                            </div>
+
+                            <div className="relative z-10 flex items-center gap-2 text-purple-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                DÉFIER LE CHAOS <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
+                            <Home size={14} /> RETOUR AU MENU PRINCIPAL
+                        </button>
+                    </div>
                 </div>
-                <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
             </div>
         );
     }
