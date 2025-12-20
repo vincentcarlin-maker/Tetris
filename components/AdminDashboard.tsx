@@ -1700,19 +1700,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 </div>
             </div>
 
-            {/* MOBILE HEADER */}
-            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900 border-b border-white/10 z-50 p-4 flex justify-between items-center">
-                <span className="font-black italic text-blue-400">ADMIN</span>
-                <button onClick={onBack}><X size={24} className="text-white"/></button>
+            {/* MOBILE HEADER - Optimized for visibility & mobile UX */}
+            <div className="md:hidden fixed top-0 left-0 w-full bg-black/90 backdrop-blur-xl border-b-2 border-blue-500/50 z-50 flex justify-between items-center shadow-[0_0_20px_rgba(0,217,255,0.2)]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+                <div className="p-4 flex items-center gap-3">
+                    <div className="p-1.5 bg-blue-500/20 rounded-lg border border-blue-500/30">
+                        <Shield size={20} className="text-blue-400 drop-shadow-[0_0_5px_#00d9ff]" />
+                    </div>
+                    <span className="font-black italic text-xl text-white tracking-tighter drop-shadow-[0_0_8px_#00d9ff]">ADMIN PANEL</span>
+                </div>
+                <button 
+                    onClick={onBack} 
+                    className="p-3 m-1 mr-2 bg-white/10 hover:bg-white/20 active:scale-90 rounded-full text-white transition-all border border-white/5"
+                >
+                    <X size={24} strokeWidth={3} />
+                </button>
             </div>
 
             {/* CONTENT AREA */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-16 md:pt-0">
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-[calc(64px+env(safe-area-inset-top))] md:pt-0">
                 {/* Mobile Tabs */}
-                <div className="md:hidden flex overflow-x-auto p-2 gap-2 bg-gray-900 border-b border-white/10 shrink-0">
+                <div className="md:hidden flex overflow-x-auto p-2 gap-2 bg-gray-900/80 backdrop-blur-md border-b border-white/10 shrink-0 custom-scrollbar">
                     {SECTIONS.map(s => (
-                        <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap ${activeSection === s.id ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
-                            {s.label}
+                        <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest whitespace-nowrap transition-all border ${activeSection === s.id ? 'bg-blue-600 text-white border-blue-400 shadow-lg' : 'bg-gray-800 text-gray-500 border-transparent'}`}>
+                            {s.label.toUpperCase()}
                         </button>
                     ))}
                 </div>
