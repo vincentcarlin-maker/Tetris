@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X, Trophy, Calendar, Zap, Star, LifeBuoy, ShieldCheck } from 'lucide-react';
+import { Users, MessageSquare, Send, Copy, Bell, Globe, UserPlus, CheckCircle, XCircle, Activity, Play, Bot, MoreVertical, Smile, ArrowLeft, Search, Inbox, Clock, RefreshCw, UserMinus, X, Trophy, Calendar, Zap, Star } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency, BADGES_CATALOG } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
@@ -27,7 +26,6 @@ interface Friend {
     lastMessageTime?: number;
     stats?: any;
     inventory?: string[];
-    isSystem?: boolean;
 }
 
 interface SocialOverlayProps {
@@ -115,20 +113,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                     return [...prev, ...newReqs];
                 });
             });
-            
-            // On récupère les messages du support pour voir s'il y a un fil actif
-            DB.getMessages(username, 'SYSTEM_SUPPORT').then(history => {
-                if (history && history.length > 0) {
-                    const formatted = history.map((m: any) => ({
-                        id: m.id.toString(),
-                        senderId: m.sender_id === username ? username : 'SYSTEM_SUPPORT',
-                        text: m.text,
-                        timestamp: new Date(m.created_at).getTime(),
-                        read: m.read
-                    }));
-                    setMessages(prev => ({ ...prev, 'SYSTEM_SUPPORT': formatted }));
-                }
-            });
         }
     }, [isConnectedToSupabase, username, setFriendRequests]);
 
@@ -158,8 +142,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 }
                 
                 const senderUsername = newMsg.sender_id;
-                // Si c'est le support, on utilise un ID fixe
-                const senderId = senderUsername === 'SYSTEM_SUPPORT' ? 'SYSTEM_SUPPORT' : (stateRef.current.onlineUsers.find(u => u.name === senderUsername)?.id || senderUsername);
+                const senderId = stateRef.current.onlineUsers.find(u => u.name === senderUsername)?.id || senderUsername;
                 
                 setMessages(prev => {
                     const chat = prev[senderId] || [];
@@ -168,11 +151,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
                 if (stateRef.current.activeChatId !== senderId) {
                     setUnreadCount(c => c + 1);
-                    setNotificationPreview({ 
-                        senderId, 
-                        senderName: senderUsername === 'SYSTEM_SUPPORT' ? 'Support Technique' : senderUsername, 
-                        text: newMsg.text.startsWith('[SUPPORT_REPLY]') ? newMsg.text.replace('[SUPPORT_REPLY]', '').trim() : newMsg.text 
-                    });
+                    setNotificationPreview({ senderId, senderName: senderUsername, text: newMsg.text });
                     setTimeout(() => setNotificationPreview(null), 5000);
                     playCoin();
                 } else {
@@ -235,10 +214,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         if (isConnectedToSupabase) {
             setIsLoadingHistory(true);
             try {
-                // Utilisation du nom réel pour le marquage en base
-                const targetName = friend.id === 'SYSTEM_SUPPORT' ? 'SYSTEM_SUPPORT' : friend.name;
-                await DB.markMessagesAsRead(targetName, username);
-                const history = await DB.getMessages(username, targetName);
+                await DB.markMessagesAsRead(friend.name, username);
+                const history = await DB.getMessages(username, friend.name);
                 const formatted = history.map((m: any) => ({
                     id: m.id.toString(),
                     senderId: m.sender_id === username ? username : friend.id,
@@ -270,8 +247,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             }, 1000);
         } else if (isConnectedToSupabase) {
             const friend = friends.find(f => f.id === activeChatId) || { name: activeChatId };
-            const targetName = activeChatId === 'SYSTEM_SUPPORT' ? 'SYSTEM_SUPPORT' : friend.name;
-            const res = await DB.sendMessage(username, targetName, text);
+            const res = await DB.sendMessage(username, friend.name, text);
             if (res) {
                 setMessages(prev => ({ ...prev, [activeChatId]: (prev[activeChatId] || []).map(m => m.id === tempId ? { ...m, id: res.id.toString(), pending: false } : m) }));
             }
@@ -307,7 +283,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const removeFriend = (friendId: string) => {
-        if (friendId === 'SYSTEM_SUPPORT') return; // On ne supprime pas le support
         if (!window.confirm("Voulez-vous vraiment supprimer ce joueur de vos amis ?")) return;
         setFriends(prev => {
             const newList = prev.filter(f => f.id !== friendId);
@@ -370,54 +345,14 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     const getFrameClass = (fid?: string) => framesCatalog.find(f => f.id === fid)?.cssClass || 'border-white/10';
 
-    const chatContacts = useMemo(() => {
-        // On récupère tous les IDs avec qui on a des messages
-        const messageIds = Object.keys(messages);
-        const friendIds = friends.map(f => f.id);
-        const allContactIds = Array.from(new Set([...friendIds, ...messageIds]));
-
-        const list: Friend[] = allContactIds.map(id => {
-            const existingFriend = friends.find(f => f.id === id);
-            if (existingFriend) return existingFriend;
-            
-            // Cas spécial du Support Technique
-            if (id === 'SYSTEM_SUPPORT') {
-                return {
-                    id: 'SYSTEM_SUPPORT',
-                    name: 'Support Technique',
-                    avatarId: 'av_bot',
-                    status: 'online',
-                    lastSeen: Date.now(),
-                    isSystem: true
-                };
-            }
-            
-            // Cas d'un inconnu (ex: réponse à une demande, ou message direct sans être ami)
-            return {
-                id,
-                name: id,
-                avatarId: 'av_human',
-                status: 'offline',
-                lastSeen: 0
-            };
-        });
-
-        return list.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    const filteredFriends = useMemo(() => {
+        return friends.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .sort((a, b) => {
-                // Le support est toujours en haut s'il y a des nouveaux messages
-                const aHasUnread = messages[a.id]?.some(m => !m.read && m.senderId !== username);
-                const bHasUnread = messages[b.id]?.some(m => !m.read && m.senderId !== username);
-                if (aHasUnread && !bHasUnread) return -1;
-                if (!aHasUnread && bHasUnread) return 1;
-
                 if (a.status === 'online' && b.status !== 'online') return -1;
                 if (a.status !== 'online' && b.status === 'online') return 1;
-                
-                const aTime = messages[a.id]?.[messages[a.id].length-1]?.timestamp || 0;
-                const bTime = messages[b.id]?.[messages[b.id].length-1]?.timestamp || 0;
-                return bTime - aTime;
+                return (b.lastMessageTime || 0) - (a.lastMessageTime || 0);
             });
-    }, [friends, messages, searchTerm, username]);
+    }, [friends, searchTerm]);
 
     const onlineOnlyCommunity = useMemo(() => {
         return onlineUsers.filter(p => {
@@ -429,16 +364,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         }, []);
     }, [onlineUsers, mp.peerId, username]);
 
-    const activeFriend = useMemo(() => {
-        if (activeChatId === 'SYSTEM_SUPPORT') {
-            return { id: 'SYSTEM_SUPPORT', name: 'Support Technique', avatarId: 'av_bot', status: 'online', lastSeen: Date.now(), isSystem: true } as Friend;
-        }
-        return chatContacts.find(f => f.id === activeChatId);
-    }, [activeChatId, chatContacts]);
+    const activeFriend = useMemo(() => friends.find(f => f.id === activeChatId), [activeChatId, friends]);
 
     const handlePlayerClick = async (player: any) => {
-        if (player.id === 'SYSTEM_SUPPORT') return; // Pas de profil pour le support
         playLand();
+        // Si les stats manquent et que Supabase est là, on tente de récupérer le profil complet
         if (isConnectedToSupabase && player.name) {
             const profile = await DB.getUserProfile(player.name);
             if (profile && profile.data) {
@@ -497,26 +427,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     return (
         <div className="h-full w-full flex flex-col bg-black/20 font-sans text-white relative">
-            {notificationPreview && (
-                <div 
-                    onClick={() => {
-                        const contact = chatContacts.find(c => c.id === notificationPreview.senderId) || { id: notificationPreview.senderId, name: notificationPreview.senderName, avatarId: 'av_bot', status: 'online' } as any;
-                        openChat(contact);
-                        setNotificationPreview(null);
-                    }}
-                    className="fixed top-20 left-4 right-4 z-[500] bg-gray-900 border-2 border-cyan-500 rounded-2xl p-4 shadow-[0_0_30px_rgba(0,243,255,0.3)] flex items-center gap-4 animate-in slide-in-from-top-4 cursor-pointer active:scale-95 transition-all"
-                >
-                    <div className="w-10 h-10 rounded-lg bg-cyan-900/30 flex items-center justify-center border border-cyan-500/30">
-                        <MessageSquare className="text-cyan-400" size={20} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Nouveau message</p>
-                        <p className="text-sm font-bold text-white truncate">{notificationPreview.senderName}</p>
-                        <p className="text-xs text-gray-400 truncate italic">"{notificationPreview.text.startsWith('[SUPPORT_REPLY]') ? notificationPreview.text.replace('[SUPPORT_REPLY]', '').trim() : notificationPreview.text}"</p>
-                    </div>
-                </div>
-            )}
-
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
+            
             <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 w-full z-10 flex flex-col shrink-0">
                 <div className="p-4 flex items-center justify-center">
                     <h2 className={`text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>
@@ -553,34 +465,24 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                            {chatContacts.length === 0 ? (
+                            {filteredFriends.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20 text-gray-600">
                                     <MessageSquare size={48} className="opacity-20 mb-4" />
                                     <p className="text-sm font-bold">Aucune discussion active</p>
                                 </div>
                             ) : (
-                                chatContacts.map(friend => {
-                                    const isSupport = friend.id === 'SYSTEM_SUPPORT';
+                                filteredFriends.map(friend => {
                                     const avatar = avatarsCatalog.find(a => a.id === friend.avatarId) || avatarsCatalog[0];
-                                    const chatMsgs = messages[friend.id] || [];
-                                    const lastMsg = chatMsgs[chatMsgs.length - 1];
-                                    const hasUnread = chatMsgs.some(m => !m.read && m.senderId !== username);
-                                    
+                                    const lastMsg = messages[friend.id]?.[messages[friend.id].length - 1];
                                     return (
-                                        <div key={friend.id} onClick={() => openChat(friend)} className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all group border ${hasUnread ? 'bg-cyan-900/20 border-cyan-500/30 shadow-[0_0_15px_rgba(0,243,255,0.1)]' : 'bg-gray-800/40 border-transparent hover:border-white/5'} mb-2`}>
-                                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${isSupport ? 'from-yellow-600/40 to-amber-900/40' : avatar.bgGradient} flex items-center justify-center relative border-2 ${isSupport ? 'border-yellow-500 animate-pulse shadow-[0_0_10px_#eab308]' : getFrameClass(friend.frameId)}`}>
-                                                {isSupport ? <LifeBuoy size={24} className="text-yellow-400" /> : <avatar.icon size={24} className={avatar.color} />}
-                                                {(friend.status === 'online' && !isSupport) && <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900 shadow-[0_0_5px_#22c55e]"></div>}
-                                                {hasUnread && <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-gray-900 animate-ping"></div>}
+                                        <div key={friend.id} onClick={() => openChat(friend)} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group border border-transparent hover:border-white/5 bg-gray-800/40 mb-2">
+                                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative border-2 ${getFrameClass(friend.frameId)}`}>
+                                                <avatar.icon size={24} className={avatar.color} />
+                                                {friend.status === 'online' && <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900 shadow-[0_0_5px_#22c55e]"></div>}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-center mb-0.5">
-                                                    <span className={`font-bold text-sm truncate ${isSupport ? 'text-yellow-400' : 'text-gray-200 group-hover:text-white'}`}>{isSupport ? 'Support Technique' : friend.name}</span>
-                                                    <span className="text-[10px] text-gray-500 whitespace-nowrap">{lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span>
-                                                </div>
-                                                <p className={`text-xs truncate ${hasUnread ? 'text-cyan-200 font-black' : 'text-gray-500'}`}>
-                                                    {lastMsg ? (lastMsg.senderId === username ? 'Toi : ' : '') + (lastMsg.text.startsWith('[SUPPORT_REPLY]') ? lastMsg.text.replace('[SUPPORT_REPLY]', '').trim() : lastMsg.text) : 'Démarrer la discussion'}
-                                                </p>
+                                                <div className="flex justify-between items-center mb-0.5"><span className="font-bold text-sm text-gray-200 group-hover:text-white truncate">{friend.name}</span><span className="text-[10px] text-gray-500 whitespace-nowrap">{lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span></div>
+                                                <p className={`text-xs truncate ${messages[friend.id]?.some(m => !m.read && m.senderId !== username) ? 'text-white font-bold' : 'text-gray-500'}`}>{lastMsg ? (lastMsg.senderId === username ? 'Toi : ' : '') + lastMsg.text : 'Démarrer la discussion'}</p>
                                             </div>
                                         </div>
                                     );
@@ -594,53 +496,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                     <div className="flex flex-col h-full animate-in slide-in-from-right-4 bg-gray-900/40 relative">
                         <div className="px-4 py-3 bg-gray-900/90 border-b border-white/10 flex items-center gap-3 backdrop-blur-md sticky top-0 z-20">
                             <button onClick={() => setSocialTab('FRIENDS')} className="p-2 hover:bg-white/10 rounded-full text-gray-400 transition-colors"><ArrowLeft size={20}/></button>
-                            {activeFriend.id === 'SYSTEM_SUPPORT' ? (
-                                <div className="w-10 h-10 rounded-lg bg-yellow-900/30 flex items-center justify-center border-2 border-yellow-500 shadow-[0_0_10px_#eab308]">
-                                    <LifeBuoy size={20} className="text-yellow-400" />
-                                </div>
-                            ) : (
-                                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center border ${getFrameClass(activeFriend.frameId)}`}>
-                                    {React.createElement((avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).icon, { size: 20, className: (avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).color })}
-                                </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                                <span className={`font-bold text-sm truncate ${activeFriend.id === 'SYSTEM_SUPPORT' ? 'text-yellow-400' : 'text-white'}`}>{activeFriend.id === 'SYSTEM_SUPPORT' ? 'Support Technique' : activeFriend.name}</span>
-                                <div className="flex items-center gap-1.5">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${activeFriend.status === 'online' ? 'bg-green-500 shadow-[0_0_5px_lime]' : 'bg-gray-500'}`}></div>
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{activeFriend.id === 'SYSTEM_SUPPORT' ? 'SYSTÈME D\'ASSISTANCE' : (activeFriend.status === 'online' ? (activeFriend.gameActivity && activeFriend.gameActivity !== 'menu' ? `Joue à ${GAME_NAMES[activeFriend.gameActivity]}` : 'En ligne') : 'Hors-ligne')}</span>
-                                </div>
-                            </div>
-                            {activeFriend.id !== 'SYSTEM_SUPPORT' && <button onClick={() => handlePlayerClick(activeFriend)} className="p-2 hover:bg-white/10 rounded-full text-gray-400"><MoreVertical size={20}/></button>}
+                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center border ${getFrameClass(activeFriend.frameId)}`}>{React.createElement((avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).icon, { size: 20, className: (avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).color })}</div>
+                            <div className="flex-1 min-w-0"><span className="font-bold text-sm text-white truncate">{activeFriend.name}</span><div className="flex items-center gap-1.5"><div className={`w-1.5 h-1.5 rounded-full ${activeFriend.status === 'online' ? 'bg-green-500 shadow-[0_0_5px_lime]' : 'bg-gray-500'}`}></div><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{activeFriend.status === 'online' ? (activeFriend.gameActivity && activeFriend.gameActivity !== 'menu' ? `Joue à ${GAME_NAMES[activeFriend.gameActivity]}` : 'En ligne') : 'Hors-ligne'}</span></div></div>
+                            <button onClick={() => handlePlayerClick(activeFriend)} className="p-2 hover:bg-white/10 rounded-full text-gray-400"><MoreVertical size={20}/></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {isLoadingHistory && <div className="flex justify-center py-4"><div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div></div>}
-                            {messages[activeChatId!]?.map((msg) => {
-                                const isSupportReply = msg.text.startsWith('[SUPPORT_REPLY]');
-                                const cleanText = isSupportReply ? msg.text.replace('[SUPPORT_REPLY]', '').trim() : msg.text;
-                                
-                                return (
-                                    <div key={msg.id} className={`flex ${msg.senderId === username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
-                                        <div className={`max-w-[85%] flex flex-col ${msg.senderId === username ? 'items-end' : 'items-start'}`}>
-                                            <div className={`
-                                                px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-lg relative border 
-                                                ${msg.senderId === username ? 'bg-gradient-to-br from-cyan-600 to-blue-700 text-white border-white/20 rounded-br-none' : 
-                                                  activeFriend?.id === 'SYSTEM_SUPPORT' ? 'bg-gradient-to-br from-gray-800 to-yellow-900/30 text-yellow-100 border-yellow-500/30 rounded-bl-none shadow-[0_0_15px_rgba(234,179,8,0.1)]' :
-                                                  'bg-gray-800 text-gray-100 border-white/5 rounded-bl-none'}
-                                            `}>
-                                                {cleanText}
-                                                <div className="flex items-center gap-1 mt-1 opacity-50 justify-end">
-                                                    <span className="text-[8px] font-mono">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                    {msg.senderId === username && msg.pending && <Clock size={8} className="animate-pulse" />}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            {messages[activeChatId!]?.map((msg) => (
+                                <div key={msg.id} className={`flex ${msg.senderId === username ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}><div className={`max-w-[85%] flex flex-col ${msg.senderId === username ? 'items-end' : 'items-start'}`}><div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-lg relative border ${msg.senderId === username ? 'bg-gradient-to-br from-cyan-600 to-blue-700 text-white border-white/20 rounded-br-none' : 'bg-gray-800 text-gray-100 border-white/5 rounded-bl-none'}`}>{msg.text}<div className="flex items-center gap-1 mt-1 opacity-50 justify-end"><span className="text-[8px] font-mono">{new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>{msg.senderId === username && msg.pending && <Clock size={8} className="animate-pulse" />}</div></div></div></div>
+                            ))}
                             <div ref={chatEndRef} />
                         </div>
                         <div className="p-4 bg-gray-900/90 border-t border-white/10 backdrop-blur-md sticky bottom-0 z-20">
-                            <form onSubmit={sendMessage} className="flex items-center gap-2"><div className="flex-1 bg-gray-800/80 border border-white/10 rounded-2xl px-4 py-2.5 flex items-center focus-within:border-cyan-500/50 transition-all shadow-inner"><input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Ton message..." className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder-gray-500" /><button type="button" className="p-1 text-gray-500 hover:text-cyan-400 transition-colors"><Smile size={20}/></button></div><button type="submit" disabled={!chatInput.trim()} className="w-10 h-10 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 disabled:opacity-50"><Send size={18} fill="currentColor"/></button></form>
+                            <form onSubmit={sendMessage} className="flex items-center gap-2"><div className="flex-1 bg-gray-800/80 border border-white/10 rounded-2xl px-4 py-2.5 flex items-center focus-within:border-cyan-500/50 transition-all shadow-inner"><input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Ton message néon..." className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder-gray-500" /><button type="button" className="p-1 text-gray-500 hover:text-cyan-400 transition-colors"><Smile size={20}/></button></div><button type="submit" disabled={!chatInput.trim()} className="w-10 h-10 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 disabled:opacity-50"><Send size={18} fill="currentColor"/></button></form>
                         </div>
                     </div>
                 )}
@@ -781,8 +649,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                             </div>
 
                             <div className="w-full flex flex-col gap-3 mt-8 shrink-0">
-                                <button onClick={() => { if(chatContacts.some(f => f.name === selectedPlayer.name)) openChat(chatContacts.find(f => f.name === selectedPlayer.name)!); else sendFriendRequest(); }} className="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">{chatContacts.some(f => f.name === selectedPlayer.name) ? <><MessageSquare size={18}/> ENVOYER UN MESSAGE</> : <><UserPlus size={18}/> AJOUTER EN AMI</>}</button>
-                                {(chatContacts.some(f => f.name === selectedPlayer.name) && selectedPlayer.id !== 'SYSTEM_SUPPORT') && (<button onClick={() => removeFriend(chatContacts.find(f => f.name === selectedPlayer.name)!.id)} className="py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 border border-red-500/20 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-95"><UserMinus size={16} /> SUPPRIMER L'AMI</button>)}
+                                <button onClick={() => { if(friends.some(f => f.name === selectedPlayer.name)) openChat(friends.find(f => f.name === selectedPlayer.name)!); else sendFriendRequest(); }} className="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95">{friends.some(f => f.name === selectedPlayer.name) ? <><MessageSquare size={18}/> ENVOYER UN MESSAGE</> : <><UserPlus size={18}/> AJOUTER EN AMI</>}</button>
+                                {friends.some(f => f.name === selectedPlayer.name) && (<button onClick={() => removeFriend(friends.find(f => f.name === selectedPlayer.name)!.id)} className="py-3 bg-red-900/30 hover:bg-red-900/50 text-red-200 border border-red-500/20 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-95"><UserMinus size={16} /> SUPPRIMER L'AMI</button>)}
                             </div>
                         </div>
                     </div>

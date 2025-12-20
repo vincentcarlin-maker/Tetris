@@ -316,35 +316,5 @@ export const DB = {
         } catch (e) {
             return [];
         }
-    },
-
-    // --- ECONOMY LOGGING ---
-    recordTransaction: async (username: string, action: string, amount: number) => {
-        if (!supabase) return;
-        try {
-            await supabase.from('transactions').insert([{
-                username,
-                action,
-                amount,
-                created_at: new Date().toISOString()
-            }]);
-        } catch (e) {
-            console.error("Failed to log transaction", e);
-        }
-    },
-
-    getTransactions: async (limit = 50) => {
-        if (!supabase) return [];
-        try {
-            const { data, error } = await supabase
-                .from('transactions')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(limit);
-            if (error) throw error;
-            return data || [];
-        } catch (e) {
-            return [];
-        }
     }
 };

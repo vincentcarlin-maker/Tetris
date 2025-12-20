@@ -77,27 +77,26 @@ const SECTIONS = [
     { id: 'DATA', label: 'Données', icon: Database },
 ];
 
-// FIX: Correction des IDs pour correspondre au ViewState d'App.tsx
 const GAMES_LIST = [
     { id: 'slither', name: 'Neon Slither', version: '1.0' },
-    { id: 'tetra', name: 'Neon Tetra', version: '2.1' }, // Était 'tetris'
-    { id: 'quad', name: 'Neon Quad', version: '1.5' }, // Était 'connect4'
+    { id: 'tetris', name: 'Tetris', version: '2.1' },
+    { id: 'connect4', name: 'Connect 4', version: '1.5' },
     { id: 'sudoku', name: 'Sudoku', version: '1.2' },
     { id: 'breaker', name: 'Breaker', version: '3.0' },
-    { id: 'eater', name: 'Neon Eater', version: '2.4' }, // Était 'pacman'
+    { id: 'pacman', name: 'Pacman', version: '2.4' },
     { id: 'memory', name: 'Memory', version: '1.1' },
-    { id: 'fleet', name: 'Neon Fleet', version: '1.8' }, // Était 'battleship'
+    { id: 'battleship', name: 'Bataille', version: '1.8' },
     { id: 'snake', name: 'Snake', version: '1.9' },
     { id: 'invaders', name: 'Invaders', version: '1.3' },
     { id: 'airhockey', name: 'Air Hockey', version: '1.4' },
-    { id: 'code', name: 'Neon Code', version: '1.0' }, // Était 'mastermind'
-    { id: 'one', name: 'Neon One', version: '2.2' }, // Était 'uno'
+    { id: 'mastermind', name: 'Mastermind', version: '1.0' },
+    { id: 'uno', name: 'Uno', version: '2.2' },
     { id: 'watersort', name: 'Neon Mix', version: '1.6' },
     { id: 'checkers', name: 'Dames', version: '1.0' },
     { id: 'runner', name: 'Neon Run', version: '2.5' },
     { id: 'stack', name: 'Stack', version: '1.2' },
     { id: 'arenaclash', name: 'Arena Clash', version: '1.0' },
-    { id: 'twelve', name: 'Neon Twelve', version: '1.0' }, // Était 'skyjo'
+    { id: 'skyjo', name: 'Skyjo', version: '1.0' },
     { id: 'lumen', name: 'Lumen Order', version: '1.0' }
 ];
 
@@ -110,7 +109,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     const [giftAmount, setGiftAmount] = useState(500);
     const [isGifting, setIsGifting] = useState(false);
     const [broadcastMsg, setBroadcastMsg] = useState('');
-    const [realTransactions, setRealTransactions] = useState<any[]>([]);
     
     // User Management State
     const [userFilter, setUserFilter] = useState<'ALL' | 'ONLINE' | 'BANNED' | 'STAFF'>('ALL');
@@ -199,24 +197,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         if (activeSection === 'NOTIFICATIONS' && notifTab === 'SUPPORT') {
             loadSupport();
         }
-        if (activeSection === 'ECONOMY' && ecoTab === 'TRANSACTIONS') {
-            loadTransactions();
-        }
-    }, [activeSection, notifTab, ecoTab]);
+    }, [activeSection, notifTab]);
 
     const loadSupport = async () => {
         if (!isSupabaseConfigured) return;
         setLoading(true);
         const msgs = await DB.getSupportMessages();
         setSupportMessages(msgs);
-        setLoading(false);
-    };
-
-    const loadTransactions = async () => {
-        if (!isSupabaseConfigured) return;
-        setLoading(true);
-        const txs = await DB.getTransactions(50);
-        setRealTransactions(txs);
         setLoading(false);
     };
 
@@ -379,7 +366,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             // 1. Update DB (Source of Truth)
             if (isSupabaseConfigured) {
                 await DB.updateUserData(selectedUser.username, { coins: newAmount });
-                await DB.recordTransaction(selectedUser.username, 'CADEAU_ADMIN', amountToAdd);
             }
             
             // 2. Broadcast to user (if online) to update their local state instantly
@@ -702,6 +688,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         return profiles.filter(p => (p.data?.coins || 0) >= abuseThreshold).sort((a, b) => b.data.coins - a.data.coins);
     }, [profiles, abuseThreshold]);
 
+    const mockTransactions = useMemo(() => {
+        const actions = ['ACHAT_SKIN', 'GAIN_JEU', 'BONUS_JOUR', 'CADEAU_ADMIN'];
+        return Array.from({length: 20}).map((_, i) => {
+            const user = profiles[Math.floor(Math.random() * profiles.length)]?.username || 'Guest';
+            const action = actions[Math.floor(Math.random() * actions.length)];
+            const amount = action === 'ACHAT_SKIN' ? -500 : action === 'CADEAU_ADMIN' ? 1000 : 50;
+            return {
+                id: i,
+                user,
+                action,
+                amount,
+                time: new Date(Date.now() - Math.floor(Math.random() * 86400000)).toLocaleTimeString()
+            };
+        });
+    }, [profiles]);
+
     const gamePopularity = useMemo(() => {
         const stats: Record<string, number> = {};
         profiles.forEach(p => {
@@ -724,37 +726,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         return [...profiles]
             .sort((a, b) => (b.data?.coins || 0) - (a.data?.coins || 0))
             .slice(0, 5);
-    }, [profiles]);
-
-    // NEW: Dynamic Player Activity Calculation
-    const activityData = useMemo(() => {
-        const days = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
-        const now = new Date();
-        const result = [];
-
-        // Iterate backwards for the last 7 days
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(now.getDate() - i);
-            d.setHours(0, 0, 0, 0);
-            const dayEnd = new Date(d);
-            dayEnd.setHours(23, 59, 59, 999);
-
-            // Filter users who were updated within this day
-            const count = profiles.filter(p => {
-                const updateDate = new Date(p.updated_at);
-                return updateDate >= d && updateDate <= dayEnd;
-            }).length;
-
-            result.push({
-                label: days[d.getDay()],
-                count: count,
-                // Height percentage normalized to total players, or a max scale (e.g. 50)
-                // We add a min 5% for visual consistency even with 0 activity
-                height: profiles.length > 0 ? Math.max(5, (count / profiles.length) * 100) : 0
-            });
-        }
-        return result;
     }, [profiles]);
 
     // --- RENDERERS ---
@@ -1052,16 +1023,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><BarChart2 size={18} className="text-purple-400"/> ACTIVITÉ JOUEURS (7J)</h3>
                     <div className="h-48 flex items-end gap-2 justify-between px-2">
-                        {activityData.map((data, i) => (
-                            <div key={i} className="w-full bg-purple-900/30 rounded-t-lg relative group hover:bg-purple-600/50 transition-colors" style={{ height: `${data.height}%` }}>
-                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                    {data.count} actif{data.count > 1 ? 's' : ''}
-                                </div>
+                        {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
+                            <div key={i} className="w-full bg-purple-900/30 rounded-t-lg relative group hover:bg-purple-600/50 transition-colors" style={{ height: `${h}%` }}>
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">{h}</div>
                             </div>
                         ))}
                     </div>
                     <div className="flex justify-between text-xs text-gray-500 mt-2 font-mono">
-                        {activityData.map((data, i) => <span key={i}>{data.label}</span>)}
+                        <span>LUN</span><span>MAR</span><span>MER</span><span>JEU</span><span>VEN</span><span>SAM</span><span>DIM</span>
                     </div>
                 </div>
 
@@ -1086,17 +1055,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
     const renderEconomy = () => (
         <div className="animate-in fade-in h-full flex flex-col">
-            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4 overflow-x-auto no-scrollbar">
-                <button onClick={() => setEcoTab('OVERVIEW')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'OVERVIEW' ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
+                <button onClick={() => setEcoTab('OVERVIEW')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'OVERVIEW' ? 'bg-yellow-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <Activity size={14}/> VUE D'ENSEMBLE
                 </button>
-                <button onClick={() => setEcoTab('CONFIG')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'CONFIG' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setEcoTab('CONFIG')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'CONFIG' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <Settings size={14}/> CONFIGURATION
                 </button>
-                <button onClick={() => setEcoTab('TRANSACTIONS')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'TRANSACTIONS' ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setEcoTab('TRANSACTIONS')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'TRANSACTIONS' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <History size={14}/> HISTORIQUE
                 </button>
-                <button onClick={() => setEcoTab('ABUSE')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors whitespace-nowrap ${ecoTab === 'ABUSE' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
+                <button onClick={() => setEcoTab('ABUSE')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${ecoTab === 'ABUSE' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>
                     <AlertOctagon size={14}/> DÉTECTION ABUS
                 </button>
             </div>
@@ -1183,67 +1152,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 )}
 
                 {ecoTab === 'TRANSACTIONS' && (
-                    <div className="bg-black/80 border border-white/20 rounded-2xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="p-4 bg-gray-800/80 border-b border-white/10 flex justify-between items-center">
-                            <h4 className="font-black text-sm text-purple-400 italic tracking-widest flex items-center gap-2">
-                                <History size={16}/> RÉGISTRE DES OPÉRATIONS
-                            </h4>
-                            <span className="text-[10px] bg-purple-900/30 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-bold">TEMPS RÉEL</span>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm border-collapse">
-                                <thead className="bg-black/60 text-gray-400 font-black uppercase text-[10px] tracking-widest">
-                                    <tr>
-                                        <th className="p-5 border-b border-white/5">Date & Heure</th>
-                                        <th className="p-5 border-b border-white/5">Utilisateur</th>
-                                        <th className="p-5 border-b border-white/5">Opération</th>
-                                        <th className="p-5 border-b border-white/5 text-right">Flux</th>
+                    <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-gray-800 text-gray-400 font-bold uppercase text-[10px]">
+                                <tr>
+                                    <th className="p-4">Date/Heure</th>
+                                    <th className="p-4">Utilisateur</th>
+                                    <th className="p-4">Action</th>
+                                    <th className="p-4 text-right">Montant</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {mockTransactions.map((tx, i) => (
+                                    <tr key={i} className="hover:bg-white/5">
+                                        <td className="p-4 text-gray-500 font-mono text-xs">{tx.time}</td>
+                                        <td className="p-4 font-bold text-white">{tx.user}</td>
+                                        <td className="p-4 text-xs">
+                                            <span className={`px-2 py-1 rounded ${tx.action.includes('ACHAT') ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                                {tx.action}
+                                            </span>
+                                        </td>
+                                        <td className={`p-4 text-right font-mono font-bold ${tx.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {tx.amount > 0 ? '+' : ''}{tx.amount}
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5 bg-gray-900/30">
-                                    {realTransactions.map((tx, i) => (
-                                        <tr key={tx.id || i} className="hover:bg-white/[0.03] transition-colors group">
-                                            <td className="p-5 text-gray-400 font-mono text-xs whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <Clock size={12} className="text-gray-600" />
-                                                    {new Date(tx.created_at).toLocaleString()}
-                                                </div>
-                                            </td>
-                                            <td className="p-5 font-bold text-white group-hover:text-cyan-400 transition-colors">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded bg-gray-800 border border-white/10 flex items-center justify-center text-[10px] text-gray-400 uppercase">
-                                                        {tx.username.substring(0,1)}
-                                                    </div>
-                                                    {tx.username}
-                                                </div>
-                                            </td>
-                                            <td className="p-5">
-                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${
-                                                    tx.action.includes('ACHAT') ? 'bg-red-500/10 text-red-400 border-red-500/30' : 
-                                                    tx.action.includes('GAIN') ? 'bg-green-500/10 text-green-400 border-green-500/30' :
-                                                    tx.action.includes('CADEAU') ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
-                                                    'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
-                                                }`}>
-                                                    {tx.action}
-                                                </span>
-                                            </td>
-                                            <td className={`p-5 text-right font-mono font-black text-lg ${tx.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                <div className="flex items-center justify-end gap-1">
-                                                    {tx.amount > 0 ? '+' : ''}{tx.amount}
-                                                    <Coins size={14} className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'} />
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {realTransactions.length === 0 && (
-                                        <tr><td colSpan={4} className="p-10 text-center text-gray-600 italic">Aucune transaction enregistrée.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="p-4 bg-black/40 border-t border-white/5 text-center">
-                            <button onClick={loadTransactions} className="text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-colors">Rafraîchir les données</button>
-                        </div>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 )}
 
@@ -1363,7 +1298,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             </div>
                             <div>
                                 <div className="font-bold text-white">Jeux Bêta / Expérimental</div>
-                                <div className="text-xs text-gray-500">En cours de développement.</div>
+                                <div className="text-xs text-gray-500">Affiche les jeux en cours de développement.</div>
                             </div>
                         </div>
                         <button onClick={() => toggleFlag('beta_games')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.beta_games ? 'bg-purple-500' : 'bg-gray-600'}`}>
@@ -1379,7 +1314,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             </div>
                             <div>
                                 <div className="font-bold text-white">Chat Global (Jeux)</div>
-                                <div className="text-xs text-gray-500">Active le chat et les réactions.</div>
+                                <div className="text-xs text-gray-500">Active le chat et les réactions dans les jeux multijoueurs.</div>
                             </div>
                         </div>
                         <button onClick={() => toggleFlag('global_chat')} className={`w-14 h-8 rounded-full transition-colors relative ${featureFlags.global_chat ? 'bg-cyan-500' : 'bg-gray-600'}`}>
@@ -1764,29 +1699,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 </div>
             </div>
 
-            {/* MOBILE HEADER - Optimized for visibility & mobile UX */}
-            <div className="md:hidden fixed top-0 left-0 w-full bg-black/90 backdrop-blur-xl border-b-2 border-blue-500/50 z-50 flex justify-between items-center shadow-[0_0_20px_rgba(0,217,255,0.2)]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-                <div className="p-4 flex items-center gap-3">
-                    <div className="p-1.5 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <Shield size={20} className="text-blue-400 drop-shadow-[0_0_5px_#00d9ff]" />
-                    </div>
-                    <span className="font-black italic text-xl text-white tracking-tighter drop-shadow-[0_0_8px_#00d9ff]">ADMIN PANEL</span>
-                </div>
-                <button 
-                    onClick={onBack} 
-                    className="p-3 m-1 mr-2 bg-white/10 hover:bg-white/20 active:scale-90 rounded-full text-white transition-all border border-white/5"
-                >
-                    <X size={24} strokeWidth={3} />
-                </button>
+            {/* MOBILE HEADER */}
+            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900 border-b border-white/10 z-50 p-4 flex justify-between items-center">
+                <span className="font-black italic text-blue-400">ADMIN</span>
+                <button onClick={onBack}><X size={24} className="text-white"/></button>
             </div>
 
             {/* CONTENT AREA */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-[calc(64px+env(safe-area-inset-top))] md:pt-0">
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-16 md:pt-0">
                 {/* Mobile Tabs */}
-                <div className="md:hidden flex overflow-x-auto p-2 gap-2 bg-gray-900/80 backdrop-blur-md border-b border-white/10 shrink-0 custom-scrollbar">
+                <div className="md:hidden flex overflow-x-auto p-2 gap-2 bg-gray-900 border-b border-white/10 shrink-0">
                     {SECTIONS.map(s => (
-                        <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest whitespace-nowrap transition-all border ${activeSection === s.id ? 'bg-blue-600 text-white border-blue-400 shadow-lg' : 'bg-gray-800 text-gray-500 border-transparent'}`}>
-                            {s.label.toUpperCase()}
+                        <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap ${activeSection === s.id ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
+                            {s.label}
                         </button>
                     ))}
                 </div>

@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Zap, Star, Crown, Flame, Target, Ghost, Smile, Hexagon, Gem, Heart, Rocket, Bot, User, Gamepad2, Headphones, Skull, Circle, Sparkles, Box, Image, Type, Cat, Flower, Rainbow, ShoppingBag, Sun, Moon, Snowflake, Droplets, Music, Anchor, Terminal, TreeDeciduous, Waves, Sunset, Disc, Pipette, Glasses } from 'lucide-react';
-import { DB } from '../lib/supabaseClient';
 
 export interface Badge {
   id: string;
@@ -105,7 +104,6 @@ export const SLITHER_SKINS_CATALOG: SlitherSkin[] = [
     { id: 'ss_dots_pink', name: 'Pois Flash', price: 1100, primaryColor: '#ff00ff', secondaryColor: '#ffffff', glowColor: '#ff00ff', pattern: 'dots', rarity: 'RARE', description: 'Look pop.' },
     { id: 'ss_army', name: 'Camouflage Cyber', price: 1400, primaryColor: '#22c55e', secondaryColor: '#064e3b', glowColor: '#22c55e', pattern: 'grid', rarity: 'RARE', description: 'Invisible sur la grille.' },
     { id: 'ss_snake_skin', name: 'Écailles Vrai', price: 2000, primaryColor: '#10b981', secondaryColor: '#facc15', glowColor: '#10b981', pattern: 'checker', rarity: 'EPIC', description: 'Comme un vrai.' },
-    { id: 'ss_snake_skin_neon', name: 'Écailles Néon', price: 2200, primaryColor: '#00f3ff', secondaryColor: '#ff00ff', glowColor: '#00f3ff', pattern: 'checker', rarity: 'EPIC', description: 'Style cyberpunk pur.' },
     { id: 'ss_candy', name: 'Sucre d\'Orge', price: 1800, primaryColor: '#ff0000', secondaryColor: '#ffffff', glowColor: '#ff0000', pattern: 'stripes', rarity: 'EPIC', description: 'Délicieusement rapide.' },
 
     // --- COSMIQUES (3000 - 5000) ---
@@ -131,7 +129,7 @@ export const SLITHER_SKINS_CATALOG: SlitherSkin[] = [
     { id: 'ss_diamond_core', name: 'Cœur de Diamant', price: 20000, primaryColor: '#ffffff', secondaryColor: '#bae6fd', glowColor: '#38bdf8', pattern: 'metallic', rarity: 'LEGENDARY', description: 'Indestructible.' },
     { id: 'ss_void', name: 'Le Vide', price: 25000, primaryColor: '#000000', secondaryColor: '#000000', glowColor: '#ffffff', pattern: 'pulse', rarity: 'LEGENDARY', description: 'La fin de tout.' },
     { id: 'ss_cyber_pulse', name: 'Pulse Cyberpunk', price: 18000, primaryColor: '#ff00ff', secondaryColor: '#00f3ff', glowColor: '#ff00ff', pattern: 'grid', rarity: 'LEGENDARY', description: 'Future Noir.' },
-    { id: 'ss_golden_dragon', name: 'Dragon d\'Or', price: 50000, primaryColor: '#fbbf24', secondaryColor: '#b45309', glowColor: '#fbbf24', pattern: 'checker', rarity: 'LEGENDARY', description: 'Le souverain de l\'arène.' },
+    { id: 'ss_golden_dragon', name: 'Dragon d\'Or', price: 50000, primaryColor: '#fbbf24', secondaryColor: '#d97706', glowColor: '#fbbf24', pattern: 'checker', rarity: 'LEGENDARY', description: 'Le souverain de l\'arène.' },
     { id: 'ss_plasma_storm', name: 'Tempête Plasma', price: 16000, primaryColor: '#a855f7', secondaryColor: '#06b6d4', glowColor: '#a855f7', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Énergie cinétique.' },
     { id: 'ss_matrix_core', name: 'Code Source', price: 17000, primaryColor: '#00ff00', secondaryColor: '#000000', glowColor: '#00ff00', pattern: 'grid', rarity: 'LEGENDARY', description: 'Vous voyez les lignes.' },
     { id: 'ss_blood_moon', name: 'Lune de Sang', price: 14000, primaryColor: '#450a0a', secondaryColor: '#ef4444', glowColor: '#ef4444', pattern: 'pulse', rarity: 'LEGENDARY', description: 'Nuit de chasse.' },
@@ -482,15 +480,10 @@ export const useCurrency = () => {
 
     useEffect(() => { refreshData(); }, [refreshData]);
 
-    const addCoins = useCallback((amount: number, reason: string = 'GAIN_JEU') => {
+    const addCoins = useCallback((amount: number) => {
         setCoins(prev => {
             const newVal = prev + amount;
             localStorage.setItem('neon-coins', newVal.toString());
-            // Log transaction to cloud if authenticated
-            const currentStoredUser = localStorage.getItem('neon-username');
-            if (currentStoredUser) {
-                DB.recordTransaction(currentStoredUser, reason, amount);
-            }
             return newVal;
         });
     }, []);
@@ -538,29 +531,29 @@ export const useCurrency = () => {
         isSuperUser, adminModeActive, toggleAdminMode: () => { const n = !adminModeActive; setAdminModeActive(n); localStorage.setItem('neon-admin-mode', JSON.stringify(n)); },
         refreshData, importData, addCoins, email, updateEmail,
         buyBadge: (id: string, cost: number) => {
-            if (coins >= cost) { addCoins(-cost, 'ACHAT_BADGE'); setInventory(p => [...p, id]); localStorage.setItem('neon-inventory', JSON.stringify([...inventory, id])); }
+            if (coins >= cost) { addCoins(-cost); setInventory(p => [...p, id]); localStorage.setItem('neon-inventory', JSON.stringify([...inventory, id])); }
         },
         catalog: BADGES_CATALOG, playerRank, username, updateUsername: (n: string) => { setUsername(n); localStorage.setItem('neon-username', n); },
         currentAvatarId, selectAvatar: (id: string) => { setCurrentAvatarId(id); localStorage.setItem('neon-avatar', id); },
-        buyAvatar: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost, 'ACHAT_AVATAR'); setOwnedAvatars(p => [...p, id]); localStorage.setItem('neon_owned_avatars', JSON.stringify([...ownedAvatars, id])); } },
+        buyAvatar: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedAvatars(p => [...p, id]); localStorage.setItem('neon_owned_avatars', JSON.stringify([...ownedAvatars, id])); } },
         avatarsCatalog: AVATARS_CATALOG,
         currentFrameId, selectFrame: (id: string) => { setCurrentFrameId(id); localStorage.setItem('neon-frame', id); },
-        buyFrame: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost, 'ACHAT_CADRE'); setOwnedFrames(p => [...p, id]); localStorage.setItem('neon-owned-frames', JSON.stringify([...ownedFrames, id])); } },
+        buyFrame: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedFrames(p => [...p, id]); localStorage.setItem('neon-owned-frames', JSON.stringify([...ownedFrames, id])); } },
         framesCatalog: FRAMES_CATALOG,
         currentSlitherSkinId, selectSlitherSkin: (id: string) => { setCurrentSlitherSkinId(id); localStorage.setItem('neon-slither-skin', id); },
-        buySlitherSkin: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost, 'ACHAT_SLITHER_SKIN'); setOwnedSlitherSkins(p => [...p, id]); localStorage.setItem('neon-owned-slither-skins', JSON.stringify([...ownedSlitherSkins, id])); } },
+        buySlitherSkin: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherSkins(p => [...p, id]); localStorage.setItem('neon-owned-slither-skins', JSON.stringify([...ownedSlitherSkins, id])); } },
         slitherSkinsCatalog: SLITHER_SKINS_CATALOG,
         currentSlitherAccessoryId, selectSlitherAccessory: (id: string) => { setCurrentSlitherAccessoryId(id); localStorage.setItem('neon-slither-accessory', id); },
-        buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost, 'ACHAT_SLITHER_ACCESSOIRE'); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
+        buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
         slitherAccessoriesCatalog: SLITHER_ACCESSORIES_CATALOG,
         currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
-        buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost, 'ACHAT_WALLPAPER'); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
+        buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
         wallpapersCatalog: WALLPAPERS_CATALOG,
         currentTitleId, selectTitle: (id: string) => { setCurrentTitleId(id); localStorage.setItem('neon-title', id); },
-        buyTitle: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost, 'ACHAT_TITRE'); setOwnedTitles(p => [...p, id]); localStorage.setItem('neon-owned-titles', JSON.stringify([...ownedTitles, id])); } },
+        buyTitle: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedTitles(p => [...p, id]); localStorage.setItem('neon-owned-titles', JSON.stringify([...ownedTitles, id])); } },
         titlesCatalog: TITLES_CATALOG,
         currentMalletId, selectMallet: (id: string) => { setCurrentMalletId(id); localStorage.setItem('neon-mallet', id); },
-        buyMallet: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost, 'ACHAT_MALLET'); setOwnedMallets(p => [...p, id]); localStorage.setItem('neon_owned_mallets', JSON.stringify([...ownedMallets, id])); } },
+        buyMallet: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedMallets(p => [...p, id]); localStorage.setItem('neon_owned_mallets', JSON.stringify([...ownedMallets, id])); } },
         malletsCatalog: MALLETS_CATALOG,
     };
 };
