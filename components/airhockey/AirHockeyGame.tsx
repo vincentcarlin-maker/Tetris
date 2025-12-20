@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause, Loader2, HelpCircle } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, LogOut, ArrowLeft, User, Users, Globe, Pause, Loader2, HelpCircle, ArrowRight, Zap, Shield } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency, Mallet } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -447,7 +447,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             return;
         }
 
-        // --- PAUSE CHECK ---
         if (isPaused) {
             animationFrameRef.current = requestAnimationFrame(gameLoop);
             return;
@@ -459,11 +458,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
         if (gameMode === 'ONLINE') {
             const now = Date.now();
-            // Throttle network updates to ~25fps (40ms) to avoid flooding
             const shouldSend = now - lastNetworkUpdateRef.current > 40;
 
             if (isHost) {
-                // Host logic
                 player.vx = player.x - lastP1PosRef.current.x;
                 player.vy = player.y - lastP1PosRef.current.y;
                 lastP1PosRef.current = { x: player.x, y: player.y };
@@ -496,7 +493,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 }
 
             } else {
-                // Client logic
                 player.vx = player.x - lastP1PosRef.current.x;
                 player.vy = player.y - lastP1PosRef.current.y;
                 lastP1PosRef.current = { x: player.x, y: player.y };
@@ -529,7 +525,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             }
         } 
         else {
-            // Offline Logic
             player.vx = player.x - lastP1PosRef.current.x;
             player.vy = player.y - lastP1PosRef.current.y;
             lastP1PosRef.current = { x: player.x, y: player.y };
@@ -556,27 +551,21 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                 ctx.clearRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
                 ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
                 
-                // Draw Table Decorations
-                // Center Line
                 ctx.strokeStyle = 'rgba(0, 243, 255, 0.5)'; ctx.lineWidth = 2; 
                 ctx.beginPath(); ctx.moveTo(0, TABLE_HEIGHT/2); ctx.lineTo(TABLE_WIDTH, TABLE_HEIGHT/2); ctx.stroke();
                 
-                // Center Circle
                 ctx.beginPath(); ctx.arc(TABLE_WIDTH/2, TABLE_HEIGHT/2, 50, 0, 2*Math.PI); ctx.stroke();
                 ctx.beginPath(); ctx.arc(TABLE_WIDTH/2, TABLE_HEIGHT/2, 4, 0, 2*Math.PI); ctx.fillStyle = '#00f3ff'; ctx.fill();
 
-                // Goals Visuals
                 const goalX = (TABLE_WIDTH - GOAL_WIDTH) / 2;
                 ctx.fillStyle = 'rgba(255, 0, 255, 0.1)';
-                ctx.fillRect(goalX, -20, GOAL_WIDTH, 40); // Top
-                ctx.fillRect(goalX, TABLE_HEIGHT - 20, GOAL_WIDTH, 40); // Bottom
+                ctx.fillRect(goalX, -20, GOAL_WIDTH, 40); 
+                ctx.fillRect(goalX, TABLE_HEIGHT - 20, GOAL_WIDTH, 40); 
                 
-                // Goal Line Markers
                 ctx.strokeStyle = '#ff00ff';
                 ctx.beginPath(); ctx.moveTo(goalX, 0); ctx.lineTo(goalX + GOAL_WIDTH, 0); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(goalX, TABLE_HEIGHT); ctx.lineTo(goalX + GOAL_WIDTH, TABLE_HEIGHT); ctx.stroke();
 
-                
                 ctx.beginPath(); ctx.arc(puck.x, puck.y, puck.radius, 0, 2*Math.PI); ctx.fillStyle = puck.color; ctx.fill();
 
                 const playerMalletStyle = malletsCatalog.find(m => m.id === currentMalletId);
@@ -636,7 +625,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                     puck.vx += impulse * nx;
                     puck.vy += impulse * ny;
                 }
-                // Max Speed clamp
                 const s = Math.hypot(puck.vx, puck.vy);
                 if (s > PUCK_MAX_SPEED) { puck.vx *= PUCK_MAX_SPEED/s; puck.vy *= PUCK_MAX_SPEED/s; }
             }
@@ -648,7 +636,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         return () => cancelAnimationFrame(animationFrameRef.current);
     }, [gameLoop]);
 
-    // ... (Input handling same as before)
     const updateTargets = (clientX: number, clientY: number) => {
         if (!canvasRef.current || isPaused || showTutorial) return;
         const rect = canvasRef.current.getBoundingClientRect();
@@ -684,9 +671,23 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     };
 
     const handleLocalBack = () => {
-        if (gameState === 'menu') onBack();
-        else if (gameMode === 'ONLINE') { mp.disconnect(); setGameState('menu'); }
-        else setGameState('menu');
+        if (gameMode === 'ONLINE') {
+            if (onlineStep === 'game') {
+                mp.leaveGame();
+                setOnlineStep('lobby');
+            } else {
+                mp.disconnect();
+                setGameState('menu');
+                setGameMode('SINGLE');
+            }
+            return;
+        }
+        
+        if (gameState !== 'menu') {
+            setGameState('menu');
+        } else {
+            onBack();
+        }
     };
 
     const renderLobby = () => {
@@ -759,6 +760,83 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
         );
     }
 
+    // --- MENU VIEW (NEW STYLE) ---
+    if (gameState === 'menu' && !showTutorial) {
+        return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
+                {/* Background layers */}
+                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-900/40 via-[#050510] to-black pointer-events-none"></div>
+                <div className="fixed inset-0 bg-[linear-gradient(rgba(34,211,238,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+
+                {/* Floating Particles/Orbs for ambience - fixed position */}
+                <div className="fixed top-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+                <div className="fixed bottom-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
+
+                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
+                    
+                    {/* Title Section */}
+                    <div className="mb-6 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
+                         <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter">
+                            NEON<br className="md:hidden"/> HOCKEY
+                        </h1>
+                    </div>
+
+                    {/* Game Modes Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
+                        
+                        {/* SOLO / LOCAL CARD */}
+                        <button onClick={() => { setGameMode('SINGLE'); setGameState('difficulty_select'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                                    <User size={32} className="text-cyan-400 fill-cyan-400" />
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors">SOLO / VS</h2>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                    Affrontez l'IA ou défiez un ami sur le même écran. Réflexes et précision.
+                                </p>
+                            </div>
+
+                            <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                CONFIGURER LA PARTIE <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+
+                        {/* ONLINE CARD */}
+                        <button onClick={() => setGameMode('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                                    <Globe size={32} className="text-blue-400" />
+                                </div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-blue-300 transition-colors">EN LIGNE</h2>
+                                    <span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span>
+                                </div>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                    Rejoignez le lobby et trouvez un adversaire à travers le monde.
+                                </p>
+                            </div>
+
+                            <div className="relative z-10 flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
+                            <Home size={14} /> RETOUR AU MENU PRINCIPAL
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden p-4">
             {/* TUTORIAL OVERLAY */}
@@ -790,27 +868,24 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
             >
                 <canvas ref={canvasRef} width={TABLE_WIDTH} height={TABLE_HEIGHT} className="w-full h-full" />
                 
-                {gameState === 'menu' && !showTutorial && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
-                        <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#00f3ff]">AIR HOCKEY</h1>
-                        <div className="flex flex-col gap-4 w-full max-w-[240px] mt-8">
-                            <button onClick={() => {setGameMode('SINGLE'); setGameState('difficulty_select');}} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2"><User size={20} className="text-neon-blue"/> 1 JOUEUR</button>
-                            <button onClick={() => startGame('MEDIUM', 'LOCAL_VS')} className="px-6 py-4 bg-gray-800 border-2 border-pink-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2"><Users size={20} className="text-pink-500"/> 2 JOUEURS (VS)</button>
-                            <button onClick={() => setGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2"><Globe size={20} className="text-green-500"/> EN LIGNE</button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Other Overlays... */}
+                {/* Difficulty Select Overlay */}
                 {gameState === 'difficulty_select' && (
                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in">
-                        <h2 className="text-3xl font-black text-white mb-8">DIFFICULTÉ</h2>
-                        <div className="flex flex-col gap-3 w-48">
-                            <button onClick={() => startGame('EASY')} className="px-6 py-3 border border-green-500 text-green-400 font-bold rounded hover:bg-green-500 hover:text-black transition-all">FACILE</button>
-                            <button onClick={() => startGame('MEDIUM')} className="px-6 py-3 border border-yellow-500 text-yellow-400 font-bold rounded hover:bg-yellow-500 hover:text-black transition-all">MOYEN</button>
-                            <button onClick={() => startGame('HARD')} className="px-6 py-3 border border-red-500 text-red-500 font-bold rounded hover:bg-red-500 hover:text-white transition-all">DIFFICILE</button>
+                        <h2 className="text-3xl font-black text-white mb-8 italic">MODE DE JEU</h2>
+                        
+                        <div className="flex flex-col gap-4 w-56">
+                            <button onClick={() => startGame('MEDIUM', 'LOCAL_VS')} className="px-6 py-4 bg-gray-800 border-2 border-pink-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 mb-4 shadow-lg active:scale-95">
+                                <Users size={20} className="text-pink-500"/> 2 JOUEURS (VS)
+                            </button>
+                            
+                            <div className="h-px bg-white/10 w-full mb-2"></div>
+                            <p className="text-center text-xs text-gray-400 font-bold mb-2">DIFFICULTÉ IA (SOLO)</p>
+                            
+                            <button onClick={() => startGame('EASY')} className="px-6 py-3 border border-green-500 text-green-400 font-bold rounded-xl hover:bg-green-500 hover:text-black transition-all">FACILE</button>
+                            <button onClick={() => startGame('MEDIUM')} className="px-6 py-3 border border-yellow-500 text-yellow-400 font-bold rounded-xl hover:bg-yellow-500 hover:text-black transition-all">MOYEN</button>
+                            <button onClick={() => startGame('HARD')} className="px-6 py-3 border border-red-500 text-red-500 font-bold rounded-xl hover:bg-red-500 hover:text-white transition-all">DIFFICILE</button>
                         </div>
-                        <button onClick={() => setGameState('menu')} className="mt-8 text-gray-500 text-sm hover:text-white">RETOUR</button>
+                        <button onClick={() => setGameState('menu')} className="mt-8 text-gray-500 text-sm hover:text-white underline">RETOUR</button>
                     </div>
                 )}
 
@@ -844,7 +919,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                             </div>
                         )}
                         <div className="flex gap-4">
-                            <button onClick={() => { if(gameMode==='ONLINE') mp.requestRematch(); else startGame(difficulty, gameMode); }} className="px-8 py-3 bg-white text-black font-black tracking-widest rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2">
+                            <button onClick={() => { if(gameMode === 'ONLINE') mp.requestRematch(); else startGame(difficulty, gameMode); }} className="px-8 py-3 bg-white text-black font-black tracking-widest rounded-full hover:bg-gray-200 transition-colors shadow-lg flex items-center gap-2">
                                 <RefreshCw size={20} /> {gameMode==='ONLINE' ? 'REVANCHE' : 'REJOUER'}
                             </button>
                             {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}

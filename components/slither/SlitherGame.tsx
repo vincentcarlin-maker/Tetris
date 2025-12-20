@@ -31,13 +31,13 @@ interface Particle { x: number; y: number; vx: number; vy: number; life: number;
 const WORLD_SIZE = 20000; 
 const INITIAL_LENGTH = 15;
 const SEGMENT_DISTANCE = 5; 
-const BASE_SPEED = 4.5; // Ajusté pour le calcul Delta Time
+const BASE_SPEED = 4.5; 
 const BOOST_SPEED = 9.5; 
 const TURN_SPEED = 0.18; 
 const RADAR_SIZE = 120;
 const JOYSTICK_DEADZONE = 3; 
 
-const BOT_COUNT = 250; // Nombre de bots optimisé pour la fluidité (Delta Time compensera)
+const BOT_COUNT = 250; 
 const INITIAL_FOOD_COUNT = 8000; 
 const MIN_FOOD_REGEN = 6000;
 
@@ -45,7 +45,7 @@ const COLORS = ['#00f3ff', '#ff00ff', '#9d00ff', '#ffe600', '#00ff9d', '#ff4d4d'
 
 const SERVERS = [
     { id: 'slither_main', name: 'NEON CITY (EU)', region: 'Europe', max: 50, ping: 45 },
-    { id: 'slither_us', name: 'SOLAR DUST (US)', region: 'USA', max: 50, ping: 120 }, // Fake server for UI demo
+    { id: 'slither_us', name: 'SOLAR DUST (US)', region: 'USA', max: 50, ping: 120 }, 
 ];
 
 const calculateWormRadius = (score: number) => {
@@ -112,10 +112,9 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 if (existingIdx !== -1) {
                     othersRef.current[existingIdx] = { ...othersRef.current[existingIdx], ...remoteWorm };
                 } else {
-                    // New player joined
                     const newWorm: Worm = {
                         ...remoteWorm,
-                        segments: remoteWorm.segments.map((p: any) => ({...p})) // Deep copy
+                        segments: remoteWorm.segments.map((p: any) => ({...p})) 
                     };
                     othersRef.current.push(newWorm);
                 }
@@ -132,7 +131,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 if (idx !== -1) {
                     const deadWorm = othersRef.current[idx];
                     spawnParticles(deadWorm.segments[0].x, deadWorm.segments[0].y, deadWorm.color, 40);
-                    // Drop food
                     deadWorm.segments.forEach((s, i) => { 
                          if(i % 3 === 0) foodRef.current.push({ id: `f_dead_${deadId}_${i}`, x: s.x, y: s.y, val: 2, color: deadWorm.color }); 
                     });
@@ -196,15 +194,10 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const handleJoinServer = (serverId: string) => {
         setCurrentServer(serverId);
         setGameMode('ONLINE');
-        
-        // Connect to global lobby if not connected (should be handled by App, but safe to check)
         if (!mp.isConnected) mp.connect();
-        
-        // Update presence to indicate we are in this room
         mp.updateSelfInfo(username, currentAvatarId, undefined, serverId);
-        
         startGameLogic();
-        othersRef.current = []; // Clear bots, will fill with network players
+        othersRef.current = []; 
     };
 
     const startGameLogic = () => {
@@ -232,7 +225,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         
-        // Rotation sensible au Delta Time
         worm.angle += angleDiff * TURN_SPEED * speedFactor;
 
         const head = worm.segments[0];
@@ -248,7 +240,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             const dy = curr.y - prev.y;
             const angle = Math.atan2(dy, dx);
 
-            // Les segments suivent toujours à distance fixe, peu importe le FPS
             newSegments.push({
                 x: prev.x + Math.cos(angle) * SEGMENT_DISTANCE,
                 y: prev.y + Math.sin(angle) * SEGMENT_DISTANCE
@@ -261,7 +252,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const isWormCollidingAt = (x: number, y: number, radius: number, excludeId: string, allWorms: Worm[]) => {
         for (const worm of allWorms) {
             if (worm.isDead) continue;
-            // Culling spatial pour les collisions
             if (Math.abs(worm.segments[0].x - x) > 800 || Math.abs(worm.segments[0].y - y) > 800) continue;
 
             const startIdx = worm.id === excludeId ? 12 : 0;
@@ -277,7 +267,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
     const update = (dt: number) => {
         if (gameState === 'MENU' || gameState === 'SERVER_SELECT' || gameState === 'GAMEOVER') return;
         
-        // Normalisation du Delta Time (basé sur 60 FPS = 16.67ms)
         const speedFactor = dt / 16.67;
         const now = Date.now();
 
@@ -294,15 +283,14 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const player = playerWormRef.current;
         if (!player) return;
 
-        // Broadcast Position (Online Mode)
         if (gameMode === 'ONLINE') {
-            if (now - lastNetworkUpdateRef.current > 40) { // 25fps broadcast
+            if (now - lastNetworkUpdateRef.current > 40) { 
                 mp.sendData({
                     type: 'SLITHER_UPDATE',
                     worm: {
                         id: player.id,
                         name: player.name,
-                        segments: player.segments, // Send full segments for smoothing
+                        segments: player.segments, 
                         color: player.color,
                         skin: player.skin,
                         score: player.score,
@@ -313,9 +301,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 });
                 lastNetworkUpdateRef.current = now;
             }
-            
-            // Cleanup stale players
-            // In a real implementation we would track last update time
         }
 
         if (gameState === 'DYING') {
@@ -361,7 +346,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) handleDeath();
 
-        // Collisions nourriture (optimisé)
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             if (Math.abs(head.x - f.x) > 100 || Math.abs(head.y - f.y) > 100) continue;
@@ -381,7 +365,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             }
         }
 
-        // Collisions vers
         othersRef.current.forEach(other => {
             if (other.isDead) return;
             if (Math.abs(other.segments[0].x - head.x) > 1000 || Math.abs(other.segments[0].y - head.y) > 1000) return;
@@ -446,7 +429,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                 updateWormMovement(bot, bot.aiTargetAngle || bot.angle, bot.isBoost ? BOOST_SPEED : BASE_SPEED, speedFactor);
                 if (Math.random() > 0.98) bot.isBoost = false;
 
-                // Collision Bot contre Joueur
                 const distToPlayerHead = (bHead.x - head.x)**2 + (bHead.y - head.y)**2;
                 if (distToPlayerHead < (bot.radius + player.radius)**2) handleDeath();
                 else if (Math.abs(bHead.x - head.x) < 800 && Math.abs(bHead.y - head.y) < 800) {
@@ -607,7 +589,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         if (!canvasRef.current) return;
 
         const rect = canvasRef.current.getBoundingClientRect();
-        // Adjust for canvas scaling/position
         const scaleX = canvasRef.current.width / rect.width;
         const scaleY = canvasRef.current.height / rect.height;
         
@@ -638,18 +619,15 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const handleInputEnd = () => { joystickActiveRef.current = false; joystickOriginRef.current = null; };
 
-    // --- VIEW RENDERERS ---
-
     const renderServerSelect = () => {
         return (
              <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205]/95 backdrop-blur-xl p-6 overflow-y-auto touch-auto">
                  <div className="w-full max-w-2xl flex flex-col items-center min-h-full justify-center py-10">
                      <h2 className="text-3xl md:text-4xl font-black text-white italic mb-8 flex items-center gap-3 text-center">
-                         <Globe size={40} className="text-cyan-400" /> SÉLECTION SERVEUR
+                         <Globe size={40} className="text-indigo-400" /> SÉLECTION SERVEUR
                      </h2>
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                          {SERVERS.map(server => {
-                             // Count players on this server
                              const count = onlineUsers.filter(u => u.gameActivity === server.id).length;
                              const load = count / server.max;
                              const loadColor = load > 0.8 ? 'bg-red-500' : load > 0.5 ? 'bg-yellow-500' : 'bg-green-500';
@@ -658,13 +636,13 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                                  <button 
                                     key={server.id} 
                                     onClick={() => handleJoinServer(server.id)}
-                                    className="bg-gray-900 border-2 border-white/10 hover:border-cyan-400 rounded-2xl p-6 text-left transition-all hover:scale-105 group relative overflow-hidden"
+                                    className="bg-gray-900 border-2 border-white/10 hover:border-indigo-400 rounded-2xl p-6 text-left transition-all hover:scale-105 group relative overflow-hidden"
                                  >
                                      <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
                                          <Server size={64} />
                                      </div>
                                      
-                                     <h3 className="text-xl font-bold text-white mb-1 group-hover:text-cyan-300">{server.name}</h3>
+                                     <h3 className="text-xl font-bold text-white mb-1 group-hover:text-indigo-300">{server.name}</h3>
                                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-4">{server.region}</p>
                                      
                                      <div className="flex items-center justify-between mt-auto">
@@ -706,70 +684,59 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                     <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
                         <button onClick={() => { if (window.confirm("Quitter ?")) { mp.updateSelfInfo(username, currentAvatarId); onBack(); } }} className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"><Home size={24}/></button>
                         <div className="flex flex-col">
-                            <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">{score}</span>
-                            <span className="text-[10px] text-yellow-400 font-bold uppercase">Rang: {rank.current} / {rank.total}</span>
+                            <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">{score}</span>
+                            <span className="text-[10px] text-indigo-400 font-bold uppercase">Rang: {rank.current} / {rank.total}</span>
                         </div>
                     </div>
 
                     <div className="absolute top-6 right-6 z-20 bg-black/20 border border-white/5 p-2.5 rounded-2xl w-36 backdrop-blur-md shadow-2xl">
-                        <h4 className="text-[9px] font-black text-yellow-400 uppercase tracking-widest mb-2 border-b border-white/5 pb-1.5 flex items-center gap-2"><Trophy size={10}/> Records</h4>
+                        <h4 className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2 border-b border-white/5 pb-1.5 flex items-center gap-2"><Trophy size={10}/> Records</h4>
                         {leaderboard.map((u, i) => (
-                            <div key={i} className={`flex justify-between text-[9px] mb-1 ${u.isMe ? 'text-cyan-400 font-black animate-pulse' : 'text-gray-400'}`}>
+                            <div key={i} className={`flex justify-between text-[9px] mb-1 ${u.isMe ? 'text-indigo-400 font-black animate-pulse' : 'text-gray-400'}`}>
                                 <span className="truncate w-20">{i+1}. {u.name}</span>
                                 <span className="font-mono">{u.score}</span>
                             </div>
                         ))}
                     </div>
                 
-                    <div className="absolute bottom-8 right-8 z-30 rounded-full bg-black/70 border-2 border-white/20 shadow-2xl backdrop-blur-md overflow-hidden pointer-events-none w-[120px] h-[120px]">
-                        {othersRef.current.map(worm => <div key={worm.id} className="absolute rounded-full bg-pink-500 shadow-[0_0_4px_pink] w-0.5 h-0.5" style={{ left: (worm.segments[0].x / WORLD_SIZE) * 120, top: (worm.segments[0].y / WORLD_SIZE) * 120 }} />)}
-                        {playerWormRef.current && <div className="absolute rounded-full bg-white shadow-[0_0_8px_white] w-1 h-1 animate-pulse" style={{ left: (playerWormRef.current.segments[0].x / WORLD_SIZE) * 120, top: (playerWormRef.current.segments[0].y / WORLD_SIZE) * 120 }} />}
-                    </div>
-
                     <button 
                         onMouseDown={() => { isBoostingRef.current = true; setIsBoosting(true); }}
                         onMouseUp={() => { isBoostingRef.current = false; setIsBoosting(false); }}
                         onTouchStart={() => { isBoostingRef.current = true; setIsBoosting(true); }}
                         onTouchEnd={() => { isBoostingRef.current = false; setIsBoosting(false); }}
-                        className={`absolute bottom-10 left-10 z-40 w-20 h-20 rounded-full flex flex-col items-center justify-center border-4 transition-all active:scale-110 ${isBoosting ? 'bg-yellow-400 border-white text-black shadow-[0_0_30px_#facc15]' : 'bg-gray-900/80 border-yellow-500/50 text-yellow-500'}`}
+                        className={`absolute bottom-10 left-10 z-40 w-20 h-20 rounded-full flex flex-col items-center justify-center border-4 transition-all active:scale-110 ${isBoosting ? 'bg-yellow-400 border-white text-black shadow-[0_0_30px_#facc15]' : 'bg-gray-900/80 border-indigo-500/50 text-indigo-500'}`}
                     >
                         <Zap size={32} fill={isBoosting ? "black" : "none"} />
-                        <span className="text-[10px] font-black tracking-tighter">TURBO</span>
+                        <span className="text-[10px] font-black tracking-tighter">BOOST</span>
                     </button>
                 </>
             )}
 
             {gameState === 'MENU' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
-                    {/* Animated Background - fixed position */}
                     <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/40 via-[#050510] to-black pointer-events-none"></div>
                     <div className="fixed inset-0 bg-[linear-gradient(rgba(79,70,229,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(79,70,229,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
                     
-                    {/* Floating Particles/Orbs for ambience - fixed position */}
                     <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
                     <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
 
-                    {/* Content Container - min-h-full for centering, py for spacing */}
                     <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                         
-                        {/* Title Section */}
-                        <div className="mb-6 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
+                        <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
                             <div className="flex items-center justify-center gap-6 mb-4">
-                                <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse" />
-                                <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(129,140,248,0.6)] tracking-tighter">
+                                <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse hidden md:block" />
+                                <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(129,140,248,0.6)] tracking-tighter w-full">
                                     CYBER<br className="md:hidden"/> SERPENT
                                 </h1>
-                                <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse" />
+                                <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse hidden md:block" />
                             </div>
                             <div className="inline-block px-6 py-2 rounded-full border border-indigo-500/30 bg-indigo-900/20 backdrop-blur-sm">
                                 <p className="text-indigo-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Mangez • Grandissez • Dominez</p>
                             </div>
                         </div>
 
-                        {/* Game Modes Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
                             
-                            {/* SOLO CARD */}
                             <button onClick={startSoloGame} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-indigo-500/50 hover:shadow-[0_0_50px_rgba(99,102,241,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 
@@ -788,7 +755,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                                 </div>
                             </button>
 
-                            {/* MULTI CARD */}
                             <button onClick={() => setGameState('SERVER_SELECT')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                                 <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 
@@ -811,7 +777,6 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                             </button>
                         </div>
 
-                        {/* Footer */}
                         <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
                             <div className="flex flex-col md:flex-row gap-4 md:gap-8 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-white/5 px-6 py-3 rounded-2xl border border-white/5 text-center">
                                 <span className="flex items-center justify-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/50"></div> PC : ESPACE POUR TURBO</span>

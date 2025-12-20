@@ -79,8 +79,6 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null); 
     
-    // Critical fix: Track the direction that was actually executed in the last move
-    // to prevent 180-degree turns via rapid key presses.
     const currentMoveDirRef = useRef<Direction>('RIGHT');
     const scoreRef = useRef(0);
 
@@ -234,8 +232,6 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
             const head = prevSnake[0];
             const newHead = { ...head };
             
-            // Fix: Check nextDirection against the actual last executed move (currentMoveDirRef)
-            // This prevents the "suicide" bug where pressing two keys rapidly reverses direction within one tick
             let effectiveDir = nextDirection;
             const isOpposite = (nextDirection === 'UP' && currentMoveDirRef.current === 'DOWN') || 
                                (nextDirection === 'DOWN' && currentMoveDirRef.current === 'UP') || 
@@ -243,10 +239,10 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
                                (nextDirection === 'RIGHT' && currentMoveDirRef.current === 'LEFT');
             
             if (isOpposite) {
-                effectiveDir = currentMoveDirRef.current; // Keep going same way
+                effectiveDir = currentMoveDirRef.current;
             } else {
                 setDirection(nextDirection);
-                currentMoveDirRef.current = nextDirection; // Update last executed
+                currentMoveDirRef.current = nextDirection;
             }
 
             if (effectiveDir === 'UP') newHead.y -= 1;
@@ -345,7 +341,6 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
         if (gameOver || isPaused || showTutorial) return;
         if (!isPlaying) { setIsPlaying(true); resumeAudio(); }
         
-        // Immediate check against CURRENT MOVEMENT, not state (state might be stale in closure)
         const currentMoving = currentMoveDirRef.current;
         const isOpposite = (newDir === 'UP' && currentMoving === 'DOWN') || 
                            (newDir === 'DOWN' && currentMoving === 'UP') || 
@@ -387,27 +382,21 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     if (view === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
-                {/* Background layers */}
                 <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-900/40 via-[#050510] to-black pointer-events-none"></div>
                 <div className="fixed inset-0 bg-[linear-gradient(rgba(34,197,94,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
 
-                {/* Floating Particles/Orbs for ambience - fixed position */}
                 <div className="fixed top-1/4 right-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
                 <div className="fixed bottom-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
 
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     
-                    {/* Title Section */}
-                    <div className="mb-6 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
-                         <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-emerald-300 to-teal-300 drop-shadow-[0_0_30px_rgba(34,197,94,0.6)] tracking-tighter">
+                    <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
+                         <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-emerald-300 to-teal-300 drop-shadow-[0_0_30px_rgba(34,197,94,0.6)] tracking-tighter w-full">
                             NEON<br className="md:hidden"/> SNAKE
                         </h1>
                     </div>
 
-                    {/* Game Modes Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
-                        
-                        {/* CLASSIC CARD */}
                         <button onClick={() => initGame('CLASSIC')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             
@@ -426,7 +415,6 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
                             </div>
                         </button>
 
-                        {/* NEON CARD */}
                         <button onClick={() => initGame('NEON')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMTY4LCA4NSwgMjQ3LCAwLjEpIi8+PC9zdmc+')] opacity-20"></div>
@@ -450,7 +438,6 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
                         </button>
                     </div>
 
-                    {/* Footer */}
                     <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
                         <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
                             <Home size={14} /> RETOUR AU MENU PRINCIPAL
