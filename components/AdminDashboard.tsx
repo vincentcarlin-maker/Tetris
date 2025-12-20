@@ -77,26 +77,27 @@ const SECTIONS = [
     { id: 'DATA', label: 'Données', icon: Database },
 ];
 
+// FIX: Correction des IDs pour correspondre au ViewState d'App.tsx
 const GAMES_LIST = [
     { id: 'slither', name: 'Neon Slither', version: '1.0' },
-    { id: 'tetris', name: 'Tetris', version: '2.1' },
-    { id: 'connect4', name: 'Connect 4', version: '1.5' },
+    { id: 'tetra', name: 'Neon Tetra', version: '2.1' }, // Était 'tetris'
+    { id: 'quad', name: 'Neon Quad', version: '1.5' }, // Était 'connect4'
     { id: 'sudoku', name: 'Sudoku', version: '1.2' },
     { id: 'breaker', name: 'Breaker', version: '3.0' },
-    { id: 'pacman', name: 'Pacman', version: '2.4' },
+    { id: 'eater', name: 'Neon Eater', version: '2.4' }, // Était 'pacman'
     { id: 'memory', name: 'Memory', version: '1.1' },
-    { id: 'battleship', name: 'Bataille', version: '1.8' },
+    { id: 'fleet', name: 'Neon Fleet', version: '1.8' }, // Était 'battleship'
     { id: 'snake', name: 'Snake', version: '1.9' },
     { id: 'invaders', name: 'Invaders', version: '1.3' },
     { id: 'airhockey', name: 'Air Hockey', version: '1.4' },
-    { id: 'mastermind', name: 'Mastermind', version: '1.0' },
-    { id: 'uno', name: 'Uno', version: '2.2' },
+    { id: 'code', name: 'Neon Code', version: '1.0' }, // Était 'mastermind'
+    { id: 'one', name: 'Neon One', version: '2.2' }, // Était 'uno'
     { id: 'watersort', name: 'Neon Mix', version: '1.6' },
     { id: 'checkers', name: 'Dames', version: '1.0' },
     { id: 'runner', name: 'Neon Run', version: '2.5' },
     { id: 'stack', name: 'Stack', version: '1.2' },
     { id: 'arenaclash', name: 'Arena Clash', version: '1.0' },
-    { id: 'skyjo', name: 'Skyjo', version: '1.0' },
+    { id: 'twelve', name: 'Neon Twelve', version: '1.0' }, // Était 'skyjo'
     { id: 'lumen', name: 'Lumen Order', version: '1.0' }
 ];
 

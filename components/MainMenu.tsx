@@ -229,15 +229,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         onTouchEnd: () => setActiveGlow(null)
     });
     
+    // FIX: Suppression du mapping manuel, utilise directement l'ID de la config
     const handleGameStart = (gameId: string) => {
-        if (gameId === 'tetris') onSelectGame('tetra');
-        else if (gameId === 'pacman') onSelectGame('eater');
-        else if (gameId === 'uno') onSelectGame('one');
-        else if (gameId === 'skyjo') onSelectGame('twelve');
-        else if (gameId === 'connect4') onSelectGame('quad');
-        else if (gameId === 'mastermind') onSelectGame('code');
-        else if (gameId === 'battleship') onSelectGame('fleet');
-        else onSelectGame(gameId); 
+        onSelectGame(gameId); 
     }; 
 
     const spawnCoins = (startX: number, startY: number, amount: number) => {
