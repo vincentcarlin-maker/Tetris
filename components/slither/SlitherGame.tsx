@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull, Server, Signal, Wifi } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull, Server, Signal, Wifi, ArrowRight } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -738,15 +738,90 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             )}
 
             {gameState === 'MENU' && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020205]/95 backdrop-blur-xl p-8">
-                    <Zap size={64} className="text-indigo-400 mb-8 animate-glow" />
-                    <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">CYBER SERPENT</h1>
-                    <div className="flex flex-col gap-5 w-full max-w-xs">
-                        <button onClick={startSoloGame} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">SOLO (250 BOTS)</button>
-                        <button onClick={() => setGameState('SERVER_SELECT')} className="px-8 py-5 bg-gray-900 border-2 border-green-500 text-green-400 font-black tracking-widest rounded-2xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">MULTIJOUEUR</button>
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020205] overflow-hidden">
+                    {/* Animated Background */}
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/40 via-[#050510] to-black"></div>
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(79,70,229,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(79,70,229,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+                    
+                    {/* Floating Particles/Orbs for ambience */}
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+                    <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
+
+                    {/* Content Container */}
+                    <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center h-full justify-center">
+                        
+                        {/* Title Section */}
+                        <div className="mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
+                            <div className="flex items-center justify-center gap-6 mb-4">
+                                <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse" />
+                                <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(129,140,248,0.6)] tracking-tighter">
+                                    CYBER<br className="md:hidden"/> SERPENT
+                                </h1>
+                                <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse" />
+                            </div>
+                            <div className="inline-block px-6 py-2 rounded-full border border-indigo-500/30 bg-indigo-900/20 backdrop-blur-sm">
+                                <p className="text-indigo-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Mangez • Grandissez • Dominez</p>
+                            </div>
+                        </div>
+
+                        {/* Game Modes Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl flex-shrink-0">
+                            
+                            {/* SOLO CARD */}
+                            <button onClick={startSoloGame} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-indigo-500/50 hover:shadow-[0_0_50px_rgba(99,102,241,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                
+                                <div className="relative z-10">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(99,102,241,0.3)]">
+                                        <User size={32} className="text-indigo-400" />
+                                    </div>
+                                    <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-indigo-300 transition-colors">SOLO</h2>
+                                    <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                        Entraînement intensif contre 250 IA. Zéro latence, action pure.
+                                    </p>
+                                </div>
+
+                                <div className="relative z-10 flex items-center gap-2 text-indigo-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                    LANCER LA PARTIE <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                                </div>
+                            </button>
+
+                            {/* MULTI CARD */}
+                            <button onClick={() => setGameState('SERVER_SELECT')} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                                <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                
+                                <div className="relative z-10">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-green-500/20 flex items-center justify-center border border-green-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                                        <Globe size={32} className="text-green-400" />
+                                    </div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-green-300 transition-colors">EN LIGNE</h2>
+                                        <span className="px-2 py-0.5 rounded bg-red-500/20 border border-red-500/50 text-red-400 text-[10px] font-black animate-pulse">LIVE</span>
+                                    </div>
+                                    <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                        Défiez de vrais joueurs. Grimpez dans le classement mondial en temps réel.
+                                    </p>
+                                </div>
+
+                                <div className="relative z-10 flex items-center gap-2 text-green-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                    CHOISIR UN SERVEUR <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0">
+                            <div className="flex flex-col md:flex-row gap-4 md:gap-8 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-white/5 px-6 py-3 rounded-2xl border border-white/5 text-center">
+                                <span className="flex items-center justify-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/50"></div> PC : ESPACE POUR TURBO</span>
+                                <span className="hidden md:inline text-white/20">|</span>
+                                <span className="flex items-center justify-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/50"></div> MOBILE : BOUTON ÉCLAIR</span>
+                            </div>
+                            
+                            <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
+                                <Home size={14} /> RETOUR AU MENU PRINCIPAL
+                            </button>
+                        </div>
                     </div>
-                    <p className="mt-8 text-gray-500 text-xs text-center">PC: Espace pour Turbo • Mobile: Bouton Turbo</p>
-                    <button onClick={onBack} className="mt-4 text-gray-600 text-sm font-bold hover:text-white uppercase">Menu</button>
                 </div>
             )}
 
