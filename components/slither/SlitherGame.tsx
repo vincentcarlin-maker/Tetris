@@ -642,47 +642,49 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
 
     const renderServerSelect = () => {
         return (
-             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020205]/95 backdrop-blur-xl p-8">
-                 <h2 className="text-4xl font-black text-white italic mb-8 flex items-center gap-3">
-                     <Globe size={40} className="text-cyan-400" /> SÉLECTION SERVEUR
-                 </h2>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
-                     {SERVERS.map(server => {
-                         // Count players on this server
-                         const count = onlineUsers.filter(u => u.gameActivity === server.id).length;
-                         const load = count / server.max;
-                         const loadColor = load > 0.8 ? 'bg-red-500' : load > 0.5 ? 'bg-yellow-500' : 'bg-green-500';
-                         
-                         return (
-                             <button 
-                                key={server.id} 
-                                onClick={() => handleJoinServer(server.id)}
-                                className="bg-gray-900 border-2 border-white/10 hover:border-cyan-400 rounded-2xl p-6 text-left transition-all hover:scale-105 group relative overflow-hidden"
-                             >
-                                 <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
-                                     <Server size={64} />
-                                 </div>
-                                 
-                                 <h3 className="text-xl font-bold text-white mb-1 group-hover:text-cyan-300">{server.name}</h3>
-                                 <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-4">{server.region}</p>
-                                 
-                                 <div className="flex items-center justify-between mt-auto">
-                                     <div className="flex items-center gap-2">
-                                         <div className="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
-                                             <div className={`h-full ${loadColor}`} style={{ width: `${Math.min(100, load * 100)}%` }}></div>
+             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205]/95 backdrop-blur-xl p-6 overflow-y-auto touch-auto">
+                 <div className="w-full max-w-2xl flex flex-col items-center min-h-full justify-center py-10">
+                     <h2 className="text-3xl md:text-4xl font-black text-white italic mb-8 flex items-center gap-3 text-center">
+                         <Globe size={40} className="text-cyan-400" /> SÉLECTION SERVEUR
+                     </h2>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                         {SERVERS.map(server => {
+                             // Count players on this server
+                             const count = onlineUsers.filter(u => u.gameActivity === server.id).length;
+                             const load = count / server.max;
+                             const loadColor = load > 0.8 ? 'bg-red-500' : load > 0.5 ? 'bg-yellow-500' : 'bg-green-500';
+                             
+                             return (
+                                 <button 
+                                    key={server.id} 
+                                    onClick={() => handleJoinServer(server.id)}
+                                    className="bg-gray-900 border-2 border-white/10 hover:border-cyan-400 rounded-2xl p-6 text-left transition-all hover:scale-105 group relative overflow-hidden"
+                                 >
+                                     <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
+                                         <Server size={64} />
+                                     </div>
+                                     
+                                     <h3 className="text-xl font-bold text-white mb-1 group-hover:text-cyan-300">{server.name}</h3>
+                                     <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-4">{server.region}</p>
+                                     
+                                     <div className="flex items-center justify-between mt-auto">
+                                         <div className="flex items-center gap-2">
+                                             <div className="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                                 <div className={`h-full ${loadColor}`} style={{ width: `${Math.min(100, load * 100)}%` }}></div>
+                                             </div>
+                                             <span className="text-xs font-mono text-white">{count}/{server.max}</span>
                                          </div>
-                                         <span className="text-xs font-mono text-white">{count}/{server.max}</span>
+                                         <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                             <Signal size={12} className={server.ping < 50 ? 'text-green-500' : 'text-yellow-500'} />
+                                             {server.ping}ms
+                                         </div>
                                      </div>
-                                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                                         <Signal size={12} className={server.ping < 50 ? 'text-green-500' : 'text-yellow-500'} />
-                                         {server.ping}ms
-                                     </div>
-                                 </div>
-                             </button>
-                         );
-                     })}
+                                 </button>
+                             );
+                         })}
+                     </div>
+                     <button onClick={() => setGameState('MENU')} className="mt-8 text-gray-500 hover:text-white underline text-sm py-4">Retour</button>
                  </div>
-                 <button onClick={() => setGameState('MENU')} className="mt-8 text-gray-500 hover:text-white underline text-sm">Retour</button>
              </div>
         );
     };
@@ -738,20 +740,20 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             )}
 
             {gameState === 'MENU' && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020205] overflow-hidden">
-                    {/* Animated Background */}
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/40 via-[#050510] to-black"></div>
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(79,70,229,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(79,70,229,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+                <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
+                    {/* Animated Background - fixed position */}
+                    <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/40 via-[#050510] to-black pointer-events-none"></div>
+                    <div className="fixed inset-0 bg-[linear-gradient(rgba(79,70,229,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(79,70,229,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
                     
-                    {/* Floating Particles/Orbs for ambience */}
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
-                    <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
+                    {/* Floating Particles/Orbs for ambience - fixed position */}
+                    <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+                    <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
 
-                    {/* Content Container */}
-                    <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center h-full justify-center">
+                    {/* Content Container - min-h-full for centering, py for spacing */}
+                    <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-center py-12 md:py-0">
                         
                         {/* Title Section */}
-                        <div className="mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
+                        <div className="mb-8 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0">
                             <div className="flex items-center justify-center gap-6 mb-4">
                                 <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse" />
                                 <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(129,140,248,0.6)] tracking-tighter">
@@ -765,7 +767,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                         </div>
 
                         {/* Game Modes Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl flex-shrink-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
                             
                             {/* SOLO CARD */}
                             <button onClick={startSoloGame} className="group relative h-64 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-indigo-500/50 hover:shadow-[0_0_50px_rgba(99,102,241,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
@@ -810,7 +812,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
                         </div>
 
                         {/* Footer */}
-                        <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0">
+                        <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
                             <div className="flex flex-col md:flex-row gap-4 md:gap-8 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-white/5 px-6 py-3 rounded-2xl border border-white/5 text-center">
                                 <span className="flex items-center justify-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/50"></div> PC : ESPACE POUR TURBO</span>
                                 <span className="hidden md:inline text-white/20">|</span>
