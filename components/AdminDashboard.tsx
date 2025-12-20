@@ -729,6 +729,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             .slice(0, 5);
     }, [profiles]);
 
+    // NEW: Dynamic Player Activity Calculation
+    const activityData = useMemo(() => {
+        const days = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
+        const now = new Date();
+        const result = [];
+
+        // Iterate backwards for the last 7 days
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(now.getDate() - i);
+            d.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(d);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            // Filter users who were updated within this day
+            const count = profiles.filter(p => {
+                const updateDate = new Date(p.updated_at);
+                return updateDate >= d && updateDate <= dayEnd;
+            }).length;
+
+            result.push({
+                label: days[d.getDay()],
+                count: count,
+                // Height percentage normalized to total players, or a max scale (e.g. 50)
+                // We add a min 5% for visual consistency even with 0 activity
+                height: profiles.length > 0 ? Math.max(5, (count / profiles.length) * 100) : 0
+            });
+        }
+        return result;
+    }, [profiles]);
+
     // --- RENDERERS ---
 
     const renderNotifications = () => (
@@ -1024,14 +1055,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><BarChart2 size={18} className="text-purple-400"/> ACTIVITÉ JOUEURS (7J)</h3>
                     <div className="h-48 flex items-end gap-2 justify-between px-2">
-                        {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
-                            <div key={i} className="w-full bg-purple-900/30 rounded-t-lg relative group hover:bg-purple-600/50 transition-colors" style={{ height: `${h}%` }}>
-                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">{h}</div>
+                        {activityData.map((data, i) => (
+                            <div key={i} className="w-full bg-purple-900/30 rounded-t-lg relative group hover:bg-purple-600/50 transition-colors" style={{ height: `${data.height}%` }}>
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                    {data.count} actif{data.count > 1 ? 's' : ''}
+                                </div>
                             </div>
                         ))}
                     </div>
                     <div className="flex justify-between text-xs text-gray-500 mt-2 font-mono">
-                        <span>LUN</span><span>MAR</span><span>MER</span><span>JEU</span><span>VEN</span><span>SAM</span><span>DIM</span>
+                        {activityData.map((data, i) => <span key={i}>{data.label}</span>)}
                     </div>
                 </div>
 
