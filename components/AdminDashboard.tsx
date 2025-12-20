@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Home, Users, BarChart2, Calendar, Coins, Search, ArrowUp, Activity, 
@@ -1700,17 +1699,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             </div>
 
             {/* MOBILE HEADER */}
-            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900 border-b border-white/10 z-50 p-4 flex justify-between items-center">
-                <span className="font-black italic text-blue-400">ADMIN</span>
-                <button onClick={onBack}><X size={24} className="text-white"/></button>
+            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-b border-white/10 z-50 flex flex-col pointer-events-none">
+                <div className="h-[env(safe-area-inset-top)] w-full"></div>
+                <div className="flex justify-between items-center p-4 pointer-events-auto">
+                    <div className="flex items-center gap-2">
+                        <Shield size={20} className="text-blue-400 drop-shadow-[0_0_8px_#00f3ff]" />
+                        <span className="font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600 drop-shadow-[0_0_8px_rgba(0,243,255,0.4)]">ADMIN</span>
+                    </div>
+                    <button 
+                        onClick={onBack} 
+                        className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white active:bg-red-500 active:text-white transition-all shadow-lg active:scale-90"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
             </div>
 
             {/* CONTENT AREA */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-16 md:pt-0">
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-24 md:pt-0">
                 {/* Mobile Tabs */}
                 <div className="md:hidden flex overflow-x-auto p-2 gap-2 bg-gray-900 border-b border-white/10 shrink-0">
                     {SECTIONS.map(s => (
-                        <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap ${activeSection === s.id ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
+                        <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all active:scale-95 ${activeSection === s.id ? 'bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'bg-gray-800 text-gray-400'}`}>
                             {s.label}
                         </button>
                     ))}
@@ -2046,7 +2056,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                             </div>
                                         </div>
                                         <div className="bg-gray-800 p-4 rounded-xl border border-white/10">
-                                            <p className="text-gray-500 text-xs font-bold uppercase mb-2 flex items-center gap-2"><Clock size={14}/> DERNIÈRE ACTIVITÉ</p>
+                                            <p className="text-gray-500 text-xs font-bold uppercase mb-3 flex items-center gap-2"><Clock size={14}/> DERNIÈRE ACTIVITÉ</p>
                                             <span className="text-xl font-bold text-white">{new Date(selectedUser.updated_at).toLocaleDateString()}</span>
                                             <p className="text-xs text-gray-500">{new Date(selectedUser.updated_at).toLocaleTimeString()}</p>
                                         </div>
