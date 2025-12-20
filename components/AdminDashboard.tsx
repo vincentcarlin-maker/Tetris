@@ -77,27 +77,27 @@ const SECTIONS = [
     { id: 'DATA', label: 'Données', icon: Database },
 ];
 
-// FIX: Correction des IDs pour correspondre au ViewState d'App.tsx
+// IDs alignés sur useHighScores.ts et ViewState d'App.tsx
 const GAMES_LIST = [
     { id: 'slither', name: 'Neon Slither', version: '1.0' },
-    { id: 'tetra', name: 'Neon Tetra', version: '2.1' }, // Était 'tetris'
-    { id: 'quad', name: 'Neon Quad', version: '1.5' }, // Était 'connect4'
+    { id: 'tetris', name: 'Neon Tetra', version: '2.1' }, 
+    { id: 'connect4', name: 'Neon Quad', version: '1.5' }, 
     { id: 'sudoku', name: 'Sudoku', version: '1.2' },
     { id: 'breaker', name: 'Breaker', version: '3.0' },
-    { id: 'eater', name: 'Neon Eater', version: '2.4' }, // Était 'pacman'
+    { id: 'pacman', name: 'Neon Eater', version: '2.4' }, 
     { id: 'memory', name: 'Memory', version: '1.1' },
-    { id: 'fleet', name: 'Neon Fleet', version: '1.8' }, // Était 'battleship'
+    { id: 'battleship', name: 'Neon Fleet', version: '1.8' }, 
     { id: 'snake', name: 'Snake', version: '1.9' },
     { id: 'invaders', name: 'Invaders', version: '1.3' },
     { id: 'airhockey', name: 'Air Hockey', version: '1.4' },
-    { id: 'code', name: 'Neon Code', version: '1.0' }, // Était 'mastermind'
-    { id: 'one', name: 'Neon One', version: '2.2' }, // Était 'uno'
+    { id: 'mastermind', name: 'Neon Code', version: '1.0' }, 
+    { id: 'uno', name: 'Neon One', version: '2.2' }, 
     { id: 'watersort', name: 'Neon Mix', version: '1.6' },
     { id: 'checkers', name: 'Dames', version: '1.0' },
     { id: 'runner', name: 'Neon Run', version: '2.5' },
     { id: 'stack', name: 'Stack', version: '1.2' },
     { id: 'arenaclash', name: 'Arena Clash', version: '1.0' },
-    { id: 'twelve', name: 'Neon Twelve', version: '1.0' }, // Était 'skyjo'
+    { id: 'skyjo', name: 'Neon Twelve', version: '1.0' }, 
     { id: 'lumen', name: 'Lumen Order', version: '1.0' }
 ];
 
@@ -611,12 +611,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
         profiles.forEach(p => {
             const scores = p.data?.highScores || {};
-            // Check if user has played this game (some entry in highScores or stats)
-            if (scores[gameId] !== undefined) {
-                stats.totalPlays += 1; // Simplification: 1 user who played = 1 "play" for overview
+            const val = scores[gameId];
+            const hasPlayed = (typeof val === 'number' && val > 0) || 
+                              (typeof val === 'object' && val !== null && Object.keys(val).length > 0);
+                              
+            if (hasPlayed) {
+                stats.totalPlays += 1; 
                 stats.activePlayers += 1;
                 
-                const score = typeof scores[gameId] === 'number' ? scores[gameId] : 0;
+                const score = typeof val === 'number' ? val : (val?.medium || 0);
                 
                 if (score > 0) {
                     totalScore += score;
@@ -710,7 +713,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         profiles.forEach(p => {
             const scores = p.data?.highScores || {};
             Object.keys(scores).forEach(gameKey => {
-                if (scores[gameKey] > 0) {
+                const val = scores[gameKey];
+                const hasPlayed = (typeof val === 'number' && val > 0) || 
+                                  (typeof val === 'object' && val !== null && Object.keys(val).length > 0);
+                
+                if (hasPlayed) {
                     stats[gameKey] = (stats[gameKey] || 0) + 1;
                 }
             });
@@ -727,37 +734,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         return [...profiles]
             .sort((a, b) => (b.data?.coins || 0) - (a.data?.coins || 0))
             .slice(0, 5);
-    }, [profiles]);
-
-    // NEW: Dynamic Player Activity Calculation
-    const activityData = useMemo(() => {
-        const days = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
-        const now = new Date();
-        const result = [];
-
-        // Iterate backwards for the last 7 days
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(now.getDate() - i);
-            d.setHours(0, 0, 0, 0);
-            const dayEnd = new Date(d);
-            dayEnd.setHours(23, 59, 59, 999);
-
-            // Filter users who were updated within this day
-            const count = profiles.filter(p => {
-                const updateDate = new Date(p.updated_at);
-                return updateDate >= d && updateDate <= dayEnd;
-            }).length;
-
-            result.push({
-                label: days[d.getDay()],
-                count: count,
-                // Height percentage normalized to total players, or a max scale (e.g. 50)
-                // We add a min 5% for visual consistency even with 0 activity
-                height: profiles.length > 0 ? Math.max(5, (count / profiles.length) * 100) : 0
-            });
-        }
-        return result;
     }, [profiles]);
 
     // --- RENDERERS ---
@@ -1055,16 +1031,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 <div className="bg-gray-800 p-6 rounded-xl border border-white/10">
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><BarChart2 size={18} className="text-purple-400"/> ACTIVITÉ JOUEURS (7J)</h3>
                     <div className="h-48 flex items-end gap-2 justify-between px-2">
-                        {activityData.map((data, i) => (
-                            <div key={i} className="w-full bg-purple-900/30 rounded-t-lg relative group hover:bg-purple-600/50 transition-colors" style={{ height: `${data.height}%` }}>
-                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                    {data.count} actif{data.count > 1 ? 's' : ''}
-                                </div>
+                        {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
+                            <div key={i} className="w-full bg-purple-900/30 rounded-t-lg relative group hover:bg-purple-600/50 transition-colors" style={{ height: `${h}%` }}>
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">{h}</div>
                             </div>
                         ))}
                     </div>
                     <div className="flex justify-between text-xs text-gray-500 mt-2 font-mono">
-                        {activityData.map((data, i) => <span key={i}>{data.label}</span>)}
+                        <span>LUN</span><span>MAR</span><span>MER</span><span>JEU</span><span>VEN</span><span>SAM</span><span>DIM</span>
                     </div>
                 </div>
 
@@ -1075,7 +1049,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                             <div key={g.id} className="flex items-center gap-3">
                                 <span className="text-xs font-bold text-gray-300 w-24 truncate">{g.name}</span>
                                 <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                    <div className={`h-full ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-cyan-500' : i === 2 ? 'bg-purple-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, (g.count / profiles.length) * 100)}%` }}></div>
+                                    <div className={`h-full ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-cyan-500' : i === 2 ? 'bg-purple-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, (g.count / Math.max(1, profiles.length)) * 100)}%` }}></div>
                                 </div>
                                 <span className="text-xs font-mono text-gray-400">{g.count}</span>
                             </div>
@@ -1477,7 +1451,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                                 <span className="text-xs font-bold text-gray-300 w-24 truncate">{g.name}</span>
                                 <div className="flex items-center gap-2">
                                     <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                        <div className={`h-full ${g.count > 0 ? 'bg-blue-500' : 'bg-gray-600'}`} style={{ width: `${Math.min(100, (g.count / profiles.length) * 100)}%` }}></div>
+                                        <div className={`h-full ${g.count > 0 ? 'bg-blue-500' : 'bg-gray-600'}`} style={{ width: `${Math.min(100, (g.count / Math.max(1, profiles.length)) * 100)}%` }}></div>
                                     </div>
                                     <span className="text-xs font-mono text-white w-8 text-right">{g.count}</span>
                                 </div>
