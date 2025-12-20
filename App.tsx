@@ -213,7 +213,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!isAuthenticated || !currency.username) return;
         if (isConnectedToSupabase && !isCloudSynced) return;
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        if (saveTimeoutRef.current) clearTimeout(currentView === 'shop' ? saveTimeoutRef.current : saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             const payload = buildSavePayload();
             syncProfileToCloud(currency.username, payload);
@@ -442,7 +442,7 @@ const App: React.FC = () => {
         setCurrentView('social');
     };
 
-    const shouldShowBottomNav = !isGameActive;
+    const shouldShowBottomNav = !isGameActive && currentView !== 'admin_dashboard';
 
     return (
         <div className="flex flex-col h-full w-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
