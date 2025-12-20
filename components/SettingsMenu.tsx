@@ -28,7 +28,7 @@ const ACCENT_COLORS = [
 const GAME_LABELS: Record<string, string> = {
     tetris: 'Tetris', arenaclash: 'Arena Clash', stack: 'Stack', runner: 'Neon Run',
     pacman: 'Pacman', snake: 'Snake', breaker: 'Breaker', invaders: 'Invaders',
-    lumen: 'Lumen Order', memory: 'Memory', skyjo: 'Skyjo', uno: 'Uno', mastermind: 'Mastermind'
+    lumen: 'Lumen Order', memory: 'Memory', skyjo: 'Skyjo', uno: 'Uno', mastermind: 'Mastermind', slither: 'Cyber Serpent'
 };
 
 type LegalTab = 'CGU' | 'PRIVACY' | 'MENTIONS';
@@ -170,7 +170,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                                     </section>
                                     <section className="mb-4">
                                         <p className="font-bold text-white mb-1">2. Monnaie Virtuelle</p>
-                                        <p>Les "Pièces Néon" n'ont aucune valeur pécuniaire. Elles ne sont ni remboursables ni convertibles en monnaie réelle.</p>
+                                        <p>Les "Pièces Néon" sont une monnaie purement fictive. Elles ne peuvent en aucun cas être converties en argent réel. Tout abus ou tentative de triche pourra entraîner une remise à zéro du compte.</p>
                                     </section>
                                     <section className="mb-4">
                                         <p className="font-bold text-white mb-1">3. Responsabilité</p>

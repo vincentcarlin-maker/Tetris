@@ -189,7 +189,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             <div className="absolute top-0 right-0 p-8 text-white/5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform"><Zap size={140} /></div>
                             <div className="absolute inset-0 p-8 flex flex-col justify-end items-start text-left">
                                 <Sparkles size={32} className="text-indigo-400 mb-3 drop-shadow-[0_0_10px_#818cf8]" />
-                                <h2 className="text-2xl font-black italic tracking-tight uppercase">Neon Slither</h2>
+                                <h2 className="text-2xl font-black italic tracking-tight uppercase">CYBER SERPENT</h2>
                                 <p className="text-xs text-gray-400 font-bold tracking-widest mt-1">50+ SKINS 3D • ACCESSOIRES</p>
                             </div>
                             <div className="absolute bottom-4 right-8 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all"><ChevronRight size={24} className="text-indigo-400" /></div>

@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -486,17 +487,38 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
         return () => { cancelAnimationFrame(animationFrameRef.current); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
     }, [gameState]);
 
-    const handleInputStart = (x: number, y: number) => {
+    const handleInputStart = (clientX: number, clientY: number) => {
         if (gameState !== 'PLAYING') return;
-        joystickOriginRef.current = { x, y };
+        if (!canvasRef.current) return;
+
+        const rect = canvasRef.current.getBoundingClientRect();
+        // Adjust for canvas scaling/position
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        
+        joystickOriginRef.current = { 
+            x: (clientX - rect.left) * scaleX, 
+            y: (clientY - rect.top) * scaleY 
+        };
         joystickActiveRef.current = true;
         joystickVectorRef.current = { x: 0, y: 0 };
         resumeAudio();
     };
 
-    const handleInputMove = (x: number, y: number) => {
-        if (!joystickActiveRef.current || !joystickOriginRef.current) return;
-        joystickVectorRef.current = { x: x - joystickOriginRef.current.x, y: y - joystickOriginRef.current.y };
+    const handleInputMove = (clientX: number, clientY: number) => {
+        if (!joystickActiveRef.current || !joystickOriginRef.current || !canvasRef.current) return;
+        
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+        
+        joystickVectorRef.current = { 
+            x: x - joystickOriginRef.current.x, 
+            y: y - joystickOriginRef.current.y 
+        };
     };
 
     const handleInputEnd = () => { joystickActiveRef.current = false; joystickOriginRef.current = null; };
@@ -554,7 +576,7 @@ export const SlitherGame: React.FC<{ onBack: () => void, audio: any, addCoins: a
             {gameState === 'MENU' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020205]/95 backdrop-blur-xl p-8">
                     <Zap size={64} className="text-indigo-400 mb-8 animate-glow" />
-                    <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">NEON SLITHER</h1>
+                    <h1 className="text-6xl font-black text-white italic mb-4 tracking-tighter drop-shadow-[0_0_20px_#818cf8]">CYBER SERPENT</h1>
                     <div className="flex flex-col gap-5 w-full max-w-xs">
                         <button onClick={() => startGame('SOLO')} className="px-8 py-5 bg-indigo-600 border-2 border-indigo-400 text-white font-black tracking-widest rounded-2xl hover:bg-indigo-500 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">SOLO (250 BOTS)</button>
                         <button onClick={() => startGame('ONLINE')} className="px-8 py-5 bg-gray-900 border-2 border-green-500 text-green-400 font-black tracking-widest rounded-2xl hover:bg-gray-800 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 group">MULTIJOUEUR</button>

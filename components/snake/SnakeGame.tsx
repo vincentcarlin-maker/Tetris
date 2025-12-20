@@ -79,6 +79,9 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null); 
     
+    // Critical fix: Track the direction that was actually executed in the last move
+    // to prevent 180-degree turns via rapid key presses.
+    const currentMoveDirRef = useRef<Direction>('RIGHT');
     const scoreRef = useRef(0);
 
     const { playCoin, playGameOver, playVictory, playWallHit, playPowerUpCollect, playExplosion, resumeAudio } = audio;
@@ -193,7 +196,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
         if (mode === 'NEON') generateLevel(0, initialSnake);
         else { setObstacles([]); setTeleporters([]); setBombs([]); }
         setFood({ x: 15, y: 10, type: 'NORMAL' }); 
-        setDirection('RIGHT'); setNextDirection('RIGHT');
+        setDirection('RIGHT'); setNextDirection('RIGHT'); currentMoveDirRef.current = 'RIGHT';
         setScore(0); scoreRef.current = 0;
         setGameOver(false); setIsPlaying(true); setIsPaused(false);
         setEarnedCoins(0); setSpeed(mode === 'NEON' ? INITIAL_SPEED_NEON : INITIAL_SPEED_CLASSIC);
@@ -226,16 +229,31 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
 
     const moveSnake = useCallback(() => {
         if (gameOver || !isPlaying || isPaused || showTutorial) return;
+        
         setSnake(prevSnake => {
             const head = prevSnake[0];
             const newHead = { ...head };
+            
+            // Fix: Check nextDirection against the actual last executed move (currentMoveDirRef)
+            // This prevents the "suicide" bug where pressing two keys rapidly reverses direction within one tick
             let effectiveDir = nextDirection;
-            const isOpposite = (nextDirection === 'UP' && direction === 'DOWN') || (nextDirection === 'DOWN' && direction === 'UP') || (nextDirection === 'LEFT' && direction === 'RIGHT') || (nextDirection === 'RIGHT' && direction === 'LEFT');
-            if (isOpposite) effectiveDir = direction; else setDirection(nextDirection);
+            const isOpposite = (nextDirection === 'UP' && currentMoveDirRef.current === 'DOWN') || 
+                               (nextDirection === 'DOWN' && currentMoveDirRef.current === 'UP') || 
+                               (nextDirection === 'LEFT' && currentMoveDirRef.current === 'RIGHT') || 
+                               (nextDirection === 'RIGHT' && currentMoveDirRef.current === 'LEFT');
+            
+            if (isOpposite) {
+                effectiveDir = currentMoveDirRef.current; // Keep going same way
+            } else {
+                setDirection(nextDirection);
+                currentMoveDirRef.current = nextDirection; // Update last executed
+            }
+
             if (effectiveDir === 'UP') newHead.y -= 1;
             if (effectiveDir === 'DOWN') newHead.y += 1;
             if (effectiveDir === 'LEFT') newHead.x -= 1;
             if (effectiveDir === 'RIGHT') newHead.x += 1;
+            
             const portal = teleporters.find(t => t.x === newHead.x && t.y === newHead.y);
             if (portal) {
                 const target = teleporters.find(t => t.id === portal.targetId);
@@ -326,17 +344,28 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     const handleDirectionChange = useCallback((newDir: Direction) => {
         if (gameOver || isPaused || showTutorial) return;
         if (!isPlaying) { setIsPlaying(true); resumeAudio(); }
-        setNextDirection(prevNext => {
-            const isOpposite = (newDir === 'UP' && prevNext === 'DOWN') || (newDir === 'DOWN' && prevNext === 'UP') || (newDir === 'LEFT' && prevNext === 'RIGHT') || (newDir === 'RIGHT' && prevNext === 'LEFT');
-            const isOppositeCurrent = (newDir === 'UP' && direction === 'DOWN') || (newDir === 'DOWN' && direction === 'UP') || (newDir === 'LEFT' && direction === 'RIGHT') || (newDir === 'RIGHT' && direction === 'LEFT');
-            if (isOpposite || isOppositeCurrent) return prevNext;
-            return newDir;
-        });
-    }, [gameOver, isPaused, isPlaying, showTutorial, resumeAudio, direction]);
+        
+        // Immediate check against CURRENT MOVEMENT, not state (state might be stale in closure)
+        const currentMoving = currentMoveDirRef.current;
+        const isOpposite = (newDir === 'UP' && currentMoving === 'DOWN') || 
+                           (newDir === 'DOWN' && currentMoving === 'UP') || 
+                           (newDir === 'LEFT' && currentMoving === 'RIGHT') || 
+                           (newDir === 'RIGHT' && currentMoving === 'LEFT');
+        
+        if (!isOpposite) {
+            setNextDirection(newDir);
+        }
+    }, [gameOver, isPaused, isPlaying, showTutorial, resumeAudio]);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         const key = e.key;
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) { e.preventDefault(); if (key === 'ArrowUp') handleDirectionChange('UP'); if (key === 'ArrowDown') handleDirectionChange('DOWN'); if (key === 'ArrowLeft') handleDirectionChange('LEFT'); if (key === 'ArrowRight') handleDirectionChange('RIGHT'); }
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) { 
+            e.preventDefault(); 
+            if (key === 'ArrowUp') handleDirectionChange('UP'); 
+            if (key === 'ArrowDown') handleDirectionChange('DOWN'); 
+            if (key === 'ArrowLeft') handleDirectionChange('LEFT'); 
+            if (key === 'ArrowRight') handleDirectionChange('RIGHT'); 
+        }
         if (key === 'p' || key === 'P') togglePause();
     }, [handleDirectionChange, togglePause]);
 
