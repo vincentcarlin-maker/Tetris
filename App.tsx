@@ -114,7 +114,7 @@ const App: React.FC = () => {
         currency.currentAvatarId, 
         currency.currentFrameId,
         highScores,
-        currentView
+        currentView === 'admin_dashboard' ? 'menu' : currentView // Mode incognito : les autres voient 'menu' quand on est dans l'admin
     );
 
     const saveTimeoutRef = useRef<any>(null);
