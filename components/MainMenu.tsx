@@ -331,6 +331,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
         });
     }, [language]);
 
+    const isAdmin = username === 'Vincent' || currency.adminModeActive;
+
     return (
         <div className="flex flex-col items-center justify-start min-h-screen w-full p-6 relative overflow-hidden bg-transparent overflow-y-auto pb-24">
             {flyingCoins.map(coin => <FlyingCoin key={coin.id} startX={coin.startX} startY={coin.startY} targetX={coin.targetX} targetY={coin.targetY} delay={coin.delay} onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))} />)}
@@ -516,25 +518,33 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                  <div className="flex gap-2 w-full overflow-x-auto pb-2 no-scrollbar px-1">{categoriesLocalized.map(cat => (<button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all border ${activeCategory === cat.id ? 'bg-neon-accent text-black border-neon-accent shadow-[0_0_10px_rgba(var(--neon-accent-rgb),0.5)]' : 'bg-gray-900 text-gray-400 border-white/10 hover:border-white/30 hover:text-white'}`}><cat.icon size={14} /> {cat.label}</button>))}</div>
                  <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                     {GAMES_CONFIG.filter(g => { if (activeCategory === 'ALL') return true; if (activeCategory === 'ONLINE') return g.badges.online; return g.category === activeCategory; }).map((game) => {
-                        const isDisabled = disabledGamesList.includes(game.id) && !(username === 'Vincent' || currency.adminModeActive);
+                        const isInMaintenance = disabledGamesList.includes(game.id);
+                        const isBlockedForUser = isInMaintenance && !isAdmin;
+                        
                         return (
-                            <button key={game.id} onClick={() => handleGameStart(game.id)} disabled={isDisabled} {...(!isDisabled ? bindGlow(game.glow) : {})} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md ${isDisabled ? 'border-gray-800 opacity-60 grayscale cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}>
-                                {!isDisabled && <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>}
+                            <button 
+                                key={game.id} 
+                                onClick={() => handleGameStart(game.id)} 
+                                disabled={isBlockedForUser} 
+                                {...(!isBlockedForUser ? bindGlow(game.glow) : {})} 
+                                className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md ${isBlockedForUser ? 'border-gray-800 opacity-60 grayscale cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}
+                            >
+                                {!isBlockedForUser && <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>}
                                 
-                                {isDisabled && (
-                                    <div className="absolute inset-0 z-20 bg-black/40 flex flex-col items-center justify-center backdrop-blur-[1px]">
-                                        <div className="bg-red-600 text-white text-[8px] font-black tracking-[0.2em] px-2 py-1 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.5)] flex items-center gap-1 border border-red-400">
-                                            <AlertTriangle size={10} /> MAINTENANCE
+                                {isInMaintenance && (
+                                    <div className={`absolute inset-0 z-20 flex flex-col items-center justify-center backdrop-blur-[1px] ${isAdmin ? 'bg-yellow-500/10' : 'bg-black/40'}`}>
+                                        <div className={`${isAdmin ? 'bg-yellow-500 text-black border-yellow-300' : 'bg-red-600 text-white border-red-400'} text-[8px] font-black tracking-[0.2em] px-2 py-1 rounded-full shadow-lg flex items-center gap-1 border`}>
+                                            <AlertTriangle size={10} /> {isAdmin ? 'ADMIN: BLOQUÉ' : 'MAINTENANCE'}
                                         </div>
                                     </div>
                                 )}
 
                                 <div className="w-full flex justify-end gap-1 relative z-10">
-                                    {game.badges.new && !isDisabled && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse uppercase">{language === 'fr' ? 'NOUVEAU' : 'NEW'}</div>}
+                                    {game.badges.new && !isBlockedForUser && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse uppercase">{language === 'fr' ? 'NOUVEAU' : 'NEW'}</div>}
                                     {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
                                 </div>
-                                <div className={`p-2 rounded-lg bg-gray-900/50 ${!isDisabled ? game.color : 'text-gray-500'} ${!isDisabled && 'group-hover:scale-110'} transition-transform relative z-10 shadow-lg border border-white/5`}><game.icon size={32} /></div>
-                                <div className="text-center relative z-10 w-full"><h3 className={`font-black italic text-sm tracking-wider text-white ${!isDisabled && `group-hover:${game.color}`} transition-colors uppercase`}>{game.name}</h3></div>
+                                <div className={`p-2 rounded-lg bg-gray-900/50 ${!isBlockedForUser ? game.color : 'text-gray-500'} ${!isBlockedForUser && 'group-hover:scale-110'} transition-transform relative z-10 shadow-lg border border-white/5`}><game.icon size={32} /></div>
+                                <div className="text-center relative z-10 w-full"><h3 className={`font-black italic text-sm tracking-wider text-white ${!isBlockedForUser && `group-hover:${game.color}`} transition-colors uppercase`}>{game.name}</h3></div>
                             </button>
                         );
                     })}
