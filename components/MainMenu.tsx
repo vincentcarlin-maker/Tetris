@@ -230,7 +230,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
     });
     
     const handleGameStart = (gameId: string) => {
-        // Mapping rebranding pour la sélection
         if (gameId === 'tetris') onSelectGame('tetra');
         else if (gameId === 'pacman') onSelectGame('eater');
         else if (gameId === 'uno') onSelectGame('one');
@@ -394,7 +393,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                              </div>
                          </div>
                          <div className="px-3 py-1 bg-white/20 rounded-lg text-xs font-black tracking-wider animate-pulse border border-white/30 text-white z-10 flex items-center gap-1 uppercase">
-                             <Info size={12} /> {language === 'fr' ? 'DÉTAILS' : 'DETAILS'}
+                             <span className="flex items-center gap-1"><Info size={12} /> {language === 'fr' ? 'DÉTAILS' : 'DETAILS'}</span>
                          </div>
                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"></div>
                      </div>
@@ -527,6 +526,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onSelectGame, audio, currenc
                         return (
                             <button key={game.id} onClick={() => handleGameStart(game.id)} disabled={isDisabled} {...(!isDisabled ? bindGlow(game.glow) : {})} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md ${isDisabled ? 'border-gray-800 opacity-60 grayscale cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}>
                                 {!isDisabled && <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>}
+                                
+                                {isDisabled && (
+                                    <div className="absolute inset-0 z-20 bg-black/40 flex flex-col items-center justify-center backdrop-blur-[1px]">
+                                        <div className="bg-red-600 text-white text-[8px] font-black tracking-[0.2em] px-2 py-1 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.5)] flex items-center gap-1 border border-red-400">
+                                            <AlertTriangle size={10} /> MAINTENANCE
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="w-full flex justify-end gap-1 relative z-10">
                                     {game.badges.new && !isDisabled && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse uppercase">{language === 'fr' ? 'NOUVEAU' : 'NEW'}</div>}
                                     {game.badges.online && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
