@@ -26,7 +26,7 @@ const ACCENT_COLORS = [
 ];
 
 const GAME_LABELS: Record<string, string> = {
-    tetris: 'Neon Blocks', arenaclash: 'Arena Clash', stack: 'Stack', runner: 'Neon Run',
+    tetris: 'Tetris', arenaclash: 'Arena Clash', stack: 'Stack', runner: 'Neon Run',
     pacman: 'Pacman', snake: 'Snake', breaker: 'Breaker', invaders: 'Invaders',
     lumen: 'Lumen Order', memory: 'Memory', skyjo: 'Skyjo', uno: 'Uno', mastermind: 'Mastermind', slither: 'Cyber Serpent'
 };
