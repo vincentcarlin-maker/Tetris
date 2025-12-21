@@ -138,53 +138,72 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
     return (
         <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center pointer-events-none">
-            {/* Header */}
-            <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0">
-                <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
-                    <Home size={20} />
-                </button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,217,255,0.5)] tracking-widest">NEON ARENA</h1>
-                <div className="flex gap-2 pointer-events-auto">
-                    <button onClick={(e) => { e.stopPropagation(); onToggleTutorial(); }} className="p-3 bg-gray-900/80 rounded-xl text-yellow-400 border border-yellow-500/30 hover:bg-yellow-900/50 active:scale-95 transition-all"><HelpCircle size={20} /></button>
+            
+            {/* MENU HEADER - Only visible in MENU */}
+            {gameState === 'MENU' && (
+                <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0">
+                    <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
+                        <Home size={20} />
+                    </button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,217,255,0.5)] tracking-widest">NEON ARENA</h1>
+                    <div className="flex gap-2 pointer-events-auto">
+                        <button onClick={(e) => { e.stopPropagation(); onToggleTutorial(); }} className="p-3 bg-gray-900/80 rounded-xl text-yellow-400 border border-yellow-500/30 hover:bg-yellow-900/50 active:scale-95 transition-all"><HelpCircle size={20} /></button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* In-Game HUD */}
             {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                 <>
-                    <div className="absolute top-0 left-0 w-full flex justify-between p-4 z-20">
-                        <div className="flex flex-col gap-1">
-                            {killFeed.map(k => (
-                                <div key={k.id} className="text-xs bg-black/60 px-2 py-1 rounded text-white animate-in fade-in">
-                                    <span className="text-cyan-400 font-bold">{k.killer}</span>
-                                    <span className="text-gray-400 mx-1">killed</span>
-                                    <span className="text-pink-400">{k.victim}</span>
-                                </div>
-                            ))}
+                    <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 z-20 pointer-events-none">
+                        
+                        {/* Left Column: Home Btn + Killfeed */}
+                        <div className="flex flex-col gap-2 items-start">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onBack(); }} 
+                                className="p-2 bg-gray-900/80 rounded-lg text-gray-400 hover:text-white border border-white/10 pointer-events-auto active:scale-95 transition-all"
+                            >
+                                <Home size={20} />
+                            </button>
+
+                            <div className="flex flex-col gap-1 mt-2">
+                                {killFeed.map(k => (
+                                    <div key={k.id} className="text-xs bg-black/60 px-2 py-1 rounded text-white animate-in fade-in border-l-2 border-pink-500">
+                                        <span className="text-cyan-400 font-bold">{k.killer}</span>
+                                        <span className="text-gray-400 mx-1 text-[10px]">killed</span>
+                                        <span className="text-pink-400">{k.victim}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
+
+                        {/* Center Column: Timer & Respawn */}
                         <div className="flex flex-col items-center">
-                            <div className={`text-2xl font-black font-mono ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                            <div className={`text-3xl font-black font-mono drop-shadow-[0_0_5px_rgba(0,0,0,0.8)] ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                                 {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
                             </div>
                             {gameState === 'RESPAWNING' && (
-                                <div className="mt-2 bg-red-900/80 px-4 py-1 rounded text-red-200 font-bold animate-pulse border border-red-500 text-xs">
-                                    RESPAWN DANS {Math.ceil(respawnTimer / 1000)}s
+                                <div className="mt-2 bg-red-900/90 px-4 py-1 rounded-full text-red-100 font-bold animate-pulse border border-red-500 text-xs shadow-lg backdrop-blur-sm">
+                                    RESPAWN {Math.ceil(respawnTimer / 1000)}s
                                 </div>
                             )}
                         </div>
-                        <div className="w-32 bg-gray-900/80 p-2 rounded-lg border border-white/10">
+
+                        {/* Right Column: Leaderboard */}
+                        <div className="w-32 bg-gray-900/80 p-2 rounded-lg border border-white/10 backdrop-blur-sm">
                             <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
                                 <Trophy size={14} className="text-yellow-400"/>
                                 <span className="text-xs font-bold text-white">TOP</span>
                             </div>
                             {leaderboard.slice(0, 5).map((p, i) => (
                                 <div key={i} className={`flex justify-between text-[10px] mb-1 ${p.isMe ? 'text-cyan-400 font-bold' : 'text-gray-300'}`}>
-                                    <span>{i+1}. {p.name}</span>
+                                    <span className="truncate w-20">{i+1}. {p.name}</span>
                                     <span>{p.score}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
+
                     {/* Joysticks Zone - Below Canvas */}
                     <div className="absolute bottom-0 w-full h-48 grid grid-cols-2 gap-4 shrink-0 z-40 p-4 pointer-events-auto">
                         <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
@@ -201,11 +220,10 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </>
             )}
 
-            {/* Menu */}
+            {/* Menu Body */}
             {gameState === 'MENU' && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 pointer-events-auto">
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 pointer-events-auto mt-16">
                     <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
-                    <h1 className="text-5xl font-black italic text-white tracking-widest drop-shadow-lg mb-8">NEON ARENA</h1>
                     
                     <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/50 p-2 rounded-xl border border-white/10">
                         <button onClick={() => onChangeMap(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400"/></button>
