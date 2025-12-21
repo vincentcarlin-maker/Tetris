@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, RefreshCcw, X, Shield, LogOut } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
@@ -16,7 +15,6 @@ import { EconomySection } from './admin/EconomySection';
 import { ConfigSection } from './admin/ConfigSection';
 import { FlagsSection } from './admin/FlagsSection';
 import { DataSection } from './admin/DataSection';
-import { CodeStatsSection } from './admin/CodeStatsSection';
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -130,7 +128,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     {activeSection === 'NOTIFICATIONS' && <NotificationsSection mp={mp} />}
                     {activeSection === 'ECONOMY' && <EconomySection profiles={profiles} setProfiles={setProfiles} mp={mp} />}
                     {activeSection === 'STATS' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} detailed />}
-                    {activeSection === 'CODE' && <CodeStatsSection />}
                     {activeSection === 'CONFIG' && <ConfigSection />}
                     {activeSection === 'FLAGS' && <FlagsSection featureFlags={featureFlags} setFeatureFlags={setFeatureFlags} mp={mp} />}
                     {activeSection === 'DATA' && <DataSection profiles={profiles} />}
