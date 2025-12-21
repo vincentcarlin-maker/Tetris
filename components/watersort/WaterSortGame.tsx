@@ -93,6 +93,17 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         }
     }, []);
 
+    // Failsafe: Si l'animation reste bloquée plus de 2s, on débloque
+    useEffect(() => {
+        if (isAnimating) {
+            const t = setTimeout(() => {
+                setIsAnimating(false);
+                setPourData(null);
+            }, 2000);
+            return () => clearTimeout(t);
+        }
+    }, [isAnimating]);
+
     // Sync current level if max level increases (e.g. cloud sync) and we aren't mid-game
     useEffect(() => {
         if (view === 'LEVEL_SELECT' && maxUnlockedLevel > currentLevel) {
@@ -246,7 +257,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                     const ry = ox * sin + oy * cos;
 
                     const desiredSpoutX = dstCenterX; 
-                    const desiredSpoutY = dstTopY - 35; 
+                    const desiredSpoutY = dstTopY - 20; // Adjusted for smaller tubes
 
                     const targetCenterX = desiredSpoutX - rx;
                     const targetCenterY = desiredSpoutY - ry;
@@ -259,7 +270,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                         dst: dstIdx, 
                         color: colorToMove, 
                         streamStart: { x: desiredSpoutX, y: desiredSpoutY },
-                        streamEnd: { x: dstCenterX, y: dstTopY + 45 },
+                        streamEnd: { x: dstCenterX, y: dstTopY + 30 },
                         isPouring: false,
                         tiltDirection,
                         transformStyle: {
@@ -436,12 +447,12 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
             {/* TUTORIAL OVERLAY */}
             {showTutorial && <TutorialOverlay gameId="watersort" onClose={() => setShowTutorial(false)} />}
 
-            {/* Header */}
-            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-6 shrink-0">
-                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
-                <div className="flex flex-col items-center">
+            {/* Header - Z-Index augmenté à 30 pour être au-dessus des tubes */}
+            <div className="w-full max-w-lg flex items-center justify-between z-30 mb-6 shrink-0 relative">
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><Home size={20} /></button>
+                <div className="flex flex-col items-center pointer-events-none">
                     <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] pr-2 pb-1">NEON MIX</h1>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 pointer-events-auto">
                         <button 
                             onClick={() => handleChangeLevel(-1)} 
                             disabled={currentLevel <= 1 || isAnimating}
@@ -460,15 +471,20 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
-                    <button onClick={handleRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><HelpCircle size={20} /></button>
+                    <button onClick={handleRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><RefreshCw size={20} /></button>
                 </div>
             </div>
 
             {/* Game Area */}
             <div ref={containerRef} className="flex-1 w-full max-w-lg flex items-center justify-center relative z-10 min-h-0 overflow-visible">
                 
-                <div className="flex flex-wrap justify-center gap-x-8 gap-y-16 sm:gap-x-12 sm:gap-y-20 w-full px-2 pt-12">
+                {/* 
+                   Correction Layout Tubes : 
+                   - gap réduit (gap-4 sm:gap-8 au lieu de 8/16)
+                   - padding top réduit
+                */}
+                <div className="flex flex-wrap justify-center gap-4 sm:gap-8 w-full px-2 pt-8 sm:pt-12">
                     {tubes.map((tube, i) => {
                         const isSelected = selectedTube === i;
                         const isPourSource = pourData?.src === i;
@@ -484,7 +500,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                             style = pourData.transformStyle;
                         } else if (isSelected) {
                             style = {
-                                transform: 'translate(0, -25px)',
+                                transform: 'translate(0, -15px)', // Reduced lift
                                 zIndex: 20
                             };
                         }
@@ -496,7 +512,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                                 onClick={() => handleTubeClick(i)}
                                 style={style}
                                 className={`
-                                    relative w-12 sm:w-14 h-44 sm:h-52 border-2 rounded-b-full rounded-t-lg cursor-pointer
+                                    relative w-10 sm:w-12 h-32 sm:h-40 border-2 rounded-b-full rounded-t-lg cursor-pointer
                                     ${isSelected ? 'border-yellow-400 shadow-[0_0_20px_#facc15]' : 'border-white/30 hover:border-white/60'}
                                     bg-white/5 backdrop-blur-sm flex flex-col-reverse overflow-hidden
                                 `}
@@ -530,8 +546,8 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
                 </div>
             </div>
 
-            {/* Controls */}
-            <div className="w-full max-w-lg flex justify-center gap-6 mt-4 z-10 pb-4 shrink-0">
+            {/* Controls - Z-Index augmenté à 30 */}
+            <div className="w-full max-w-lg flex justify-center gap-6 mt-4 z-30 pb-4 shrink-0 relative">
                 <button 
                     onClick={handleUndo} 
                     disabled={history.length === 0 || isAnimating}
