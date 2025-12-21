@@ -1,22 +1,13 @@
 
-import { LucideIcon } from 'lucide-react';
-
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
+export type GameMode = 'SOLO' | 'ONLINE';
+export type GamePhase = 'MENU' | 'DIFFICULTY' | 'GAME';
 
 export interface MemoryCard {
     id: number;
-    iconId: string; // To match pairs
+    iconId: string; // Identifier for ICONS array
     isFlipped: boolean;
     isMatched: boolean;
-}
-
-export interface MemoryGameState {
-    cards: MemoryCard[];
-    flippedIndices: number[];
-    moves: number; // Solo: Total moves, Online: Not strictly used for score but stats
-    scores: { p1: number, p2: number }; // For online
-    currentPlayer: 1 | 2; // For online
-    isGameOver: boolean;
 }
 
 export interface ChatMessage {
