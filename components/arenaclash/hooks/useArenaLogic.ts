@@ -20,7 +20,7 @@ export const useArenaLogic = (
 
     // --- STATE ---
     const [timeLeft, setTimeLeft] = useState(MATCH_DURATION);
-    const [gameState, setGameState] = useState<'MENU' | 'PLAYING' | 'RESPAWNING' | 'GAMEOVER'>('MENU');
+    const [gameState, setGameState] = useState<'MENU' | 'LOBBY' | 'PLAYING' | 'RESPAWNING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
     const [killFeed, setKillFeed] = useState<KillEvent[]>([]);
     const [leaderboard, setLeaderboard] = useState<{name: string, score: number, isMe: boolean}[]>([]);
@@ -45,7 +45,6 @@ export const useArenaLogic = (
     const selectedMapIndexRef = useRef(0);
     const lastNetworkUpdateRef = useRef(0);
     const lastTimeRef = useRef(0);
-    const animationFrameRef = useRef(0);
     
     // Inputs Refs
     const keysRef = useRef<{ [key: string]: boolean }>({});
@@ -59,6 +58,33 @@ export const useArenaLogic = (
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
     useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
     useEffect(() => { selectedMapIndexRef.current = selectedMapIndex; }, [selectedMapIndex]);
+
+    // --- CONNECTION MANAGEMENT ---
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            if (gameState === 'MENU') setGameState('LOBBY');
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            if (gameState === 'LOBBY') setGameState('MENU');
+            if (mp.mode !== 'disconnected') mp.disconnect();
+        }
+    }, [gameMode]);
+
+    // --- MULTIPLAYER SYNC ---
+    useEffect(() => {
+        const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            if (gameState === 'LOBBY') {
+                startGame('ONLINE');
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
     // --- HELPERS ---
     const spawnCharacter = useCallback((id: string, name: string, isPlayer: boolean, isRemote: boolean = false): Character => {
