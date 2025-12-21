@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle, HelpCircle, MousePointer2, ArrowUp, Ban, LogOut } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Crown, User, Users, Globe, Play, Loader2, ArrowLeft, Shield, Zap, Skull, CheckCircle, HelpCircle, MousePointer2, ArrowUp, Ban, LogOut, Monitor, Layers, ArrowRight } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -51,6 +51,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     const [opponentLeft, setOpponentLeft] = useState(false);
 
     const handleDataRef = useRef<(data: any) => void>(null);
+    const mainContainerRef = useRef<HTMLDivElement>(null);
 
     // --- SETUP ---
     useEffect(() => {
@@ -65,6 +66,22 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             setShowTutorial(true);
             localStorage.setItem('neon_checkers_tutorial_seen', 'true');
         }
+    }, []);
+
+    // --- EFFECT: PREVENT OVERSCROLL ---
+    useEffect(() => {
+        const container = mainContainerRef.current;
+        if (!container) return;
+
+        const handleTouchMove = (e: TouchEvent) => {
+            const target = e.target as HTMLElement;
+            // Allow scrolling only in chat/lists marked with custom-scrollbar or root if auto
+            if (target.closest('.custom-scrollbar') || target === container) return;
+            e.preventDefault();
+        };
+
+        container.addEventListener('touchmove', handleTouchMove, { passive: false });
+        return () => container.removeEventListener('touchmove', handleTouchMove);
     }, []);
 
     useEffect(() => {
@@ -89,10 +106,6 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
             } else {
                 setOnlineStep('lobby');
             }
-            
-            // Logic removed: if (menuPhase === 'GAME') setMenuPhase('MENU');
-            // This was causing the "double tap" bug by kicking user back to menu when connecting to lobby.
-
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
@@ -141,6 +154,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         setMustJumpPos(null);
         setOpponentLeft(false);
         setIsWaitingForHost(false); 
+        resumeAudio();
         
         if (onReportProgress) onReportProgress('play', 1);
     };
@@ -471,25 +485,22 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                      </button>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {hostingPlayers.length > 0 && (
-                        <>
-                            <p className="text-xs text-yellow-400 font-bold tracking-widest my-2">PARTIES DISPONIBLES</p>
-                            {hostingPlayers.map(player => {
-                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
-                                const AvatarIcon = avatar.icon;
-                                return (
-                                    <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
-                                            <span className="font-bold">{player.name}</span>
-                                        </div>
-                                        <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                    {hostingPlayers.length > 0 ? (
+                        hostingPlayers.map(player => {
+                            const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                            const AvatarIcon = avatar.icon;
+                            return (
+                                <div key={player.id} className="flex items-center justify-between p-2 bg-gray-900/50 rounded-lg border border-white/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center`}><AvatarIcon size={24} className={avatar.color}/></div>
+                                        <span className="font-bold">{player.name}</span>
                                     </div>
-                                );
-                            })}
-                        </>
-                    )}
-                    {hostingPlayers.length === 0 && <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie disponible...<br/>Créez la vôtre !</p>}
+                                    <button onClick={() => mp.joinRoom(player.id)} className="px-4 py-2 bg-neon-blue text-black font-bold rounded text-xs hover:bg-white transition-colors">REJOINDRE</button>
+                                </div>
+                            );
+                        })
+                    ) : <p className="text-center text-gray-500 italic text-sm py-8">Aucune partie... Créez la vôtre !</p>}
+                    
                     {otherPlayers.length > 0 && (
                         <>
                              <p className="text-xs text-gray-500 font-bold tracking-widest my-2 pt-2 border-t border-white/10">AUTRES JOUEURS</p>
@@ -517,28 +528,94 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
     if (menuPhase === 'MENU') {
         return (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#22d3ee]">NEON DAMES</h1>
-                <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
-                    <button onClick={() => initGame('SOLO')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
-                        <User size={24} className="text-neon-blue"/> 1 JOUEUR
-                    </button>
-                    <button onClick={() => initGame('LOCAL')} className="px-6 py-4 bg-gray-800 border-2 border-pink-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
-                        <Users size={24} className="text-pink-500"/> 2 JOUEURS
-                    </button>
-                    <button onClick={() => initGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
-                        <Globe size={24} className="text-green-500"/> EN LIGNE
-                    </button>
+            <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
+                {/* Background layers - Cyan/Pink theme */}
+                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-900/40 via-[#050510] to-black pointer-events-none"></div>
+                <div className="fixed inset-0 bg-[linear-gradient(rgba(34,211,238,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+
+                <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+                <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-pink-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
+
+                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
+                    
+                    {/* Title */}
+                    <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
+                        <div className="flex items-center justify-center gap-6 mb-4">
+                            <Crown size={56} className="text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.8)] animate-bounce hidden md:block" />
+                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-pink-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter w-full">
+                                NEON<br className="md:hidden"/> DAMES
+                            </h1>
+                            <Crown size={56} className="text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.8)] animate-bounce hidden md:block" />
+                        </div>
+                    </div>
+
+                    {/* Cards Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
+                        
+                        {/* SOLO */}
+                        <button onClick={() => initGame('SOLO')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                                    <User size={32} className="text-cyan-400" />
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors">SOLO</h2>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                    Affrontez l'IA dans une partie rapide. Défendez votre camp.
+                                </p>
+                            </div>
+
+                            <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                JOUER CONTRE IA <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+
+                        {/* ONLINE */}
+                        <button onClick={() => initGame('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-pink-500/50 hover:shadow-[0_0_50px_rgba(236,72,153,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-pink-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-pink-500/20 flex items-center justify-center border border-pink-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(236,72,153,0.3)]">
+                                    <Globe size={32} className="text-pink-400" />
+                                </div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-pink-300 transition-colors">EN LIGNE</h2>
+                                    <span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span>
+                                </div>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                    Rejoignez le lobby et défiez d'autres joueurs en duel.
+                                </p>
+                            </div>
+
+                            <div className="relative z-10 flex items-center gap-2 text-pink-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+                    </div>
+                    
+                    {/* Local VS */}
+                    <div className="w-full max-w-sm md:max-w-3xl mt-6 flex-shrink-0">
+                         <button onClick={() => initGame('LOCAL')} className="w-full p-4 rounded-2xl bg-gray-900/30 border border-white/5 hover:bg-gray-800/50 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-gray-400 hover:text-white font-bold text-xs tracking-widest">
+                            <Users size={16} /> 2 JOUEURS LOCAL (MÊME ÉCRAN)
+                         </button>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
+                            <Home size={14} /> RETOUR AU MENU PRINCIPAL
+                        </button>
+                    </div>
                 </div>
-                <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
             </div>
         );
     }
 
     if (menuPhase === 'DIFFICULTY') {
         return (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                <h2 className="text-3xl font-black text-white mb-8">DIFFICULTÉ</h2>
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in">
+                <h2 className="text-3xl font-black text-white mb-8 italic">DIFFICULTÉ</h2>
                 <div className="flex flex-col gap-3 w-full max-w-[280px]">
                     {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => {
                         const s = DIFFICULTY_CONFIG[d];
@@ -546,7 +623,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                             <button 
                                 key={d} 
                                 onClick={() => { setDifficulty(d); startGame(); }}
-                                className={`group flex items-center justify-between px-6 py-4 border-2 rounded-xl transition-all ${s.color} hover:bg-gray-800`}
+                                className={`group flex items-center justify-between px-6 py-4 border-2 rounded-xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95`}
                             >
                                 <div className="flex items-center gap-3">
                                     {d === 'EASY' && <Shield size={24}/>}
@@ -554,14 +631,14 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                                     {d === 'HARD' && <Skull size={24}/>}
                                     <span className="font-bold">{s.name}</span>
                                 </div>
-                                <div className="text-[10px] opacity-70 group-hover:opacity-100">
-                                    <span>GAIN: +{s.bonus}</span>
+                                <div className="text-[10px] opacity-70 group-hover:opacity-100 font-mono">
+                                    +{s.bonus}
                                 </div>
                             </button>
                         );
                     })}
                 </div>
-                <button onClick={() => setMenuPhase('MENU')} className="mt-8 text-gray-500 text-sm hover:text-white">RETOUR</button>
+                <button onClick={() => setMenuPhase('MENU')} className="mt-8 text-gray-500 text-sm hover:text-white underline">RETOUR</button>
             </div>
         );
     }
@@ -569,18 +646,21 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
     if (gameMode === 'ONLINE' && onlineStep !== 'game') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
                 <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
                     <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
-                    <h1 className="text-2xl font-black italic text-cyan-400">DAMES</h1>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-300 pr-2 pb-1">DAMES</h1>
                     <div className="w-10"></div>
                 </div>
-                {onlineStep === 'connecting' ? <div className="flex-1 flex items-center justify-center"><Loader2 size={48} className="text-cyan-400 animate-spin" /></div> : renderLobby()}
+                {onlineStep === 'connecting' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-cyan-400 animate-spin mb-4" /><p className="text-cyan-300 font-bold">CONNEXION...</p></div>
+                ) : renderLobby()}
             </div>
         );
     }
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4 select-none">
+        <div ref={mainContainerRef} className={`h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-4 select-none touch-none`}>
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
             {/* TUTORIAL OVERLAY */}
@@ -605,7 +685,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
             {/* Turn Indicator */}
             {!winner && !opponentLeft && (
-                <div className={`mb-4 px-6 py-2 rounded-full border border-white/10 font-bold text-sm shadow-lg transition-colors ${turn === 'white' ? 'bg-cyan-900/50 text-cyan-400' : 'bg-pink-900/50 text-pink-500'}`}>
+                <div className={`mb-4 px-6 py-2 rounded-full border border-white/10 font-bold text-sm shadow-lg transition-colors ${turn === 'white' ? 'bg-cyan-900/50 text-cyan-400 animate-pulse' : 'bg-pink-900/50 text-pink-500 animate-pulse'}`}>
                     {gameMode === 'ONLINE' 
                         ? ((mp.amIP1 && turn === 'white') || (!mp.amIP1 && turn === 'red') ? "C'EST TON TOUR" : "L'ADVERSAIRE JOUE...") 
                         : (turn === 'white' ? "TOUR CYAN" : "TOUR ROSE")}
@@ -620,7 +700,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
                 </div>
             )}
             
-            {/* Lobby Waiting Overlay for Host (When game mode is online, step is game, but no opponent connected yet) */}
+            {/* Lobby Waiting Overlay for Host */}
             {gameMode === 'ONLINE' && mp.isHost && onlineStep === 'game' && !mp.gameOpponent && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
                     <Loader2 size={48} className="text-cyan-400 animate-spin mb-4" />
