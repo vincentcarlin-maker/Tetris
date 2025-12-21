@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, Play, RotateCcw, Ban, Palette, User, Globe, Users, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, HelpCircle, MousePointer2, Zap } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -6,6 +5,8 @@ import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
 import { TutorialOverlay } from '../Tutorials';
+import { Card, GamePhase, GameState, Turn, ChatMessage, Color, Value } from './types';
+import { generateDeck, isCardPlayable, getCpuMove } from './logic';
 
 interface UnoGameProps {
     onBack: () => void;
@@ -13,17 +14,6 @@ interface UnoGameProps {
     addCoins: (amount: number) => void;
     mp: ReturnType<typeof useMultiplayer>;
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
-}
-
-// --- TYPES ---
-type Color = 'red' | 'blue' | 'green' | 'yellow' | 'black';
-type Value = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'skip' | 'reverse' | 'draw2' | 'wild' | 'wild4';
-
-interface Card {
-    id: string;
-    color: Color;
-    value: Value;
-    score: number;
 }
 
 interface FlyingCardData {
@@ -35,19 +25,16 @@ interface FlyingCardData {
     rotation: number;
 }
 
-interface ChatMessage {
-    id: number;
-    text: string;
-    senderName: string;
-    isMe: boolean;
-    timestamp: number;
-}
+// Réactions Néon Animées
+const REACTIONS = [
+    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
+    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
+    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500', anim: 'animate-pulse' },
+    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500', anim: 'animate-ping' },
+    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
+    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
+];
 
-type Turn = 'PLAYER' | 'CPU'; // CPU = Opponent in Online
-type GameState = 'playing' | 'gameover' | 'color_select';
-type GamePhase = 'MENU' | 'GAME';
-
-// --- CONFIG ---
 const COLORS: Color[] = ['red', 'blue', 'green', 'yellow'];
 
 const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string, bg: string, gradient: string }> = {
@@ -88,45 +75,6 @@ const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string
     },
 };
 
-// Réactions Néon Animées
-const REACTIONS = [
-    { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
-    { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
-    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500', anim: 'animate-pulse' },
-    { id: 'love', icon: Heart, color: 'text-pink-500', bg: 'bg-pink-500/20', border: 'border-pink-500', anim: 'animate-ping' },
-    { id: 'good', icon: ThumbsUp, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500', anim: 'animate-bounce' },
-    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
-];
-
-const generateDeck = (): Card[] => {
-    let deck: Card[] = [];
-    let idCounter = 0;
-    const SPECIAL_VALUES: Value[] = ['skip', 'reverse', 'draw2'];
-
-    const addCard = (color: Color, value: Value, score: number) => {
-        deck.push({ id: `card_${idCounter++}_${Math.random().toString(36).substr(2, 5)}`, color, value, score });
-    };
-
-    COLORS.forEach(color => {
-        addCard(color, '0', 0); // 1 zero
-        for (let i = 1; i <= 9; i++) {
-            addCard(color, i.toString() as Value, i);
-            addCard(color, i.toString() as Value, i);
-        }
-        SPECIAL_VALUES.forEach(val => {
-            addCard(color, val, 20);
-            addCard(color, val, 20);
-        });
-    });
-
-    // Wilds
-    for (let i = 0; i < 4; i++) {
-        addCard('black', 'wild', 50);
-        addCard('black', 'wild4', 50);
-    }
-
-    return deck.sort(() => Math.random() - 0.5);
-};
 
 export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     // --- HOOKS ---
@@ -184,6 +132,11 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         gameStateRef.current = { playerHand, cpuHand, discardPile, activeColor, turn };
     }, [playerHand, cpuHand, discardPile, activeColor, turn]);
 
+    const checkCompatibility = useCallback((card: Card) => {
+        const topCard = discardPile[discardPile.length - 1];
+        return isCardPlayable(card, topCard, activeColor);
+    }, [activeColor, discardPile]);
+
     // Check localStorage for tutorial seen
     useEffect(() => {
         const hasSeen = localStorage.getItem('neon_uno_tutorial_seen');
@@ -210,11 +163,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     }, []);
 
     // --- HELPER: CONSISTENT COMPATIBILITY CHECK ---
-    const checkCompatibility = useCallback((card: Card) => {
-        const topCard = discardPile[discardPile.length - 1];
-        if (!topCard) return false;
-        return card.color === activeColor || card.value === topCard.value || card.color === 'black';
-    }, [activeColor, discardPile]);
 
     // --- EFFECT: SYNC SELF INFO ---
     useEffect(() => {
@@ -486,7 +434,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
             if (currentDeck.length === 0) {
                 if (currentDiscard.length > 1) {
                     const top = currentDiscard.pop()!;
-                    currentDeck = currentDiscard.sort(() => Math.random() - 0.5);
+                    currentDeck = currentDiscard.map(c => ({ ...c, isRevealed: false })).sort(() => Math.random() - 0.5);
                     currentDiscard = [top];
                     setMessage("Mélange du talon...");
                     didReshuffle = true;
@@ -826,23 +774,15 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         if (gameMode === 'SOLO' && turn === 'CPU' && gameState === 'playing' && !isAnimating) {
             const timer = setTimeout(() => {
                 const topCard = discardPile[discardPile.length - 1];
-                const validIndices = cpuHand.map((c, i) => ({c, i})).filter(({c}) => 
-                    c.color === activeColor || c.value === topCard.value || c.color === 'black'
-                );
-
-                if (validIndices.length > 0) {
-                    validIndices.sort((a, b) => {
-                        if (a.c.color === 'black') return 1;
-                        if (a.c.value === 'draw2' || a.c.value === 'skip' || a.c.value === 'reverse') return -1; 
-                        return 0;
-                    });
-                    const move = validIndices[0];
-                    animateCardPlay(move.c, move.i, 'CPU');
+                const move = getCpuMove(cpuHand, topCard, activeColor);
+                
+                if (move) {
+                    animateCardPlay(move.card, move.index, 'CPU');
                 } else {
                     drawCard('CPU', 1);
                     setTurn('PLAYER');
                 }
-            }, 1500); 
+            }, 1200); 
             return () => clearTimeout(timer);
         }
     }, [turn, gameState, cpuHand, activeColor, discardPile, isAnimating, gameMode]);
@@ -992,7 +932,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     };
 
     // --- MAIN RENDER ---
-
     if (phase === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
@@ -1117,7 +1056,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)] pr-2 pb-1">NEON UNO</h1>
-                    <span className="text-[10px] text-gray-400 font-bold tracking-widest bg-black/40 px-2 py-0.5 rounded-full border border-white/10">{message}</span>
+                    <span className="text-[10px] text-gray-400 font-bold tracking-widest bg-black/40 px-2 py-0.5 rounded border border-white/10 animate-pulse">{message}</span>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
@@ -1234,7 +1173,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                             {winner === 'PLAYER' ? (
                                 <>
                                     <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
-                                    <h2 className="text-5xl font-black text-white italic mb-2">VICTOIRE !</h2>
+                                    <h2 className="text-5xl font-black italic text-white mb-2">VICTOIRE !</h2>
                                     <div className="flex flex-col items-center gap-2 mb-8"><span className="text-gray-400 font-bold tracking-widest text-sm">SCORE FINAL</span><span className="text-4xl font-mono text-neon-blue">{score}</span></div>
                                     {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
                                 </>
@@ -1245,8 +1184,8 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                                 </>
                             )}
                             <div className="flex gap-4">
-                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : () => startNewGame(gameMode)} className="px-8 py-4 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
-                                <button onClick={backToMenu} className="px-8 py-4 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
+                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : () => startNewGame(gameMode)} className="px-8 py-3 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
+                                <button onClick={backToMenu} className="px-8 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
                             </div>
                         </>
                     )}
