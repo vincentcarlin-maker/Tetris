@@ -76,7 +76,7 @@ export const useArenaLogic = (
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby');
+            else setOnlineStep('lobby'); // Force le lobby ici
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);

@@ -54,7 +54,7 @@ export const useConnect4Logic = (
         if (diff) setDifficulty(diff);
         
         if (mode === 'ONLINE') {
-            setPhase('LOBBY');
+            setPhase('LOBBY'); // Important: passer en phase LOBBY
             setOnlineStep('connecting');
             mp.connect();
         } else {
@@ -189,7 +189,7 @@ export const useConnect4Logic = (
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby');
+            else setOnlineStep('lobby'); // Force le lobby si connecté mais pas hôte
             
             // Only force phase change if we are not in MENU/DIFFICULTY (i.e. we are in game flow)
             if (phase !== 'MENU' && phase !== 'DIFFICULTY') {

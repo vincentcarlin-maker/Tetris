@@ -340,7 +340,7 @@ export const useSkyjoLogic = (
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby');
+            else setOnlineStep('lobby'); // Force le lobby ici
 
             // Force phase LOBBY if not playing/setup
             if (phase !== 'MENU' && phase !== 'SETUP' && phase !== 'PLAYING' && phase !== 'LAST_TURN' && phase !== 'ENDED') {
