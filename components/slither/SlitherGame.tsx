@@ -96,10 +96,12 @@ export const SlitherGame: React.FC<SlitherGameProps> = ({ onBack, audio, addCoin
                 onBoostStart={() => { isBoostingRef.current = true; setIsBoosting(true); }}
                 onBoostEnd={() => { isBoostingRef.current = false; setIsBoosting(false); }}
                 onQuit={() => { 
-                    if (window.confirm("Quitter la partie ?")) { 
-                         if (gameMode === 'ONLINE') mp.leaveGame();
-                         onBack(); 
-                    } 
+                    setTimeout(() => {
+                        if (window.confirm("Quitter la partie ?")) { 
+                             if (gameMode === 'ONLINE') mp.leaveGame();
+                             onBack(); 
+                        } 
+                    }, 10);
                 }}
             />
         </div>

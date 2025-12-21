@@ -114,7 +114,12 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
         return (
             <>
                 <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
-                    <button onClick={onQuit} className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"><Home size={24}/></button>
+                    <button 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuit(); }} 
+                        className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"
+                    >
+                        <Home size={24}/>
+                    </button>
                     <div className="flex flex-col">
                         <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">{Math.floor(score)}</span>
                         <span className="text-[10px] text-indigo-400 font-bold uppercase">Rang: {rank.current} / {rank.total}</span>
