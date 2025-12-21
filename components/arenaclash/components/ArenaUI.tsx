@@ -1,7 +1,8 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Home, HelpCircle, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw } from 'lucide-react';
+import { Home, HelpCircle, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw, Wifi, Play, Search } from 'lucide-react';
 import { MAPS } from '../constants';
+import { Avatar } from '../../../hooks/useCurrency';
 
 interface ArenaUIProps {
     gameState: string;
@@ -26,13 +27,16 @@ interface ArenaUIProps {
     onRematch: () => void;
     onReturnToMenu: () => void;
     controlsRef: React.MutableRefObject<any>;
+    mp: any;
+    avatarsCatalog: Avatar[];
 }
 
 export const ArenaUI: React.FC<ArenaUIProps> = ({
     gameState, gameMode, score, timeLeft, respawnTimer, killFeed, leaderboard, earnedCoins,
     selectedMapIndex, onlineStep, isHost, hasOpponent,
     onBack, onToggleTutorial, onSetGameMode, onStartGame, onChangeMap,
-    onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, controlsRef
+    onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, controlsRef,
+    mp, avatarsCatalog
 }) => {
     // Joystick Refs
     const leftZoneRef = useRef<HTMLDivElement>(null);
@@ -136,9 +140,75 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         };
     }, []);
 
+    const renderLobby = () => {
+        const hostingPlayers = mp.players.filter((p: any) => p.status === 'hosting' && p.id !== mp.peerId && p.extraInfo === 'Arena Clash'); 
+        
+        return (
+             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md gap-6 p-4 pt-20 pointer-events-auto">
+                 {/* Create Section */}
+                 <div className="bg-gradient-to-br from-gray-900 to-black border border-red-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative overflow-hidden group shrink-0">
+                     <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                     <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Wifi size={16} className="text-red-500"/> HÉBERGER UNE ARENE</h3>
+                     <button onClick={mp.createRoom} className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-black tracking-widest rounded-xl text-sm transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-red-500/40 active:scale-95">
+                        <Play size={20} fill="currentColor"/> CRÉER UN SALON
+                     </button>
+                </div>
+
+                {/* List Section */}
+                <div className="flex-1 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex flex-col min-h-0">
+                    <div className="flex justify-between items-center mb-4 px-2">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Combattants en attente</span>
+                        <span className="text-xs font-mono text-red-400 bg-red-900/20 px-2 py-0.5 rounded border border-red-500/30">{hostingPlayers.length} ONLINE</span>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                        {hostingPlayers.length > 0 ? (
+                            hostingPlayers.map((player: any) => {
+                                const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                const AvatarIcon = avatar.icon;
+                                return (
+                                     <div key={player.id} className="flex items-center justify-between p-3 bg-gray-800/60 hover:bg-gray-800 rounded-xl border border-white/5 hover:border-red-500/30 transition-all group animate-in slide-in-from-right-4">
+                                         <div className="flex items-center gap-4">
+                                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative shadow-lg`}>
+                                                 <AvatarIcon size={24} className={avatar.color}/>
+                                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-gray-900 rounded-full animate-pulse"></div>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-white group-hover:text-red-300 transition-colors">{player.name}</span>
+                                                <span className="text-[10px] text-gray-500 font-mono">En attente...</span>
+                                            </div>
+                                         </div>
+                                         <button onClick={() => mp.joinRoom(player.id)} className="px-5 py-2 bg-white text-black font-black text-xs rounded-lg hover:bg-red-400 hover:text-white transition-all shadow-lg active:scale-95">
+                                            REJOINDRE
+                                         </button>
+                                     </div>
+                                );
+                            })
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-600 gap-4 opacity-50">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-red-500/20 rounded-full animate-ping"></div>
+                                    <div className="relative bg-gray-800 p-4 rounded-full border border-gray-700">
+                                        <Search size={32} />
+                                    </div>
+                                </div>
+                                <p className="text-xs font-bold tracking-widest text-center">SCAN DES FRÉQUENCES...<br/>AUCUNE ARENE DÉTECTÉE</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+             </div>
+        );
+    };
+
     return (
         <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center pointer-events-none">
             
+            {/* LOBBY VIEW */}
+            {gameMode === 'ONLINE' && onlineStep !== 'game' && (
+                renderLobby()
+            )}
+
             {/* MENU HEADER - Only visible in MENU */}
             {gameState === 'MENU' && (
                 <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0">

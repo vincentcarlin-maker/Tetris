@@ -14,7 +14,7 @@ interface ArenaClashGameProps {
 }
 
 export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
-    const { username, currentAvatarId } = useCurrency();
+    const { username, currentAvatarId, avatarsCatalog } = useCurrency();
     const logic = useArenaLogic(mp, audio, addCoins, onReportProgress);
 
     // Initialisation
@@ -63,10 +63,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 onStartGame={logic.startGame}
                 onChangeMap={(delta) => logic.setSelectedMapIndex((prev: number) => (prev + delta + 3) % 3)} // 3 maps hardcoded for now based on constants
                 onCancelHosting={mp.cancelHosting}
-                onLeaveGame={() => { logic.setOpponentLeft(true); logic.setGameState('GAMEOVER'); }} // Simple leave for now
+                onLeaveGame={() => { logic.setOpponentLeft(true); logic.setGameState('GAMEOVER'); }} 
                 onRematch={() => logic.startGame('ONLINE')}
                 onReturnToMenu={() => logic.setGameState('MENU')}
                 controlsRef={logic.controlsRef}
+                mp={mp}
+                avatarsCatalog={avatarsCatalog}
             />
         </div>
     );
