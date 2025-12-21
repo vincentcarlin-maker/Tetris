@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameAudio } from '../../../hooks/useGameAudio';
 import { useHighScores } from '../../../hooks/useHighScores';
 import { useMultiplayer } from '../../../hooks/useMultiplayer';
 import { useCurrency } from '../../../hooks/useCurrency';
-import { Card as CardType, GamePhase, Turn, Color, Value, FlyingCardData } from '../types';
+// Add ChatMessage to the imports
+import { Card as CardType, GamePhase, Turn, Color, Value, FlyingCardData, ChatMessage } from '../types';
 import { generateDeck, isCardPlayable, getCpuMove } from '../logic';
 
 // Import sub-hooks
@@ -40,6 +40,7 @@ export const useUnoLogic = ({ audio, addCoins, mp, onReportProgress, discardPile
     
     const checkCompatibility = useCallback((card: CardType) => {
         const topCard = state.discardPile[state.discardPile.length - 1];
+        if (!topCard) return true;
         return isCardPlayable(card, topCard, state.activeColor);
     }, [state.activeColor, state.discardPile]);
 
@@ -58,7 +59,7 @@ export const useUnoLogic = ({ audio, addCoins, mp, onReportProgress, discardPile
         } else {
             playGameOver();
         }
-    }, [state.cpuHand.length, playVictory, playGameOver, addCoins, updateHighScore, onReportProgress]);
+    }, [state.cpuHand.length, playVictory, playGameOver, addCoins, updateHighScore, onReportProgress, state]);
 
     const startNewGame = useCallback((modeOverride?: 'SOLO' | 'ONLINE') => {
         const targetMode = modeOverride || gameMode;
@@ -143,7 +144,9 @@ export const useUnoLogic = ({ audio, addCoins, mp, onReportProgress, discardPile
                     didReshuffle = true;
                 } else break;
             }
-            drawnCards.push(currentDeck.pop()!);
+            if (currentDeck.length > 0) {
+                drawnCards.push(currentDeck.pop()!);
+            }
         }
 
         state.setDeck(currentDeck);
@@ -440,6 +443,7 @@ export const useUnoLogic = ({ audio, addCoins, mp, onReportProgress, discardPile
         if (gameMode === 'SOLO' && state.turn === 'CPU' && state.gameState === 'playing' && !isAnimating) {
             const timer = setTimeout(() => {
                 const topCard = state.discardPile[state.discardPile.length - 1];
+                if (!topCard) return;
                 const move = getCpuMove(state.cpuHand, topCard, state.activeColor);
                 
                 if (move) {
@@ -459,11 +463,20 @@ export const useUnoLogic = ({ audio, addCoins, mp, onReportProgress, discardPile
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game'); else setOnlineStep('lobby');
-            if (state.phase === 'GAME' && (state.playerHand.length > 0 || state.cpuHand.length > 0 || state.winner)) state.resetState();
+            
+            // Sync UI Phase
+            if (state.phase !== 'MENU' && state.phase !== 'GAME') {
+                state.setPhase('GAME');
+            }
+
+            if (state.playerHand.length > 0 || state.cpuHand.length > 0 || state.winner) {
+                 // Game cleanup logic if necessary
+            }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game'); state.setOpponentLeft(false);
-            if (state.phase === 'MENU') initGame('ONLINE');
-            else if (state.phase === 'GAME') {
+            if (state.phase === 'MENU') {
+                 initGame('ONLINE');
+            } else if (state.phase === 'GAME') {
                 const isGameRunning = state.playerHand.length > 0 || state.cpuHand.length > 0 || state.isWaitingForHost;
                 if (!isGameRunning) startNewGame('ONLINE');
             }
@@ -471,7 +484,8 @@ export const useUnoLogic = ({ audio, addCoins, mp, onReportProgress, discardPile
     }, [mp.mode, mp.isHost, mp.players, mp.peerId, state.phase, state.playerHand.length, state.cpuHand.length, state.winner, state.isWaitingForHost, gameMode]);
 
     const sendChat = (text: string) => {
-        const msg = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };
+        // ChatMessage is now properly imported
+        const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };
         state.setChatHistory((prev: any) => [...prev, msg]);
         network.sendAction('CHAT', { text, senderName: username });
     };
@@ -484,9 +498,14 @@ export const useUnoLogic = ({ audio, addCoins, mp, onReportProgress, discardPile
 
     const initGame = (mode: 'SOLO' | 'ONLINE') => {
         setGameMode(mode);
+        // Important: setPhase must happen BEFORE startNewGame to avoid MENU/GAME conflict
         state.setPhase('GAME');
-        if (mode === 'SOLO') startNewGame('SOLO');
-        else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame('ONLINE');
+        if (mode === 'SOLO') {
+            startNewGame('SOLO');
+        } else if (mode === 'ONLINE' && mp.mode === 'in_game') {
+            startNewGame('ONLINE');
+        }
+        // If ONLINE and NOT in_game, useEffect handles transition to connections
     };
 
     const backToMenu = () => {
