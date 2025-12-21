@@ -1,6 +1,162 @@
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+// --- TYPES DE DÉFINITION SONORE ---
+type AudioParams = {
+    freq?: number;
+    type?: OscillatorType;
+    duration?: number;
+    gainVal?: number;
+    startTime?: number;
+    pitchEnd?: number;
+    useLinearRamp?: boolean;
+    filter?: { type: BiquadFilterType; freq: number; q?: number; freqEnd?: number };
+    lfo?: { type: OscillatorType; freq: number; gain: number };
+};
 
+type SoundEffect = {
+  haptic?: number | number[];
+  play: (ctx: AudioContext, params?: any) => void;
+};
+
+// --- FONCTIONS DE GÉNÉRATION DE SONS ---
+
+/**
+ * Joue un son de base avec des paramètres simples.
+ */
+const _playTone = (ctx: AudioContext, { freq = 440, type = 'sine', duration = 0.1, gainVal = 0.1, startTime = ctx.currentTime, pitchEnd, useLinearRamp = false, filter, lfo }: AudioParams = {}) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    let lastNode: AudioNode = osc;
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    if (pitchEnd) {
+        if(useLinearRamp) osc.frequency.linearRampToValueAtTime(pitchEnd, startTime + duration);
+        else osc.frequency.exponentialRampToValueAtTime(pitchEnd, startTime + duration);
+    }
+
+    gain.gain.setValueAtTime(gainVal, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    
+    if (filter) {
+        const filterNode = ctx.createBiquadFilter();
+        filterNode.type = filter.type;
+        filterNode.frequency.setValueAtTime(filter.freq, startTime);
+        if(filter.q) filterNode.Q.setValueAtTime(filter.q, startTime);
+        if(filter.freqEnd) filterNode.frequency.linearRampToValueAtTime(filter.freqEnd, startTime + duration);
+        lastNode.connect(filterNode);
+        lastNode = filterNode;
+    }
+    
+    if (lfo) {
+        const lfoNode = ctx.createOscillator();
+        lfoNode.type = lfo.type;
+        lfoNode.frequency.value = lfo.freq;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = lfo.gain;
+        lfoNode.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        lfoNode.start(startTime);
+        lfoNode.stop(startTime + duration);
+    }
+
+    lastNode.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+};
+
+// --- BIBLIOTHÈQUE DE SONS CENTRALISÉE ---
+// Chaque son est défini ici pour une maintenance facile.
+
+const SOUND_DEFINITIONS: Record<string, SoundEffect> = {
+  move: { haptic: 10, play: (ctx) => _playTone(ctx, { freq: 300, type: 'square', duration: 0.05, gainVal: 0.03 }) },
+  rotate: { haptic: 15, play: (ctx) => _playTone(ctx, { freq: 450, type: 'triangle', duration: 0.05, gainVal: 0.03 }) },
+  land: { haptic: 25, play: (ctx) => _playTone(ctx, { freq: 100, type: 'sawtooth', duration: 0.1, gainVal: 0.05 }) },
+  paddleHit: { haptic: 20, play: (ctx) => _playTone(ctx, { freq: 120, type: 'square', duration: 0.05, gainVal: 0.1 }) },
+  blockHit: { haptic: 15, play: (ctx) => _playTone(ctx, { freq: 440, type: 'triangle', duration: 0.05, gainVal: 0.05 }) },
+  wallHit: { haptic: 10, play: (ctx) => _playTone(ctx, { freq: 200, type: 'sine', duration: 0.05, gainVal: 0.04 }) },
+  pacmanWaka: { play: (ctx) => _playTone(ctx, { freq: 200, duration: 0.2, type: 'triangle', gainVal: 0.1, pitchEnd: 400 }) },
+  
+  clear: {
+    haptic: [30, 50, 30],
+    play: (ctx) => {
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        _playTone(ctx, { freq, duration: 0.3, gainVal: 0.05, startTime: ctx.currentTime + i * 0.08 });
+      });
+    },
+  },
+  victory: {
+    haptic: [50, 50, 50, 50, 100],
+    play: (ctx) => {
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      const times = [0, 0.15, 0.3, 0.6];
+      const durations = [0.15, 0.15, 0.3, 0.8];
+      notes.forEach((freq, i) => _playTone(ctx, { freq, type: 'triangle', duration: durations[i], startTime: ctx.currentTime + times[i], gainVal: 0.1 }));
+    },
+  },
+  coin: {
+      haptic: [10, 10],
+      play: (ctx) => {
+          _playTone(ctx, { freq: 1200, duration: 0.6, gainVal: 0.1, pitchEnd: 1800 });
+          _playTone(ctx, { freq: 1800, duration: 0.4, gainVal: 0.05, pitchEnd: 3000 });
+      }
+  },
+  gameOver: { haptic: 400, play: (ctx) => _playTone(ctx, { freq: 300, duration: 1.5, gainVal: 0.1, type: 'sawtooth', pitchEnd: 50, useLinearRamp: true }) },
+  loseLife: { haptic: 200, play: (ctx) => _playTone(ctx, { freq: 200, duration: 0.5, gainVal: 0.1, type: 'sawtooth', pitchEnd: 80, useLinearRamp: true }) },
+  splash: { haptic: 30, play: (ctx) => _playTone(ctx, { freq: 400, duration: 0.2, gainVal: 0.2, pitchEnd: 100 }) },
+  goalScore: { haptic: [30, 30], play: (ctx) => _playTone(ctx, { freq: 440, duration: 0.5, gainVal: 0.2, pitchEnd: 880 }) },
+  powerUpSpawn: { play: (ctx) => _playTone(ctx, { freq: 1200, duration: 0.1, gainVal: 0.1, pitchEnd: 1800 }) },
+  laserShoot: { haptic: 5, play: (ctx) => _playTone(ctx, { freq: 1200, duration: 0.15, gainVal: 0.05, type: 'sawtooth', pitchEnd: 300 }) },
+  pacmanPower: { haptic: 30, play: (ctx) => _playTone(ctx, { freq: 600, duration: 0.4, gainVal: 0.1, pitchEnd: 1200, useLinearRamp: true }) },
+  pacmanEatGhost: { haptic: [50, 50], play: (ctx) => _playTone(ctx, { freq: 800, duration: 0.3, gainVal: 0.2, type: 'sawtooth', pitchEnd: 1600 }) },
+  
+  // Sons complexes avec filtres ou LFO
+  carMove: { haptic: 10, play: (ctx) => _playTone(ctx, { freq: 400, duration: 0.15, gainVal: 0.25, type: 'sawtooth', pitchEnd: 600, useLinearRamp: true, filter: { type: 'lowpass', freq: 1000, freqEnd: 500 }}) },
+  carExit: { haptic: [50, 100], play: (ctx) => _playTone(ctx, { freq: 600, duration: 0.8, gainVal: 0.5, type: 'sawtooth', pitchEnd: 1200, filter: { type: 'lowpass', freq: 2000, freqEnd: 4000 }}) },
+  explosion: { haptic: [80, 40, 80], play: (ctx) => {
+      _playTone(ctx, { freq: 200, duration: 0.5, gainVal: 0.3, type: 'sawtooth', pitchEnd: 20, filter: { type: 'lowpass', freq: 800, freqEnd: 100 } });
+      _playTone(ctx, { freq: 100, duration: 0.3, gainVal: 0.2, type: 'square', pitchEnd: 50, useLinearRamp: true });
+  }},
+  shipSink: { haptic: [100, 50, 200], play: (ctx) => {
+      _playTone(ctx, { freq: 100, duration: 1.5, gainVal: 0.5, type: 'sawtooth', pitchEnd: 10, filter: { type: 'lowpass', freq: 200, freqEnd: 50 } });
+      _playTone(ctx, { freq: 80, duration: 1.0, gainVal: 0.1, type: 'square', pitchEnd: 20 });
+  }},
+  
+  // Sons paramétrés
+  blockDestroy: {
+    haptic: 20,
+    play: (ctx, params) => {
+      const blockType = params?.blockType;
+      let p: AudioParams = { freq: 300, type: 'triangle', gainVal: 0.05 };
+      switch (blockType) {
+        case 'I': p = { freq: 1200, type: 'sine' }; break;
+        case 'J': p = { freq: 200, type: 'square' }; break;
+        case 'L': p = { freq: 400, type: 'sawtooth' }; break;
+        case 'O': p = { freq: 100, type: 'square', gainVal: 0.08 }; break;
+        case 'S': p = { freq: 800, type: 'sawtooth' }; break;
+        case 'T': p = { freq: 600, type: 'sine' }; break;
+        case 'Z': p = { freq: 250, type: 'sawtooth' }; break;
+      }
+      _playTone(ctx, { ...p, duration: 0.1, pitchEnd: (p.freq || 400) / 2 });
+    },
+  },
+  powerUpCollect: {
+      haptic: [20, 20],
+      play: (ctx, params) => {
+          const type = params?.type;
+          let p: AudioParams = { duration: 0.3, gainVal: 0.1 };
+          if (type === 'PADDLE_GROW') p = { ...p, freq: 400, type: 'triangle', pitchEnd: 800, useLinearRamp: true };
+          else if (type === 'PADDLE_SHRINK') p = { ...p, freq: 800, type: 'sawtooth', pitchEnd: 300, useLinearRamp: true };
+          else if (type === 'LASER_PADDLE') p = { ...p, freq: 150, type: 'sawtooth', pitchEnd: 800, useLinearRamp: true, lfo: { type: 'square', freq: 20, gain: 500 }};
+          else p = { ...p, freq: 800, type: 'sine', pitchEnd: 1500 };
+          _playTone(ctx, p);
+      }
+  },
+};
+
+// --- LE HOOK ---
 export const useGameAudio = () => {
     const audioCtx = useRef<AudioContext | null>(null);
     const [isMuted, setIsMuted] = useState(false);
@@ -8,16 +164,17 @@ export const useGameAudio = () => {
 
     useEffect(() => {
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) {
+        if (AudioContextClass && !audioCtx.current) {
             audioCtx.current = new AudioContextClass();
         }
-        
-        // Load saved preferences
         const savedVib = localStorage.getItem('neon-vibration');
         if (savedVib !== null) setIsVibrationEnabled(savedVib === 'true');
 
         return () => {
-            audioCtx.current?.close();
+            if (audioCtx.current && audioCtx.current.state !== 'closed') {
+                audioCtx.current.close().catch(console.error);
+                audioCtx.current = null;
+            }
         };
     }, []);
 
@@ -26,723 +183,88 @@ export const useGameAudio = () => {
             audioCtx.current.resume().catch(console.error);
         }
     }, []);
-
-    const toggleMute = useCallback(() => {
-        setIsMuted(prev => !prev);
-    }, []);
-
+    
+    const toggleMute = useCallback(() => setIsMuted(prev => !prev), []);
+    
     const toggleVibration = useCallback(() => {
         setIsVibrationEnabled(prev => {
             const newState = !prev;
             localStorage.setItem('neon-vibration', String(newState));
-            if (newState && navigator.vibrate) navigator.vibrate(50); // Feedback immediate
+            if (newState && navigator.vibrate) navigator.vibrate(50);
             return newState;
         });
     }, []);
 
-    // --- AUDIO HAPTIC SIMULATION FOR IOS ---
     const triggerAudioHaptic = useCallback((duration: number) => {
-        // Ne joue pas si muet, car cela passe par les haut-parleurs
         if (isMuted || !audioCtx.current) return;
         resume();
-
-        try {
-            const now = audioCtx.current.currentTime;
-            const osc = audioCtx.current.createOscillator();
-            const gain = audioCtx.current.createGain();
-
-            // Onde sinusoïdale basse fréquence (50Hz) pour imiter un moteur haptique
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(50, now); 
-
-            // Conversion ms en secondes et limitation pour éviter les sons trop longs
-            const durSec = Math.max(0.05, Math.min(duration / 1000, 0.2));
-
-            // Enveloppe percussive courte
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + durSec);
-
-            osc.connect(gain);
-            gain.connect(audioCtx.current.destination);
-
-            osc.start(now);
-            osc.stop(now + durSec);
-        } catch (e) {
-            // Ignore errors
-        }
+        _playTone(audioCtx.current, { freq: 50, duration: Math.max(0.05, Math.min(duration / 1000, 0.2)), gainVal: 0.3 });
     }, [isMuted, resume]);
 
-    // Haptic Helper with Fallback
     const vibrate = useCallback((pattern: number | number[]) => {
         if (!isVibrationEnabled) return;
-
-        // Détection iOS simplifiée (UserAgent + Platform)
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
-        // Si l'appareil supporte vibrate nativement (Android) et n'est pas iOS
         if (navigator.vibrate && !isIOS) {
-            try {
-                navigator.vibrate(pattern);
-            } catch (e) {
-                // Ignore errors on devices that don't support it well
-            }
+            try { navigator.vibrate(pattern); } catch (e) {}
         } else {
-            // Fallback pour iOS : Utiliser le son pour simuler l'impact
             const duration = Array.isArray(pattern) ? pattern[0] : pattern;
-            // On ne déclenche que pour les vibrations courtes (impacts), pas les longues (game over)
             if (typeof duration === 'number' && duration < 200) {
                 triggerAudioHaptic(duration);
             }
         }
     }, [isVibrationEnabled, triggerAudioHaptic]);
 
-    const playTone = useCallback((freq: number, type: OscillatorType, duration: number, gainVal: number) => {
+    const playSound = useCallback((soundName: keyof typeof SOUND_DEFINITIONS, params?: any) => {
         if (isMuted || !audioCtx.current) return;
         resume();
 
+        const sound = SOUND_DEFINITIONS[soundName];
+        if (!sound) {
+            console.warn(`Sound "${soundName}" not found.`);
+            return;
+        }
+
+        if (sound.haptic) vibrate(sound.haptic);
         try {
-            const osc = audioCtx.current.createOscillator();
-            const gain = audioCtx.current.createGain();
-
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.current.currentTime);
-
-            gain.gain.setValueAtTime(gainVal, audioCtx.current.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.current.currentTime + duration);
-
-            osc.connect(gain);
-            gain.connect(audioCtx.current.destination);
-
-            osc.start();
-            osc.stop(audioCtx.current.currentTime + duration);
+            sound.play(audioCtx.current, params);
         } catch (e) {
-            console.error("Audio play failed", e);
+            console.error(`Failed to play sound "${soundName}":`, e);
         }
-    }, [isMuted, resume]);
-
-    const playMove = useCallback(() => {
-        playTone(300, 'square', 0.05, 0.03);
-        vibrate(10); // Micro tick
-    }, [playTone, vibrate]);
-    
-    const playRotate = useCallback(() => {
-        playTone(450, 'triangle', 0.05, 0.03);
-        vibrate(15); // Small tick
-    }, [playTone, vibrate]);
-    
-    const playLand = useCallback(() => {
-        playTone(100, 'sawtooth', 0.1, 0.05);
-        vibrate(25); // Soft thud
-    }, [playTone, vibrate]);
-    
-    // Son général d'effacement de ligne (Arpège montant)
-    const playClear = useCallback(() => {
-        vibrate([30, 50, 30]); // Pattern for clear
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => { // C Major Arpeggio
-            const osc = audioCtx.current!.createOscillator();
-            const gain = audioCtx.current!.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            
-            const startTime = now + i * 0.08;
-            gain.gain.setValueAtTime(0.05, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
-            
-            osc.connect(gain);
-            gain.connect(audioCtx.current!.destination);
-            
-            osc.start(startTime);
-            osc.stop(startTime + 0.3);
-        });
-    }, [isMuted, resume, vibrate]);
-
-    // Son spécifique pour chaque type de bloc détruit
-    const playBlockDestroy = useCallback((blockType: string) => {
-        vibrate(20); // Hit feeling
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        
-        // Paramètres par défaut
-        let freq = 400;
-        let type: OscillatorType = 'triangle';
-        let duration = 0.1;
-        let vol = 0.05;
-
-        // Signature sonore par pièce
-        switch (blockType) {
-            case 'I': // Cyan: Cristallin, aigu
-                freq = 1200;
-                type = 'sine';
-                break;
-            case 'J': // Bleu: Profond
-                freq = 200;
-                type = 'square';
-                break;
-            case 'L': // Orange: Bois/Medium
-                freq = 400;
-                type = 'sawtooth';
-                break;
-            case 'O': // Jaune: Lourd, basse
-                freq = 100;
-                type = 'square';
-                vol = 0.08;
-                break;
-            case 'S': // Vert: Electrique, Zappy
-                freq = 800;
-                type = 'sawtooth';
-                break;
-            case 'T': // Violet: Magique
-                freq = 600;
-                type = 'sine';
-                break;
-            case 'Z': // Rouge: Agressif, crunch
-                freq = 250;
-                type = 'sawtooth';
-                break;
-            default:
-                freq = 300;
-        }
-
-        osc.type = type;
-        
-        // Petit effet de "pitch drop" pour l'effet destruction
-        osc.frequency.setValueAtTime(freq, now);
-        osc.frequency.exponentialRampToValueAtTime(freq / 2, now + duration);
-
-        gain.gain.setValueAtTime(vol, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-
-        osc.start(now);
-        osc.stop(now + duration);
-
-    }, [isMuted, resume, vibrate]);
-
-    const playVictory = useCallback(() => {
-        vibrate([50, 50, 50, 50, 100]); // Celebration pattern
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        
-        // Fanfare "Ta-da-da-daaa!" (Triade majeure)
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C E G C
-        const times = [0, 0.15, 0.3, 0.6];
-        const durations = [0.15, 0.15, 0.3, 0.8];
-
-        notes.forEach((freq, i) => {
-            const osc = audioCtx.current!.createOscillator();
-            const gain = audioCtx.current!.createGain();
-            
-            osc.type = 'triangle'; // Son plus brillant
-            osc.frequency.setValueAtTime(freq, now + times[i]);
-            
-            gain.gain.setValueAtTime(0.1, now + times[i]);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + times[i] + durations[i]);
-            
-            osc.connect(gain);
-            gain.connect(audioCtx.current!.destination);
-            
-            osc.start(now + times[i]);
-            osc.stop(now + times[i] + durations[i]);
-        });
-    }, [isMuted, resume, vibrate]);
-
-    const playGameOver = useCallback(() => {
-        vibrate(400); // Long fail rumble
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(50, now + 1.5);
-        
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0, now + 1.5);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        
-        osc.start();
-        osc.stop(now + 1.5);
-    }, [isMuted, resume, vibrate]);
-
-    const playCarMove = useCallback(() => {
-        vibrate(10); // Engine tick
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        const filter = audioCtx.current.createBiquadFilter();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.linearRampToValueAtTime(600, now + 0.15);
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1000, now);
-        filter.frequency.linearRampToValueAtTime(500, now + 0.15);
-
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.current.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.15);
-    }, [isMuted, resume, vibrate]);
-
-    const playCarExit = useCallback(() => {
-        vibrate([50, 100]); // Vroom vroom
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        const filter = audioCtx.current.createBiquadFilter();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(600, now); 
-        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.8); 
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(2000, now);
-        filter.frequency.linearRampToValueAtTime(4000, now + 0.8);
-
-        gain.gain.setValueAtTime(0.5, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.current.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.8);
-    }, [isMuted, resume, vibrate]);
-
-    // Breaker sounds
-    const playPaddleHit = useCallback(() => {
-        playTone(120, 'square', 0.05, 0.1);
-        vibrate(20);
-    }, [playTone, vibrate]);
-    
-    const playBlockHit = useCallback(() => {
-        playTone(440, 'triangle', 0.05, 0.05);
-        vibrate(15);
-    }, [playTone, vibrate]);
-    
-    const playWallHit = useCallback(() => {
-        playTone(200, 'sine', 0.05, 0.04);
-        vibrate(10);
-    }, [playTone, vibrate]);
-    
-    const playLoseLife = useCallback(() => {
-        vibrate(200);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(200, now);
-        osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.5);
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        osc.start();
-        osc.stop(now + 0.5);
-    }, [isMuted, resume, vibrate]);
-
-    const playPowerUpSpawn = useCallback(() => {
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1200, now);
-        osc.frequency.exponentialRampToValueAtTime(1800, now + 0.1);
-        
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        osc.start();
-        osc.stop(now + 0.1);
-    }, [isMuted, resume]);
-
-    const playPowerUpCollect = useCallback((type: string) => {
-        vibrate([20, 20]);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        
-        if (type === 'PADDLE_GROW') {
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(400, now);
-            osc.frequency.linearRampToValueAtTime(800, now + 0.3);
-        } else if (type === 'PADDLE_SHRINK') {
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(800, now);
-            osc.frequency.linearRampToValueAtTime(300, now + 0.3);
-        } else if (type === 'EXTRA_LIFE') {
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(1046.5, now); // C6
-            osc.frequency.setValueAtTime(1318.5, now + 0.1); // E6
-            gain.gain.setValueAtTime(0.1, now + 0.1);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-        } else if (type === 'MULTI_BALL') {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, now);
-            osc.frequency.linearRampToValueAtTime(1200, now + 0.05);
-            osc.frequency.linearRampToValueAtTime(600, now + 0.1);
-            osc.frequency.linearRampToValueAtTime(1200, now + 0.15);
-        } else if (type === 'LASER_PADDLE') {
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(150, now);
-            osc.frequency.linearRampToValueAtTime(800, now + 0.4);
-            // Modulation
-            const lfo = audioCtx.current.createOscillator();
-            lfo.type = 'square';
-            lfo.frequency.value = 20;
-            const lfoGain = audioCtx.current.createGain();
-            lfoGain.gain.value = 500;
-            lfo.connect(lfoGain);
-            lfoGain.connect(osc.frequency);
-            lfo.start(now);
-            lfo.stop(now + 0.4);
-        } else {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(800, now);
-            osc.frequency.exponentialRampToValueAtTime(1500, now + 0.2);
-        }
-
-        osc.start();
-        osc.stop(now + 0.4);
-
     }, [isMuted, resume, vibrate]);
     
-    const playLaserShoot = useCallback(() => {
-        vibrate(5);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(1200, now);
-        osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
-        
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        osc.start();
-        osc.stop(now + 0.15);
-    }, [isMuted, resume, vibrate]);
-
-    // PACMAN SOUNDS
-    const playPacmanWaka = useCallback(() => {
-        // No vibrate for waka to avoid spam
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(200, now);
-        osc.frequency.linearRampToValueAtTime(400, now + 0.1);
-        osc.frequency.linearRampToValueAtTime(200, now + 0.2);
-
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.2);
-    }, [isMuted, resume]);
-
-    const playPacmanEatGhost = useCallback(() => {
-        vibrate([50, 50]);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.exponentialRampToValueAtTime(1600, now + 0.1);
-
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        osc.start(now);
-        osc.stop(now + 0.3);
-    }, [isMuted, resume, vibrate]);
-    
-    const playPacmanPower = useCallback(() => {
-        vibrate(30);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.linearRampToValueAtTime(1200, now + 0.4);
-
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        osc.start(now);
-        osc.stop(now + 0.4);
-    }, [isMuted, resume, vibrate]);
-
-    const playCoin = useCallback(() => {
-        vibrate([10, 10]);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-
-        // Base frequency
-        const freq = 1200;
-
-        // Oscillator 1 (Main tone)
-        const osc1 = audioCtx.current.createOscillator();
-        const gain1 = audioCtx.current.createGain();
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(freq, now);
-        osc1.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.1); // Slight pitch up
-        
-        gain1.gain.setValueAtTime(0.1, now);
-        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-
-        osc1.connect(gain1);
-        gain1.connect(audioCtx.current.destination);
-        osc1.start(now);
-        osc1.stop(now + 0.6);
-
-        // Oscillator 2 (Upper harmonic/Ring)
-        const osc2 = audioCtx.current.createOscillator();
-        const gain2 = audioCtx.current.createGain();
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(freq * 1.5, now); // Higher start
-        osc2.frequency.exponentialRampToValueAtTime(freq * 2.5, now + 0.1);
-
-        gain2.gain.setValueAtTime(0.05, now);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-        osc2.connect(gain2);
-        gain2.connect(audioCtx.current.destination);
-        osc2.start(now);
-        osc2.stop(now + 0.4);
-    }, [isMuted, resume, vibrate]);
-
-    // BATTLESHIP: Sinking Ship Sound
-    const playShipSink = useCallback(() => {
-        vibrate([100, 50, 200]);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-
-        // 1. Low rumble (Explosion/Sinking)
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        const filter = audioCtx.current.createBiquadFilter();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(100, now);
-        osc.frequency.exponentialRampToValueAtTime(10, now + 1.5);
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(200, now);
-        filter.frequency.linearRampToValueAtTime(50, now + 1.5);
-
-        gain.gain.setValueAtTime(0.5, now); 
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.current.destination);
-
-        osc.start(now);
-        osc.stop(now + 1.5);
-
-        // 2. Metallic/Creaking noise
-        const osc2 = audioCtx.current.createOscillator();
-        const gain2 = audioCtx.current.createGain();
-        
-        osc2.type = 'square';
-        osc2.frequency.setValueAtTime(80, now);
-        osc2.frequency.exponentialRampToValueAtTime(20, now + 1.0);
-        
-        gain2.gain.setValueAtTime(0.1, now);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
-        
-        osc2.connect(gain2);
-        gain2.connect(audioCtx.current.destination);
-        osc2.start(now);
-        osc2.stop(now + 1.0);
-
-    }, [isMuted, resume, vibrate]);
-
-    // BATTLESHIP: Water Splash Sound (Plouf)
-    const playSplash = useCallback(() => {
-        vibrate(30);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        
-        // Sine wave dropping in pitch = liquid sound
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
-
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.2);
-    }, [isMuted, resume, vibrate]);
-
-    const playExplosion = useCallback(() => {
-        vibrate([80, 40, 80]);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        const filter = audioCtx.current.createBiquadFilter();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(200, now);
-        osc.frequency.exponentialRampToValueAtTime(20, now + 0.5);
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(800, now);
-        filter.frequency.linearRampToValueAtTime(100, now + 0.4);
-
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.current.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.5);
-        
-        // Add some noise texture (simulated with random freq mod)
-        const osc2 = audioCtx.current.createOscillator();
-        const gain2 = audioCtx.current.createGain();
-        osc2.type = 'square';
-        osc2.frequency.setValueAtTime(100, now);
-        osc2.frequency.linearRampToValueAtTime(50, now + 0.3);
-        
-        gain2.gain.setValueAtTime(0.2, now);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-        
-        osc2.connect(gain2);
-        gain2.connect(audioCtx.current.destination);
-        osc2.start(now);
-        osc2.stop(now + 0.3);
-
-    }, [isMuted, resume, vibrate]);
-
-    const playGoalScore = useCallback(() => {
-        vibrate([30, 30]);
-        if (isMuted || !audioCtx.current) return;
-        resume();
-        const now = audioCtx.current.currentTime;
-        const osc = audioCtx.current.createOscillator();
-        const gain = audioCtx.current.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.5);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-        osc.connect(gain);
-        gain.connect(audioCtx.current.destination);
-        osc.start();
-        osc.stop(now + 0.5);
-    }, [isMuted, resume, vibrate]);
-
-    return { 
-        playMove, 
-        playRotate, 
-        playLand, 
-        playClear,
-        playBlockDestroy,
-        playVictory,
-        playGameOver, 
-        playCarMove, 
-        playCarExit, 
-        playPaddleHit,
-        playBlockHit, 
-        playWallHit, 
-        playLoseLife,
-        playPowerUpSpawn,
-        playPowerUpCollect,
-        playLaserShoot,
-        playPacmanWaka,
-        playPacmanEatGhost,
-        playPacmanPower,
-        playCoin,
-        playShipSink,
-        playSplash,
-        playExplosion,
-        playGoalScore,
-        isMuted, 
+    // API exportée, memoizée pour garantir des références stables
+    const audioApi = useMemo(() => ({
+        isMuted,
         toggleMute,
-        resumeAudio: resume,
         isVibrationEnabled,
-        toggleVibration
-    };
+        toggleVibration,
+        resumeAudio: resume,
+        playMove: () => playSound('move'),
+        playRotate: () => playSound('rotate'),
+        playLand: () => playSound('land'),
+        playClear: () => playSound('clear'),
+        playVictory: () => playSound('victory'),
+        playGameOver: () => playSound('gameOver'),
+        playCoin: () => playSound('coin'),
+        playCarMove: () => playSound('carMove'),
+        playCarExit: () => playSound('carExit'),
+        playPaddleHit: () => playSound('paddleHit'),
+        playBlockHit: () => playSound('blockHit'),
+        playWallHit: () => playSound('wallHit'),
+        playLoseLife: () => playSound('loseLife'),
+        playPowerUpSpawn: () => playSound('powerUpSpawn'),
+        playLaserShoot: () => playSound('laserShoot'),
+        playPacmanWaka: () => playSound('pacmanWaka'),
+        playPacmanEatGhost: () => playSound('pacmanEatGhost'),
+        playPacmanPower: () => playSound('pacmanPower'),
+        playShipSink: () => playSound('shipSink'),
+        playSplash: () => playSound('splash'),
+        playExplosion: () => playSound('explosion'),
+        playGoalScore: () => playSound('goalScore'),
+        playBlockDestroy: (blockType: string) => playSound('blockDestroy', { blockType }),
+        playPowerUpCollect: (type: string) => playSound('powerUpCollect', { type }),
+    }), [isMuted, isVibrationEnabled, toggleMute, toggleVibration, resume, playSound]);
+
+    return audioApi;
 };
