@@ -392,6 +392,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                         onOpenProfile={handlePlayerClick}
                         onSendMessage={sendMessage}
                         isLoadingHistory={isLoadingHistory}
+                        mp={mp}
                     />
                 )}
 

@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { ArrowLeft, MoreVertical, Clock, Smile, Send } from 'lucide-react';
-import { Friend, PrivateMessage, GAME_NAMES } from './types';
+import { ArrowLeft, MoreVertical, Clock, Smile, Send, Phone } from 'lucide-react';
+import { Friend, PrivateMessage, GAME_NAMES, SUPPORT_ID } from './types';
 import { Avatar, Frame } from '../../hooks/useCurrency';
+import { VoiceChatHUD } from '../multiplayer/VoiceChatHUD';
 
 interface ChatViewProps {
     activeFriend: Friend;
@@ -14,11 +15,12 @@ interface ChatViewProps {
     onOpenProfile: (friend: Friend) => void;
     onSendMessage: (text: string) => void;
     isLoadingHistory: boolean;
+    mp: any;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({ 
     activeFriend, messages, currentUsername, avatarsCatalog, framesCatalog, 
-    onBack, onOpenProfile, onSendMessage, isLoadingHistory 
+    onBack, onOpenProfile, onSendMessage, isLoadingHistory, mp
 }) => {
     const [chatInput, setChatInput] = React.useState('');
     const chatEndRef = React.useRef<HTMLDivElement>(null);
@@ -36,26 +38,47 @@ export const ChatView: React.FC<ChatViewProps> = ({
         setChatInput('');
     };
 
+    const isRealUser = activeFriend.id !== SUPPORT_ID && !activeFriend.id.startsWith('bot_');
+
     return (
         <div className="flex flex-col h-full animate-in slide-in-from-right-4 bg-gray-900/40 relative">
+            {/* --- HEADER --- */}
             <div className="px-4 py-3 bg-gray-900/90 border-b border-white/10 flex items-center gap-3 backdrop-blur-md sticky top-0 z-20">
                 <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full text-gray-400 transition-colors"><ArrowLeft size={20}/></button>
-                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center border ${getFrameClass(activeFriend.frameId)}`}>
+                
+                <div 
+                    onClick={() => onOpenProfile(activeFriend)}
+                    className={`w-10 h-10 rounded-lg bg-gradient-to-br ${(avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).bgGradient} flex items-center justify-center border cursor-pointer hover:scale-105 transition-transform ${getFrameClass(activeFriend.frameId)}`}
+                >
                     {React.createElement((avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).icon, { size: 20, className: (avatarsCatalog.find(a => a.id === activeFriend.avatarId) || avatarsCatalog[0]).color })}
                 </div>
+                
                 <div className="flex-1 min-w-0">
-                    <span className="font-bold text-sm text-white truncate">{activeFriend.name}</span>
+                    <span className="font-bold text-sm text-white truncate block">{activeFriend.name}</span>
                     <div className="flex items-center gap-1.5">
                         <div className={`w-1.5 h-1.5 rounded-full ${activeFriend.status === 'online' ? 'bg-green-500 shadow-[0_0_5px_lime]' : 'bg-gray-500'}`}></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">
                             {activeFriend.status === 'online' ? (activeFriend.gameActivity && activeFriend.gameActivity !== 'menu' ? `Joue à ${GAME_NAMES[activeFriend.gameActivity] || activeFriend.gameActivity}` : 'En ligne') : 'Hors-ligne'}
                         </span>
                     </div>
                 </div>
+
+                {/* VOICE CHAT INTEGRATION */}
+                {isRealUser && (
+                    <div className="animate-in fade-in zoom-in duration-300">
+                        <VoiceChatHUD 
+                            myId={mp.peerId} 
+                            opponentId={activeFriend.id} 
+                            gameActive={true} 
+                        />
+                    </div>
+                )}
+
                 <button onClick={() => onOpenProfile(activeFriend)} className="p-2 hover:bg-white/10 rounded-full text-gray-400"><MoreVertical size={20}/></button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* --- MESSAGES --- */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                 {isLoadingHistory && <div className="flex justify-center py-4"><div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div></div>}
                 
                 {messages?.map((msg) => (
@@ -74,6 +97,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <div ref={chatEndRef} />
             </div>
 
+            {/* --- INPUT --- */}
             <div className="p-4 bg-gray-900/90 border-t border-white/10 backdrop-blur-md sticky bottom-0 z-20">
                 <form onSubmit={handleSubmit} className="flex items-center gap-2">
                     <div className="flex-1 bg-gray-800/80 border border-white/10 rounded-2xl px-4 py-2.5 flex items-center focus-within:border-cyan-500/50 transition-all shadow-inner">
