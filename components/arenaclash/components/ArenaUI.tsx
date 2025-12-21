@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Home, HelpCircle, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw, Wifi, Play, Search } from 'lucide-react';
+import { Home, HelpCircle, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw, Wifi, Play, Search, ArrowRight, Shield, Zap, Skull } from 'lucide-react';
 import { MAPS } from '../constants';
 import { Avatar } from '../../../hooks/useCurrency';
 
@@ -211,13 +211,60 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
             {/* MENU HEADER - Only visible in MENU */}
             {gameState === 'MENU' && (
-                <div className="w-full max-w-2xl flex items-center justify-between z-20 mb-2 p-4 shrink-0">
-                    <button onClick={(e) => { e.stopPropagation(); onBack(); }} className="p-3 bg-gray-900/80 rounded-xl text-cyan-400 border border-cyan-500/30 hover:bg-cyan-900/50 pointer-events-auto active:scale-95 transition-all">
-                        <Home size={20} />
-                    </button>
-                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,217,255,0.5)] tracking-widest">NEON ARENA</h1>
-                    <div className="flex gap-2 pointer-events-auto">
-                        <button onClick={(e) => { e.stopPropagation(); onToggleTutorial(); }} className="p-3 bg-gray-900/80 rounded-xl text-yellow-400 border border-yellow-500/30 hover:bg-yellow-900/50 active:scale-95 transition-all"><HelpCircle size={20} /></button>
+                <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto pointer-events-auto">
+                    <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/40 via-[#050510] to-black pointer-events-none"></div>
+                    <div className="fixed inset-0 bg-[linear-gradient(rgba(239,68,68,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+
+                    <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
+                        <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
+                            <div className="flex items-center justify-center gap-6 mb-4">
+                                <Crosshair size={56} className="text-red-500 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)] animate-pulse hidden md:block" />
+                                <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 drop-shadow-[0_0_30px_rgba(239,68,68,0.6)] tracking-tighter w-full">
+                                    ARENA<br className="md:hidden"/> CLASH
+                                </h1>
+                                <Crosshair size={56} className="text-red-500 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)] animate-pulse hidden md:block" />
+                            </div>
+                        </div>
+
+                        {/* Map Selector inside Menu */}
+                        <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/80 p-2 rounded-xl border border-white/10 backdrop-blur-md w-full max-w-xs">
+                            <button onClick={() => onChangeMap(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400"/></button>
+                            <div className="text-center w-40">
+                                <p className="text-[10px] text-gray-500 font-bold mb-1 flex items-center justify-center gap-1"><Map size={10}/> CARTE</p>
+                                <p className="text-white font-black italic text-lg truncate" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
+                            </div>
+                            <button onClick={() => onChangeMap(1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronRight size={24} className="text-gray-400"/></button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
+                            <button onClick={() => { onSetGameMode('SOLO'); onStartGame('SOLO'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                                <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)]"><User size={32} className="text-red-400" /></div>
+                                    <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-red-300 transition-colors">SOLO</h2>
+                                    <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Entraînement contre des bots.</p>
+                                </div>
+                                <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                    COMBATTRE L'IA <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                                </div>
+                            </button>
+
+                            <button onClick={() => onSetGameMode('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                                <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(249,115,22,0.3)]"><Globe size={32} className="text-orange-400" /></div>
+                                    <div className="flex items-center gap-3 mb-2"><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-orange-300 transition-colors">EN LIGNE</h2><span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span></div>
+                                    <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Duel intense contre un joueur réel.</p>
+                                </div>
+                                <div className="relative z-10 flex items-center gap-2 text-orange-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                                    REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                                </div>
+                            </button>
+                        </div>
+
+                        <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
+                            <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -288,31 +335,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                     </div>
                 </>
-            )}
-
-            {/* Menu Body */}
-            {gameState === 'MENU' && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 pointer-events-auto mt-16">
-                    <Crosshair size={64} className="text-cyan-400 animate-spin-slow mb-4 drop-shadow-[0_0_15px_#00f3ff]"/>
-                    
-                    <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/50 p-2 rounded-xl border border-white/10">
-                        <button onClick={() => onChangeMap(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400"/></button>
-                        <div className="text-center w-40">
-                            <p className="text-[10px] text-gray-500 font-bold mb-1 flex items-center justify-center gap-1"><Map size={10}/> CARTE</p>
-                            <p className="text-white font-black italic text-lg" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
-                        </div>
-                        <button onClick={() => onChangeMap(1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronRight size={24} className="text-gray-400"/></button>
-                    </div>
-
-                    <div className="flex flex-col gap-4 w-full max-w-[260px]">
-                        <button onClick={() => { onSetGameMode('SOLO'); onStartGame('SOLO'); }} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
-                            <User size={24} className="text-neon-blue"/> SOLO (BOTS)
-                        </button>
-                        <button onClick={() => onSetGameMode('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-purple-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95">
-                            <Globe size={24} className="text-purple-500"/> EN LIGNE
-                        </button>
-                    </div>
-                </div>
             )}
 
             {/* Waiting Online */}
