@@ -25,6 +25,14 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
 
+    // Refs to store latest props to avoid stale closures in the loop
+    const onUpdateRef = useRef(onUpdate);
+    const gameStateRef = useRef(gameState);
+
+    // Update refs whenever props change
+    useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
+    useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
     const drawWorm = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         const segs = worm.segments; 
         if (segs.length < 2) return;
@@ -92,10 +100,67 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         ctx.restore();
     };
 
+    const drawMinimap = (ctx: CanvasRenderingContext2D, player: Worm, others: Worm[]) => {
+        const mapSize = 130; 
+        const margin = 20;
+        // Position: Bottom Right (taking into account high DPI scaling conceptually, but drawing in canvas space)
+        const cx = ctx.canvas.width - mapSize/2 - margin;
+        const cy = ctx.canvas.height - mapSize/2 - margin;
+        const r = mapSize / 2;
+        const scale = mapSize / WORLD_SIZE;
+
+        ctx.save();
+        
+        // Radar Background
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(10, 10, 20, 0.6)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Clip to radar area
+        ctx.clip();
+
+        // Draw Enemies
+        others.forEach(w => {
+            if (w.isDead) return;
+            const h = w.segments[0];
+            // Convert World Pos to Map Pos (centered on radar center)
+            const mx = cx + (h.x * scale - r);
+            const my = cy + (h.y * scale - r);
+            
+            ctx.fillStyle = w.color;
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.arc(mx, my, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Draw Player
+        const ph = player.segments[0];
+        const px = cx + (ph.x * scale - r);
+        const py = cy + (ph.y * scale - r);
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = '#fff';
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    };
+
     const draw = (ctx: CanvasRenderingContext2D) => {
         const player = playerWormRef.current;
         if (!player) return;
         
+        // Use Ref for current game state
+        const currentGameState = gameStateRef.current;
+
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         
         const cam = cameraRef.current;
@@ -157,10 +222,15 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             }
         });
         
-        if (gameState !== 'DYING') drawWorm(ctx, player);
-        if (gameState === 'PLAYING') drawDirectionArrow(ctx, player);
+        if (currentGameState !== 'DYING') drawWorm(ctx, player);
+        if (currentGameState === 'PLAYING') drawDirectionArrow(ctx, player);
         
         ctx.restore();
+
+        // --- HUD (Screen Space) ---
+        if (currentGameState === 'PLAYING') {
+            drawMinimap(ctx, player, othersRef.current);
+        }
     };
 
     const loop = (time: number) => {
@@ -168,7 +238,8 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         const dt = time - lastTimeRef.current;
         lastTimeRef.current = time;
         
-        onUpdate(dt);
+        // Use Ref for onUpdate
+        onUpdateRef.current(dt);
         
         if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
