@@ -247,6 +247,9 @@ export const useMastermindLogic = (
 
     // Handle online connection flow
     useEffect(() => {
+        // Empêcher la bascule automatique vers le lobby si on est pas explicitement en mode ONLINE
+        if (gameMode !== 'ONLINE' && mp.mode !== 'in_game') return;
+
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) {
@@ -255,13 +258,12 @@ export const useMastermindLogic = (
                  setPhase('CREATION');
             } else {
                  setOnlineStep('lobby');
-                 // Ensure we are in LOBBY phase if we were in menu
                  if (phase === 'MENU') setPhase('LOBBY');
             }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            // If just joined
+            // If just joined via invite
             if (phase === 'MENU' || phase === 'LOBBY') {
                 setGameMode('ONLINE');
                 if (mp.isHost) {
@@ -273,7 +275,7 @@ export const useMastermindLogic = (
                 }
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, gameMode]);
 
     const sendChat = (text: string) => {
         const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };
