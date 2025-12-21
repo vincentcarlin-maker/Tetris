@@ -77,7 +77,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     };
 
     const renderLobby = () => {
-        const hostingPlayers = mp.players.filter(p => p.status === 'hosting' && p.id !== mp.peerId);
+        const hostingPlayers = mp.players.filter((p: any) => p.status === 'hosting' && p.id !== mp.peerId);
         
         return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md gap-6 p-4">
@@ -137,13 +137,12 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     };
 
     const handleLocalBack = () => {
-        if (logic.phase === 'GAME') {
-            logic.backToMenu();
-        } else if (logic.gameMode === 'ONLINE' && logic.onlineStep === 'lobby') {
-            logic.backToMenu();
-        } else {
-            onBack();
+        if (logic.gameMode === 'ONLINE') {
+            if (logic.onlineStep !== 'game') mp.disconnect();
+            else mp.leaveGame();
         }
+        logic.backToMenu();
+        if (logic.phase === 'MENU') onBack();
     };
 
     // --- MAIN RENDER ---
@@ -151,7 +150,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         return <UnoMenu onInitGame={logic.initGame} onBack={onBack} />;
     }
 
-    if (logic.gameMode === 'ONLINE' && logic.onlineStep === 'lobby') {
+    if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
                 <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
@@ -160,7 +159,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-300 pr-2 pb-1">NEON UNO</h1>
                     <div className="w-10"></div>
                 </div>
-                {renderLobby()}
+                {logic.onlineStep === 'connecting' ? (
+                     <div className="flex-1 flex flex-col items-center justify-center z-20"><Loader2 size={48} className="text-yellow-400 animate-spin mb-4" /><p className="text-yellow-300 font-bold">CONNEXION...</p></div>
+                ) : renderLobby()}
             </div>
         );
     }
@@ -189,10 +190,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                     <button onClick={() => logic.startNewGame(logic.gameMode)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
                 </div>
             </div>
-
-            {logic.gameMode === 'ONLINE' && logic.onlineStep === 'connecting' && (
-                 <div className="flex-1 flex flex-col items-center justify-center z-20"><Loader2 size={48} className="text-yellow-400 animate-spin mb-4" /><p className="text-yellow-300 font-bold">CONNEXION...</p></div>
-            )}
 
             {logic.gameMode === 'ONLINE' && mp.isHost && logic.onlineStep === 'game' && !mp.gameOpponent && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
