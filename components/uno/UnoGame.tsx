@@ -5,8 +5,12 @@ import { useHighScores } from '../../hooks/useHighScores';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
 import { TutorialOverlay } from '../Tutorials';
-import { Card, GamePhase, GameState, Turn, ChatMessage, Color, Value } from './types';
+import { Card as CardType, GamePhase, GameState, Turn, ChatMessage, Color, Value } from './types';
 import { generateDeck, isCardPlayable, getCpuMove } from './logic';
+import { Card } from './common/Card';
+import { UnoMenu } from './views/UnoMenu';
+import { GameOver } from './views/GameOver';
+import { ColorSelector } from './views/ColorSelector';
 
 interface UnoGameProps {
     onBack: () => void;
@@ -17,7 +21,7 @@ interface UnoGameProps {
 }
 
 interface FlyingCardData {
-    card: Card;
+    card: CardType;
     startX: number;
     startY: number;
     targetX: number;
@@ -35,44 +39,12 @@ const REACTIONS = [
     { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500', anim: 'animate-pulse' },
 ];
 
-const COLORS: Color[] = ['red', 'blue', 'green', 'yellow'];
-
 const COLOR_CONFIG: Record<Color, { border: string, text: string, shadow: string, bg: string, gradient: string }> = {
-    red: { 
-        border: 'border-red-500', 
-        text: 'text-red-500', 
-        shadow: 'shadow-red-500/50', 
-        bg: 'bg-red-950',
-        gradient: 'from-red-600 to-red-900'
-    },
-    blue: { 
-        border: 'border-cyan-500', 
-        text: 'text-cyan-500', 
-        shadow: 'shadow-cyan-500/50', 
-        bg: 'bg-cyan-950',
-        gradient: 'from-cyan-600 to-blue-900'
-    },
-    green: { 
-        border: 'border-green-500', 
-        text: 'text-green-500', 
-        shadow: 'shadow-green-500/50', 
-        bg: 'bg-green-950',
-        gradient: 'from-green-600 to-emerald-900'
-    },
-    yellow: { 
-        border: 'border-yellow-400', 
-        text: 'text-yellow-400', 
-        shadow: 'shadow-yellow-400/50', 
-        bg: 'bg-yellow-950',
-        gradient: 'from-yellow-500 to-orange-800'
-    },
-    black: { 
-        border: 'border-purple-500', 
-        text: 'text-white', 
-        shadow: 'shadow-purple-500/50', 
-        bg: 'bg-gray-900',
-        gradient: 'from-purple-600 via-pink-600 to-blue-600' 
-    },
+    red: { border: 'border-red-500', text: 'text-red-500', shadow: 'shadow-red-500/50', bg: 'bg-red-950', gradient: 'from-red-600 to-red-900' },
+    blue: { border: 'border-cyan-500', text: 'text-cyan-500', shadow: 'shadow-cyan-500/50', bg: 'bg-cyan-950', gradient: 'from-cyan-600 to-blue-900' },
+    green: { border: 'border-green-500', text: 'text-green-500', shadow: 'shadow-green-500/50', bg: 'bg-green-950', gradient: 'from-green-600 to-emerald-900' },
+    yellow: { border: 'border-yellow-400', text: 'text-yellow-400', shadow: 'shadow-yellow-400/50', bg: 'bg-yellow-950', gradient: 'from-yellow-500 to-orange-800' },
+    black: { border: 'border-purple-500', text: 'text-white', shadow: 'shadow-purple-500/50', bg: 'bg-gray-900', gradient: 'from-purple-600 via-pink-600 to-blue-600' },
 };
 
 
@@ -85,10 +57,10 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
     // --- GAME STATE ---
     const [phase, setPhase] = useState<GamePhase>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
-    const [deck, setDeck] = useState<Card[]>([]);
-    const [discardPile, setDiscardPile] = useState<Card[]>([]);
-    const [playerHand, setPlayerHand] = useState<Card[]>([]);
-    const [cpuHand, setCpuHand] = useState<Card[]>([]); // Represents Opponent in Online
+    const [deck, setDeck] = useState<CardType[]>([]);
+    const [discardPile, setDiscardPile] = useState<CardType[]>([]);
+    const [playerHand, setPlayerHand] = useState<CardType[]>([]);
+    const [cpuHand, setCpuHand] = useState<CardType[]>([]); // Represents Opponent in Online
     const [turn, setTurn] = useState<Turn>('PLAYER');
     const [gameState, setGameState] = useState<GameState>('playing');
     const [activeColor, setActiveColor] = useState<Color>('black');
@@ -132,7 +104,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         gameStateRef.current = { playerHand, cpuHand, discardPile, activeColor, turn };
     }, [playerHand, cpuHand, discardPile, activeColor, turn]);
 
-    const checkCompatibility = useCallback((card: Card) => {
+    const checkCompatibility = useCallback((card: CardType) => {
         const topCard = discardPile[discardPile.length - 1];
         return isCardPlayable(card, topCard, activeColor);
     }, [activeColor, discardPile]);
@@ -161,8 +133,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         container.addEventListener('touchmove', handleTouchMove, { passive: false });
         return () => container.removeEventListener('touchmove', handleTouchMove);
     }, []);
-
-    // --- HELPER: CONSISTENT COMPATIBILITY CHECK ---
 
     // --- EFFECT: SYNC SELF INFO ---
     useEffect(() => {
@@ -411,7 +381,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         else if (mode === 'ONLINE' && mp.mode === 'in_game') startNewGame('ONLINE');
     };
 
-    const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: Card[], isRemoteEffect: boolean = false) => {
+    const drawCard = (target: Turn, amount: number = 1, manualDiscardPile?: CardType[], isRemoteEffect: boolean = false) => {
         if (gameMode === 'ONLINE' && !mp.isHost) {
             if (target === 'PLAYER') {
                 if (isRemoteEffect) return [];
@@ -427,7 +397,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         playLand();
         let currentDeck = [...deck];
         let currentDiscard = manualDiscardPile ? [...manualDiscardPile] : [...discardPile];
-        const drawnCards: Card[] = [];
+        const drawnCards: CardType[] = [];
         let didReshuffle = false;
 
         for(let i=0; i<amount; i++) {
@@ -550,7 +520,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         }
     };
 
-    const animateCardPlay = (card: Card, index: number, actor: Turn, startRect?: DOMRect, isRemote: boolean = false) => {
+    const animateCardPlay = (card: CardType, index: number, actor: Turn, startRect?: DOMRect, isRemote: boolean = false) => {
         setIsAnimating(true);
         playMove();
 
@@ -597,7 +567,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         }, 500);
     };
 
-    const executeCardEffect = (card: Card, index: number, actor: Turn, isRemote: boolean) => {
+    const executeCardEffect = (card: CardType, index: number, actor: Turn, isRemote: boolean) => {
         // USE STATE REF TO AVOID STALE CLOSURES
         const currentState = gameStateRef.current;
         let hand = actor === 'PLAYER' ? [...currentState.playerHand] : [...currentState.cpuHand];
@@ -715,7 +685,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         setTurn(nextTurn);
     };
 
-    const handlePlayerCardClick = (e: React.MouseEvent, card: Card, index: number) => {
+    const handlePlayerCardClick = (e: React.MouseEvent, card: CardType, index: number) => {
         e.stopPropagation();
         if (turn !== 'PLAYER' || gameState !== 'playing' || isAnimating || showTutorial) return;
 
@@ -854,164 +824,19 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
          );
     };
 
-    const CardView = ({ card, onClick, faceUp = true, small = false, style }: { card: Card, onClick?: (e: React.MouseEvent) => void, faceUp?: boolean, small?: boolean, style?: React.CSSProperties }) => {
-        if (!faceUp) {
-            return (
-                <div style={style} className={`
-                    ${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} 
-                    bg-gray-900 border-2 border-gray-700 rounded-xl flex items-center justify-center
-                    shadow-lg relative overflow-hidden group
-                `}>
-                    <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-black/50 rounded-full border border-gray-600 flex flex-col items-center justify-center relative z-10 rotate-12">
-                        <span className="font-script text-neon-pink text-[10px] sm:text-xs leading-none drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]">Neon</span>
-                        <span className="font-black italic text-cyan-400 text-sm sm:text-lg leading-none drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">UNO</span>
-                    </div>
-                </div>
-            );
-        }
-
-        const config = COLOR_CONFIG[card.color];
-        let displayValue: string = card.value;
-        let Icon = null;
-
-        if (card.value === 'skip') Icon = Ban;
-        else if (card.value === 'reverse') Icon = RotateCcw;
-        else if (card.value === 'draw2') displayValue = '+2';
-        else if (card.value === 'wild') Icon = Palette;
-        else if (card.value === 'wild4') displayValue = '+4';
-
-        const isPlayerHand = onClick !== undefined;
-        let isPlayable = true;
-        if (isPlayerHand && turn === 'PLAYER') {
-             isPlayable = checkCompatibility(card);
-        }
-
-        const liftClass = isPlayerHand ? (isPlayable ? '-translate-y-6 sm:-translate-y-8 shadow-[0_0_25px_rgba(255,255,255,0.4)] z-30 brightness-110 ring-2 ring-white/70' : 'brightness-50 z-0 translate-y-2') : '';
-        const isWild = card.color === 'black';
-
-        return (
-            <div onClick={onClick} style={style} className={`${small ? 'w-10 h-14' : 'w-20 h-28 sm:w-28 sm:h-40'} relative rounded-xl flex flex-col items-center justify-center overflow-hidden cursor-pointer hover:scale-105 transition-all duration-300 select-none shadow-xl border-2 ${config.border} ${liftClass} bg-gray-900`}>
-                
-                {/* Dynamic Background */}
-                {isWild ? (
-                    <div className="absolute inset-[-50%] bg-[conic-gradient(from_0deg,#ef4444,#eab308,#22c55e,#3b82f6,#ef4444)] animate-[spin_4s_linear_infinite] opacity-100 z-0"></div>
-                ) : (
-                    <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-80 z-0`}></div>
-                )}
-
-                {/* Glassmorphism Oval */}
-                <div className={`absolute inset-2 sm:inset-3 rounded-[50%_/_40%] border ${isWild ? 'border-white/40 bg-black/80' : 'border-white/20 bg-black/40'} backdrop-blur-sm flex items-center justify-center z-10 shadow-inner`}>
-                    <div className={`font-black italic drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isWild ? (Icon ? 'text-white' : 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400') : 'text-white'} text-3xl sm:text-5xl flex items-center justify-center`}>
-                        {Icon ? <Icon size={small ? 20 : 40} strokeWidth={2.5} className={isWild ? "drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" : ""} /> : displayValue}
-                    </div>
-                </div>
-
-                {/* Corners */}
-                <div className="absolute top-1 left-1.5 text-[10px] sm:text-sm font-bold leading-none text-white drop-shadow-md z-20">
-                    {Icon ? <Icon size={12}/> : displayValue}
-                </div>
-                <div className="absolute bottom-1 right-1.5 text-[10px] sm:text-sm font-bold leading-none transform rotate-180 text-white drop-shadow-md z-20">
-                    {Icon ? <Icon size={12}/> : displayValue}
-                </div>
-                
-                {/* Gloss */}
-                <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none z-20"></div>
-            </div>
-        );
-    };
-
     const FlyingCardOverlay = () => {
         if (!flyingCard) return null;
         return (
             <div className="fixed z-[100] pointer-events-none" style={{left: 0, top: 0, animation: 'flyCard 0.5s ease-in-out forwards'}}>
                 <style>{`@keyframes flyCard { 0% { transform: translate(${flyingCard.startX}px, ${flyingCard.startY}px) scale(1); } 100% { transform: translate(${flyingCard.targetX}px, ${flyingCard.targetY}px) rotate(${flyingCard.rotation}deg) scale(0.8); } }`}</style>
-                <CardView card={flyingCard.card} style={{ width: '80px', height: '112px' }} />
+                <Card card={flyingCard.card} style={{ width: '80px', height: '112px' }} />
             </div>
         );
     };
 
     // --- MAIN RENDER ---
     if (phase === 'MENU') {
-        return (
-            <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
-                {/* Background layers - Yellow/Red theme */}
-                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-900/40 via-[#050510] to-black pointer-events-none"></div>
-                <div className="fixed inset-0 bg-[linear-gradient(rgba(234,179,8,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(234,179,8,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
-
-                <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
-                <div className="fixed bottom-1/4 right-1/4 w-64 h-64 bg-red-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
-
-                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
-                    
-                    {/* Title */}
-                    <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Layers size={56} className="text-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.8)] animate-bounce hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-300 to-red-300 drop-shadow-[0_0_30px_rgba(250,204,21,0.6)] tracking-tighter w-full">
-                                NEON<br className="md:hidden"/> UNO
-                            </h1>
-                            <Layers size={56} className="text-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.8)] animate-bounce hidden md:block" />
-                        </div>
-                        <div className="inline-block px-6 py-2 rounded-full border border-yellow-500/30 bg-yellow-900/20 backdrop-blur-sm">
-                            <p className="text-yellow-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Couleurs • Chiffres • Stratégie</p>
-                        </div>
-                    </div>
-
-                    {/* Cards Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
-                        
-                        {/* SOLO */}
-                        <button onClick={() => initGame('SOLO')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-yellow-500/50 hover:shadow-[0_0_50px_rgba(250,204,21,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
-                            <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            
-                            <div className="relative z-10">
-                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)]">
-                                    <User size={32} className="text-yellow-400" />
-                                </div>
-                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-yellow-300 transition-colors">SOLO</h2>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
-                                    Affrontez l'IA dans une partie rapide. Soyez le premier à vider votre main.
-                                </p>
-                            </div>
-
-                            <div className="relative z-10 flex items-center gap-2 text-yellow-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
-                                LANCER LA PARTIE <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
-                            </div>
-                        </button>
-
-                        {/* ONLINE */}
-                        <button onClick={() => initGame('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
-                            <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            
-                            <div className="relative z-10">
-                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)]">
-                                    <Globe size={32} className="text-red-400" />
-                                </div>
-                                <div className="flex items-center gap-3 mb-2">
-                                    <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-red-300 transition-colors">EN LIGNE</h2>
-                                    <span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span>
-                                </div>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
-                                    Rejoignez le lobby et défiez d'autres joueurs. Bluff et stratégie requis.
-                                </p>
-                            </div>
-
-                            <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
-                                REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
-                            </div>
-                        </button>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
-                            <Home size={14} /> RETOUR AU MENU PRINCIPAL
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
+        return <UnoMenu onInitGame={initGame} onBack={onBack} />;
     }
 
     if (gameMode === 'ONLINE' && onlineStep === 'lobby') {
@@ -1082,7 +907,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                 <div ref={cpuHandRef} className="flex justify-center -space-x-6 sm:-space-x-8 px-4 overflow-hidden h-32 sm:h-48 items-start pt-4 shrink-0">
                     {cpuHand.map((card, i) => (
                         <div key={card.id || i} style={{ transform: `rotate(${(i - cpuHand.length/2) * 5}deg) translateY(${Math.abs(i - cpuHand.length/2) * 2}px)` }}>
-                            <CardView card={card} faceUp={false} />
+                            <Card card={card} faceUp={false} />
                         </div>
                     ))}
                 </div>
@@ -1106,7 +931,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                     {/* Discard Pile */}
                     <div className="relative flex items-center justify-center z-10" ref={discardPileRef}>
                         <div className={`absolute -inset-6 rounded-full blur-2xl opacity-40 transition-colors duration-500 ${COLOR_CONFIG[activeColor].text.replace('text', 'bg')}`}></div>
-                        <div className="transform rotate-6 transition-transform duration-300 hover:scale-105 hover:rotate-0 z-10">{discardPile.length > 0 && <CardView card={discardPile[discardPile.length-1]} />}</div>
+                        <div className="transform rotate-6 transition-transform duration-300 hover:scale-105 hover:rotate-0 z-10">{discardPile.length > 0 && <Card card={discardPile[discardPile.length-1]} />}</div>
                     </div>
                 </div>
 
@@ -1122,7 +947,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                         <div className={`flex w-fit mx-auto px-8 ${spacingClass} items-end min-h-[160px] transition-all duration-500`}>
                             {playerHand.map((card, i) => {
                                 if (flyingCard && flyingCard.card.id === card.id) return <div key={card.id} style={{ width: '0px', transition: 'width 0.5s' }}></div>;
-                                return <div key={card.id} style={{ transform: `rotate(${(i - playerHand.length/2) * rotationFactor}deg) translateY(${Math.abs(i - playerHand.length/2) * (rotationFactor * 1.5)}px)`, zIndex: i }} className={`transition-transform duration-300 origin-bottom`}><CardView card={card} onClick={(e) => handlePlayerCardClick(e, card, i)} /></div>;
+                                return <div key={card.id} style={{ transform: `rotate(${(i - playerHand.length/2) * rotationFactor}deg) translateY(${Math.abs(i - playerHand.length/2) * (rotationFactor * 1.5)}px)`, zIndex: i }} className={`transition-transform duration-300 origin-bottom`}><Card card={card} onClick={(e) => handlePlayerCardClick(e, card, i)} isPlayable={checkCompatibility(card)} /></div>;
                             })}
                         </div>
                     </div>
@@ -1147,49 +972,18 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
 
             {unoShout && <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none"><div className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-yellow-400 to-red-600 animate-bounce drop-shadow-[0_0_25px_rgba(255,0,0,0.8)] transform -rotate-12">UNO !</div></div>}
 
-            {gameState === 'color_select' && (
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-in fade-in">
-                    <h2 className="text-2xl font-bold text-white mb-8 animate-pulse">CHOISIR UNE COULEUR</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        {COLORS.map(c => (
-                            <button key={c} onClick={() => handleColorSelect(c)} className={`w-32 h-32 rounded-2xl border-4 ${COLOR_CONFIG[c].border} bg-gray-900 hover:scale-105 transition-transform flex items-center justify-center group`}>
-                                <div className={`w-16 h-16 rounded-full ${COLOR_CONFIG[c].text.replace('text', 'bg')} shadow-[0_0_20px_currentColor] group-hover:scale-110 transition-transform`}></div>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
+            {gameState === 'color_select' && <ColorSelector onColorSelect={handleColorSelect} />}
 
             {(gameState === 'gameover' || opponentLeft) && (
-                <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-in zoom-in p-6">
-                    {opponentLeft ? (
-                        <>
-                            <LogOut size={64} className="text-red-500 mb-4" />
-                            <h2 className="text-3xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
-                            <button onClick={backToMenu} className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 mt-4"><Home size={18} /> RETOUR AU MENU</button>
-                        </>
-                    ) : (
-                        <>
-                            {winner === 'PLAYER' ? (
-                                <>
-                                    <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
-                                    <h2 className="text-5xl font-black italic text-white mb-2">VICTOIRE !</h2>
-                                    <div className="flex flex-col items-center gap-2 mb-8"><span className="text-gray-400 font-bold tracking-widest text-sm">SCORE FINAL</span><span className="text-4xl font-mono text-neon-blue">{score}</span></div>
-                                    {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
-                                </>
-                            ) : (
-                                <>
-                                    <Ban size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
-                                    <h2 className="text-5xl font-black italic text-white mb-4">DÉFAITE...</h2>
-                                </>
-                            )}
-                            <div className="flex gap-4">
-                                <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : () => startNewGame(gameMode)} className="px-8 py-3 bg-green-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
-                                <button onClick={backToMenu} className="px-8 py-3 bg-gray-800 text-white font-bold rounded-full hover:bg-gray-700 transition-colors">MENU</button>
-                            </div>
-                        </>
-                    )}
-                </div>
+                <GameOver
+                    winner={winner}
+                    score={score}
+                    earnedCoins={earnedCoins}
+                    gameMode={gameMode}
+                    onRematch={gameMode === 'ONLINE' ? () => mp.requestRematch() : () => startNewGame(gameMode)}
+                    onBackToMenu={backToMenu}
+                    opponentLeft={opponentLeft}
+                />
             )}
         </div>
     );
