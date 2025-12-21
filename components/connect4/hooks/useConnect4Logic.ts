@@ -69,7 +69,6 @@ export const useConnect4Logic = (
             setPhase('GAME');
             resumeAudio();
         }
-        // For ONLINE, the useEffect above handles the transition
     };
 
     const resetGame = useCallback(() => {
@@ -227,7 +226,7 @@ export const useConnect4Logic = (
     };
 
     return {
-        board, phase, setPhase, gameMode, difficulty,
+        board, phase, setPhase, gameMode, setGameMode, difficulty,
         currentPlayer, winState, isAiThinking, earnedCoins,
         chatHistory, activeReaction, opponentLeft,
         onlineStep, setOnlineStep,

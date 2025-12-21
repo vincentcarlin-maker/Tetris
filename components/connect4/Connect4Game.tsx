@@ -84,15 +84,27 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
     };
 
     const handleLocalBack = () => {
+        // GESTION MODE ONLINE
         if (logic.gameMode === 'ONLINE') {
-            if (logic.onlineStep !== 'game') {
-                mp.disconnect();
-                logic.setPhase('MENU');
-            } else {
+            if (logic.onlineStep === 'game') {
+                // Si en jeu, on quitte vers le lobby
                 mp.leaveGame();
+                logic.setOnlineStep('lobby');
+                logic.setPhase('LOBBY');
+            } else {
+                // Si dans le Lobby ou Connexion, on retourne au Menu Principal du jeu
+                mp.disconnect();
+                logic.setGameMode('PVE'); // Reset pour permettre de relancer le mode Online proprement
+                logic.setPhase('MENU');
             }
-        } else {
+            return;
+        }
+
+        // GESTION MODES LOCAUX
+        if (logic.phase !== 'MENU') {
             logic.setPhase('MENU');
+        } else {
+            onBack(); // Retour au Menu Arcade global
         }
     };
 
@@ -132,7 +144,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
             <Connect4Board 
                 {...logic}
                 mp={mp}
-                onBack={() => { if(logic.gameMode === 'ONLINE') mp.leaveGame(); logic.setPhase('MENU'); }}
+                onBack={handleLocalBack}
                 onRestart={() => logic.gameMode === 'ONLINE' ? mp.requestRematch() : logic.resetGame()}
                 onShowTutorial={() => setShowTutorial(true)}
                 handleOpponentLeftAction={(action) => {
