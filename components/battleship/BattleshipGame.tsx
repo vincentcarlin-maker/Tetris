@@ -92,17 +92,27 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   };
 
   const handleLocalBack = () => {
-      if (logic.phase === 'SETUP' || logic.phase === 'PLAYING' || logic.phase === 'GAMEOVER') {
-          if (logic.gameMode === 'ONLINE') {
+      // 1. GESTION MODE ONLINE
+      if (logic.gameMode === 'ONLINE') {
+          if (logic.onlineStep === 'game') {
+              // Si en jeu, on quitte vers le lobby
               mp.leaveGame();
               logic.setOnlineStep('lobby');
+              logic.setPhase('SETUP'); // Assure qu'on reste sur l'écran Lobby (pas Menu)
+          } else {
+              // Si dans le Lobby ou Connexion, on retourne au Menu Principal du jeu
+              mp.disconnect();
+              logic.setGameMode('SOLO'); // Reset pour permettre de relancer le mode Online proprement
+              logic.setPhase('MENU');
           }
-          logic.setPhase('MENU');
-      } else if (logic.gameMode === 'ONLINE' && logic.onlineStep === 'lobby') {
-          mp.disconnect();
+          return;
+      }
+
+      // 2. GESTION MODE SOLO
+      if (logic.phase !== 'MENU') {
           logic.setPhase('MENU');
       } else {
-          onBack();
+          onBack(); // Retour au Menu Arcade global
       }
   };
 
@@ -220,7 +230,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
              <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 pr-2 pb-1">BATAILLE</h1>
                 <div className="w-10"></div>
             </div>
