@@ -3,6 +3,7 @@ import React, { useRef, useEffect } from 'react';
 import { ArrowLeft, RefreshCw, HelpCircle, Loader2, CircleDot, MessageSquare, Send } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, ChatMessage } from '../types';
 import { ROWS, COLS, REACTIONS } from '../constants';
+import { VoiceChatHUD } from '../../multiplayer/VoiceChatHUD';
 
 interface Connect4BoardProps {
     board: BoardState;
@@ -35,7 +36,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
-    // --- RENDER HELPERS ---
     const renderReactionVisual = (reactionId: string, color: string) => {
         const reaction = REACTIONS.find(r => r.id === reactionId);
         if (!reaction) return null;
@@ -50,7 +50,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
            
            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
            
-           {/* REACTION DISPLAY */}
            {activeReaction && (() => {
                 const reaction = REACTIONS.find(r => r.id === activeReaction.id);
                 if (!reaction) return null;
@@ -59,7 +58,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                 return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
            })()}
 
-           {/* HEADER */}
            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0 relative min-h-[48px]">
              <div className="z-20 relative">
                  <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
@@ -77,7 +75,17 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
              </div>
            </div>
 
-           {/* ONLINE STATUS INDICATOR */}
+           {/* VOICE CHAT HUD */}
+           {gameMode === 'ONLINE' && (
+               <div className="z-20 mb-2">
+                   <VoiceChatHUD 
+                        myId={mp.peerId} 
+                        opponentId={mp.gameOpponent?.id} 
+                        gameActive={gameMode === 'ONLINE' && !!mp.gameOpponent} 
+                   />
+               </div>
+           )}
+
            {gameMode === 'ONLINE' && !winState.winner && (
                 <div className={`mb-2 px-6 py-1.5 rounded-full border flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors bg-gray-900 border-white/20`}>
                     {!mp.gameOpponent ? (
@@ -93,7 +101,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                 </div>
            )}
 
-           {/* PVE STATUS */}
            {gameMode !== 'ONLINE' && !winState.winner && (
                 <div className={`mb-2 px-6 py-1.5 rounded-full border flex items-center gap-2 text-xs font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-colors ${
                     currentPlayer === 1 
@@ -106,8 +113,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
            )}
 
            <div className={`relative z-10 p-2 sm:p-4 bg-black/60 rounded-2xl border-4 border-gray-700/80 shadow-2xl backdrop-blur-md w-full max-w-lg aspect-[7/6]`}>
-                
-                {/* WAITING OVERLAY */}
                 {gameMode === 'ONLINE' && !mp.gameOpponent && (
                     <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
                         <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
@@ -116,7 +121,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                     </div>
                 )}
                 
-                {/* OPPONENT LEFT OVERLAY */}
                 {opponentLeft && (
                      <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6 rounded-xl">
                         <h2 className="text-xl font-black italic text-white mb-2 text-center">ADVERSAIRE PARTI</h2>
@@ -127,7 +131,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                      </div>
                 )}
 
-                {/* THE GRID */}
                 <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
                     <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
                             {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => onColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || (gameMode === 'ONLINE' && !mp.gameOpponent) ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
@@ -148,7 +151,6 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                 </div>
            </div>
 
-           {/* CHAT & REACTIONS (ONLINE ONLY) */}
            {gameMode === 'ONLINE' && !winState.winner && !opponentLeft && mp.gameOpponent && (
                 <div className="w-full max-w-lg mt-2 flex flex-col gap-2 z-20 px-2 shrink-0">
                     <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar">
