@@ -48,20 +48,28 @@ export const useConnect4Logic = (
         mp.updateSelfInfo(username, currentAvatarId);
     }, [username, currentAvatarId, mp]);
 
+    // --- CONNECTION MANAGEMENT ---
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setPhase('LOBBY'); // Force exit menu
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            if (mp.mode !== 'disconnected') mp.disconnect();
+        }
+    }, [gameMode, mp]);
+
     // --- GAME ACTIONS ---
     const startGame = (mode: GameMode, diff?: Difficulty) => {
         setGameMode(mode);
         if (diff) setDifficulty(diff);
         
-        if (mode === 'ONLINE') {
-            setPhase('LOBBY'); // Important: passer en phase LOBBY
-            setOnlineStep('connecting');
-            mp.connect();
-        } else {
+        if (mode !== 'ONLINE') {
             resetGame();
             setPhase('GAME');
             resumeAudio();
         }
+        // For ONLINE, the useEffect above handles the transition
     };
 
     const resetGame = useCallback(() => {
@@ -186,12 +194,14 @@ export const useConnect4Logic = (
 
     // Multiplayer State Sync
     useEffect(() => {
+        if (gameMode !== 'ONLINE') return; // Prevent interference in local modes
+
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby'); // Force le lobby si connecté mais pas hôte
+            else setOnlineStep('lobby'); 
             
-            // Only force phase change if we are not in MENU/DIFFICULTY (i.e. we are in game flow)
+            // Sync logic
             if (phase !== 'MENU' && phase !== 'DIFFICULTY') {
                 if (phase !== 'LOBBY') setPhase('LOBBY');
             }
@@ -202,7 +212,7 @@ export const useConnect4Logic = (
             setOnlineStep('game');
             setOpponentLeft(false);
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode, phase, resetGame]);
 
     const sendChat = (text: string) => {
         const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };
