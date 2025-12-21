@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Gamepad2, Settings, Edit2, Coins } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
@@ -15,7 +16,21 @@ const GAMES_LIST = [
     { id: 'connect4', name: 'Connect 4', version: '1.5' },
     { id: 'sudoku', name: 'Sudoku', version: '1.2' },
     { id: 'breaker', name: 'Breaker', version: '3.0' },
-    { id: 'pacman', name: 'Pacman', version: '2.4' }
+    { id: 'pacman', name: 'Pacman', version: '2.4' },
+    { id: 'snake', name: 'Snake', version: '1.0' },
+    { id: 'invaders', name: 'Invaders', version: '1.0' },
+    { id: 'airhockey', name: 'Air Hockey', version: '1.0' },
+    { id: 'mastermind', name: 'Mastermind', version: '1.0' },
+    { id: 'uno', name: 'Uno', version: '1.0' },
+    { id: 'watersort', name: 'Neon Mix', version: '1.0' },
+    { id: 'checkers', name: 'Dames', version: '1.0' },
+    { id: 'runner', name: 'Neon Run', version: '1.0' },
+    { id: 'stack', name: 'Stack', version: '1.0' },
+    { id: 'arenaclash', name: 'Arena Clash', version: '1.0' },
+    { id: 'skyjo', name: 'Skyjo', version: '1.0' },
+    { id: 'lumen', name: 'Lumen Order', version: '1.0' },
+    { id: 'memory', name: 'Memory', version: '1.0' },
+    { id: 'battleship', name: 'Bataille', version: '1.0' }
 ];
 
 export const GamesSection: React.FC<GamesSectionProps> = ({ disabledGames, setDisabledGames, mp }) => {
