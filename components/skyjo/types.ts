@@ -10,7 +10,7 @@ export interface SkyjoCard {
 
 export type PlayerGrid = SkyjoCard[]; // 12 cards
 
-export type GamePhase = 'MENU' | 'SETUP' | 'PLAYING' | 'LAST_TURN' | 'ENDED';
+export type GamePhase = 'MENU' | 'LOBBY' | 'SETUP' | 'PLAYING' | 'LAST_TURN' | 'ENDED';
 export type Turn = 'PLAYER' | 'CPU';
 export type SubTurnState = 'IDLE' | 'HOLDING_DECK' | 'MUST_REVEAL';
 

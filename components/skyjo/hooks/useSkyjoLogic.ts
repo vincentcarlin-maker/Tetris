@@ -88,6 +88,7 @@ export const useSkyjoLogic = (
             setDiscardPile([topCard]);
             if (onReportProgress) onReportProgress('play', 1);
         } else {
+            setPhase('LOBBY'); // Important: Passer en phase lobby pour afficher l'UI de connexion/lobby
             setOnlineStep('connecting');
             mp.connect();
         }
@@ -334,6 +335,53 @@ export const useSkyjoLogic = (
         const unsubscribe = mp.subscribe((data: any) => handleDataRef.current?.(data));
         return () => unsubscribe();
     }, [mp]);
+
+    useEffect(() => {
+        const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+
+            // Force phase LOBBY if not playing/setup
+            if (phase !== 'MENU' && phase !== 'SETUP' && phase !== 'PLAYING' && phase !== 'LAST_TURN' && phase !== 'ENDED') {
+                 if (phase !== 'LOBBY') setPhase('LOBBY');
+            }
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            if (mp.isHost) {
+                // Host initiates game setup
+                if (phase === 'LOBBY' || phase === 'MENU') {
+                     resetGame();
+                     const newDeck = generateDeck();
+                     const pHand = newDeck.splice(0, 12).map(c => ({...c}));
+                     const cHand = newDeck.splice(0, 12).map(c => ({...c}));
+                     const topCard = newDeck.pop()!;
+                     topCard.isRevealed = true;
+                     setDeck(newDeck);
+                     setPlayerGrid(pHand);
+                     setCpuGrid(cHand); // Used to store opponent's hand logic for verification/display
+                     setDiscardPile([topCard]);
+                     
+                     // Send INIT to opponent
+                     setTimeout(() => {
+                         mp.sendData({
+                             type: 'SKYJO_INIT',
+                             hand: cHand, // Opponent gets this hand
+                             oppHand: pHand, // Opponent sees host hand as opponent
+                             topCard: topCard,
+                             startTurn: mp.peerId
+                         });
+                     }, 1000);
+                }
+            } else {
+                if (phase === 'MENU') {
+                     setPhase('LOBBY');
+                }
+                if (!isWaitingForHost) setIsWaitingForHost(true);
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
 
     const sendChat = (text: string) => {
         const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };
