@@ -98,18 +98,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
     // --- RENDER ---
     
-    if (logic.phase === 'MENU' || logic.phase === 'DIFFICULTY') {
-        return (
-            <Connect4Menu 
-                phase={logic.phase} 
-                setPhase={logic.setPhase}
-                onStart={logic.startGame}
-                onBack={onBack}
-            />
-        );
-    }
-
-    // Gestion de l'état En Ligne (Connexion & Lobby)
+    // Priorité au lobby si le mode est ONLINE et qu'on n'est pas en jeu
     if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
@@ -123,6 +112,17 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                      <div className="flex-1 flex flex-col items-center justify-center z-20"><Loader2 size={48} className="text-pink-400 animate-spin mb-4" /><p className="text-pink-300 font-bold">CONNEXION...</p></div>
                 ) : renderLobby()}
             </div>
+        );
+    }
+    
+    if (logic.phase === 'MENU' || logic.phase === 'DIFFICULTY') {
+        return (
+            <Connect4Menu 
+                phase={logic.phase} 
+                setPhase={logic.setPhase}
+                onStart={logic.startGame}
+                onBack={onBack}
+            />
         );
     }
 

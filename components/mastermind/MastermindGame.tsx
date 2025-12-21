@@ -49,6 +49,15 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
         setChatInput('');
     };
 
+    const handleLocalBack = () => {
+        if (logic.gameMode === 'ONLINE') {
+            if (logic.onlineStep !== 'game') mp.disconnect();
+            else mp.leaveGame();
+        }
+        logic.setPhase('MENU');
+        if (logic.phase === 'MENU') onBack();
+    };
+
     const renderLobby = () => {
          const hostingPlayers = mp.players.filter((p: any) => p.status === 'hosting' && p.id !== mp.peerId);
          
@@ -115,16 +124,18 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
         return <MastermindMenu onStart={logic.startGame} onBack={onBack} />;
     }
 
-    if (logic.gameMode === 'ONLINE' && logic.onlineStep === 'lobby') {
+    if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
                 <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
                 <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                    <button onClick={() => logic.setPhase('MENU')} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10"><Home size={20} /></button>
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-300 pr-2 pb-1">NEON MIND</h1>
                     <div className="w-10"></div>
                 </div>
-                {renderLobby()}
+                {logic.onlineStep === 'connecting' ? (
+                     <div className="flex-1 flex flex-col items-center justify-center z-20"><Loader2 size={48} className="text-cyan-400 animate-spin mb-4" /><p className="text-cyan-300 font-bold">CONNEXION...</p></div>
+                ) : renderLobby()}
             </div>
         );
     }
@@ -137,7 +148,7 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
-                <button onClick={() => { if(logic.gameMode === 'ONLINE') mp.leaveGame(); else logic.setPhase('MENU'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)] pr-2 pb-1">NEON MIND</h1>
                     {logic.gameMode === 'ONLINE' && (
@@ -230,7 +241,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                  <div className="w-full max-w-lg z-30 px-2 pb-4 mt-2">
                     <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
                         {REACTIONS.map(reaction => {
-                            // Map string icon names
                             return <button key={reaction.id} onClick={() => logic.sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><SmileIcon size={16} className={reaction.color} /></button>;
                         })}
                     </div>
@@ -244,7 +254,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                         if (!reaction) return null;
                         const positionClass = logic.activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
                         const anim = reaction.anim || 'animate-bounce';
-                        // Icon mapping needed here if extracted from constants as strings
                         return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${anim}`}><SmileIcon size={48} className={reaction.color}/></div></div>;
                     })()}
                 </div>

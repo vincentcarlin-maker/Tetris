@@ -72,6 +72,7 @@ export const useMastermindLogic = (
             setPhase('PLAYING');
             if (onReportProgress) onReportProgress('play', 1);
         } else {
+            setPhase('LOBBY'); // Important pour sortir du menu
             setOnlineStep('connecting');
             mp.connect();
         }
@@ -227,9 +228,7 @@ export const useMastermindLogic = (
             if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
             if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setPhase('GAMEOVER'); setResultMessage("ADVERSAIRE PARTI."); }
             if (data.type === 'REMATCH_START') {
-                 // Reset and swap roles implicitly or restart logic
                  resetGame();
-                 // In a real app we'd swap roles here
                  if (mp.isHost) {
                      setIsCodemaker(true);
                      setPhase('CREATION');
@@ -256,13 +255,14 @@ export const useMastermindLogic = (
                  setPhase('CREATION');
             } else {
                  setOnlineStep('lobby');
-                 if (phase !== 'MENU') resetGame();
+                 // Ensure we are in LOBBY phase if we were in menu
+                 if (phase === 'MENU') setPhase('LOBBY');
             }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
             // If just joined
-            if (phase === 'MENU') {
+            if (phase === 'MENU' || phase === 'LOBBY') {
                 setGameMode('ONLINE');
                 if (mp.isHost) {
                      setIsCodemaker(true);
@@ -273,7 +273,7 @@ export const useMastermindLogic = (
                 }
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase]);
 
     const sendChat = (text: string) => {
         const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };

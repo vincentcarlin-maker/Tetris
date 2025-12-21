@@ -1,6 +1,6 @@
 
 export type GameMode = 'SOLO' | 'ONLINE';
-export type GamePhase = 'MENU' | 'CREATION' | 'PLAYING' | 'WAITING' | 'GAMEOVER';
+export type GamePhase = 'MENU' | 'LOBBY' | 'CREATION' | 'PLAYING' | 'WAITING' | 'GAMEOVER';
 
 export interface ChatMessage {
     id: number;
