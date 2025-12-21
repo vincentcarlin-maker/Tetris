@@ -54,6 +54,17 @@ export const useBattleshipLogic = (
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Battleship');
     }, [username, currentAvatarId, mp]);
 
+    // --- CONNECTION MANAGEMENT ---
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setPhase('SETUP'); // Exit menu to allow Lobby UI to take over via condition check
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            if (mp.mode !== 'disconnected') mp.disconnect();
+        }
+    }, [gameMode, mp]);
+
     // --- RESET ---
     const resetGame = useCallback(() => {
         setPhase('SETUP');
@@ -275,6 +286,8 @@ export const useBattleshipLogic = (
 
     // --- MULTIPLAYER STATE SYNC ---
     useEffect(() => {
+        if (gameMode !== 'ONLINE') return;
+
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
@@ -286,7 +299,7 @@ export const useBattleshipLogic = (
                 resetGame(); // Transitions to SETUP
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode, phase, resetGame]);
 
     // --- ONLINE EVENTS ---
     useEffect(() => {
