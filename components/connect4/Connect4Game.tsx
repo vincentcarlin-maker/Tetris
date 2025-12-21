@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2, Globe, HelpCircle, LayoutGrid, Zap, Shield } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Cpu, User, CircleDot, Coins, Home, Play, Users, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, LogOut, Loader2, Globe, HelpCircle, LayoutGrid, Zap, Shield, ArrowRight } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, Difficulty } from './types';
 import { getBestMove } from './ai';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -67,7 +67,7 @@ const checkWinFull = (board: BoardState): WinState => {
   }
   for (let r = 0; r < ROWS - 3; r++) {
     for (let c = 0; c < COLS - 3; c++) {
-      if (board[r][c] && board[r][c] === board[r+1][c+1] && board[r][c] === board[r+2][c+2] && board[r][c] === board[r+3][c+3]) {
+      if (board[r][c] && board[r][c] === board[r+1][c] && board[r][c] === board[r+2][c] && board[r][c] === board[r+3][c]) {
         return { winner: board[r][c] as Player, line: [[r,c], [r+1,c+1], [r+2,c+2], [r+3,c+3]] };
       }
     }
@@ -443,23 +443,86 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
       );
   }
 
-  // --- MENU VIEW ---
+  // --- MENU VIEW (NEW STYLE) ---
   if (gameStage === 'MENU') {
       return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-            <h1 className="text-5xl font-black text-white mb-2 italic tracking-tight drop-shadow-[0_0_15px_#d946ef]">PUISSANCE 4</h1>
-            <div className="flex flex-col gap-4 w-full max-w-[260px] mt-8">
-                <button onClick={() => setGameStage('DIFFICULTY')} className="px-6 py-4 bg-gray-800 border-2 border-neon-blue text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
-                    <Cpu size={24} className="text-neon-blue"/> 1 JOUEUR
-                </button>
-                <button onClick={() => startGame('PVP')} className="px-6 py-4 bg-gray-800 border-2 border-neon-pink text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
-                    <Users size={24} className="text-neon-pink"/> 2 JOUEURS (LOCAL)
-                </button>
-                <button onClick={() => startGame('ONLINE')} className="px-6 py-4 bg-gray-800 border-2 border-green-500 text-white font-bold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-3 shadow-lg hover:scale-105 active:scale-95">
-                    <Globe size={24} className="text-green-500"/> EN LIGNE
-                </button>
+        <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
+            {/* Background layers */}
+            <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-pink-900/40 via-[#050510] to-black pointer-events-none"></div>
+            <div className="fixed inset-0 bg-[linear-gradient(rgba(236,72,153,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(236,72,153,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+
+            {/* Floating Particles/Orbs for ambience - fixed position */}
+            <div className="fixed top-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[100px] animate-pulse pointer-events-none"></div>
+            <div className="fixed bottom-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] animate-pulse delay-1000 pointer-events-none"></div>
+
+            <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
+                
+                {/* Title Section */}
+                <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
+                     <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(236,72,153,0.6)] tracking-tighter pr-4">
+                        NEON<br className="md:hidden"/> CONNECT
+                    </h1>
+                </div>
+
+                {/* Game Modes Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
+                    
+                    {/* SOLO CARD */}
+                    <button onClick={() => setGameStage('DIFFICULTY')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-pink-500/50 hover:shadow-[0_0_50px_rgba(236,72,153,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        <div className="absolute inset-0 bg-gradient-to-br from-pink-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        
+                        <div className="relative z-10">
+                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-pink-500/20 flex items-center justify-center border border-pink-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(236,72,153,0.3)]">
+                                <Cpu size={32} className="text-pink-400" />
+                            </div>
+                            <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-pink-300 transition-colors">SOLO</h2>
+                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                Affrontez l'IA dans un duel de stratégie. Anticipez les coups et créez des pièges.
+                            </p>
+                        </div>
+
+                        <div className="relative z-10 flex items-center gap-2 text-pink-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                            LANCER LA PARTIE <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                        </div>
+                    </button>
+
+                    {/* ONLINE CARD */}
+                    <button onClick={() => startGame('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        
+                        <div className="relative z-10">
+                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                                <Globe size={32} className="text-purple-400" />
+                            </div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors">EN LIGNE</h2>
+                                <span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span>
+                            </div>
+                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">
+                                Rejoignez le lobby et affrontez d'autres joueurs en temps réel.
+                            </p>
+                        </div>
+
+                        <div className="relative z-10 flex items-center gap-2 text-purple-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
+                            REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                        </div>
+                    </button>
+                </div>
+                
+                {/* Local VS */}
+                <div className="w-full max-w-sm md:max-w-3xl mt-6 flex-shrink-0">
+                     <button onClick={() => startGame('PVP')} className="w-full p-4 rounded-2xl bg-gray-900/30 border border-white/5 hover:bg-gray-800/50 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-gray-400 hover:text-white font-bold text-xs tracking-widest">
+                        <Users size={16} /> 2 JOUEURS LOCAL (MÊME ÉCRAN)
+                     </button>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
+                    <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
+                        <Home size={14} /> RETOUR AU MENU PRINCIPAL
+                    </button>
+                </div>
             </div>
-            <button onClick={onBack} className="mt-12 text-gray-500 text-sm hover:text-white underline">RETOUR AU MENU</button>
         </div>
       );
   }
@@ -467,8 +530,8 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
   // --- DIFFICULTY VIEW ---
   if (gameStage === 'DIFFICULTY') {
       return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4">
-            <h2 className="text-3xl font-black text-white mb-8">DIFFICULTÉ</h2>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in">
+            <h2 className="text-3xl font-black text-white mb-8 italic">DIFFICULTÉ</h2>
             <div className="flex flex-col gap-3 w-full max-w-[200px]">
                 <button onClick={() => startGame('PVE', 'EASY')} className="px-6 py-3 border border-green-500 text-green-400 font-bold rounded hover:bg-green-500 hover:text-black transition-all">FACILE</button>
                 <button onClick={() => startGame('PVE', 'MEDIUM')} className="px-6 py-3 border border-yellow-500 text-yellow-400 font-bold rounded hover:bg-yellow-500 hover:text-black transition-all">MOYEN</button>
@@ -501,7 +564,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
 
        <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0 relative min-h-[48px]">
          <div className="z-20 relative">
-             <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+             <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
                 <ArrowLeft size={20} />
              </button>
          </div>
@@ -627,7 +690,7 @@ export const Connect4Game: React.FC<Connect4GameProps> = ({ onBack, audio, addCo
                             <button onClick={gameMode === 'ONLINE' ? () => mp.requestRematch() : resetGame} className="px-8 py-3 bg-white text-black font-black tracking-widest text-lg rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] flex items-center gap-2"><Play size={20} fill="black"/> {gameMode === 'ONLINE' ? 'REVANCHE' : 'REJOUER'}</button>
                             {gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); setOnlineStep('lobby'); }} className="px-6 py-3 bg-gray-800 text-gray-300 font-bold rounded-full hover:bg-gray-700">QUITTER</button>}
                         </div>
-                        {gameMode !== 'ONLINE' && <button onClick={handleLocalBack} className="mt-4 text-xs text-gray-400 underline hover:text-white">Retour au Menu</button>}
+                        {gameMode !== 'ONLINE' && <button onClick={() => setGameStage('MENU')} className="mt-4 text-xs text-gray-400 underline hover:text-white">Retour au Menu</button>}
                      </>
                  )}
              </div>
