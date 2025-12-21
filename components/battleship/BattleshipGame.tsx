@@ -48,10 +48,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
   // --- SETUP ---
   useEffect(() => {
-      mp.updateSelfInfo(username, currentAvatarId);
-  }, [username, currentAvatarId, mp]);
-
-  useEffect(() => {
       const hasSeen = localStorage.getItem('neon_battleship_tutorial_seen');
       if (!hasSeen) {
           setShowTutorial(true);
@@ -200,7 +196,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                         <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">COMMENCER <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                     </button>
 
-                    <button onClick={() => { logic.setGameMode('ONLINE'); logic.setPhase('SETUP'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                    <button onClick={() => { logic.setGameMode('ONLINE'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="relative z-10">
                             <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]"><Globe size={32} className="text-blue-400" /></div>
@@ -335,6 +331,16 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 </div>
             </div>
         )}
+        
+        {/* Waiting Online (Host) */}
+        {logic.gameMode === 'ONLINE' && mp.isHost && logic.onlineStep === 'game' && !mp.gameOpponent && (
+             <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                <Loader2 size={48} className="text-cyan-400 animate-spin mb-4" />
+                <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
+                <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold mt-4">ANNULER</button>
+            </div>
+        )}
+
     </div>
   );
 };

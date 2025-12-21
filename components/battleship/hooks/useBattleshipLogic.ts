@@ -45,7 +45,14 @@ export const useBattleshipLogic = (
     // Refs
     const handleDataRef = useRef<any>(null);
     
+    const { username, currentAvatarId } = useCurrency();
     const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, playSplash } = audio;
+
+    // --- INITIALIZATION ---
+    useEffect(() => {
+        // Tag user for lobby
+        mp.updateSelfInfo(username, currentAvatarId, undefined, 'Battleship');
+    }, [username, currentAvatarId, mp]);
 
     // --- RESET ---
     const resetGame = useCallback(() => {
@@ -66,6 +73,7 @@ export const useBattleshipLogic = (
         setNotification(null);
         setIsReady(false);
         setOpponentReady(false);
+        setOpponentLeft(false);
         if (onReportProgress) onReportProgress('play', 1);
     }, [onReportProgress]);
 
@@ -265,7 +273,22 @@ export const useBattleshipLogic = (
         }
     }, [turn, phase, gameMode, playerGrid, playerShips, handleIncomingShot]);
 
-    // --- ONLINE SYNC ---
+    // --- MULTIPLAYER STATE SYNC ---
+    useEffect(() => {
+        const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby'); 
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            if (phase === 'MENU') {
+                resetGame(); // Transitions to SETUP
+            }
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+
+    // --- ONLINE EVENTS ---
     useEffect(() => {
         if (gameMode === 'ONLINE' && isReady && opponentReady && phase === 'SETUP') {
             setPhase('PLAYING');
@@ -285,7 +308,7 @@ export const useBattleshipLogic = (
                 const { r, c, status, shipDetails } = data;
                 handleShotResult(r, c, status, shipDetails);
             }
-            if (data.type === 'LEAVE_GAME') { handleGameOver('PLAYER'); }
+            if (data.type === 'LEAVE_GAME') { handleGameOver('PLAYER'); setOpponentLeft(true); }
             if (data.type === 'REMATCH_START') resetGame();
         };
     });
