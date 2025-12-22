@@ -66,6 +66,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 onLeaveGame={() => { logic.setOpponentLeft(true); logic.setGameState('GAMEOVER'); }} 
                 onRematch={() => logic.startGame('ONLINE')}
                 onReturnToMenu={() => logic.setGameState('MENU')}
+                onSetGameState={logic.setGameState}
                 controlsRef={logic.controlsRef}
                 mp={mp}
                 avatarsCatalog={avatarsCatalog}

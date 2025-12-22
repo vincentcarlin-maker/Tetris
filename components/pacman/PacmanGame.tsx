@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { Home, RefreshCw, Trophy, Ghost, ArrowRight, Star, Zap, Skull, Shield, Play, HelpCircle } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -126,66 +125,85 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
         }
     };
     const handleTouchEnd = () => { touchStartRef.current = null; };
-    const handleLocalBack = () => { if (gameStep === 'DIFFICULTY') setGameStep('MENU'); else if (gameStep === 'PLAYING') setGameStep('MENU'); else onBack(); };
+    const handleLocalBack = () => { if (gameStep === 'DIFFICULTY') onBack(); else if (gameStep === 'PLAYING') setGameStep('DIFFICULTY'); else onBack(); };
     const getStyle = (x: number, y: number) => ({ left: `${(x / COLS) * 100}%`, top: `${(y / ROWS) * 100}%`, width: `${(1 / COLS) * 100}%`, height: `${(1 / ROWS) * 100}%` });
 
-    // --- MENU VIEWS ---
-    if (gameStep === 'MENU') {
+    if (gameStep === 'DIFFICULTY') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
                 <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-yellow-900/40 via-[#050510] to-black pointer-events-none"></div>
                 <div className="fixed inset-0 bg-[linear-gradient(rgba(250,204,21,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(250,204,21,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
-
+                
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
                         <div className="flex items-center justify-center gap-6 mb-4">
                             <Ghost size={56} className="text-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.8)] animate-bounce hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-300 to-red-300 drop-shadow-[0_0_30px_rgba(250,204,21,0.6)] tracking-tighter w-full">
+                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-300 to-red-300 drop-shadow-[0_0_30px_rgba(250,204,21,0.6)] tracking-tighter w-full uppercase">
                                 NEON<br className="md:hidden"/> PAC
                             </h1>
                             <Ghost size={56} className="text-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.8)] animate-bounce hidden md:block" />
                         </div>
+                        <div className="inline-block px-6 py-2 rounded-full border border-yellow-500/30 bg-yellow-900/20 backdrop-blur-sm">
+                            <p className="text-yellow-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Chassez • Évitez • Survivez</p>
+                        </div>
                     </div>
 
-                    <div className="w-full max-w-sm md:max-w-xl flex-shrink-0">
-                         <button onClick={() => setGameStep('DIFFICULTY')} className="group relative w-full h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-yellow-500/50 hover:shadow-[0_0_50px_rgba(250,204,21,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl flex-shrink-0">
+                        {/* FACILE */}
+                        <button onClick={() => startGame('EASY')} className="group relative h-40 md:h-60 rounded-[24px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Shield size={20} className="text-green-400" />
+                                    <h2 className="text-2xl font-black text-white italic group-hover:text-green-300 transition-colors uppercase">Facile</h2>
+                                </div>
+                                <p className="text-gray-400 text-xs font-medium">Vitesse lente et 5 vies. Idéal pour explorer les labyrinthes.</p>
+                            </div>
+                            <div className="relative z-10 flex items-center justify-between text-green-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors">
+                                <span>VIES: 5 • x1.0</span>
+                                <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+
+                        {/* NORMAL */}
+                        <button onClick={() => startGame('MEDIUM')} className="group relative h-40 md:h-60 rounded-[24px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-yellow-500/50 hover:shadow-[0_0_50px_rgba(250,204,21,0.2)] text-left p-6 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
-                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)]"><Play size={32} className="text-yellow-400" /></div>
-                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-yellow-300 transition-colors">JOUER</h2>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Dévorez les pac-gommes, chassez les fantômes.</p>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Zap size={20} className="text-yellow-400" />
+                                    <h2 className="text-2xl font-black text-white italic group-hover:text-yellow-300 transition-colors uppercase">Normal</h2>
+                                </div>
+                                <p className="text-gray-400 text-xs font-medium">L'expérience classique. Vitesse standard et 3 vies.</p>
                             </div>
-                            <div className="relative z-10 flex items-center gap-2 text-yellow-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">COMMENCER <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
+                            <div className="relative z-10 flex items-center justify-between text-yellow-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors">
+                                <span>VIES: 3 • x1.5</span>
+                                <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </button>
+
+                        {/* DIFFICILE */}
+                        <button onClick={() => startGame('HARD')} className="group relative h-40 md:h-60 rounded-[24px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Skull size={20} className="text-red-500" />
+                                    <h2 className="text-2xl font-black text-white italic group-hover:text-red-300 transition-colors uppercase">Expert</h2>
+                                </div>
+                                <p className="text-gray-400 text-xs font-medium">Vitesse extrême, 2 vies. Pour les maîtres du Pacman.</p>
+                            </div>
+                            <div className="relative z-10 flex items-center justify-between text-red-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors">
+                                <span>VIES: 2 • x2.0</span>
+                                <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
+                            </div>
                         </button>
                     </div>
 
                     <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
+                            <Home size={14} /> RETOUR AU MENU PRINCIPAL
+                        </button>
                     </div>
                 </div>
-            </div>
-        );
-    }
-
-    if (gameStep === 'DIFFICULTY') {
-        return (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in">
-                <h2 className="text-3xl font-black text-white mb-8 italic">DIFFICULTÉ</h2>
-                <div className="flex flex-col gap-3 w-full max-w-[280px]">
-                    {(Object.keys(DIFFICULTY_SETTINGS) as (keyof typeof DIFFICULTY_SETTINGS)[]).map(d => {
-                        const s = DIFFICULTY_SETTINGS[d];
-                        return (
-                            <button key={d} onClick={() => startGame(d)} className={`group flex items-center justify-between px-6 py-4 border-2 rounded-xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95`}>
-                                <div className="flex items-center gap-3">
-                                    {d === 'EASY' && <Shield size={24}/>}{d === 'MEDIUM' && <Zap size={24}/>}{d === 'HARD' && <Skull size={24}/>}
-                                    <span className="font-bold">{s.name}</span>
-                                </div>
-                                <div className="text-[10px] flex flex-col items-end opacity-70 group-hover:opacity-100"><span>VIES: {s.lives}</span><span>SCORE: x{s.scoreMult}</span></div>
-                            </button>
-                        );
-                    })}
-                </div>
-                <button onClick={() => setGameStep('MENU')} className="mt-8 text-gray-500 text-sm hover:text-white underline">RETOUR</button>
             </div>
         );
     }
@@ -295,7 +313,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
                             <h2 className="text-4xl font-black text-green-400 italic mb-2">VICTOIRE TOTALE !</h2>
                             <p className="text-gray-300 text-sm mb-4 text-center max-w-[200px]">Tu as terminé tous les niveaux en mode {DIFFICULTY_SETTINGS[difficulty].name} !</p>
                             {earnedCoins > 0 && (<div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}
-                            <button onClick={() => setGameStep('MENU')} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">MENU</button>
+                            <button onClick={() => setGameStep('DIFFICULTY')} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-500">MENU</button>
                         </div>
                     )}
                 </div>

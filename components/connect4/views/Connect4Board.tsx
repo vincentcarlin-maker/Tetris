@@ -1,6 +1,6 @@
-
 import React, { useRef, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, HelpCircle, Loader2, CircleDot, MessageSquare, Send } from 'lucide-react';
+/* Added Coins to imports */
+import { ArrowLeft, RefreshCw, HelpCircle, Loader2, CircleDot, MessageSquare, Send, Coins } from 'lucide-react';
 import { BoardState, Player, WinState, GameMode, ChatMessage } from '../types';
 import { ROWS, COLS, REACTIONS } from '../constants';
 import { VoiceChatHUD } from '../../multiplayer/VoiceChatHUD';
@@ -13,6 +13,7 @@ interface Connect4BoardProps {
     gameMode: GameMode;
     mp: any;
     opponentLeft: boolean;
+    lastDrop: { r: number, c: number } | null;
     onColumnClick: (col: number) => void;
     onBack: () => void;
     onRestart: () => void;
@@ -22,13 +23,17 @@ interface Connect4BoardProps {
     activeReaction: { id: string, isMe: boolean } | null;
     sendChat: (t: string) => void;
     sendReaction: (id: string) => void;
+    /* Added earnedCoins to interface */
+    earnedCoins: number;
 }
 
 export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
     const { 
-        board, currentPlayer, winState, isAiThinking, gameMode, mp, opponentLeft, 
+        board, currentPlayer, winState, isAiThinking, gameMode, mp, opponentLeft, lastDrop,
         onColumnClick, onBack, onRestart, onShowTutorial, handleOpponentLeftAction,
-        chatHistory, activeReaction, sendChat, sendReaction
+        chatHistory, activeReaction, sendChat, sendReaction,
+        /* Added earnedCoins to destructuring */
+        earnedCoins
     } = props;
 
     const [chatInput, setChatInput] = React.useState('');
@@ -46,7 +51,13 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-4">
-           <style>{`@keyframes dropIn { 0% { transform: translateY(var(--drop-start)); opacity: 1; } 100% { transform: translateY(0); opacity: 1; } }`}</style>
+           <style>{`
+             @keyframes dropIn { 
+                0% { transform: translateY(var(--drop-start)); opacity: 0; } 
+                20% { opacity: 1; }
+                100% { transform: translateY(0); opacity: 1; } 
+             }
+           `}</style>
            
            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-pink/40 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
            
@@ -60,7 +71,7 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
 
            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0 relative min-h-[48px]">
              <div className="z-20 relative">
-                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 transition-all active:scale-95">
                     <ArrowLeft size={20} />
                  </button>
              </div>
@@ -68,8 +79,8 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                 <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue drop-shadow-[0_0_10px_rgba(255,0,255,0.4)] pr-2 pb-1">NEON CONNECT</h1>
              </div>
              <div className="z-20 relative min-w-[40px] flex justify-end gap-2">
-                <button onClick={onShowTutorial} className="p-2 bg-gray-800 rounded-lg text-neon-pink hover:text-white border border-white/10"><HelpCircle size={20} /></button>
-                <button onClick={onRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10">
+                <button onClick={onShowTutorial} className="p-2 bg-gray-800 rounded-lg text-neon-pink hover:text-white border border-white/10 active:scale-95"><HelpCircle size={20} /></button>
+                <button onClick={onRestart} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95">
                     <RefreshCw size={20} />
                 </button>
              </div>
@@ -131,18 +142,36 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                      </div>
                 )}
 
-                <div className="grid grid-cols-7 gap-1 sm:gap-3 relative">
+                <div className="grid grid-cols-7 gap-1 sm:gap-3 relative h-full">
+                    {/* Colonnes cliquables (couche supérieure) */}
                     <div className="absolute inset-0 grid grid-cols-7 w-full h-full z-20">
-                            {Array.from({ length: COLS }).map((_, c) => <div key={`col-${c}`} onClick={() => onColumnClick(c)} className={`h-full transition-colors rounded-full ${winState.winner || (gameMode === 'ONLINE' && !mp.gameOpponent) ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}/>)}
+                            {Array.from({ length: COLS }).map((_, c) => (
+                                <div 
+                                    key={`col-${c}`} 
+                                    onClick={() => onColumnClick(c)} 
+                                    className={`h-full transition-colors rounded-full ${winState.winner || (gameMode === 'ONLINE' && !mp.gameOpponent) ? 'cursor-default' : 'cursor-pointer hover:bg-white/5'}`}
+                                />
+                            ))}
                     </div>
+
+                    {/* Rendu des jetons et trous */}
                     {Array.from({ length: COLS }).map((_, c) => (
                         <div key={c} className="flex flex-col gap-1 sm:gap-3">
                             {Array.from({ length: ROWS }).map((_, r) => {
                                 const val = board[r][c];
                                 const isWinningPiece = winState.line.some(([wr, wc]) => wr === r && wc === c);
+                                const isLastDropped = lastDrop?.r === r && lastDrop?.c === c;
+                                
                                 return (
-                                    <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-gray-800/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2 border-white/20 group-hover:border-white/30 transition-colors overflow-visible">
-                                        {val !== 0 && <div className={`absolute inset-0 m-auto w-full h-full rounded-full transition-all duration-500 shadow-lg ${val === 1 ? 'bg-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.6)]' : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.6)]'} ${isWinningPiece ? 'animate-pulse ring-4 ring-white z-10 brightness-125' : ''}`}><div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent"></div></div>}
+                                    <div key={`${r}-${c}`} className="relative w-full aspect-square rounded-full bg-gray-800/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-2 border-white/10 transition-colors overflow-visible">
+                                        {val !== 0 && (
+                                            <div 
+                                                className={`absolute inset-0 m-auto w-full h-full rounded-full transition-all shadow-lg ${val === 1 ? 'bg-neon-pink shadow-[0_0_15px_rgba(255,0,255,0.6)]' : 'bg-neon-blue shadow-[0_0_15px_rgba(0,243,255,0.6)]'} ${isWinningPiece ? 'animate-pulse ring-4 ring-white z-10 brightness-125' : ''} ${isLastDropped ? 'animate-[dropIn_0.5s_ease-in] z-10' : ''}`}
+                                                style={isLastDropped ? { '--drop-start': `-${(r + 1) * 100}%` } as React.CSSProperties : {}}
+                                            >
+                                                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent"></div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -173,6 +202,32 @@ export const Connect4Board: React.FC<Connect4BoardProps> = (props) => {
                     </form>
                 </div>
            )}
+
+           {winState.winner && (
+                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+                    <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
+                    <h2 className="text-5xl font-black italic text-white mb-2">
+                        {winState.winner === 'DRAW' ? 'MATCH NUL' : `JOUEUR ${winState.winner} GAGNE !`}
+                    </h2>
+                    {/* Fixed earnedCoins and Coins errors here */}
+                    {earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span></div>}
+                    <div className="flex gap-4">
+                        <button onClick={onRestart} className="px-8 py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2"><RefreshCw size={20} /> REJOUER</button>
+                        <button onClick={onBack} className="px-8 py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors">MENU</button>
+                    </div>
+                </div>
+           )}
         </div>
     );
 };
+
+const Trophy = ({ size, className }: any) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+        <path d="M4 22h16" />
+        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+);

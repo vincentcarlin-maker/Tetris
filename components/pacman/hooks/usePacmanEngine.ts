@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGameAudio } from '../../../hooks/useGameAudio';
 import { useHighScores } from '../../../hooks/useHighScores';
@@ -72,7 +71,7 @@ export const usePacmanEngine = (
     const [lives, setLives] = useState(3);
     const [level, setLevel] = useState(1);
     const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
-    const [gameStep, setGameStep] = useState<'MENU' | 'DIFFICULTY' | 'PLAYING'>('MENU'); 
+    const [gameStep, setGameStep] = useState<'MENU' | 'DIFFICULTY' | 'PLAYING'>('DIFFICULTY'); 
     
     const [gameOver, setGameOver] = useState(false);
     const [gameWon, setGameWon] = useState(false); 
@@ -405,6 +404,7 @@ export const usePacmanEngine = (
             if (g.dir === 'RIGHT') g.pos.x += speed;
 
             if (g.pos.x < -0.5) g.pos.x = COLS - 0.5;
+            // Fix typo: change p.pos.x to g.pos.x
             if (g.pos.x > COLS - 0.5) g.pos.x = -0.5;
         });
     };

@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { GlobalProvider, useGlobal } from './context/GlobalContext';
 import { GameRouter } from './components/GameRouter';
@@ -53,7 +52,8 @@ const AppContent: React.FC = () => {
     }, [currentView]);
 
     const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social', 'settings', 'contact'].includes(currentView);
-    const shouldShowBottomNav = !isGameActive && currentView !== 'admin_dashboard';
+    // On cache le BottomNav explicitement pour la vue 'social' pour libérer l'espace messagerie
+    const shouldShowBottomNav = !isGameActive && currentView !== 'admin_dashboard' && currentView !== 'social';
 
     const handleOpenSocial = (tab: any) => {
         if (!isAuthenticated) { setShowLoginModal(true); return; }

@@ -4,8 +4,8 @@ import { useCurrency } from '../../../hooks/useCurrency';
 import { useHighScores } from '../../../hooks/useHighScores';
 import { 
     CANVAS_WIDTH, CANVAS_HEIGHT, MAPS, COLORS, BOT_NAMES, 
-    MATCH_DURATION, BULLET_SPEED, RESPAWN_TIME,
-    Character, Bullet, PowerUp, Particle, KillEvent, PowerUpType 
+    MATCH_DURATION, BULLET_SPEED, RESPAWN_TIME, ARENA_DIFFICULTY_SETTINGS,
+    Character, Bullet, PowerUp, Particle, KillEvent, PowerUpType, Difficulty 
 } from '../constants';
 
 export const useArenaLogic = (
@@ -20,8 +20,9 @@ export const useArenaLogic = (
 
     // --- STATE ---
     const [timeLeft, setTimeLeft] = useState(MATCH_DURATION);
-    const [gameState, setGameState] = useState<'MENU' | 'LOBBY' | 'PLAYING' | 'RESPAWNING' | 'GAMEOVER'>('MENU');
+    const [gameState, setGameState] = useState<'MENU' | 'LOBBY' | 'DIFFICULTY' | 'PLAYING' | 'RESPAWNING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
+    const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
     const [killFeed, setKillFeed] = useState<KillEvent[]>([]);
     const [leaderboard, setLeaderboard] = useState<{name: string, score: number, isMe: boolean}[]>([]);
     const [earnedCoins, setEarnedCoins] = useState(0);
@@ -41,6 +42,7 @@ export const useArenaLogic = (
     // --- REFS (LOGIC UTILS) ---
     const gameStateRef = useRef(gameState);
     const timeLeftRef = useRef(timeLeft);
+    const difficultyRef = useRef<Difficulty>(difficulty);
     const lastUiTimeRef = useRef(MATCH_DURATION);
     const selectedMapIndexRef = useRef(0);
     const lastNetworkUpdateRef = useRef(0);
@@ -58,6 +60,7 @@ export const useArenaLogic = (
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
     useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
     useEffect(() => { selectedMapIndexRef.current = selectedMapIndex; }, [selectedMapIndex]);
+    useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
 
     // --- CONNECTION MANAGEMENT ---
     useEffect(() => {
@@ -76,11 +79,11 @@ export const useArenaLogic = (
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby'); // Force le lobby ici
+            else setOnlineStep('lobby'); 
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            if (gameState === 'LOBBY') {
+            if (gameState === 'LOBBY' || gameState === 'MENU') {
                 startGame('ONLINE');
             }
         }
@@ -89,7 +92,10 @@ export const useArenaLogic = (
     // --- HELPERS ---
     const spawnCharacter = useCallback((id: string, name: string, isPlayer: boolean, isRemote: boolean = false): Character => {
         let x, y, safe;
+        const currentDifficulty = difficultyRef.current;
+        const diffSettings = ARENA_DIFFICULTY_SETTINGS[currentDifficulty];
         const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
+        
         do {
             x = 50 + Math.random() * (CANVAS_WIDTH - 100);
             y = 50 + Math.random() * (CANVAS_HEIGHT - 100);
@@ -102,11 +108,16 @@ export const useArenaLogic = (
         return {
             id, name, x, y, radius: 20,
             color: isPlayer ? COLORS.player : COLORS.enemy,
-            hp: 100, maxHp: 100,
-            angle: 0, vx: 0, vy: 0, speed: isPlayer || isRemote ? 5 : 3.5,
-            weaponDelay: 150, lastShot: 0,
+            hp: isPlayer || isRemote ? 100 : diffSettings.botHp, 
+            maxHp: isPlayer || isRemote ? 100 : diffSettings.botHp,
+            angle: 0, vx: 0, vy: 0, 
+            speed: isPlayer || isRemote ? 5 : diffSettings.botSpeed,
+            weaponDelay: isPlayer || isRemote ? 150 : diffSettings.botWeaponDelay, 
+            lastShot: 0,
             isDead: false, respawnTimer: 0,
-            score: 0, shield: 0, powerups: [],
+            score: 0, 
+            shield: isPlayer || isRemote ? 0 : diffSettings.botShield,
+            powerups: [],
             targetId: null
         };
     }, []);
@@ -114,9 +125,9 @@ export const useArenaLogic = (
     const spawnParticles = (x: number, y: number, color: string, count: number, explosion = false) => {
         for (let i = 0; i < count; i++) {
             const speed = explosion ? Math.random() * 5 : Math.random() * 2;
-            const angle = Math.random() * Math.PI * 2;
+            const pAngle = Math.random() * Math.PI * 2;
             particlesRef.current.push({
-                x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                x, y, vx: Math.cos(pAngle) * speed, vy: Math.sin(pAngle) * speed,
                 life: 30 + Math.random() * 20, maxLife: 50, color, size: Math.random() * 3 + 1
             });
         }
@@ -203,15 +214,19 @@ export const useArenaLogic = (
             const finalScore = player.score;
             updateHighScore('arenaclash', finalScore);
             if (onReportProgress) onReportProgress('score', finalScore);
-            const coins = finalScore * 10 + 50;
+            
+            const coinMult = gameMode === 'SOLO' ? ARENA_DIFFICULTY_SETTINGS[difficultyRef.current].coinMult : 2.0;
+            const coins = Math.floor(finalScore * 10 * coinMult) + 50;
+            
             addCoins(coins);
             setEarnedCoins(coins);
         }
-    }, [addCoins, updateHighScore, playVictory, onReportProgress]);
+    }, [addCoins, updateHighScore, playVictory, onReportProgress, gameMode]);
 
-    const startGame = useCallback((modeOverride?: 'SOLO' | 'ONLINE') => {
+    const startGame = useCallback((modeOverride?: 'SOLO' | 'ONLINE', diffOverride?: Difficulty) => {
         const currentMode = modeOverride || gameMode;
-        
+        if (diffOverride) setDifficulty(diffOverride);
+
         if (currentMode === 'ONLINE' && mp.isHost) {
             mp.sendData({ type: 'ARENA_INIT_MAP', mapIndex: selectedMapIndex });
         }
@@ -252,6 +267,8 @@ export const useArenaLogic = (
         
         if (!player) return;
         const limitedDt = Math.min(dt, 100);
+        // define speedFactor for frame-independent movement
+        const speedFactor = limitedDt / 16.67;
 
         if (gameStateRef.current === 'PLAYING' || gameStateRef.current === 'RESPAWNING') {
             timeLeftRef.current = Math.max(0, timeLeftRef.current - limitedDt / 1000);
@@ -350,15 +367,17 @@ export const useArenaLogic = (
                 });
 
                 if (target) {
-                    const angle = Math.atan2(target.y - char.y, target.x - char.x);
-                    char.angle = angle;
+                    const botTargetAngle = Math.atan2(target.y - char.y, target.x - char.x);
+                    char.angle = botTargetAngle;
                     const stopDist = (target as any).hp ? 200 : 0;
-                    if (minDist > stopDist) { char.x += Math.cos(angle) * currentSpeed * 0.8; char.y += Math.sin(angle) * currentSpeed * 0.8; }
-                    else if (minDist < stopDist - 50) { char.x -= Math.cos(angle) * currentSpeed * 0.5; char.y -= Math.sin(angle) * currentSpeed * 0.5; }
-                    if ((target as any).hp && now - char.lastShot > char.weaponDelay * 1.5) fireBullet(char, hasDamage);
+                    if (minDist > stopDist) { char.x += Math.cos(botTargetAngle) * currentSpeed * 0.8; char.y += Math.sin(botTargetAngle) * currentSpeed * 0.8; }
+                    else if (minDist < stopDist - 50) { char.x -= Math.cos(botTargetAngle) * currentSpeed * 0.5; char.y -= Math.sin(botTargetAngle) * currentSpeed * 0.5; }
+                    
+                    const shootProb = difficultyRef.current === 'HARD' ? 1.0 : difficultyRef.current === 'MEDIUM' ? 0.7 : 0.4;
+                    if ((target as any).hp && now - char.lastShot > char.weaponDelay && Math.random() < shootProb) fireBullet(char, hasDamage);
                 } else {
-                    const angle = Math.atan2(CANVAS_HEIGHT/2 - char.y, CANVAS_WIDTH/2 - char.x);
-                    char.x += Math.cos(angle) * currentSpeed * 0.5; char.y += Math.sin(angle) * currentSpeed * 0.5;
+                    const idleAngle = Math.atan2(CANVAS_HEIGHT/2 - char.y, CANVAS_WIDTH/2 - char.x);
+                    char.x += Math.cos(idleAngle) * currentSpeed * 0.5; char.y += Math.sin(idleAngle) * currentSpeed * 0.5;
                 }
             }
 
@@ -420,7 +439,7 @@ export const useArenaLogic = (
 
         for (let i = particlesRef.current.length - 1; i >= 0; i--) {
             const p = particlesRef.current[i];
-            p.x += p.vx; p.y += p.vy; p.life--;
+            p.x += p.vx * speedFactor; p.y += p.vy * speedFactor; p.life--;
             if (p.life <= 0) particlesRef.current.splice(i, 1);
         }
 
@@ -444,6 +463,7 @@ export const useArenaLogic = (
     return {
         gameState, setGameState,
         gameMode, setGameMode,
+        difficulty, setDifficulty,
         score: playerRef.current?.score || 0,
         timeLeft,
         killFeed,

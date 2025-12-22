@@ -1,6 +1,6 @@
 
-import React, { useRef } from 'react';
-import { Coins, User, Users, Download, RefreshCw } from 'lucide-react';
+import React from 'react';
+import { Coins, User, Users, RefreshCw } from 'lucide-react';
 
 interface TopBarProps {
     isAuthenticated: boolean;
@@ -8,7 +8,6 @@ interface TopBarProps {
     onLoginRequest?: () => void;
     onOpenSocial?: (tab: 'COMMUNITY') => void;
     onlineCount: number;
-    installPrompt: any;
     onReload: () => void;
     language: string;
     onCoinsRef?: (el: HTMLDivElement | null) => void;
@@ -16,7 +15,7 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ 
     isAuthenticated, coins, onLoginRequest, onOpenSocial, onlineCount, 
-    installPrompt, onReload, language, onCoinsRef 
+    onReload, language, onCoinsRef 
 }) => {
     return (
         <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-start">
@@ -43,7 +42,6 @@ export const TopBar: React.FC<TopBarProps> = ({
                         <span>{onlineCount}</span>
                     </button>
                 )}
-                {installPrompt && <button onClick={onReload} className="p-2 bg-neon-pink/20 rounded-full text-neon-pink hover:bg-neon-pink hover:text-white border border-neon-pink/50 backdrop-blur-sm active:scale-95 transition-all animate-pulse shadow-[0_0_10px_rgba(255,0,255,0.4)]" title="Installer l'application"><Download size={20} /></button>}
                 <button onClick={onReload} className="p-2 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform" title="Actualiser"><RefreshCw size={20} /></button>
             </div>
         </div>

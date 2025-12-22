@@ -1,7 +1,7 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Gamepad2, Settings, Edit2, Coins } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { GameConfigModal } from './game_config/GameConfigModal';
 
 interface GamesSectionProps {
     profiles: any[];
@@ -34,12 +34,21 @@ const GAMES_LIST = [
 ];
 
 export const GamesSection: React.FC<GamesSectionProps> = ({ disabledGames, setDisabledGames, mp }) => {
+    const [selectedGame, setSelectedGame] = useState<any | null>(null);
+
     const toggleGame = (gameId: string) => {
         const newArr = disabledGames.includes(gameId) ? disabledGames.filter(id => id !== gameId) : [...disabledGames, gameId];
         setDisabledGames(newArr);
         localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
         mp.sendAdminBroadcast(disabledGames.includes(gameId) ? 'Jeu réactivé' : 'Jeu en maintenance', 'game_config', newArr);
         if (isSupabaseConfigured) DB.saveSystemConfig({ disabledGames: newArr });
+    };
+
+    const handleSaveConfig = (updatedGame: any) => {
+        // En conditions réelles, on mettrait à jour une DB ici
+        console.log("Saving game config:", updatedGame);
+        mp.sendAdminBroadcast(`${updatedGame.name} mis à jour (v${updatedGame.version})`, 'info');
+        setSelectedGame(null);
     };
 
     return (
@@ -56,11 +65,24 @@ export const GamesSection: React.FC<GamesSectionProps> = ({ disabledGames, setDi
                             <button onClick={() => toggleGame(game.id)} className={`relative w-12 h-6 rounded-full transition-colors ${isDisabled ? 'bg-gray-600' : 'bg-green-500'}`}><div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isDisabled ? 'translate-x-0' : 'translate-x-6'}`}></div></button>
                         </div>
                         <div className="flex gap-2 mt-4 pt-3 border-t border-white/5">
-                            <button className="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 font-bold rounded-lg border border-blue-500/30 flex items-center justify-center gap-2"><Edit2 size={14}/> CONFIGURER</button>
+                            <button 
+                                onClick={() => setSelectedGame(game)}
+                                className="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 font-bold rounded-lg border border-blue-500/30 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all"
+                            >
+                                <Edit2 size={14}/> CONFIGURER
+                            </button>
                         </div>
                     </div>
                 );
             })}
+
+            {selectedGame && (
+                <GameConfigModal 
+                    game={selectedGame} 
+                    onClose={() => setSelectedGame(null)} 
+                    onSave={handleSaveConfig}
+                />
+            )}
         </div>
     );
 };

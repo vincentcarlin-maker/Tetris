@@ -1,11 +1,11 @@
-
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { MessageSquare, Globe } from 'lucide-react';
+import { MessageSquare, Globe, Home as HomeIcon } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency, BADGES_CATALOG } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 import { DB, supabase } from '../lib/supabaseClient';
 import { OnlineUser } from '../hooks/useSupabase';
+import { useGlobal } from '../context/GlobalContext';
 
 // Sub-components
 import { Friend, FriendRequest, PrivateMessage, SUPPORT_ID } from './social/types';
@@ -38,6 +38,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 }) => {
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
     const { playCoin, playVictory, playLand } = audio;
+    const { setCurrentView } = useGlobal();
     
     // --- STATE MANAGEMENT ---
     const [localTab, setLocalTab] = useState<'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
@@ -340,11 +341,20 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             
             {/* --- HEADER --- */}
             <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 w-full z-10 flex flex-col shrink-0">
-                <div className="p-4 flex items-center justify-center">
-                    <h2 className={`text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>
+                <div className="p-4 flex items-center justify-between">
+                    <button 
+                        onClick={() => setCurrentView('menu')}
+                        className="p-2 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"
+                    >
+                        <HomeIcon size={20} />
+                    </button>
+                    
+                    <h2 className={`text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 pr-4 pb-1 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>
                         {isMessagingCategory ? <MessageSquare size={24}/> : <Globe size={24}/>} 
                         {isMessagingCategory ? 'MESSAGERIE' : 'HUB SOCIAL'}
                     </h2>
+
+                    <div className="w-10"></div>
                 </div>
 
                 <div className="flex p-2 gap-2 bg-black/20 mx-4 mb-2 rounded-xl">
@@ -366,7 +376,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             </div>
 
             {/* --- CONTENT AREA --- */}
-            <div className="flex-1 overflow-y-auto flex flex-col relative pb-20 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto flex flex-col relative pb-4 custom-scrollbar">
                 
                 {socialTab === 'FRIENDS' && (
                     <FriendsList 

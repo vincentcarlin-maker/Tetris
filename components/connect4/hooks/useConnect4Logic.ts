@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGameAudio } from '../../../hooks/useGameAudio';
 import { useCurrency } from '../../../hooks/useCurrency';
@@ -26,6 +25,7 @@ export const useConnect4Logic = (
     const [winState, setWinState] = useState<WinState>({ winner: null, line: [] });
     const [isAiThinking, setIsAiThinking] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [lastDrop, setLastDrop] = useState<{ r: number, c: number } | null>(null);
 
     // Online specific
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
@@ -51,13 +51,13 @@ export const useConnect4Logic = (
     // --- CONNECTION MANAGEMENT ---
     useEffect(() => {
         if (gameMode === 'ONLINE') {
-            setPhase('LOBBY'); // Force exit menu
+            setPhase('LOBBY');
             setOnlineStep('connecting');
             mp.connect();
         } else {
             if (mp.mode !== 'disconnected') mp.disconnect();
         }
-    }, [gameMode, mp]);
+    }, [gameMode]);
 
     // --- GAME ACTIONS ---
     const startGame = (mode: GameMode, diff?: Difficulty) => {
@@ -84,22 +84,22 @@ export const useConnect4Logic = (
         setIsAiThinking(false);
         setEarnedCoins(0);
         setOpponentLeft(false);
+        setLastDrop(null);
         
         if (onReportProgress) onReportProgress('play', 1);
     }, [onReportProgress]);
 
     // --- CORE GAMEPLAY ---
     const handleColumnClick = useCallback((colIndex: number, isRemoteMove = false) => {
+        // Bloquer si le jeu est fini ou si une animation est déjà en cours
         if (winState.winner || isAnimatingRef.current || opponentLeft) return;
         
-        // Online Check
+        // Online Turn Check
         if (gameMode === 'ONLINE' && !isRemoteMove) {
             if (!mp.gameOpponent) return;
             const isMyTurn = (mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2);
             if (!isMyTurn) return;
         }
-
-        if (gameMode === 'PVE' && isAiThinking && !isRemoteMove) return;
 
         // Find drop row
         let rowIndex = -1;
@@ -121,6 +121,7 @@ export const useConnect4Logic = (
         newBoard[rowIndex][colIndex] = currentPlayer;
 
         isAnimatingRef.current = true;
+        setLastDrop({ r: rowIndex, c: colIndex });
         setBoard(newBoard);
         playMove();
 
@@ -135,9 +136,9 @@ export const useConnect4Logic = (
                 setCurrentPlayer(prev => prev === 1 ? 2 : 1);
             }
             isAnimatingRef.current = false;
-        }, 500);
+        }, 550); // Légèrement supérieur à la durée de l'animation CSS (500ms)
 
-    }, [currentPlayer, winState.winner, isAiThinking, gameMode, mp, opponentLeft]);
+    }, [currentPlayer, winState.winner, gameMode, mp, opponentLeft, playMove, playLand]);
 
     const handleGameOver = (winner: Player | 'DRAW') => {
         const isMeP1 = mp.amIP1;
@@ -164,16 +165,28 @@ export const useConnect4Logic = (
 
     // --- AI ---
     useEffect(() => {
-        if (gameMode === 'PVE' && currentPlayer === 2 && !winState.winner && !isAiThinking && !isAnimatingRef.current) {
-            setIsAiThinking(true);
-            const timer = setTimeout(() => {
-                const bestCol = getBestMove(board, difficulty);
-                if (bestCol !== -1) handleColumnClick(bestCol, true);
-                setIsAiThinking(false);
-            }, 600);
+        if (gameMode === 'PVE' && currentPlayer === 2 && !winState.winner && !isAiThinking) {
+            // On attend que l'animation du joueur soit finie avant de lancer la réflexion
+            const checkAndPlay = () => {
+                if (isAnimatingRef.current) {
+                    setTimeout(checkAndPlay, 100);
+                    return;
+                }
+                
+                setIsAiThinking(true);
+                setTimeout(() => {
+                    const bestCol = getBestMove(boardRef.current, difficulty);
+                    if (bestCol !== -1) {
+                        handleColumnClick(bestCol, true);
+                    }
+                    setIsAiThinking(false);
+                }, 800); // Temps de "réflexion" simulé
+            };
+
+            const timer = setTimeout(checkAndPlay, 200);
             return () => clearTimeout(timer);
         }
-    }, [gameMode, currentPlayer, winState.winner, isAiThinking, board, difficulty, handleColumnClick]);
+    }, [gameMode, currentPlayer, winState.winner, difficulty, handleColumnClick]);
 
     // --- MULTIPLAYER HANDLERS ---
     useEffect(() => {
@@ -191,20 +204,15 @@ export const useConnect4Logic = (
         return () => unsubscribe();
     }, [mp]);
 
-    // Multiplayer State Sync
     useEffect(() => {
-        if (gameMode !== 'ONLINE') return; // Prevent interference in local modes
-
+        if (gameMode !== 'ONLINE') return;
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby'); 
-            
-            // Sync logic
             if (phase !== 'MENU' && phase !== 'DIFFICULTY') {
                 if (phase !== 'LOBBY') setPhase('LOBBY');
             }
-
             if (board.some(r => r.some(c => c !== 0))) resetGame();
         } else if (mp.mode === 'in_game') {
             setPhase('GAME');
@@ -227,7 +235,7 @@ export const useConnect4Logic = (
 
     return {
         board, phase, setPhase, gameMode, setGameMode, difficulty,
-        currentPlayer, winState, isAiThinking, earnedCoins,
+        currentPlayer, winState, isAiThinking, earnedCoins, lastDrop,
         chatHistory, activeReaction, opponentLeft,
         onlineStep, setOnlineStep,
         isAnimating: isAnimatingRef.current,

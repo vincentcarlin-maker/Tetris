@@ -8,6 +8,7 @@ import { useMultiplayer } from '../hooks/useMultiplayer';
 import { DailyQuest } from '../hooks/useDailySystem'; 
 import { DailyBonusModal } from './DailyBonusModal';
 import { OnlineUser } from '../hooks/useSupabase';
+import { InstallGuide } from './pwa/InstallGuide';
 
 // Import sub-components
 import { ArcadeLogo } from './main_menu/ArcadeLogo';
@@ -75,12 +76,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     onLoginRequest, onlineUsers, liveUsers, onOpenSocial, disabledGamesList = [], 
     activeEvent, eventProgress, highScores 
 }) => {
-    const { username, updateUsername, t, language } = currency;
-    const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward, claimAllBonus, allCompletedBonusClaimed } = dailyData;
+    const { username, t, language } = currency;
+    const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward } = dailyData;
     
     const [showEventInfo, setShowEventInfo] = useState(false);
-    const [installPrompt, setInstallPrompt] = useState<any>(null);
-    const [animatingQuestId, setAnimatingQuestId] = useState<string | null>(null);
     const [flyingCoins, setFlyingCoins] = useState<{id: number, startX: number, startY: number, targetX: number, targetY: number, delay: number}[]>([]);
     
     const coinBalanceRef = useRef<HTMLDivElement>(null);
@@ -111,19 +110,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         spawnCoins(rect.left + rect.width / 2, rect.top + rect.height / 2, q.reward);
         audio.playCoin();
-        setAnimatingQuestId(q.id);
         claimQuestReward(q.id);
-        setTimeout(() => setAnimatingQuestId(null), 1500);
     };
 
     useEffect(() => { audio.resumeAudio(); }, [audio]);
     
-    useEffect(() => {
-        const handler = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
-        window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
-    }, []);
-
     useEffect(() => { if (isAuthenticated) mp.updateSelfInfo(username, currency.currentAvatarId, currency.currentMalletId); }, [username, currency.currentAvatarId, currency.currentMalletId, mp, isAuthenticated]);
 
     const handleReload = () => { window.location.reload(); };
@@ -141,7 +132,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 onLoginRequest={onLoginRequest} 
                 onOpenSocial={onOpenSocial}
                 onlineCount={onlineCount}
-                installPrompt={installPrompt}
                 onReload={handleReload}
                 language={language}
                 onCoinsRef={(el) => { if (el) (coinBalanceRef as any).current = el; }}
@@ -150,6 +140,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
                  
                  <ArcadeLogo />
+
+                 {/* NOUVEAU: Guide d'installation intelligent */}
+                 <InstallGuide />
                  
                  {activeEvent && (
                      <div 

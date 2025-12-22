@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Home, HelpCircle, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw, Wifi, Play, Search, ArrowRight, Shield, Zap, Skull, MessageSquare, Send } from 'lucide-react';
-import { MAPS } from '../constants';
+import { Home, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw, Wifi, Play, Search, ArrowRight, Shield, Zap, Skull } from 'lucide-react';
+import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar } from '../../../hooks/useCurrency';
 
 interface ArenaUIProps {
@@ -20,12 +20,13 @@ interface ArenaUIProps {
     onBack: () => void;
     onToggleTutorial: () => void;
     onSetGameMode: (mode: 'SOLO' | 'ONLINE') => void;
-    onStartGame: (mode?: 'SOLO' | 'ONLINE') => void;
+    onStartGame: (mode?: 'SOLO' | 'ONLINE', diff?: Difficulty) => void;
     onChangeMap: (delta: number) => void;
     onCancelHosting: () => void;
     onLeaveGame: () => void;
     onRematch: () => void;
     onReturnToMenu: () => void;
+    onSetGameState: (state: any) => void;
     controlsRef: React.MutableRefObject<any>;
     mp: any;
     avatarsCatalog: Avatar[];
@@ -35,7 +36,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     gameState, gameMode, score, timeLeft, respawnTimer, killFeed, leaderboard, earnedCoins,
     selectedMapIndex, onlineStep, isHost, hasOpponent,
     onBack, onToggleTutorial, onSetGameMode, onStartGame, onChangeMap,
-    onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, controlsRef,
+    onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, onSetGameState, controlsRef,
     mp, avatarsCatalog
 }) => {
     // Joystick Refs
@@ -224,7 +225,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 renderLobby()
             )}
 
-            {/* MENU HEADER - Only visible in MENU */}
+            {/* MENU PHASE */}
             {gameState === 'MENU' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto pointer-events-auto">
                     <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/40 via-[#050510] to-black pointer-events-none"></div>
@@ -252,7 +253,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
-                            <button onClick={() => { onSetGameMode('SOLO'); onStartGame('SOLO'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            {/* Fix: use onSetGameState('DIFFICULTY') and remove (props as any).setGameState */}
+                            <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                                 <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 <div className="relative z-10">
                                     <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)]"><User size={32} className="text-red-400" /></div>
@@ -260,7 +262,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                     <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Entraînement contre des bots.</p>
                                 </div>
                                 <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">
-                                    COMBATTRE L'IA <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                                    CHOISIR DIFFICULTÉ <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
                                 </div>
                             </button>
 
@@ -281,6 +283,37 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* DIFFICULTY PHASE */}
+            {gameState === 'DIFFICULTY' && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto">
+                    <h2 className="text-3xl font-black text-white mb-8 italic uppercase tracking-widest">Choisir Difficulté IA</h2>
+                    <div className="flex flex-col gap-4 w-full max-w-[320px]">
+                        {(Object.keys(ARENA_DIFFICULTY_SETTINGS) as Difficulty[]).map(d => {
+                            const s = ARENA_DIFFICULTY_SETTINGS[d];
+                            return (
+                                <button 
+                                    key={d} 
+                                    onClick={() => onStartGame('SOLO', d)}
+                                    className={`group flex items-center justify-between px-6 py-5 border-2 rounded-2xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95 shadow-lg`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        {d === 'EASY' && <Shield size={24}/>}
+                                        {d === 'MEDIUM' && <Zap size={24}/>}
+                                        {d === 'HARD' && <Skull size={24}/>}
+                                        <span className="font-black text-lg">{d === 'EASY' ? 'DÉBUTANT' : d === 'MEDIUM' ? 'CHALLENGER' : 'MAÎTRE'}</span>
+                                    </div>
+                                    <div className="text-[10px] flex flex-col items-end opacity-70 group-hover:opacity-100 font-mono font-bold">
+                                        <span>RECOM: x{s.coinMult}</span>
+                                        <span>HP: {s.botHp}</span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <button onClick={onReturnToMenu} className="mt-8 text-gray-500 hover:text-white text-sm font-bold underline tracking-widest">ANNULER</button>
                 </div>
             )}
 

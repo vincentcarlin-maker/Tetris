@@ -22,6 +22,21 @@ export const COLORS = {
 
 export const BOT_NAMES = ["Neo", "Glitch", "Viper", "Ghost", "Cyborg", "Pixel", "Byte", "Kilo", "Mega", "Tera"];
 
+export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
+
+export const ARENA_DIFFICULTY_SETTINGS: Record<Difficulty, { 
+    botSpeed: number, 
+    botHp: number, 
+    botShield: number, 
+    botWeaponDelay: number,
+    coinMult: number,
+    color: string
+}> = {
+    EASY: { botSpeed: 2.5, botHp: 80, botShield: 0, botWeaponDelay: 1000, coinMult: 1, color: 'text-green-400 border-green-500' },
+    MEDIUM: { botSpeed: 3.5, botHp: 100, botShield: 0, botWeaponDelay: 600, coinMult: 1.5, color: 'text-yellow-400 border-yellow-500' },
+    HARD: { botSpeed: 4.8, botHp: 150, botShield: 50, botWeaponDelay: 300, coinMult: 2.5, color: 'text-red-500 border-red-500' }
+};
+
 export interface Obstacle {
     x: number;
     y: number;

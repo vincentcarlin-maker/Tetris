@@ -51,9 +51,10 @@ export const useBattleshipLogic = (
     // --- AUTOMATIC NOTIFICATION CLEARING ---
     useEffect(() => {
         if (notification) {
+            // Réduit à 1200ms pour ne pas gêner le gameplay rapide
             const timer = setTimeout(() => {
                 setNotification(null);
-            }, 3000);
+            }, 1200);
             return () => clearTimeout(timer);
         }
     }, [notification]);

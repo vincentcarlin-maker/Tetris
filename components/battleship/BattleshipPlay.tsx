@@ -11,10 +11,11 @@ interface BattleshipPlayProps {
     cpuShips: Ship[];
     turn: 'PLAYER' | 'CPU';
     onAttack: (r: number, c: number) => void;
+    isNotificationActive: boolean;
 }
 
 export const BattleshipPlay: React.FC<BattleshipPlayProps> = ({
-    playerGrid, cpuGrid, playerShips, cpuShips, turn, onAttack
+    playerGrid, cpuGrid, playerShips, cpuShips, turn, onAttack, isNotificationActive
 }) => {
     
     const enemySunkCount = cpuShips.filter(s => s.sunk).length;
@@ -29,7 +30,11 @@ export const BattleshipPlay: React.FC<BattleshipPlayProps> = ({
                 <span className="text-cyan-400 flex items-center gap-1"><ShieldAlert size={12}/> {5 - playerSunkCount} ALLIÉS</span>
             </div>
 
-            <div className={`mb-4 px-6 py-2 rounded-full border text-sm font-bold shadow-lg transition-colors ${turn === 'PLAYER' ? 'bg-green-500/20 border-green-500 text-green-400 animate-pulse' : 'bg-red-500/10 border-red-500/50 text-red-400'}`}>
+            <div className={`mb-4 px-6 py-2 rounded-full border text-sm font-bold shadow-lg transition-all duration-300 ${
+                isNotificationActive ? 'opacity-20 scale-90 blur-[1px]' : 'opacity-100 scale-100'
+            } ${
+                turn === 'PLAYER' ? 'bg-green-500/20 border-green-500 text-green-400 animate-pulse' : 'bg-red-500/10 border-red-500/50 text-red-400'
+            }`}>
                 {turn === 'PLAYER' ? "À VOUS DE TIRER" : "L'ENNEMI VISE..."}
             </div>
 

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCurrency } from '../../../hooks/useCurrency';
 import { useHighScores } from '../../../hooks/useHighScores';
@@ -234,19 +233,36 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) handleDeath();
 
-        // Food Collision
+        // --- FOOD COLLISION FOR ALL WORMS ---
+        const allWorms = [player, ...othersRef.current];
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
-            if (Math.abs(head.x - f.x) > 100 || Math.abs(head.y - f.y) > 100) continue;
-            if ((head.x - f.x)**2 + (head.y - f.y)**2 < (player.radius + 15)**2) {
-                player.score += f.val * 5;
-                setScore(player.score);
-                player.radius = calculateWormRadius(player.score);
-                audio.playCoin();
-                for (let j = 0; j < f.val; j++) player.segments.push({ ...player.segments[player.segments.length - 1] });
-                foodRef.current.splice(i, 1);
-                if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId: f.id });
-                if (foodRef.current.length < MIN_FOOD_REGEN) spawnFood(200);
+            
+            for (const worm of allWorms) {
+                if (worm.isDead) continue;
+                const wHead = worm.segments[0];
+                
+                // Optimisation distance
+                if (Math.abs(wHead.x - f.x) > 100 || Math.abs(wHead.y - f.y) > 100) continue;
+                
+                if ((wHead.x - f.x)**2 + (wHead.y - f.y)**2 < (worm.radius + 15)**2) {
+                    worm.score += f.val * 5;
+                    worm.radius = calculateWormRadius(worm.score);
+                    
+                    if (worm.id === player.id) {
+                        setScore(worm.score);
+                        audio.playCoin();
+                    }
+                    
+                    for (let j = 0; j < f.val; j++) {
+                        worm.segments.push({ ...worm.segments[worm.segments.length - 1] });
+                    }
+                    
+                    foodRef.current.splice(i, 1);
+                    if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId: f.id });
+                    if (foodRef.current.length < MIN_FOOD_REGEN) spawnFood(200);
+                    break; // Un seul ver mange la nourriture
+                }
             }
         }
 
@@ -261,7 +277,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
 
         // Bots AI (Solo only)
         if (gameMode === 'SOLO') {
-            const allWorms = [player, ...othersRef.current];
             othersRef.current.forEach(bot => updateBotAI(bot, allWorms, speedFactor, player));
             othersRef.current = othersRef.current.filter(b => !b.isDead);
             if (othersRef.current.length < BOT_COUNT) othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Bot " + (Math.floor(Math.random()*2000)), COLORS[Math.floor(Math.random()*COLORS.length)]));
