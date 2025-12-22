@@ -50,10 +50,10 @@ export const LeaderboardWidget: React.FC<LeaderboardWidgetProps> = ({ highScores
 
     return (
         <>
-            {/* Backdrop : Fond de fermeture invisible couvrant tout l'écran */}
+            {/* Backdrop : Fond cliquable invisible pour fermer le menu au clic extérieur */}
             {showScores && (
                 <div 
-                    className="fixed inset-0 z-[15] bg-black/20 backdrop-blur-[1px] animate-in fade-in duration-300"
+                    className="fixed inset-0 z-[15] bg-black/10 backdrop-blur-[1px] animate-in fade-in duration-300"
                     onClick={() => setShowScores(false)}
                 />
             )}
@@ -84,7 +84,7 @@ export const LeaderboardWidget: React.FC<LeaderboardWidgetProps> = ({ highScores
                 
                 {showScores && (
                     <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-300 border-t border-white/5 pt-4">
-                        <div className="flex bg-black/30 p-1 rounded-lg mb-4 border border-white/5">
+                        <div className="flex bg-black/30 p-1 rounded-lg mb-4 border border-white/5" onClick={(e) => e.stopPropagation()}>
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setScoreTab('LOCAL'); }} 
                                 className={`flex-1 py-2 text-[10px] font-black rounded-md transition-all cursor-pointer ${scoreTab === 'LOCAL' ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'text-gray-400 hover:text-white uppercase'}`}

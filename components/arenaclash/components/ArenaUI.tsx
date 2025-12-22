@@ -47,13 +47,19 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     const rightKnobRef = useRef<HTMLDivElement>(null);
     const activeTouches = useRef<{ move: number | null, aim: number | null }>({ move: null, aim: null });
 
+    // Calcul du rang actuel pour affichage rapide
     const myRank = useMemo(() => {
         const index = leaderboard.findIndex(p => p.isMe);
         return index !== -1 ? index + 1 : null;
     }, [leaderboard]);
 
+    // Fermer le classement mobile si le jeu s'arrête ou si le joueur réapparaît
+    useEffect(() => {
+        if (gameState !== 'PLAYING') setShowMobileLeaderboard(false);
+    }, [gameState]);
+
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
-        if (gameState === 'GAMEOVER') return; // Bloquer les sticks si fini
+        if (gameState === 'GAMEOVER') return; 
         const rect = zone.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
@@ -80,7 +86,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
     useEffect(() => {
         const handleTouch = (e: TouchEvent) => {
-            if (gameState === 'GAMEOVER') return; // Plus d'actions tactiles de jeu si fini
+            if (gameState === 'GAMEOVER') return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 if (e.type === 'touchstart') {
@@ -114,7 +120,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     }, [gameState]);
 
     const LeaderboardContent = ({ onClose }: { onClose?: () => void }) => (
-        <div className="flex flex-col h-full pointer-events-auto">
+        <div className="flex flex-col h-full pointer-events-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
                 <div className="flex items-center gap-2">
                     <Trophy size={18} className="text-yellow-400"/>
@@ -147,6 +153,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         </div>
     );
 
+    // --- MENU PRINCIPAL ---
     if (gameState === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
@@ -180,6 +187,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         );
     }
 
+    // --- LOBBY MULTIJOUEUR ---
     if (gameState === 'LOBBY') {
         const hostingPlayers = mp.players.filter((p: any) => p.status === 'hosting' && p.id !== mp.peerId);
         
@@ -210,11 +218,13 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                     <span className="text-green-400 text-xs font-black animate-pulse uppercase">Opérationnel</span>
                                 </div>
                             </div>
+
                             <div className="flex-1 bg-black/40 backdrop-blur-md rounded-[40px] border border-white/10 p-8 flex flex-col min-h-0 shadow-2xl">
                                 <div className="flex justify-between items-center mb-6 px-2">
                                     <span className="text-xs font-black text-gray-400 uppercase tracking-[0.3em]">Canaux Détectés</span>
                                     <span className="text-[10px] font-mono text-orange-400 bg-orange-950/30 px-3 py-1 rounded-full border border-orange-500/30">{hostingPlayers.length} LIVE</span>
                                 </div>
+
                                 <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
                                     {hostingPlayers.length > 0 ? (
                                         hostingPlayers.map((player: any) => {
@@ -257,8 +267,10 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         );
     }
 
+    // --- HUD EN JEU ---
     return (
         <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center overflow-hidden pointer-events-none">
+            
             {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
@@ -273,6 +285,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 )}
                             </button>
                         </div>
+
                         <div className="flex flex-col items-center">
                             <div className={`text-2xl md:text-4xl font-black font-mono drop-shadow-[0_0_15px_rgba(0,0,0,1)] px-4 md:px-6 py-1.5 md:py-2 bg-black/40 rounded-2xl md:rounded-3xl border border-white/10 backdrop-blur-md ${timeLeft < 10 ? 'text-red-500 animate-pulse border-red-500' : 'text-white'}`}>
                                 {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
@@ -283,10 +296,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 </div>
                             )}
                         </div>
+
                         <div className="hidden md:block w-48 bg-gray-900/90 p-5 rounded-[32px] border border-white/10 backdrop-blur-md shadow-2xl pointer-events-auto">
                             <LeaderboardContent />
                         </div>
                     </div>
+
                     <div className="absolute left-4 bottom-60 md:top-24 md:left-6 flex flex-col gap-1.5 z-10 max-w-[200px]">
                         {killFeed.map(k => (
                             <div key={k.id} className="text-[9px] md:text-[10px] font-black bg-black/70 px-3 py-1.5 rounded-lg text-white animate-in slide-in-from-left-4 border-l-2 border-red-500 backdrop-blur-sm">
@@ -296,13 +311,15 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         ))}
                     </div>
+
                     {showMobileLeaderboard && (
                         <div className="md:hidden fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in" onClick={() => setShowMobileLeaderboard(false)}>
-                            <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]" onClick={e => e.stopPropagation()}>
+                            <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]">
                                 <LeaderboardContent onClose={() => setShowMobileLeaderboard(false)} />
                             </div>
                         </div>
                     )}
+
                     <div className="absolute bottom-0 w-full h-56 grid grid-cols-2 gap-4 md:gap-8 shrink-0 z-40 p-4 md:p-8 pointer-events-auto">
                         <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 shadow-inner group">
                             <div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75"><Activity size={24} className="text-white opacity-50"/></div>
@@ -316,6 +333,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </>
             )}
 
+            {/* GAMEOVER - Overlay haute priorité */}
             {gameState === 'GAMEOVER' && (
                 <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl animate-in zoom-in p-8 text-center pointer-events-auto">
                     <Trophy size={100} className="text-yellow-400 mb-8 drop-shadow-[0_0_40px_gold] animate-bounce"/>
@@ -350,6 +368,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </div>
             )}
             
+            {/* DIFFICULTE */}
             {gameState === 'DIFFICULTY' && (
                 <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto animate-in fade-in">
                     <h2 className="text-3xl md:text-4xl font-black text-white mb-10 italic uppercase tracking-[0.2em]">Niveau de menace</h2>
