@@ -36,6 +36,7 @@ interface GlobalContextType {
     handleLogin: (username: string, cloudData?: any) => void;
     handleLogout: () => void;
     recordTransaction: (type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => void;
+    syncDataWithCloud: () => Promise<void>;
     audio: ReturnType<typeof useGameAudio>;
     currency: ReturnType<typeof useCurrency>;
     mp: ReturnType<typeof useMultiplayer>;
@@ -54,7 +55,6 @@ export const useGlobal = () => {
 
 export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
-    // HYDRATATION OPTIMISTE : On vérifie immédiatement le pseudo en local
     const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('neon-username'));
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
@@ -68,26 +68,47 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const audio = useGameAudio();
     const currency = useCurrency();
-    const mp = useMultiplayer(); 
     const highScoresHook = useHighScores(); 
     const daily = useDailySystem(currency.addCoins);
+    const mp = useMultiplayer(); 
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
-    // --- RECONNEXION AUTOMATIQUE & SYNC ARRIERE-PLAN ---
+    // Fonction de synchronisation manuelle/explicite
+    const syncDataWithCloud = useCallback(async () => {
+        if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon') return;
+        
+        const fullData = {
+            coins: currency.coins,
+            inventory: currency.inventory,
+            avatarId: currency.currentAvatarId,
+            ownedAvatars: currency.ownedAvatars,
+            frameId: currency.currentFrameId,
+            ownedFrames: currency.ownedFrames,
+            wallpaperId: currency.currentWallpaperId,
+            ownedWallpapers: currency.ownedWallpapers,
+            titleId: currency.currentTitleId,
+            ownedTitles: currency.ownedTitles,
+            malletId: currency.currentMalletId,
+            ownedMallets: currency.ownedMallets,
+            highScores: highScoresHook.highScores,
+            email: currency.email
+        };
+        
+        await supabaseHook.syncProfileToCloud(currency.username, fullData);
+    }, [isAuthenticated, currency, highScoresHook.highScores, supabaseHook]);
+
+    // --- RECONNEXION AUTOMATIQUE & SYNC INITIALE ---
     useEffect(() => {
         const attemptAutoLogin = async () => {
             const storedUser = localStorage.getItem('neon-username');
             const storedPass = localStorage.getItem('neon_current_password');
             
             if (storedUser && storedPass) {
-                // L'utilisateur est déjà "isAuthenticated: true" par défaut via l'init du state,
-                // on lance juste la vérification/sync cloud en arrière-plan sans bloquer l'UI.
                 try {
                     const profile = await DB.getUserProfile(storedUser);
                     if (profile && profile.data) {
                         const cloudPass = profile.data.password;
                         if (cloudPass === storedPass || storedUser === 'Vincent') {
-                            // On met à jour les données (coins, inventory) sans réinitialiser la vue
                             currency.importData(profile.data);
                             highScoresHook.importScores(profile.data.highScores || {});
                         }
@@ -100,10 +121,35 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         attemptAutoLogin();
     }, []);
 
+    // --- SYNCHRONISATION AUTOMATIQUE (DEBOUNCED) ---
+    // Dès qu'une valeur importante change, on attend 2s d'inactivité pour sauvegarder
+    useEffect(() => {
+        if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon') return;
+
+        const timer = setTimeout(() => {
+            syncDataWithCloud();
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [
+        isAuthenticated, 
+        currency.username, 
+        currency.coins, 
+        currency.inventory.length, // Utiliser la longueur pour éviter les cycles de rendu infinis sur les tableaux
+        currency.currentAvatarId, 
+        currency.currentFrameId, 
+        currency.currentWallpaperId,
+        currency.currentTitleId, 
+        currency.currentMalletId,
+        JSON.stringify(highScoresHook.highScores) // Surveiller les changements de contenu des scores
+    ]);
+
     const recordTransaction = useCallback((type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => {
         if (!currency.username) return;
         DB.logTransaction(currency.username, type, amount, description, gameId);
-    }, [currency.username]);
+        // On déclenche une sync immédiate pour les transactions financières
+        syncDataWithCloud();
+    }, [currency.username, syncDataWithCloud]);
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
         if (eventType === 'score') highScoresHook.updateHighScore(gameId as any, value);
@@ -137,6 +183,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
             friendRequests, setFriendRequests, disabledGames, featureFlags, globalEvents, eventProgress,
             updateEventProgress: () => {}, handleGameEvent, handleLogin, handleLogout, recordTransaction,
+            syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook
         }}>
             {children}

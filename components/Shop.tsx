@@ -12,7 +12,7 @@ interface ShopProps {
 type ShopGroup = 'PLAYER' | 'SLITHER' | 'AMBIANCE' | 'GEAR' | null;
 
 export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
-    const { recordTransaction } = useGlobal();
+    const { recordTransaction, syncDataWithCloud } = useGlobal();
     const { 
         coins, currentAvatarId, selectAvatar, buyAvatar, ownedAvatars, avatarsCatalog,
         currentFrameId, selectFrame, buyFrame, ownedFrames, framesCatalog,
@@ -25,10 +25,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
 
     const [activeGroup, setActiveGroup] = useState<ShopGroup>(null);
 
-    const handleBuyItem = (item: any, category: string, buyFn: (id: string, price: number) => void, ownedList: string[]) => {
+    const handleBuyItem = async (item: any, category: string, buyFn: (id: string, price: number) => void, ownedList: string[]) => {
         if (coins >= item.price && !ownedList.includes(item.id)) {
             buyFn(item.id, item.price);
             recordTransaction('PURCHASE', -item.price, `Achat ${category}: ${item.name}`);
+            // Force Cloud Sync pour éviter les réversions sur refresh
+            await syncDataWithCloud();
         }
     };
 
@@ -193,16 +195,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 <SectionHeader title="Skins Maillets" icon={Disc} color="text-pink-400" />
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     {malletsCatalog.map(mallet => (
-                                        <ItemCard 
-                                            key={mallet.id} 
-                                            item={mallet} 
-                                            category="MALLETS" 
-                                            isOwned={ownedMallets.includes(mallet.id)} 
-                                            isSelected={currentMalletId === mallet.id} 
-                                            onBuy={() => handleBuyItem(mallet, 'Maillet', buyMallet, ownedMallets)} 
-                                            onSelect={() => selectMallet(mallet.id)} 
-                                            colorClass="pink" 
-                                        />
+                                        <ItemCard key={mallet.id} item={mallet} category="MALLETS" isOwned={ownedMallets.includes(mallet.id)} isSelected={currentMalletId === mallet.id} onBuy={() => handleBuyItem(mallet, 'Maillet', buyMallet, ownedMallets)} onSelect={() => selectMallet(mallet.id)} colorClass="pink" />
                                     ))}
                                 </div>
                             </>
