@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCurrency } from '../../../hooks/useCurrency';
 import { useHighScores } from '../../../hooks/useHighScores';
@@ -31,13 +32,19 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
     const joystickActiveRef = useRef(false);
     const joystickVectorRef = useRef<Point>({ x: 0, y: 0 });
 
-    // --- TIMERS ---
+    // --- MULTIPLAYER REFS ---
     const lastNetworkUpdateRef = useRef<number>(0);
+    const lastWorldSyncRef = useRef<number>(0);
     const boostCounterRef = useRef<number>(0);
+    const isMasterRef = useRef(false);
 
     // --- HELPERS ---
+    const getMyUniqueId = () => {
+        return localStorage.getItem('neon_social_id') || mp.peerId || `anon_${Math.random().toString(36).substr(2, 5)}`;
+    };
+
     const spawnWorm = (id: string, name: string, color: string, skin?: any, accessory?: any): Worm => {
-        const margin = 500;
+        const margin = 800;
         const x = Math.random() * (WORLD_SIZE - margin*2) + margin;
         const y = Math.random() * (WORLD_SIZE - margin*2) + margin;
         const segments: Point[] = [];
@@ -63,90 +70,125 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         }
     };
 
-    const spawnFood = (count: number = 1) => {
+    const generateFood = (count: number = 1): Food[] => {
+        const batch: Food[] = [];
         for (let i = 0; i < count; i++) {
-            foodRef.current.push({
-                id: `f_${Date.now()}_${Math.random()}`,
+            batch.push({
+                id: `f_${Math.random().toString(36).substr(2, 9)}`,
                 x: Math.random() * WORLD_SIZE,
                 y: Math.random() * WORLD_SIZE,
                 val: Math.floor(Math.random() * 3) + 1,
                 color: COLORS[Math.floor(Math.random() * COLORS.length)]
             });
         }
+        return batch;
     };
 
-    // --- NETWORK ---
-    const handleDataRef = useRef<(data: any) => void>(null);
+    // --- NETWORK HANDLER ---
+    const handleDataRef = useRef<(data: any, from: string) => void>(null);
 
     useEffect(() => {
-        handleDataRef.current = (data: any) => {
-            if (gameMode !== 'ONLINE') return;
-            
-            if (data.type === 'SLITHER_UPDATE') {
-                const remoteWorm = data.worm;
-                const existingIdx = othersRef.current.findIndex(w => w.id === remoteWorm.id);
-                if (existingIdx !== -1) {
-                    othersRef.current[existingIdx] = { ...othersRef.current[existingIdx], ...remoteWorm };
-                } else {
-                    othersRef.current.push({ ...remoteWorm, segments: remoteWorm.segments.map((p: any) => ({...p})) });
+        handleDataRef.current = (data: any, from: string) => {
+            if (gameState === 'MENU' || gameState === 'SERVER_SELECT') return;
+
+            // Découverte des joueurs
+            if (data.type === 'SLITHER_JOIN') {
+                if (playerWormRef.current) {
+                    mp.sendData({ type: 'SLITHER_UPDATE', worm: playerWormRef.current });
                 }
             }
+
+            if (data.type === 'SLITHER_UPDATE') {
+                const remoteWorm = data.worm;
+                if (!remoteWorm || remoteWorm.id === getMyUniqueId()) return;
+                
+                const existingIdx = othersRef.current.findIndex(w => w.id === remoteWorm.id);
+                if (existingIdx !== -1) {
+                    // Update existing
+                    const w = othersRef.current[existingIdx];
+                    w.angle = remoteWorm.angle;
+                    w.score = remoteWorm.score;
+                    w.radius = remoteWorm.radius;
+                    w.isBoost = remoteWorm.isBoost;
+                    // Interpolation des segments pour éviter les saccades
+                    w.segments = remoteWorm.segments; 
+                } else {
+                    // New player
+                    othersRef.current.push({ ...remoteWorm, isDead: false });
+                }
+            }
+
+            // Synchronisation du monde (Nourriture et Bots) par le Master
+            if (data.type === 'SLITHER_WORLD_SYNC' && !isMasterRef.current) {
+                foodRef.current = data.food;
+                // Fusion des bots gérés par le master dans othersRef
+                const remoteBots = data.bots || [];
+                othersRef.current = othersRef.current.filter(w => !w.id.startsWith('bot_'));
+                othersRef.current.push(...remoteBots);
+            }
+
             if (data.type === 'SLITHER_FOOD_EATEN') {
                 const idx = foodRef.current.findIndex(f => f.id === data.foodId);
                 if (idx !== -1) foodRef.current.splice(idx, 1);
             }
+
             if (data.type === 'SLITHER_PLAYER_DIED') {
                 const deadId = data.wormId;
                 const idx = othersRef.current.findIndex(w => w.id === deadId);
                 if (idx !== -1) {
                     const deadWorm = othersRef.current[idx];
                     spawnParticles(deadWorm.segments[0].x, deadWorm.segments[0].y, deadWorm.color, 40);
-                    deadWorm.segments.forEach((s, i) => { if(i % 3 === 0) foodRef.current.push({ id: `f_dead_${deadId}_${i}`, x: s.x, y: s.y, val: 2, color: deadWorm.color }); });
                     othersRef.current.splice(idx, 1);
                 }
             }
         };
-    }, [gameMode]);
+    }, [gameState, mp, gameMode]);
 
     useEffect(() => {
-        const unsubscribe = mp.subscribe((data: any) => { if (handleDataRef.current) handleDataRef.current(data); });
+        const unsubscribe = mp.subscribe((data: any, conn: any) => { 
+            if (handleDataRef.current) handleDataRef.current(data, conn?.peer); 
+        });
         return () => unsubscribe();
     }, [mp.subscribe]);
 
     // --- GAME ACTIONS ---
     const startGame = (mode: GameMode, serverId?: string) => {
         setGameMode(mode);
+        setEarnedCoins(0);
+        setIsBoosting(false);
+        isBoostingRef.current = false;
+        
         if (mode === 'ONLINE' && serverId) {
             setCurrentServer(serverId);
             mp.joinPublicRoom(serverId);
-            mp.updateSelfInfo(username, undefined, undefined, serverId);
             othersRef.current = [];
+            foodRef.current = [];
+            // Le master sera déterminé via Presence plus tard dans updatePhysics
         } else {
+            isMasterRef.current = true;
             othersRef.current = Array.from({length: BOT_COUNT}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i+1}`, COLORS[Math.floor(Math.random() * COLORS.length)]));
+            foodRef.current = generateFood(INITIAL_FOOD_COUNT);
         }
 
         const playerSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId) || slitherSkinsCatalog[0];
         const playerAcc = slitherAccessoriesCatalog.find(a => a.id === currentSlitherAccessoryId);
         
-        playerWormRef.current = spawnWorm(mp.peerId || 'player', username, playerSkin.primaryColor, playerSkin, playerAcc);
-        foodRef.current = [];
-        particlesRef.current = [];
-        spawnFood(INITIAL_FOOD_COUNT);
+        playerWormRef.current = spawnWorm(getMyUniqueId(), username, playerSkin.primaryColor, playerSkin, playerAcc);
         
         setGameState('PLAYING');
         setScore(0);
-        setRank({ current: 0, total: 0 });
-        setEarnedCoins(0);
-        setIsBoosting(false);
-        isBoostingRef.current = false;
         audio.resumeAudio();
+        
+        if (mode === 'ONLINE') {
+            setTimeout(() => mp.sendData({ type: 'SLITHER_JOIN' }), 500);
+        }
         
         if (onReportProgress) onReportProgress('play', 1);
     };
 
     const handleDeath = useCallback(() => {
         const player = playerWormRef.current;
-        if (!player || player.isDead || gameState === 'DYING') return;
+        if (!player || player.isDead || gameState !== 'PLAYING') return;
         player.isDead = true;
         setGameState('DYING');
         
@@ -176,30 +218,52 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         const speedFactor = dt / 16.67;
         const now = Date.now();
 
-        // Particles
+        // 1. Détermination du Master (le plus ancien dans la salle)
+        if (gameMode === 'ONLINE') {
+            const sortedPlayers = [...mp.players].sort((a, b) => (a.online_at || "").localeCompare(b.online_at || ""));
+            const master = sortedPlayers[0];
+            isMasterRef.current = master?.id === mp.peerId;
+        }
+
+        // 2. Particules & Shake
         particlesRef.current.forEach(p => { p.x += p.vx * speedFactor; p.y += p.vy * speedFactor; p.life -= 0.02 * speedFactor; });
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
-
-        // Shake
         if (shakeRef.current > 0) { shakeRef.current *= Math.pow(0.9, speedFactor); if (shakeRef.current < 0.5) shakeRef.current = 0; }
 
         const player = playerWormRef.current;
         if (!player) return;
 
-        // Camera follow death
         if (gameState === 'DYING') {
             cameraRef.current.x = player.segments[0].x;
             cameraRef.current.y = player.segments[0].y;
             return;
         }
 
-        // Online Sync
-        if (gameMode === 'ONLINE' && now - lastNetworkUpdateRef.current > 40) {
-            mp.sendData({ type: 'SLITHER_UPDATE', worm: { id: player.id, name: player.name, segments: player.segments, color: player.color, skin: player.skin, score: player.score, radius: player.radius, angle: player.angle, isBoost: player.isBoost } });
+        // 3. Sync World (Master Only)
+        if (gameMode === 'ONLINE' && isMasterRef.current && now - lastWorldSyncRef.current > 2000) {
+            // Master regen food if needed
+            if (foodRef.current.length < MIN_FOOD_REGEN) {
+                foodRef.current.push(...generateFood(200));
+            }
+            // Master manages bots
+            if (othersRef.current.filter(w => w.id.startsWith('bot_')).length < 10) {
+                othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Dronoid", COLORS[Math.floor(Math.random()*COLORS.length)]));
+            }
+            
+            mp.sendData({ 
+                type: 'SLITHER_WORLD_SYNC', 
+                food: foodRef.current, 
+                bots: othersRef.current.filter(w => w.id.startsWith('bot_'))
+            });
+            lastWorldSyncRef.current = now;
+        }
+
+        // 4. Player Update & Network Broadcast
+        if (gameMode === 'ONLINE' && now - lastNetworkUpdateRef.current > 45) {
+            mp.sendData({ type: 'SLITHER_UPDATE', worm: player });
             lastNetworkUpdateRef.current = now;
         }
 
-        // Input
         let playerTargetAngle = player.angle;
         if (joystickActiveRef.current) {
             const vx = joystickVectorRef.current.x;
@@ -207,84 +271,70 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             if (Math.sqrt(vx * vx + vy * vy) > 3) playerTargetAngle = Math.atan2(vy, vx);
         }
 
-        // Boost Logic
-        const canBoost = player.segments.length > INITIAL_LENGTH;
-        if (!canBoost && isBoostingRef.current) { isBoostingRef.current = false; setIsBoosting(false); }
-        player.isBoost = isBoostingRef.current;
+        player.isBoost = isBoostingRef.current && player.segments.length > INITIAL_LENGTH;
         const currentSpeed = player.isBoost ? BOOST_SPEED : BASE_SPEED;
         
         if (player.isBoost) {
             boostCounterRef.current += speedFactor;
-            if (boostCounterRef.current >= 8) { 
+            if (boostCounterRef.current >= 10) { 
                 boostCounterRef.current = 0;
                 player.segments.pop();
-                player.score = Math.max(0, player.score - 2);
+                player.score = Math.max(0, player.score - 1);
                 setScore(player.score);
                 player.radius = calculateWormRadius(player.score);
-                const tail = player.segments[player.segments.length - 1];
-                foodRef.current.push({ id: `boost_f_${Date.now()}`, x: tail.x, y: tail.y, val: 1, color: player.skin?.primaryColor || player.color });
             }
         }
 
-        // Move Player
         updateWormMovement(player, playerTargetAngle, currentSpeed, speedFactor);
 
-        // World Bounds
+        // 5. Collisions
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) handleDeath();
 
-        // --- FOOD COLLISION FOR ALL WORMS ---
-        const allWorms = [player, ...othersRef.current];
+        // Food eating
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
-            
-            for (const worm of allWorms) {
-                if (worm.isDead) continue;
-                const wHead = worm.segments[0];
+            const distSq = (head.x - f.x)**2 + (head.y - f.y)**2;
+            if (distSq < (player.radius + 15)**2) {
+                player.score += f.val * 5;
+                player.radius = calculateWormRadius(player.score);
+                setScore(player.score);
+                audio.playCoin();
+                for (let j = 0; j < f.val; j++) player.segments.push({ ...player.segments[player.segments.length - 1] });
                 
-                // Optimisation distance
-                if (Math.abs(wHead.x - f.x) > 100 || Math.abs(wHead.y - f.y) > 100) continue;
-                
-                if ((wHead.x - f.x)**2 + (wHead.y - f.y)**2 < (worm.radius + 15)**2) {
-                    worm.score += f.val * 5;
-                    worm.radius = calculateWormRadius(worm.score);
-                    
-                    if (worm.id === player.id) {
-                        setScore(worm.score);
-                        audio.playCoin();
-                    }
-                    
-                    for (let j = 0; j < f.val; j++) {
-                        worm.segments.push({ ...worm.segments[worm.segments.length - 1] });
-                    }
-                    
-                    foodRef.current.splice(i, 1);
-                    if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId: f.id });
-                    if (foodRef.current.length < MIN_FOOD_REGEN) spawnFood(200);
-                    break; // Un seul ver mange la nourriture
-                }
+                const foodId = f.id;
+                foodRef.current.splice(i, 1);
+                if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId });
             }
         }
 
         // Worm Collision
         othersRef.current.forEach(other => {
             if (other.isDead) return;
+            // Optimisation : ne vérifier que si proche
             if (Math.abs(other.segments[0].x - head.x) > 1000 || Math.abs(other.segments[0].y - head.y) > 1000) return;
+            
             for (let sIdx = 0; sIdx < other.segments.length; sIdx += 3) {
-                if ((head.x - other.segments[sIdx].x)**2 + (head.y - other.segments[sIdx].y)**2 < (other.radius + 5)**2) { handleDeath(); return; }
+                if ((head.x - other.segments[sIdx].x)**2 + (head.y - other.segments[sIdx].y)**2 < (other.radius + 5)**2) { 
+                    handleDeath(); 
+                    return; 
+                }
             }
         });
 
-        // Bots AI (Solo only)
-        if (gameMode === 'SOLO') {
-            othersRef.current.forEach(bot => updateBotAI(bot, allWorms, speedFactor, player));
+        // 6. Bot AI (Master manages Bots)
+        if (isMasterRef.current) {
+            othersRef.current.forEach(bot => {
+                if (!bot.id.startsWith('bot_')) return;
+                updateBotAI(bot, [player, ...othersRef.current], speedFactor);
+            });
+            // Cleanup dead bots
             othersRef.current = othersRef.current.filter(b => !b.isDead);
-            if (othersRef.current.length < BOT_COUNT) othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Bot " + (Math.floor(Math.random()*2000)), COLORS[Math.floor(Math.random()*COLORS.length)]));
         }
 
-        // Camera & Leaderboard
         cameraRef.current.x = head.x;
         cameraRef.current.y = head.y;
+        
         const sortedWorms = [player, ...othersRef.current].sort((a,b) => b.score - a.score);
         setRank({ current: sortedWorms.findIndex(w => w.id === player.id) + 1, total: sortedWorms.length });
         setLeaderboard(sortedWorms.slice(0, 10).map(w => ({ name: w.name, score: w.score, isMe: w.id === player.id })));
@@ -313,75 +363,42 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         worm.segments = newSegments;
     };
 
-    const updateBotAI = (bot: Worm, allWorms: Worm[], speedFactor: number, player: Worm) => {
+    const updateBotAI = (bot: Worm, allWorms: Worm[], speedFactor: number) => {
         if (bot.isDead) return;
         const bHead = bot.segments[0];
 
-        // --- FIXED: HARD BOUNDARY CHECK FOR BOTS ---
-        if (bHead.x < 0 || bHead.x > WORLD_SIZE || bHead.y < 0 || bHead.y > WORLD_SIZE) {
-            bot.isDead = true;
-            spawnParticles(bHead.x, bHead.y, bot.color, 15);
-            bot.segments.forEach((s, idx) => { 
-                if(idx % 4 === 0) foodRef.current.push({ id: `f_bot_wall_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); 
-            });
-            return;
+        // Soft avoidance des bords
+        if (bHead.x < 100 || bHead.x > WORLD_SIZE - 100 || bHead.y < 100 || bHead.y > WORLD_SIZE - 100) {
+            bot.aiTargetAngle = Math.atan2(WORLD_SIZE/2 - bHead.y, WORLD_SIZE/2 - bHead.x);
         }
 
         bot.aiDecisionTimer = (bot.aiDecisionTimer || 0) - speedFactor;
-
         if (bot.aiDecisionTimer <= 0) {
-            // Simple Raycast avoidance
-            const lookAhead = 120 + bot.radius * 2;
-            const rays = [0, -0.5, 0.5, -1.0, 1.0];
-            let collisionFound = false;
-            let clearAngle = bot.angle;
-            
-            // Bounds check (soft avoidance)
-            if (bHead.x < 200) { clearAngle = 0; collisionFound = true; }
-            else if (bHead.x > WORLD_SIZE - 200) { clearAngle = Math.PI; collisionFound = true; }
-            else if (bHead.y < 200) { clearAngle = Math.PI / 2; collisionFound = true; }
-            else if (bHead.y > WORLD_SIZE - 200) { clearAngle = -Math.PI / 2; collisionFound = true; }
-            
-            if (!collisionFound) {
-                for (let angleOff of rays) {
-                    const testAngle = bot.angle + angleOff;
-                    const tx = bHead.x + Math.cos(testAngle) * lookAhead;
-                    const ty = bHead.y + Math.sin(testAngle) * lookAhead;
-                    if (allWorms.some(w => !w.isDead && w.id !== bot.id && w.segments.some((s, idx) => idx % 4 === 0 && (tx-s.x)**2 + (ty-s.y)**2 < (w.radius+bot.radius)**2))) {
-                        if (angleOff === 0) collisionFound = true;
-                    } else if (collisionFound) { clearAngle = testAngle; break; }
-                }
+            // Find food or avoid
+            let closestF = null, minDistSq = 600**2;
+            for (let f of foodRef.current) {
+                const dSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
+                if (dSq < minDistSq) { minDistSq = dSq; closestF = f; }
             }
+            bot.aiTargetAngle = closestF ? Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x) : bot.angle + (Math.random() - 0.5) * 0.4;
+            bot.aiDecisionTimer = 20 + Math.random() * 30;
+        }
 
-            if (!collisionFound) {
-                let closestF = null, minDistSq = 700**2;
-                for (let f of foodRef.current) {
-                    if (Math.abs(f.x - bHead.x) > 400 || Math.abs(f.y - bHead.y) > 400) continue;
-                    const dSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
-                    if (dSq < minDistSq) { minDistSq = dSq; closestF = f; }
-                }
-                bot.aiTargetAngle = closestF ? Math.atan2(closestF.y - bHead.y, closestF.x - bHead.x) : bot.angle + (Math.random() - 0.5) * 0.4;
-                bot.aiDecisionTimer = 15 + Math.random() * 20;
-            } else {
-                bot.aiTargetAngle = clearAngle;
-                bot.aiDecisionTimer = 5;
-                bot.isBoost = true;
+        updateWormMovement(bot, bot.aiTargetAngle || bot.angle, BASE_SPEED, speedFactor);
+
+        // Check if Bot hits any other worm
+        allWorms.forEach(w => {
+            if (w.id === bot.id || w.isDead) return;
+            for (let sIdx = 0; sIdx < w.segments.length; sIdx += 4) {
+                 if ((bHead.x - w.segments[sIdx].x)**2 + (bHead.y - w.segments[sIdx].y)**2 < (w.radius + 5)**2) {
+                     bot.isDead = true;
+                     spawnParticles(bHead.x, bHead.y, bot.color, 15);
+                     // Conversion en nourriture
+                     bot.segments.forEach((s, idx) => { if(idx % 4 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.color }); });
+                     break;
+                 }
             }
-        }
-        updateWormMovement(bot, bot.aiTargetAngle || bot.angle, bot.isBoost ? BOOST_SPEED : BASE_SPEED, speedFactor);
-        if (Math.random() > 0.98) bot.isBoost = false;
-
-        // Player Collision Check for Bot
-        if ((bHead.x - player.segments[0].x)**2 + (bHead.y - player.segments[0].y)**2 < (bot.radius + player.radius)**2) handleDeath();
-        // Check if Bot hits Player Body
-        for (let pIdx = 6; pIdx < player.segments.length; pIdx += 4) {
-             if ((bHead.x - player.segments[pIdx].x)**2 + (bHead.y - player.segments[pIdx].y)**2 < (player.radius + 5)**2) {
-                 bot.isDead = true;
-                 spawnParticles(bHead.x, bHead.y, bot.color, 15);
-                 bot.segments.forEach((s, idx) => { if(idx % 4 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); });
-                 break;
-             }
-        }
+        });
     };
 
     return {
