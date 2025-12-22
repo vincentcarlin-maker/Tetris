@@ -146,22 +146,18 @@ export const useArenaLogic = (
             playExplosion(); 
             spawnParticles(char.x, char.y, char.color, 50, 'explosion');
             
-            const player = playerRef.current;
-            if (attackerId === player?.id) {
-                player.score += 1;
-                setScore(player.score);
-                const killEvent = { id: Date.now(), killer: player.name, victim: char.name, time: Date.now() };
+            // Score tracking
+            const allChars = [playerRef.current!, ...botsRef.current];
+            const attacker = allChars.find(c => c.id === attackerId);
+            if (attacker) {
+                attacker.score += 1;
+                if (attacker.id === playerRef.current?.id) setScore(attacker.score);
+                
+                const killEvent = { id: Date.now(), killer: attacker.name, victim: char.name, time: Date.now() };
                 setKillFeed(prev => [killEvent, ...prev].slice(0, 5));
-            } else {
-                const botAttacker = botsRef.current.find(b => b.id === attackerId);
-                if (botAttacker) {
-                    botAttacker.score += 1;
-                    const killEvent = { id: Date.now(), killer: botAttacker.name, victim: char.name, time: Date.now() };
-                    setKillFeed(prev => [killEvent, ...prev].slice(0, 5));
-                }
             }
 
-            if (char.id === player?.id) { 
+            if (char.id === playerRef.current?.id) { 
                 setGameState('RESPAWNING'); 
                 gameStateRef.current = 'RESPAWNING'; 
                 playGameOver(); 
@@ -242,10 +238,8 @@ export const useArenaLogic = (
             }
         }
 
-        // Camera Logic: Follow Player
         cameraRef.current.x = player.x - VIEWPORT_WIDTH / 2;
         cameraRef.current.y = player.y - VIEWPORT_HEIGHT / 2;
-        // Clamp camera to world bounds
         cameraRef.current.x = Math.max(0, Math.min(CANVAS_WIDTH - VIEWPORT_WIDTH, cameraRef.current.x));
         cameraRef.current.y = Math.max(0, Math.min(CANVAS_HEIGHT - VIEWPORT_HEIGHT, cameraRef.current.y));
 
@@ -302,17 +296,30 @@ export const useArenaLogic = (
                     lastNetworkUpdateRef.current = now;
                 }
             } else if (gameMode === 'SOLO') {
-                // AI Logic
-                let target = player;
-                const dist = Math.hypot(target.x - char.x, target.y - char.y);
-                if (dist < 800 && !target.isDead) {
-                    const angle = Math.atan2(target.y - char.y, target.x - char.x);
+                // IA REFAITE : Cible l'ennemi le plus proche (pas seulement le joueur)
+                let nearestEnemy = null;
+                let minDist = Infinity;
+                
+                allChars.forEach(other => {
+                    if (other.id === char.id || other.isDead) return;
+                    const d = Math.hypot(other.x - char.x, other.y - char.y);
+                    if (d < minDist) {
+                        minDist = d;
+                        nearestEnemy = other;
+                    }
+                });
+
+                if (nearestEnemy && minDist < 800) {
+                    const angle = Math.atan2(nearestEnemy.y - char.y, nearestEnemy.x - char.x);
                     char.angle = angle;
-                    if (dist > 150) {
+                    if (minDist > 150) {
                         char.x += Math.cos(angle) * currentSpeed * 0.7 * speedFactor;
                         char.y += Math.sin(angle) * currentSpeed * 0.7 * speedFactor;
                     }
                     if (now - char.lastShot > char.weaponDelay) fireBullet(char, false);
+                } else {
+                    // Patrouille aléatoire si personne n'est proche
+                    char.angle += 0.02 * speedFactor;
                 }
             }
 
@@ -338,7 +345,6 @@ export const useArenaLogic = (
             b.x += b.vx * speedFactor; b.y += b.vy * speedFactor; b.life -= dt;
             let hit = false;
             
-            // Wall
             for (const obs of obstacles) {
                 if (b.x > obs.x && b.x < obs.x + obs.w && b.y > obs.y && b.y < obs.y + obs.h) { hit = true; break; }
             }
@@ -360,8 +366,11 @@ export const useArenaLogic = (
         particlesRef.current.forEach(p => { p.x += p.vx * speedFactor; p.y += p.vy * speedFactor; p.life -= speedFactor; });
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
         
-        if (frameRef.current % 60 === 0) {
-            setLeaderboard(allChars.map(c => ({ name: c.name, score: c.score, isMe: c.id === player.id })).sort((a,b) => b.score - a.score));
+        if (frameRef.current % 30 === 0) {
+            setLeaderboard(allChars
+                .map(c => ({ name: c.name, score: c.score, isMe: c.id === player.id }))
+                .sort((a,b) => b.score - a.score)
+            );
         }
 
         setTimeLeft(timeLeftRef.current);

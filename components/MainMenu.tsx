@@ -137,7 +137,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 onCoinsRef={(el) => { if (el) (coinBalanceRef as any).current = el; }}
             />
 
-             <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-6 mt-12 pb-10">
+             <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-2 mt-10 pb-10">
                  
                  <ArcadeLogo />
 
@@ -147,7 +147,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                  {activeEvent && (
                      <div 
                         onClick={() => setShowEventInfo(true)}
-                        className={`w-full mt-4 p-4 rounded-xl border-2 flex items-center justify-between shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 backdrop-blur-md cursor-pointer relative overflow-hidden group hover:scale-[1.02] transition-transform`}
+                        className={`w-full mt-2 p-4 rounded-xl border-2 flex items-center justify-between shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-in slide-in-from-top-4 fade-in duration-700 backdrop-blur-md cursor-pointer relative overflow-hidden group hover:scale-[1.02] transition-transform`}
                         style={{
                             borderColor: activeEvent.theme?.primaryColor || '#fff',
                             background: activeEvent.theme?.backgroundImage ? `${activeEvent.theme.backgroundImage}` : 'rgba(30, 58, 138, 0.6)'
@@ -205,7 +205,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     language={language} 
                  />
 
-                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v3.1 • NEON ARCADE</div>
+                 <div className="mt-8 text-white font-black text-sm tracking-[0.2em] pb-8 opacity-90 uppercase border-b-2 border-white/20 px-6 drop-shadow-md">v3.3 • NEON ARCADE</div>
              </div>
         </div>
     );
