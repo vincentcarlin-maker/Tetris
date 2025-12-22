@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Coins, Banknote, User, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft, ShoppingBag, Gamepad2, Search, RefreshCw, Calendar, Clock } from 'lucide-react';
-import { DB } from '../../lib/supabaseClient';
+import { Coins, Banknote, User, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft, ShoppingBag, Gamepad2, Search, RefreshCw, Calendar, Clock, AlertCircle, Terminal, Copy, CheckCircle2 } from 'lucide-react';
+import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 
 export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [tableMissing, setTableMissing] = useState(false);
     const [filter, setFilter] = useState<'ALL' | 'EARN' | 'PURCHASE'>('ALL');
     const [searchTerm, setSearchTerm] = useState('');
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         loadTransactions();
@@ -15,15 +17,41 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
 
     const loadTransactions = async () => {
         setLoading(true);
+        setTableMissing(false);
         try {
             const data = await DB.getTransactions();
+            // Si data est vide mais que profiles ne l'est pas, ou si l'API a retourné une structure spécifique
+            // On peut supposer que la table n'est pas là si la requête a échoué silencieusement (cas du fallback interne)
+            if (isSupabaseConfigured && (!data || data.length === 0)) {
+                // Double vérification : on tente de voir si le fallback a été utilisé car table absente
+                setTableMissing(true);
+            }
             setTransactions(data || []);
         } catch (err) {
             console.error("Failed to load transactions", err);
+            setTableMissing(true);
             setTransactions([]);
         } finally {
             setLoading(false);
         }
+    };
+
+    const sqlCode = `CREATE TABLE public.transactions (
+    id bigint primary key generated always as identity,
+    username text not null,
+    type text not null,
+    amount integer not null,
+    description text,
+    game_id text,
+    timestamp timestamptz default now()
+);
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Access" ON public.transactions FOR ALL USING (true);`;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(sqlCode);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     const totalCoins = profiles.reduce((acc, p) => acc + (p.data?.coins || 0), 0);
@@ -78,6 +106,40 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                 </div>
             </div>
 
+            {/* Warning Table Missing */}
+            {tableMissing && isSupabaseConfigured && (
+                <div className="bg-blue-900/20 border-2 border-blue-500/30 rounded-2xl p-6 mb-4 animate-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-blue-500/20 rounded-xl text-blue-400">
+                            <Terminal size={24} />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="text-lg font-black text-white italic mb-1 flex items-center gap-2">
+                                <AlertCircle size={18} className="text-blue-400" />
+                                CONFIGURATION SQL REQUISE
+                            </h4>
+                            <p className="text-sm text-blue-100/70 mb-4 leading-relaxed">
+                                La table <code className="bg-black/40 px-1.5 py-0.5 rounded text-blue-400 font-mono text-xs">transactions</code> n'a pas été détectée dans votre Supabase. 
+                                Pour activer l'historique détaillé, copiez ce code dans votre <strong>SQL Editor</strong> :
+                            </p>
+                            
+                            <div className="relative group/code">
+                                <pre className="bg-black/60 p-4 rounded-xl text-[10px] font-mono text-blue-300 overflow-x-auto border border-white/10 max-h-40">
+                                    {sqlCode}
+                                </pre>
+                                <button 
+                                    onClick={handleCopy}
+                                    className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-white hover:text-black rounded-lg transition-all border border-white/10 flex items-center gap-2 text-[10px] font-black"
+                                >
+                                    {copied ? <CheckCircle2 size={14} className="text-green-500"/> : <Copy size={14}/>}
+                                    {copied ? 'COPIÉ' : 'COPIER'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Filter & Search Bar */}
             <div className="bg-gray-900 border border-white/10 rounded-xl p-4 flex flex-col md:flex-row gap-4 shrink-0">
                 <div className="relative flex-1">
@@ -111,10 +173,10 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
             </div>
 
             {/* Transaction Log Table */}
-            <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0 shadow-2xl">
                 <div className="overflow-y-auto custom-scrollbar">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-800/80 text-gray-400 font-black uppercase text-[10px] sticky top-0 z-20 backdrop-blur-md">
+                        <thead className="bg-gray-800/80 text-gray-400 font-black uppercase text-[10px] sticky top-0 z-20 backdrop-blur-md border-b border-white/5">
                             <tr>
                                 <th className="p-4">Horodatage</th>
                                 <th className="p-4">Joueur</th>
@@ -160,7 +222,9 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                             })}
                             {filteredTransactions.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center text-gray-600 italic">Aucune transaction enregistrée.</td>
+                                    <td colSpan={5} className="p-12 text-center text-gray-600 italic">
+                                        {tableMissing ? 'Table manquante - Suivez les instructions ci-dessus.' : 'Aucune transaction enregistrée.'}
+                                    </td>
                                 </tr>
                             )}
                         </tbody>
