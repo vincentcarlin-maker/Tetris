@@ -152,18 +152,22 @@ export const useArenaLogic = (
         const type = types[Math.floor(Math.random() * types.length)];
         const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
         let x, y, safe;
+        let attempts = 0;
         do {
+            attempts++;
             x = 100 + Math.random() * (CANVAS_WIDTH - 200);
             y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
             safe = true;
             for (const obs of obstacles) {
-                if (x > obs.x - 30 && x < obs.x + obs.w + 30 && y > obs.y - 30 && y < obs.y + obs.h + 30) safe = false;
+                if (x > obs.x - 20 && x < obs.x + obs.w + 20 && y > obs.y - 20 && y < obs.y + obs.h + 20) safe = false;
             }
-        } while(!safe);
+        } while(!safe && attempts < 50);
 
-        powerUpsRef.current.push({
-            id: `pw_${Date.now()}`, x, y, radius: 18, type, color: COLORS.powerup[type]
-        });
+        const newPowerUp = {
+            id: `pw_${Date.now()}_${Math.random()}`, x, y, radius: 18, type, color: COLORS.powerup[type]
+        };
+        powerUpsRef.current.push(newPowerUp);
+        return newPowerUp;
     }, []);
 
     // MULTIPLAYER SYNC
@@ -220,7 +224,10 @@ export const useArenaLogic = (
         setGameState('PLAYING');
         gameStateRef.current = 'PLAYING';
         setEarnedCoins(0);
-        lastPowerUpSpawnRef.current = Date.now();
+        
+        // Spawn immédiat d'un bonus au début pour tester
+        lastPowerUpSpawnRef.current = Date.now() - 5000; 
+        
         audio.resumeAudio();
         if (onReportProgress) onReportProgress('play', 1);
     }, [spawnCharacter, gameMode, username, mp, audio, onReportProgress]);
@@ -244,12 +251,12 @@ export const useArenaLogic = (
                  return;
             }
             
-            // Spawn PowerUps
-            if (now - lastPowerUpSpawnRef.current > 12000 && (gameMode === 'SOLO' || mp.isHost)) {
-                spawnPowerUp();
+            // Spawn PowerUps toutes les 10 secondes
+            if (now - lastPowerUpSpawnRef.current > 10000 && (gameMode === 'SOLO' || mp.isHost)) {
+                const pw = spawnPowerUp();
                 lastPowerUpSpawnRef.current = now;
                 if (gameMode === 'ONLINE') {
-                    mp.sendData({ type: 'ARENA_POWERUP_SPAWN', powerup: powerUpsRef.current[powerUpsRef.current.length-1] });
+                    mp.sendData({ type: 'ARENA_POWERUP_SPAWN', powerup: pw });
                 }
             }
         }

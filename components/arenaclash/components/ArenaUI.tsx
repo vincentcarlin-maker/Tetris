@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, X } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
@@ -105,16 +106,21 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         return () => { document.removeEventListener('touchstart', handleTouch); document.removeEventListener('touchmove', handleTouch); document.removeEventListener('touchend', handleTouch); };
     }, []);
 
-    const LeaderboardContent = () => (
+    const LeaderboardContent = ({ onClose }: { onClose?: () => void }) => (
         <div className="flex flex-col h-full">
             <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
                 <div className="flex items-center gap-2">
                     <Trophy size={18} className="text-yellow-400"/>
                     <span className="text-xs font-black text-white uppercase tracking-widest">Classement</span>
                 </div>
-                <button onClick={() => setShowMobileLeaderboard(false)} className="md:hidden p-1 bg-white/10 rounded-lg text-white">
-                    <X size={16} />
-                </button>
+                {onClose && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onClose(); }} 
+                        className="p-1.5 bg-white/10 hover:bg-red-500/40 rounded-lg text-white transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                )}
             </div>
             <div className="space-y-2.5 overflow-y-auto custom-scrollbar flex-1 pr-1">
                 {leaderboard.length > 0 ? leaderboard.map((p, i) => (
@@ -207,9 +213,9 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
                     {/* OVERLAY CLASSEMENT MOBILE */}
                     {showMobileLeaderboard && (
-                        <div className="md:hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in" onClick={() => setShowMobileLeaderboard(false)}>
-                            <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]" onClick={e => e.stopPropagation()}>
-                                <LeaderboardContent />
+                        <div className="md:hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in">
+                            <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+                                <LeaderboardContent onClose={() => setShowMobileLeaderboard(false)} />
                             </div>
                         </div>
                     )}
