@@ -92,8 +92,6 @@ export const DB = {
             // Fallback SYSTEM_CONFIG si erreur ou table vide
             const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
             const cloudLogs = sys?.data?.transaction_logs || [];
-            
-            // On peut aussi merger avec les logs locaux si besoin, mais ici on privilégie le cloud
             return cloudLogs;
         } catch (e) { 
             // Ultime recours sur SYSTEM_CONFIG même en cas de crash de la requête initiale
