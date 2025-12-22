@@ -145,10 +145,10 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         const hostingPlayers = mp.players.filter((p: any) => p.status === 'hosting' && p.id !== mp.peerId && p.extraInfo === 'Arena Clash'); 
         
         return (
-             <div className="flex flex-col h-full animate-in fade-in w-full max-w-md gap-6 p-4 pt-4 pointer-events-auto bg-black/80 backdrop-blur-md">
+             <div className="absolute inset-0 z-[60] flex flex-col h-full animate-in fade-in w-full gap-6 p-4 pt-4 pointer-events-auto bg-black/90 backdrop-blur-md items-center justify-center">
                  {/* Header */}
-                 <div className="flex items-center gap-4 w-full">
-                    <button onClick={() => { onSetGameMode('SOLO'); onReturnToMenu(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95"><ChevronLeft size={24}/></button>
+                 <div className="flex items-center gap-4 w-full max-w-md">
+                    <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('MENU'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95"><ChevronLeft size={24}/></button>
                     <h2 className="text-xl font-black text-white italic">ARENA LOBBY</h2>
                  </div>
 
@@ -158,7 +158,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         <p className="text-white font-bold animate-pulse">CONNEXION AU SERVEUR...</p>
                      </div>
                  ) : (
-                    <>
+                    <div className="w-full max-w-md flex-1 flex flex-col gap-6 overflow-hidden">
                      {/* Create Section */}
                      <div className="bg-gradient-to-br from-gray-900 to-black border border-red-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative overflow-hidden group shrink-0">
                          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
@@ -206,12 +206,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                             <Search size={32} />
                                         </div>
                                     </div>
-                                    <p className="text-xs font-bold tracking-widest text-center">SCAN DES FRÉQUENCES...<br/>AUCUNE ARENE DÉTECTÉE</p>
+                                    <p className="text-xs font-bold tracking-widest text-center">SCAN DES FRÉQUENCES...<br/>AUCUNE ARÈNE DÉTECTÉE</p>
                                 </div>
                             )}
                         </div>
                     </div>
-                    </>
+                    </div>
                  )}
              </div>
         );
@@ -242,7 +242,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         </div>
 
-                        {/* Map Selector inside Menu */}
+                        {/* Map Selector */}
                         <div className="flex items-center justify-center gap-4 mb-8 bg-gray-900/80 p-2 rounded-xl border border-white/10 backdrop-blur-md w-full max-w-xs">
                             <button onClick={() => onChangeMap(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400"/></button>
                             <div className="text-center w-40">
@@ -253,7 +253,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
-                            {/* Fix: use onSetGameState('DIFFICULTY') and remove (props as any).setGameState */}
                             <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                                 <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 <div className="relative z-10">
@@ -266,7 +265,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 </div>
                             </button>
 
-                            <button onClick={() => onSetGameMode('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                                 <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 <div className="relative z-10">
                                     <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(249,115,22,0.3)]"><Globe size={32} className="text-orange-400" /></div>
@@ -322,7 +321,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 z-20 pointer-events-none">
                         
-                        {/* Left Column: Home Btn + Killfeed */}
                         <div className="flex flex-col gap-2 items-start">
                             <button 
                                 onClick={(e) => { e.stopPropagation(); onBack(); }} 
@@ -342,7 +340,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         </div>
 
-                        {/* Center Column: Timer & Voice Chat */}
                         <div className="flex flex-col items-center">
                             <div className={`text-3xl font-black font-mono drop-shadow-[0_0_5px_rgba(0,0,0,0.8)] ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                                 {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
@@ -355,7 +352,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             )}
                         </div>
 
-                        {/* Right Column: Leaderboard */}
                         <div className="w-32 bg-gray-900/80 p-2 rounded-lg border border-white/10 backdrop-blur-sm">
                             <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-1">
                                 <Trophy size={14} className="text-yellow-400"/>
@@ -370,7 +366,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                     </div>
 
-                    {/* Joysticks Zone - Below Canvas */}
                     <div className="absolute bottom-0 w-full h-48 grid grid-cols-2 gap-4 shrink-0 z-40 p-4 pointer-events-auto">
                         <div ref={leftZoneRef} className="relative bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 transition-colors">
                             <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none"><div className="w-20 h-20 rounded-full border-2 border-cyan-500"></div></div>
@@ -388,7 +383,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
             {/* Waiting Online */}
             {gameMode === 'ONLINE' && isHost && onlineStep === 'game' && !hasOpponent && (
-                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto">
+                <div className="absolute inset-0 z-[70] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-auto">
                     <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
                     <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
                     <button onClick={onCancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold">ANNULER</button>
@@ -397,7 +392,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
             {/* Game Over */}
             {gameState === 'GAMEOVER' && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl animate-in zoom-in p-8 text-center pointer-events-auto">
+                <div className="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl animate-in zoom-in p-8 text-center pointer-events-auto">
                     <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce"/>
                     <h2 className="text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-yellow-400 to-orange-500 mb-4">MATCH TERMINÉ</h2>
                     {earnedCoins > 0 && <div className="mb-10 flex items-center gap-3 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500/50"><Coins className="text-yellow-400" size={28} /><span className="text-yellow-100 font-black text-2xl">+{earnedCoins}</span></div>}

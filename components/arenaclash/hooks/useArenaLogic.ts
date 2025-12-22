@@ -29,7 +29,7 @@ export const useArenaLogic = (
     const [selectedMapIndex, setSelectedMapIndex] = useState(0);
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
     const [opponentLeft, setOpponentLeft] = useState(false);
-    const [score, setScore] = useState(0); // State pour l'affichage réactif
+    const [score, setScore] = useState(0);
 
     // --- REFS (GAME ENTITIES) ---
     const playerRef = useRef<Character | null>(null);
@@ -49,7 +49,6 @@ export const useArenaLogic = (
     const lastNetworkUpdateRef = useRef(0);
     const lastTimeRef = useRef(0);
     
-    // Inputs Refs
     const keysRef = useRef<{ [key: string]: boolean }>({});
     const controlsRef = useRef({
         move: { x: 0, y: 0, active: false },
@@ -62,6 +61,28 @@ export const useArenaLogic = (
     useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
     useEffect(() => { selectedMapIndexRef.current = selectedMapIndex; }, [selectedMapIndex]);
     useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
+
+    // --- MULTIPLAYER CONNECTION EFFECT ---
+    useEffect(() => {
+        if (gameMode === 'ONLINE') {
+            setOnlineStep('connecting');
+            mp.connect();
+        } else {
+            mp.disconnect();
+        }
+    }, [gameMode, mp.connect, mp.disconnect]);
+
+    useEffect(() => {
+        if (mp.mode === 'lobby') {
+            setOnlineStep('lobby');
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+            if (gameStateRef.current === 'MENU' || gameStateRef.current === 'LOBBY') {
+                startGame('ONLINE');
+            }
+        }
+    }, [mp.mode]);
 
     // --- HELPERS ---
     const spawnCharacter = useCallback((id: string, name: string, isPlayer: boolean, isRemote: boolean = false): Character => {
@@ -159,7 +180,7 @@ export const useArenaLogic = (
             const attacker = (attackerId === playerRef.current?.id) ? playerRef.current : botsRef.current.find(b => b.id === attackerId);
             if (attacker) {
                 attacker.score += 1;
-                if (attacker.id === playerRef.current?.id) setScore(attacker.score); // Sync React state
+                if (attacker.id === playerRef.current?.id) setScore(attacker.score);
 
                 const killEvent = { id: Date.now(), killer: attacker.name, victim: char.name, time: Date.now() };
                 setKillFeed(prev => [killEvent, ...prev].slice(0, 5));
@@ -208,7 +229,7 @@ export const useArenaLogic = (
         }
 
         playerRef.current = spawnCharacter(mp.peerId || 'player', username, true);
-        setScore(0); // Reset score state
+        setScore(0);
         
         if (currentMode === 'SOLO') {
             botsRef.current = Array.from({ length: 5 }, (_, i) => spawnCharacter(`bot_${i}`, BOT_NAMES[i % BOT_NAMES.length], false));
@@ -280,10 +301,10 @@ export const useArenaLogic = (
                     char.respawnTimer -= limitedDt;
                     if (char.respawnTimer <= 0) {
                         if (char.id === player.id || gameMode === 'SOLO') {
-                            const currentScore = char.score; // SAUVEGARDE DU SCORE
+                            const currentScore = char.score;
                             const spawn = spawnCharacter(char.id, char.name, char.id === player.id);
                             Object.assign(char, spawn);
-                            char.score = currentScore; // RESTAURATION DU SCORE
+                            char.score = currentScore;
                             
                             if (char.id === player.id) {
                                 setGameState('PLAYING');
@@ -420,7 +441,7 @@ export const useArenaLogic = (
         for (let i = particlesRef.current.length - 1; i >= 0; i--) {
             const p = particlesRef.current[i];
             p.x += p.vx * speedFactor; p.y += p.vy * speedFactor; p.life--;
-            if (p.life <= 0) particlesRef.current.splice(i, i === 0 ? 1 : i); // Small safe check
+            if (p.life <= 0) particlesRef.current.splice(i, i === 0 ? 1 : i);
         }
 
         if (player && !player.isDead) {
@@ -472,7 +493,7 @@ export const useArenaLogic = (
             if (data.type === 'ARENA_PLAYER_KILLED') {
                  const victim = playerRef.current;
                  if (victim && victim.id === mp.peerId) {
-                      // Handled locally but can verify here
+                      // Handle remotely if needed
                  }
             }
             if (data.type === 'ARENA_INIT_MAP') {
@@ -486,7 +507,7 @@ export const useArenaLogic = (
         gameState, setGameState,
         gameMode, setGameMode,
         difficulty, setDifficulty,
-        score, // Utilise le state score pour l'affichage HUD
+        score,
         timeLeft,
         killFeed,
         leaderboard,
