@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Trophy, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Trophy, ChevronDown, X } from 'lucide-react';
 import { LEADERBOARD_GAMES } from '../../constants/gamesConfig';
 
 interface LeaderboardWidgetProps {
@@ -31,32 +31,60 @@ export const LeaderboardWidget: React.FC<LeaderboardWidgetProps> = ({ highScores
         return { name: top.name, score: topScore };
     };
 
+    // Calcul du meilleur record pour l'aperçu
+    const bestRecordPreview = useMemo(() => {
+        let bestLabel = "";
+        let bestVal = 0;
+        let color = "text-yellow-400";
+
+        for (const game of LEADERBOARD_GAMES) {
+            const score = highScores[game.id];
+            const val = game.id === 'sudoku' && typeof score === 'object' ? score?.medium : score;
+            if (val && (val as number) > bestVal && game.type === 'high') {
+                bestVal = val as number;
+                bestLabel = game.label;
+                color = game.color;
+            }
+        }
+        return bestLabel ? { label: bestLabel, value: bestVal, color } : null;
+    }, [highScores]);
+
     return (
-        <div className="w-full bg-black/60 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300 shadow-xl hover:shadow-[0_0_35px_rgba(250,204,21,0.2)] hover:border-yellow-400/50 hover:ring-1 hover:ring-yellow-400/30 relative z-20">
+        <div className={`w-full bg-black/60 border border-white/10 rounded-xl backdrop-blur-md transition-all duration-300 shadow-xl hover:shadow-[0_0_35px_rgba(250,204,21,0.2)] hover:border-yellow-400/50 hover:ring-1 hover:ring-yellow-400/30 relative z-20 overflow-hidden`}>
             <button 
                 onClick={() => setShowScores(!showScores)} 
-                className="w-full p-4 flex items-center justify-between cursor-pointer group/btn"
+                className={`w-full p-4 flex items-center justify-between cursor-pointer group/btn transition-colors ${showScores ? 'bg-white/5' : ''}`}
             >
-                <div className="flex items-center gap-3">
-                    <Trophy size={20} className="text-yellow-400 group-hover/btn:scale-110 transition-transform" />
-                    <h3 className="text-lg font-bold text-white italic uppercase tracking-tight">
-                        {language === 'fr' ? 'SCORES & CLASSEMENTS' : 'SCORES & LEADERBOARDS'}
-                    </h3>
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <Trophy size={20} className="text-yellow-400 group-hover/btn:scale-110 transition-transform shrink-0" />
+                    <div className="flex flex-col items-start min-w-0">
+                        <h3 className="text-sm font-black text-white italic uppercase tracking-tight truncate w-full">
+                            {language === 'fr' ? 'Classements' : 'Leaderboards'}
+                        </h3>
+                        {!showScores && bestRecordPreview && (
+                            <span className={`text-[9px] font-mono font-bold ${bestRecordPreview.color} uppercase tracking-widest truncate animate-in slide-in-from-left-2`}>
+                                Record: {bestRecordPreview.value.toLocaleString()} ({bestRecordPreview.label})
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <ChevronDown size={20} className={`text-yellow-400 transition-transform duration-300 ${showScores ? 'rotate-180' : ''}`} />
+                <div className="flex items-center gap-2 shrink-0">
+                    {showScores && <X size={18} className="text-gray-500 hover:text-white" />}
+                    {!showScores && <ChevronDown size={20} className={`text-yellow-400 transition-transform duration-300`} />}
+                </div>
             </button>
             
             {showScores && (
-                <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-300 border-t border-white/5 pt-4">
                     <div className="flex bg-black/30 p-1 rounded-lg mb-4 border border-white/5">
                         <button 
-                            onClick={() => setScoreTab('LOCAL')} 
+                            onClick={(e) => { e.stopPropagation(); setScoreTab('LOCAL'); }} 
                             className={`flex-1 py-2 text-[10px] font-black rounded-md transition-all cursor-pointer ${scoreTab === 'LOCAL' ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'text-gray-400 hover:text-white uppercase'}`}
                         >
                             {language === 'fr' ? 'MES RECORDS' : 'MY RECORDS'}
                         </button>
                         <button 
-                            onClick={() => setScoreTab('GLOBAL')} 
+                            onClick={(e) => { e.stopPropagation(); setScoreTab('GLOBAL'); }} 
                             className={`flex-1 py-2 text-[10px] font-black rounded-md transition-all cursor-pointer ${scoreTab === 'GLOBAL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-gray-400 hover:text-white uppercase'}`}
                         >
                             {language === 'fr' ? 'MONDE' : 'WORLD'}
@@ -67,7 +95,6 @@ export const LeaderboardWidget: React.FC<LeaderboardWidgetProps> = ({ highScores
                         <div className="space-y-1.5 max-h-60 overflow-y-auto custom-scrollbar pr-1">
                             {LEADERBOARD_GAMES.map(game => {
                                 const score = highScores[game.id];
-                                // Gestion des scores complexes (ex: sudoku)
                                 const displayScore = game.id === 'sudoku' && typeof score === 'object' ? score?.medium : score;
                                 if (displayScore && (displayScore as number) > 0) {
                                     return (

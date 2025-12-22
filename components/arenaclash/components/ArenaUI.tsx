@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, X, Wifi, Play, Search, Loader2 } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar } from '../../../hooks/useCurrency';
@@ -46,6 +46,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     const leftKnobRef = useRef<HTMLDivElement>(null);
     const rightKnobRef = useRef<HTMLDivElement>(null);
     const activeTouches = useRef<{ move: number | null, aim: number | null }>({ move: null, aim: null });
+
+    // Calcul du rang actuel pour affichage rapide
+    const myRank = useMemo(() => {
+        const index = leaderboard.findIndex(p => p.isMe);
+        return index !== -1 ? index + 1 : null;
+    }, [leaderboard]);
 
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
         const rect = zone.getBoundingClientRect();
@@ -115,8 +121,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </div>
                 {onClose && (
                     <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} 
-                        className="p-2 bg-white/10 hover:bg-red-500/40 rounded-lg text-white transition-colors cursor-pointer"
+                        onClick={(e) => { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            onClose(); 
+                        }} 
+                        className="p-2 bg-white/10 hover:bg-red-500/40 rounded-lg text-white transition-colors cursor-pointer z-[110]"
                     >
                         <X size={18} />
                     </button>
@@ -261,7 +271,14 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
                         <div className="flex items-center gap-3 pointer-events-auto">
                             <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Home size={24} /></button>
-                            <button onClick={() => setShowMobileLeaderboard(true)} className="md:hidden p-3 bg-gray-900/90 rounded-2xl text-yellow-400 border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Trophy size={24} /></button>
+                            <button onClick={() => setShowMobileLeaderboard(true)} className="md:hidden p-3 bg-gray-900/90 rounded-2xl text-yellow-400 border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer relative">
+                                <Trophy size={24} />
+                                {myRank && (
+                                    <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-gray-900 shadow-lg animate-pop">
+                                        #{myRank}
+                                    </div>
+                                )}
+                            </button>
                         </div>
 
                         <div className="flex flex-col items-center">
@@ -291,7 +308,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     </div>
 
                     {showMobileLeaderboard && (
-                        <div className="md:hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in" onClick={() => setShowMobileLeaderboard(false)}>
+                        <div className="md:hidden fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in" onClick={() => setShowMobileLeaderboard(false)}>
                             <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]" onClick={e => e.stopPropagation()}>
                                 <LeaderboardContent onClose={() => setShowMobileLeaderboard(false)} />
                             </div>
