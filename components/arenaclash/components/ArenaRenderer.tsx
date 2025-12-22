@@ -26,9 +26,21 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
     const lastTimeRef = useRef<number>(0);
 
     const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil: number) => {
-        const { x, y, angle, color, radius } = char;
+        const { x, y, angle, color, radius, shield } = char;
         ctx.save();
         ctx.translate(x, y);
+        
+        // Shield Bubble
+        if (shield > 0) {
+            ctx.beginPath();
+            ctx.arc(0, 0, radius + 10, 0, Math.PI * 2);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 100) * 0.2;
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+
         ctx.rotate(angle);
         
         // Body
@@ -64,13 +76,13 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
     const draw = useCallback((ctx: CanvasRenderingContext2D) => {
         const map = MAPS[selectedMapIndex];
         const cam = cameraRef.current;
+        const now = Date.now();
         
         // Viewport BG
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
         
         ctx.save(); 
-        // Important: Translate with Camera
         ctx.translate(-cam.x, -cam.y);
 
         // Map BG
@@ -85,6 +97,35 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         for (let y = 0; y <= CANVAS_HEIGHT; y += 100) { 
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); 
         }
+
+        // PowerUps
+        powerUpsRef.current.forEach(pw => {
+            const floatY = Math.sin(now / 200) * 5;
+            ctx.save();
+            ctx.translate(pw.x, pw.y + floatY);
+            ctx.beginPath();
+            ctx.arc(0, 0, pw.radius, 0, Math.PI * 2);
+            ctx.fillStyle = pw.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = pw.color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Icon label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Rajdhani';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            let label = "?";
+            if (pw.type === 'HEALTH') label = "H";
+            if (pw.type === 'SHIELD') label = "S";
+            if (pw.type === 'TRIPLE') label = "W";
+            if (pw.type === 'BOOST') label = "X";
+            ctx.fillText(label, 0, 0);
+            ctx.restore();
+        });
 
         // Obstacles
         map.obstacles.forEach(obs => { 
@@ -112,15 +153,25 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             if (!bot.isDead) drawTank(ctx, bot, recoilRef.current[bot.id] || 0);
         });
 
-        // Health Bars & Names
+        // HUD Elements (Health Bars)
         [player, ...botsRef.current].forEach(char => {
             if (!char || char.isDead) return;
             const hpPct = char.hp / char.maxHp;
+            const shieldPct = char.shield / 50;
             const barW = 50;
+            
+            // HP Bar
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fillRect(char.x - barW/2, char.y - 45, barW, 6);
             ctx.fillStyle = hpPct > 0.4 ? '#0f0' : '#f00';
             ctx.fillRect(char.x - barW/2, char.y - 45, barW * hpPct, 6);
+            
+            // Shield Bar
+            if (char.shield > 0) {
+                ctx.fillStyle = '#3b82f6';
+                ctx.fillRect(char.x - barW/2, char.y - 50, barW * shieldPct, 3);
+            }
+
             ctx.fillStyle = '#fff'; ctx.font = '12px Rajdhani'; ctx.textAlign = 'center';
             ctx.fillText(char.name, char.x, char.y - 55);
         });
@@ -159,7 +210,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         if(!rect) return;
         const scaleX = VIEWPORT_WIDTH / rect.width;
         const scaleY = VIEWPORT_HEIGHT / rect.height;
-        // On stocke les coordonnées relatives au canvas
         mouseRef.current.x = (clientX - rect.left) * scaleX;
         mouseRef.current.y = (clientY - rect.top) * scaleY;
     };

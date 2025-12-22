@@ -13,10 +13,10 @@ export const COLORS = {
     enemy: '#ff2df5',    // Pink
     bullet: '#ffff00',   // Yellow
     powerup: {
-        health: '#ef4444',
-        shield: '#3b82f6',
-        speed: '#eab308',
-        damage: '#d946ef'
+        HEALTH: '#ef4444',
+        SHIELD: '#3b82f6',
+        TRIPLE: '#eab308',
+        BOOST: '#d946ef'
     }
 };
 
@@ -129,7 +129,7 @@ export interface Bullet extends Entity {
     life: number;
 }
 
-export type PowerUpType = 'HEALTH' | 'SHIELD' | 'SPEED' | 'DAMAGE';
+export type PowerUpType = 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
 
 export interface PowerUp extends Entity {
     type: PowerUpType;
