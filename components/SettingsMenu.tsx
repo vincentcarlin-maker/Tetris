@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck, Languages, HelpCircle } from 'lucide-react';
+import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck, Languages, HelpCircle, Mic, MicOff } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
 import { HighScores } from '../hooks/useHighScores';
@@ -161,7 +161,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-gray-300 leading-relaxed custom-scrollbar">
-                            {legalTab === 'CGU' && (
+                            {legalTab === 'CGU' ? (
                                 <div className="animate-in slide-in-from-left-4">
                                     <h4 className="text-neon-blue font-black uppercase tracking-widest mb-4">Conditions Générales d'Utilisation</h4>
                                     <section className="mb-4">
@@ -173,12 +173,11 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                                         <p>Les "Pièces Néon" sont une monnaie purement fictive. Elles ne peuvent en aucun cas être converties en argent réel. Tout abus ou tentative de triche pourra entraîner une remise à zéro du compte.</p>
                                     </section>
                                     <section className="mb-4">
-                                        <p className="font-bold text-white mb-1">3. Responsabilité</p>
-                                        <p>L'éditeur ne peut être tenu responsable en cas d'indisponibilité du service ou de perte de progression liée à un incident technique.</p>
+                                        <p className="font-bold text-white mb-1">3. Code de conduite</p>
+                                        <p>Le respect est primordial. Tout comportement harcelant, insultant ou inapproprié dans le chat social pourra entraîner un bannissement définitif de votre compte par les administrateurs.</p>
                                     </section>
                                 </div>
-                            )}
-                            {legalTab === 'PRIVACY' && (
+                            ) : (
                                 <div className="animate-in slide-in-from-right-4">
                                     <h4 className="text-neon-pink font-black uppercase tracking-widest mb-4">Politique de Confidentialité (RGPD)</h4>
                                     <section className="mb-4">
@@ -239,7 +238,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             <h2 className="text-2xl font-black text-white italic truncate">{currency.username}</h2>
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {currentTitle && currentTitle.id !== 't_none' && (
-                                    <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-black/40 px-2 py-0.5 rounded border border-white/10`}>
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>
                                         {currentTitle.name}
                                     </span>
                                 )}
@@ -340,6 +339,14 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                                 <div><p className="font-bold text-sm">{t.sound_fx}</p><p className="text-[10px] text-gray-500">Sons d'interface et jeux</p></div>
                             </div>
                             <button onClick={audio.toggleMute} className={`w-12 h-6 rounded-full relative transition-colors ${!audio.isMuted ? 'bg-green-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${!audio.isMuted ? 'left-7' : 'left-1'}`}></div></button>
+                        </div>
+                        {/* Fix: Add UI to toggle voice chat setting. */}
+                        <div className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${currency.voiceChatEnabled ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'}`}>{currency.voiceChatEnabled ? <Mic size={20}/> : <MicOff size={20}/>}</div>
+                                <div><p className="font-bold text-sm">{t.voice_chat}</p><p className="text-[10px] text-gray-500">{t.voice_chat_desc}</p></div>
+                            </div>
+                            <button onClick={currency.toggleVoiceChat} className={`w-12 h-6 rounded-full relative transition-colors ${currency.voiceChatEnabled ? 'bg-blue-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${currency.voiceChatEnabled ? 'left-7' : 'left-1'}`}></div></button>
                         </div>
                     </div>
                 </div>

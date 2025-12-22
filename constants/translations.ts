@@ -26,7 +26,9 @@ export const TRANSLATIONS: Record<string, any> = {
         social: "Social",
         home: "Accueil",
         contact: "Nous Contacter",
-        support: "Support & Aide"
+        support: "Support & Aide",
+        voice_chat: "Chat Vocal",
+        voice_chat_desc: "En jeu multijoueur"
     },
     en: {
         settings: "Settings",
@@ -54,6 +56,8 @@ export const TRANSLATIONS: Record<string, any> = {
         social: "Social",
         home: "Home",
         contact: "Contact Us",
-        support: "Support & Help"
+        support: "Support & Help",
+        voice_chat: "Voice Chat",
+        voice_chat_desc: "In multiplayer games"
     }
 };

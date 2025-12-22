@@ -20,11 +20,12 @@ interface SlitherUIProps {
     onBoostStart: () => void;
     onBoostEnd: () => void;
     onQuit: () => void;
+    mp: any;
 }
 
 export const SlitherUI: React.FC<SlitherUIProps> = ({
     gameState, gameMode, score, rank, earnedCoins, leaderboard, onlineUsers, isBoosting,
-    onStartSolo, onSetMode, onJoinServer, onBackToMenu, onBoostStart, onBoostEnd, onQuit
+    onStartSolo, onSetMode, onJoinServer, onBackToMenu, onBoostStart, onBoostEnd, onQuit, mp
 }) => {
 
     if (gameState === 'MENU') {
@@ -113,14 +114,15 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
     if (gameState === 'PLAYING' || gameState === 'DYING') {
         return (
             <>
-                <div className="absolute top-6 left-6 z-20 flex gap-6 items-center pointer-events-none">
+                <div className="absolute top-6 left-6 z-20 flex gap-4 items-center pointer-events-none">
                     <button 
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuit(); }} 
                         className="p-3 bg-gray-900/90 rounded-2xl text-white pointer-events-auto border border-white/10 active:scale-95 transition-all shadow-xl"
                     >
                         <Home size={24}/>
                     </button>
-                    <div className="flex flex-col">
+                    
+                    <div className="flex flex-col ml-2">
                         <span className="text-3xl font-black italic text-white drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">{Math.floor(score)}</span>
                         <span className="text-[10px] text-indigo-400 font-bold uppercase">Rang: {rank.current} / {rank.total}</span>
                     </div>

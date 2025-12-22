@@ -48,6 +48,16 @@ export const useBattleshipLogic = (
     const { username, currentAvatarId } = useCurrency();
     const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, playSplash } = audio;
 
+    // --- AUTOMATIC NOTIFICATION CLEARING ---
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => {
+                setNotification(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+
     // --- INITIALIZATION ---
     useEffect(() => {
         // Tag user for lobby

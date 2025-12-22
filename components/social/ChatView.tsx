@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { ArrowLeft, MoreVertical, Clock, Smile, Send, Phone } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Clock, Smile, Send } from 'lucide-react';
 import { Friend, PrivateMessage, GAME_NAMES, SUPPORT_ID } from './types';
 import { Avatar, Frame } from '../../hooks/useCurrency';
-import { VoiceChatHUD } from '../multiplayer/VoiceChatHUD';
 
 interface ChatViewProps {
     activeFriend: Friend;
@@ -62,17 +61,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         </span>
                     </div>
                 </div>
-
-                {/* VOICE CHAT INTEGRATION */}
-                {isRealUser && (
-                    <div className="animate-in fade-in zoom-in duration-300">
-                        <VoiceChatHUD 
-                            myId={mp.peerId} 
-                            opponentId={activeFriend.id} 
-                            gameActive={true} 
-                        />
-                    </div>
-                )}
 
                 <button onClick={() => onOpenProfile(activeFriend)} className="p-2 hover:bg-white/10 rounded-full text-gray-400"><MoreVertical size={20}/></button>
             </div>

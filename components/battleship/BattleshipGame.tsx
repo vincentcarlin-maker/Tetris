@@ -196,7 +196,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
-                    <button onClick={() => { logic.setGameMode('SOLO'); logic.setPhase('SETUP'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                    <button onClick={() => { logic.setGameMode('SOLO'); logic.setPhase('SETUP'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.3)] text-left p-6 md:p-8 flex flex-col justify-between">
                         <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="relative z-10">
                             <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Cpu size={32} className="text-cyan-400" /></div>
@@ -250,7 +250,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         {showTutorial && <TutorialOverlay gameId="battleship" onClose={() => setShowTutorial(false)} />}
 
         {logic.notification && (
-            <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs p-4 rounded-xl border-2 flex flex-col items-center text-center animate-in zoom-in duration-200 ${logic.notification.type === 'HIT' ? 'bg-red-900/90 border-red-500 shadow-[0_0_30px_red]' : 'bg-green-900/90 border-green-500 shadow-[0_0_30px_lime]'}`}>
+            <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs p-4 rounded-xl border-2 flex flex-col items-center text-center animate-in zoom-in slide-out-to-top-10 fade-out duration-300 ${logic.notification.type === 'HIT' ? 'bg-red-900/90 border-red-500 shadow-[0_0_30px_red]' : 'bg-green-900/90 border-green-500 shadow-[0_0_30px_lime]'}`}>
                 <span className="text-xl font-black italic tracking-widest text-white drop-shadow-md leading-tight break-words">{logic.notification.text}</span>
             </div>
         )}
@@ -263,7 +263,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         })()}
 
         {/* Header */}
-        <div className="w-full max-w-md flex items-center justify-between z-10 mb-2 shrink-0">
+        <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">
             <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
             <div className="flex flex-col items-center">
                 <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500 pr-2">NEON FLEET</h1>
@@ -317,7 +317,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         )}
 
         {logic.phase === 'GAMEOVER' && (
-            <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in zoom-in p-6 text-center">
+            <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in zoom-in p-6 text-center">
                 {logic.winner === 'PLAYER' ? (
                     <>
                         <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
@@ -334,7 +334,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 )}
                 <div className="flex flex-col gap-4 w-full max-w-[280px]">
                     <div className="flex gap-2 w-full">
-                        <button onClick={logic.resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2"><RefreshCw size={18} /> REJOUER</button>
+                        <button onClick={logic.resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest text-sm rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"><RefreshCw size={18} /> REJOUER</button>
                         {logic.gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); logic.setOnlineStep('lobby'); }} className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 text-sm">QUITTER</button>}
                     </div>
                     <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>

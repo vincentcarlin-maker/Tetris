@@ -1,7 +1,5 @@
 {
   "name": "Neon Arcade",
   "description": "Une suite de jeux d'arcade rétro au style néon : Tetris, Casse-briques, Pacman, Rush, Puissance 4, Sudoku et Memory. Jouez en solo ou défiez vos amis en ligne !",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }

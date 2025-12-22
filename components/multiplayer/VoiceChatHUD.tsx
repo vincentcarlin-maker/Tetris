@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Mic, MicOff, Volume2, AlertCircle, WifiOff, PhoneCall } from 'lucide-react';
+import { Mic, MicOff, Volume2, AlertCircle, WifiOff, Settings } from 'lucide-react';
 import { useVoiceChat } from '../../hooks/useVoiceChat';
+import { useCurrency } from '../../hooks/useCurrency';
 
 interface VoiceChatHUDProps {
     myId: string | null;
@@ -10,9 +11,13 @@ interface VoiceChatHUDProps {
 }
 
 export const VoiceChatHUD: React.FC<VoiceChatHUDProps> = ({ myId, opponentId, gameActive }) => {
-    const { isMuted, isJoined, joinVoiceChat, toggleMute, isConnected, error } = useVoiceChat(myId, opponentId, gameActive);
+    const { voiceChatEnabled } = useCurrency();
+    const { isMuted, toggleMute, isConnected, error } = useVoiceChat(myId, opponentId, gameActive, voiceChatEnabled);
 
     if (!gameActive || !opponentId) return null;
+
+    // Si le chat vocal est désactivé globalement, on n'affiche rien ou une petite option
+    if (!voiceChatEnabled) return null;
 
     return (
         <div className="flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 shadow-2xl pointer-events-auto ring-1 ring-white/5">
@@ -20,14 +25,6 @@ export const VoiceChatHUD: React.FC<VoiceChatHUDProps> = ({ myId, opponentId, ga
                 <div className="flex items-center gap-2 text-red-400 text-[10px] font-bold uppercase animate-pulse px-2">
                     <AlertCircle size={14} /> Micro bloqué
                 </div>
-            ) : !isJoined ? (
-                <button 
-                    onClick={joinVoiceChat}
-                    className="flex items-center gap-2 px-3 py-1 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue rounded-xl border border-neon-blue/30 transition-all active:scale-95 group"
-                >
-                    <PhoneCall size={14} className="group-hover:animate-bounce" />
-                    <span className="text-[10px] font-black tracking-widest uppercase">Activer Voice Chat</span>
-                </button>
             ) : !isConnected ? (
                 <div className="flex items-center gap-2 text-gray-500 text-[10px] font-bold uppercase px-2">
                     <WifiOff size={14} className="animate-pulse" /> Connexion...

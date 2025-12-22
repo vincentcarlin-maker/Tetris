@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle } from 'lucide-react';
-import { Card as CardType, Color, Turn, FlyingCardData } from './types';
+import { Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, MessageSquare, Send, Frown, Hand, Smile, Heart, ThumbsUp } from 'lucide-react';
+import { Card as CardType, Color, Turn, FlyingCardData } from '../types';
 import { Card } from './common/Card';
-import { VoiceChatHUD } from '../multiplayer/VoiceChatHUD';
 
 interface UnoBoardProps {
     discardPileRef: React.RefObject<HTMLDivElement>;
@@ -75,17 +74,6 @@ export const UnoBoard: React.FC<UnoBoardProps> = ({
                     </div>
                 ))}
             </div>
-
-            {/* VOICE CHAT HUD */}
-            {gameMode === 'ONLINE' && (
-               <div className="absolute top-4 right-4 z-50">
-                   <VoiceChatHUD 
-                        myId={mp.peerId} 
-                        opponentId={mp.gameOpponent?.id} 
-                        gameActive={gameMode === 'ONLINE' && !!mp.gameOpponent} 
-                   />
-               </div>
-            )}
 
             <div className="flex-1 flex items-center justify-center gap-4 sm:gap-8 relative min-h-[150px] shrink z-10">
                 <div className={`absolute pointer-events-none transition-colors duration-500 ${COLOR_CONFIG[activeColor].text} opacity-30 z-0`}>

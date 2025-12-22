@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet,
@@ -68,6 +69,12 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon_privacy') || '{"hideOnline": false, "blockRequests": false}'); } catch { return {hideOnline: false, blockRequests: false}; }
     });
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
+
+    // Fix: Add voiceChatEnabled state, defaulting to true.
+    const [voiceChatEnabled, setVoiceChatEnabled] = useState(() => {
+        const saved = localStorage.getItem('neon-voice-chat');
+        return saved !== null ? saved === 'true' : true;
+    });
 
     const [adminModeActive, setAdminModeActive] = useState(() => {
         const storedUsername = localStorage.getItem('neon-username');
@@ -179,6 +186,15 @@ export const useCurrency = () => {
         else document.body.classList.remove('reduced-motion');
     };
 
+    // Fix: Add toggle function for voice chat
+    const toggleVoiceChat = useCallback(() => {
+        setVoiceChatEnabled(prev => {
+            const newState = !prev;
+            localStorage.setItem('neon-voice-chat', String(newState));
+            return newState;
+        });
+    }, []);
+
     const playerRank = useMemo(() => {
         if (isSuperUser) return { title: language === 'fr' ? 'ADMINISTRATEUR' : 'ADMINISTRATOR', color: 'text-red-500', glow: 'shadow-red-500/50' };
         const count = inventory.length;
@@ -192,6 +208,8 @@ export const useCurrency = () => {
     return { 
         coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories,
         accentColor, updateAccentColor, privacySettings, togglePrivacy, reducedMotion, toggleReducedMotion,
+        // Fix: Export voiceChatEnabled and its toggle function.
+        voiceChatEnabled, toggleVoiceChat,
         language, setLanguage, t,
         isSuperUser, adminModeActive, toggleAdminMode: () => { const n = !adminModeActive; setAdminModeActive(n); localStorage.setItem('neon-admin-mode', JSON.stringify(n)); },
         refreshData, importData, addCoins, email, updateEmail,

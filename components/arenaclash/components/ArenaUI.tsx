@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Home, HelpCircle, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw, Wifi, Play, Search, ArrowRight, Shield, Zap, Skull } from 'lucide-react';
+import { Home, HelpCircle, Trophy, Crosshair, Map, ChevronLeft, ChevronRight, User, Globe, Loader2, Coins, RefreshCw, Wifi, Play, Search, ArrowRight, Shield, Zap, Skull, MessageSquare, Send } from 'lucide-react';
 import { MAPS } from '../constants';
 import { Avatar } from '../../../hooks/useCurrency';
 
@@ -161,7 +161,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                      {/* Create Section */}
                      <div className="bg-gradient-to-br from-gray-900 to-black border border-red-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative overflow-hidden group shrink-0">
                          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                         <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Wifi size={16} className="text-red-500"/> HÉBERGER UNE ARENE</h3>
+                         <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Wifi size={16} className="text-red-500"/> HÉBERGER UNE PARTIE</h3>
                          <button onClick={mp.createRoom} className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-black tracking-widest rounded-xl text-sm transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-red-500/40 active:scale-95">
                             <Play size={20} fill="currentColor"/> CRÉER UN SALON
                          </button>
@@ -309,11 +309,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         </div>
 
-                        {/* Center Column: Timer & Respawn */}
+                        {/* Center Column: Timer & Voice Chat */}
                         <div className="flex flex-col items-center">
                             <div className={`text-3xl font-black font-mono drop-shadow-[0_0_5px_rgba(0,0,0,0.8)] ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                                 {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
                             </div>
+                            
                             {gameState === 'RESPAWNING' && (
                                 <div className="mt-2 bg-red-900/90 px-4 py-1 rounded-full text-red-100 font-bold animate-pulse border border-red-500 text-xs shadow-lg backdrop-blur-sm">
                                     RESPAWN {Math.ceil(respawnTimer / 1000)}s

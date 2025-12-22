@@ -671,7 +671,6 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         <div ref={mainContainerRef} className={`h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-4 select-none touch-none`}>
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
             
-            {/* TUTORIAL OVERLAY */}
             {showTutorial && <TutorialOverlay gameId="checkers" onClose={() => setShowTutorial(false)} />}
 
             {/* Header */}
@@ -693,10 +692,12 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
 
             {/* Turn Indicator */}
             {!winner && !opponentLeft && (
-                <div className={`mb-4 px-6 py-2 rounded-full border border-white/10 font-bold text-sm shadow-lg transition-colors ${turn === 'white' ? 'bg-cyan-900/50 text-cyan-400 animate-pulse' : 'bg-pink-900/50 text-pink-500 animate-pulse'}`}>
-                    {gameMode === 'ONLINE' 
-                        ? ((mp.amIP1 && turn === 'white') || (!mp.amIP1 && turn === 'red') ? "C'EST TON TOUR" : "L'ADVERSAIRE JOUE...") 
-                        : (turn === 'white' ? "TOUR CYAN" : "TOUR ROSE")}
+                <div className="flex flex-col items-center gap-2 mb-4 z-10">
+                    <div className={`px-6 py-2 rounded-full border border-white/10 font-bold text-sm shadow-lg transition-colors ${turn === 'white' ? 'bg-cyan-900/50 text-cyan-400 animate-pulse' : 'bg-pink-900/50 text-pink-500 animate-pulse'}`}>
+                        {gameMode === 'ONLINE' 
+                            ? ((mp.amIP1 && turn === 'white') || (!mp.amIP1 && turn === 'red') ? "C'EST TON TOUR" : "L'ADVERSAIRE JOUE...") 
+                            : (turn === 'white' ? "TOUR CYAN" : "TOUR ROSE")}
+                    </div>
                 </div>
             )}
 
