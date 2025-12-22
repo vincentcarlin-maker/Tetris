@@ -218,8 +218,12 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
 
             <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pt-6 pb-24">
                 <div className="flex items-center justify-between mb-2">
-                    <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"><ArrowLeft size={20} /></button>
-                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(192,38,211,0.5)] uppercase">{t.settings}</h1>
+                    <div className="w-10">
+                        <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"><ArrowLeft size={20} /></button>
+                    </div>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(192,38,211,0.5)] uppercase px-4 py-1 text-center">
+                        {t.settings}
+                    </h1>
                     <div className="w-10"></div>
                 </div>
 
