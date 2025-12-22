@@ -7,7 +7,7 @@ import { useDailySystem } from '../hooks/useDailySystem';
 import { useHighScores } from '../hooks/useHighScores';
 import { useSupabase } from '../hooks/useSupabase';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
-import { FriendRequest } from '../components/SocialOverlay';
+import { FriendRequest } from '../components/social/types';
 
 export type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
 export type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
@@ -52,9 +52,10 @@ export const useGlobal = () => {
     return context;
 };
 
-export const GlobalProvider: React.FC<{ children: React.Node }> = ({ children }) => {
+export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    // HYDRATATION OPTIMISTE : On vérifie immédiatement le pseudo en local
+    const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('neon-username'));
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
@@ -72,23 +73,27 @@ export const GlobalProvider: React.FC<{ children: React.Node }> = ({ children })
     const daily = useDailySystem(currency.addCoins);
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
-    // --- RECONNEXION AUTOMATIQUE (FIX REFRESH iOS) ---
+    // --- RECONNEXION AUTOMATIQUE & SYNC ARRIERE-PLAN ---
     useEffect(() => {
         const attemptAutoLogin = async () => {
             const storedUser = localStorage.getItem('neon-username');
             const storedPass = localStorage.getItem('neon_current_password');
             
             if (storedUser && storedPass) {
+                // L'utilisateur est déjà "isAuthenticated: true" par défaut via l'init du state,
+                // on lance juste la vérification/sync cloud en arrière-plan sans bloquer l'UI.
                 try {
                     const profile = await DB.getUserProfile(storedUser);
                     if (profile && profile.data) {
                         const cloudPass = profile.data.password;
                         if (cloudPass === storedPass || storedUser === 'Vincent') {
-                            handleLogin(storedUser, profile.data);
+                            // On met à jour les données (coins, inventory) sans réinitialiser la vue
+                            currency.importData(profile.data);
+                            highScoresHook.importScores(profile.data.highScores || {});
                         }
                     }
                 } catch (e) {
-                    console.error("Auto-login failed:", e);
+                    console.error("Background sync failed:", e);
                 }
             }
         };
@@ -109,7 +114,6 @@ export const GlobalProvider: React.FC<{ children: React.Node }> = ({ children })
         currency.updateUsername(username);
         if (cloudData) {
             currency.importData(cloudData);
-            // On s'assure que le mot de passe est bien dans le localstorage pour le prochain refresh
             if (cloudData.password) {
                 localStorage.setItem('neon_current_password', cloudData.password);
             }
