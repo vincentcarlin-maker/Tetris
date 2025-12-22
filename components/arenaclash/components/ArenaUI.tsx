@@ -107,7 +107,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     }, []);
 
     const LeaderboardContent = ({ onClose }: { onClose?: () => void }) => (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full pointer-events-auto">
             <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
                 <div className="flex items-center gap-2">
                     <Trophy size={18} className="text-yellow-400"/>
@@ -115,8 +115,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </div>
                 {onClose && (
                     <button 
-                        onClick={(e) => { e.stopPropagation(); onClose(); }} 
-                        className="p-1.5 bg-white/10 hover:bg-red-500/40 rounded-lg text-white transition-colors"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} 
+                        className="p-2 bg-white/10 hover:bg-red-500/40 rounded-lg text-white transition-colors cursor-pointer"
                     >
                         <X size={18} />
                     </button>
@@ -147,24 +147,24 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                          <p className="text-red-400 font-black tracking-[0.5em] text-sm mt-4 uppercase">Duel Néon Infini</p>
                     </div>
                     <div className="flex items-center gap-4 mb-10 bg-gray-900/80 p-2 rounded-2xl border border-white/10 backdrop-blur-md w-full max-w-xs shadow-2xl">
-                        <button onClick={() => onChangeMap(-1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400"><ChevronLeft/></button>
+                        <button onClick={() => onChangeMap(-1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 cursor-pointer"><ChevronLeft/></button>
                         <div className="text-center w-full">
                             <p className="text-[10px] text-gray-500 font-black tracking-widest mb-1 uppercase">Secteur</p>
                             <p className="text-white font-black italic text-lg truncate" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
                         </div>
-                        <button onClick={() => onChangeMap(1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400"><ChevronRight/></button>
+                        <button onClick={() => onChangeMap(1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 cursor-pointer"><ChevronRight/></button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-                        <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group relative h-64 md:h-80 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.3)] text-left p-8 flex flex-col justify-between">
+                        <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group cursor-pointer relative h-64 md:h-80 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.3)] text-left p-8 flex flex-col justify-between">
                             <div className="relative z-10"><div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-6 shadow-xl"><User size={40} className="text-red-400" /></div><h2 className="text-4xl font-black text-white italic mb-2 group-hover:text-red-300">PROTOCOLE SOLO</h2><p className="text-gray-400 text-sm font-medium leading-relaxed">Défiez les sentinelles de la grille.</p></div>
                             <div className="relative z-10 flex items-center gap-2 text-red-400 font-black text-xs tracking-[0.2em] group-hover:text-white uppercase">Initialiser <ArrowRight size={20} /></div>
                         </button>
-                        <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-64 md:h-80 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.3)] text-left p-8 flex flex-col justify-between">
+                        <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group cursor-pointer relative h-64 md:h-80 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.3)] text-left p-8 flex flex-col justify-between">
                             <div className="relative z-10"><div className="w-16 h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-6 shadow-xl"><Globe size={40} className="text-orange-400" /></div><div className="flex items-center gap-3 mb-2"><h2 className="text-4xl font-black text-white italic group-hover:text-orange-300">RESEAU LIVE</h2><span className="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">EN LIGNE</span></div><p className="text-gray-400 text-sm font-medium leading-relaxed">Confrontation directe mondiale.</p></div>
                             <div className="relative z-10 flex items-center gap-2 text-orange-400 font-black text-xs tracking-[0.2em] group-hover:text-white uppercase">Rechercher canal <ArrowRight size={20} /></div>
                         </button>
                     </div>
-                    <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.3em] flex items-center gap-2 py-3 px-6 hover:bg-white/5 rounded-2xl transition-all"><Home size={16}/> RETOUR ARCADE</button>
+                    <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.3em] flex items-center gap-2 py-3 px-6 hover:bg-white/5 rounded-2xl transition-all cursor-pointer"><Home size={16}/> RETOUR ARCADE</button>
                 </div>
             </div>
         );
@@ -179,7 +179,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/40 via-[#050510] to-black"></div>
                 <div className="relative z-10 w-full max-w-4xl flex flex-col h-full">
                     <div className="flex items-center justify-between mb-8 shrink-0">
-                        <button onClick={onReturnToMenu} className="p-3 bg-gray-900/80 rounded-xl text-gray-400 hover:text-white border border-white/10 transition-transform active:scale-95"><ChevronLeft size={20} /></button>
+                        <button onClick={onReturnToMenu} className="p-3 bg-gray-900/80 rounded-xl text-gray-400 hover:text-white border border-white/10 transition-transform active:scale-95 cursor-pointer"><ChevronLeft size={20} /></button>
                         <h1 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 uppercase tracking-tighter">Salles de Combat</h1>
                         <div className="w-12"></div>
                     </div>
@@ -193,7 +193,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 <div className="bg-gradient-to-br from-gray-900 to-black border border-orange-500/30 rounded-[32px] p-8 shadow-2xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                                     <h3 className="text-sm font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest"><Wifi size={18} className="text-orange-400"/> Émission</h3>
-                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 uppercase">
+                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 uppercase cursor-pointer">
                                         <Play size={20} fill="currentColor"/> Créer Salon
                                     </button>
                                 </div>
@@ -226,7 +226,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                                             <span className="text-[10px] text-gray-500 font-mono tracking-widest">EN ATTENTE...</span>
                                                         </div>
                                                     </div>
-                                                    <button onClick={() => mp.joinRoom(player.id)} className="px-6 py-3 bg-white text-black font-black text-xs rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-xl active:scale-95 uppercase tracking-widest">
+                                                    <button onClick={() => mp.joinRoom(player.id)} className="px-6 py-3 bg-white text-black font-black text-xs rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-xl active:scale-95 uppercase tracking-widest cursor-pointer">
                                                         Rejoindre
                                                     </button>
                                                 </div>
@@ -254,14 +254,14 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
     // --- HUD EN JEU ---
     return (
-        <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center pointer-events-none overflow-hidden">
+        <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center overflow-hidden pointer-events-none">
             
             {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
                         <div className="flex items-center gap-3 pointer-events-auto">
-                            <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all"><Home size={24} /></button>
-                            <button onClick={() => setShowMobileLeaderboard(true)} className="md:hidden p-3 bg-gray-900/90 rounded-2xl text-yellow-400 border border-white/10 active:scale-90 shadow-2xl transition-all"><Trophy size={24} /></button>
+                            <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Home size={24} /></button>
+                            <button onClick={() => setShowMobileLeaderboard(true)} className="md:hidden p-3 bg-gray-900/90 rounded-2xl text-yellow-400 border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Trophy size={24} /></button>
                         </div>
 
                         <div className="flex flex-col items-center">
@@ -291,8 +291,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     </div>
 
                     {showMobileLeaderboard && (
-                        <div className="md:hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in">
-                            <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+                        <div className="md:hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in" onClick={() => setShowMobileLeaderboard(false)}>
+                            <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]" onClick={e => e.stopPropagation()}>
                                 <LeaderboardContent onClose={() => setShowMobileLeaderboard(false)} />
                             </div>
                         </div>
@@ -311,8 +311,9 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </>
             )}
 
+            {/* GAMEOVER */}
             {gameState === 'GAMEOVER' && (
-                <div className="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl animate-in zoom-in p-8 text-center pointer-events-auto">
+                <div className="absolute inset-0 z-[120] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl animate-in zoom-in p-8 text-center pointer-events-auto">
                     <Trophy size={100} className="text-yellow-400 mb-8 drop-shadow-[0_0_40px_gold] animate-bounce"/>
                     <h2 className="text-4xl md:text-7xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-orange-500 to-red-600 mb-6 uppercase tracking-tighter">Données de combat</h2>
                     <div className="bg-gray-800/40 p-6 md:p-8 rounded-[40px] border border-white/10 mb-10 backdrop-blur-md shadow-2xl flex flex-col items-center">
@@ -321,27 +322,28 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     </div>
                     {earnedCoins > 0 && <div className="mb-12 flex items-center gap-4 bg-yellow-500/20 px-8 py-4 rounded-3xl border-2 border-yellow-500/50 shadow-lg animate-pulse"><Coins className="text-yellow-400" size={32} /><span className="text-yellow-100 font-black text-2xl md:text-3xl">+{earnedCoins}</span></div>}
                     <div className="flex gap-4 md:gap-6 w-full max-w-md">
-                        <button onClick={() => { if(gameMode === 'ONLINE') onRematch(); else onStartGame(); }} className="flex-1 py-4 md:py-5 bg-red-600 text-white font-black tracking-[0.2em] rounded-3xl hover:bg-red-500 shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all text-sm"><RefreshCw size={24} /> REPLAY</button>
-                        <button onClick={onReturnToMenu} className="flex-1 py-4 md:py-5 bg-gray-800 text-gray-300 font-black tracking-[0.2em] rounded-3xl hover:bg-gray-700 text-sm">MENU</button>
+                        <button onClick={() => { if(gameMode === 'ONLINE') onRematch(); else onStartGame(); }} className="flex-1 py-4 md:py-5 bg-red-600 text-white font-black tracking-[0.2em] rounded-3xl hover:bg-red-500 shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all text-sm cursor-pointer"><RefreshCw size={24} /> REPLAY</button>
+                        <button onClick={onReturnToMenu} className="flex-1 py-4 md:py-5 bg-gray-800 text-gray-300 font-black tracking-[0.2em] rounded-3xl hover:bg-gray-700 text-sm cursor-pointer">MENU</button>
                     </div>
                 </div>
             )}
             
+            {/* DIFFICULTE */}
             {gameState === 'DIFFICULTY' && (
-                <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto animate-in fade-in">
+                <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto animate-in fade-in">
                     <h2 className="text-3xl md:text-4xl font-black text-white mb-10 italic uppercase tracking-[0.2em]">Niveau de menace</h2>
                     <div className="flex flex-col gap-4 w-full max-w-[340px]">
                         {(Object.keys(ARENA_DIFFICULTY_SETTINGS) as Difficulty[]).map(d => {
                             const s = ARENA_DIFFICULTY_SETTINGS[d];
                             return (
-                                <button key={d} onClick={() => onStartGame('SOLO', d)} className={`group flex items-center justify-between px-8 py-6 border-2 rounded-3xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95 shadow-xl`}>
+                                <button key={d} onClick={() => onStartGame('SOLO', d)} className={`group cursor-pointer flex items-center justify-between px-8 py-6 border-2 rounded-3xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95 shadow-xl`}>
                                     <div className="flex items-center gap-4">{d==='EASY' && <Shield size={32}/>}{d==='MEDIUM' && <Zap size={32}/>}{d==='HARD' && <Skull size={32}/>}<span className="font-black text-xl uppercase tracking-wider">{d==='EASY'?'Novice':d==='MEDIUM'?'Vétéran':'Elite'}</span></div>
                                     <div className="text-[10px] font-black font-mono text-right opacity-60 group-hover:opacity-100">X{s.coinMult}</div>
                                 </button>
                             );
                         })}
                     </div>
-                    <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase">Annuler</button>
+                    <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer">Annuler</button>
                 </div>
             )}
             
@@ -350,7 +352,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     <Loader2 size={64} className="text-orange-400 animate-spin mb-6" />
                     <h2 className="text-2xl font-black text-white italic mb-2 uppercase tracking-widest">En attente d'un adversaire...</h2>
                     <p className="text-gray-400 text-sm mb-8">Votre signal est diffusé sur la grille.</p>
-                    <button onClick={onCancelHosting} className="px-8 py-3 bg-red-600/20 text-red-500 border border-red-500/50 rounded-xl font-black text-xs uppercase tracking-widest">Annuler</button>
+                    <button onClick={onCancelHosting} className="px-8 py-3 bg-red-600/20 text-red-500 border border-red-500/50 rounded-xl font-black text-xs uppercase tracking-widest cursor-pointer">Annuler</button>
                 </div>
             )}
         </div>

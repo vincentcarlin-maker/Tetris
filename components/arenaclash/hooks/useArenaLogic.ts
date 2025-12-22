@@ -226,7 +226,7 @@ export const useArenaLogic = (
         setEarnedCoins(0);
         
         // Spawn immédiat d'un bonus au début pour tester
-        lastPowerUpSpawnRef.current = Date.now() - 5000; 
+        lastPowerUpSpawnRef.current = Date.now() - 3000; 
         
         audio.resumeAudio();
         if (onReportProgress) onReportProgress('play', 1);
@@ -251,8 +251,8 @@ export const useArenaLogic = (
                  return;
             }
             
-            // Spawn PowerUps toutes les 10 secondes
-            if (now - lastPowerUpSpawnRef.current > 10000 && (gameMode === 'SOLO' || mp.isHost)) {
+            // Spawn PowerUps toutes les 7 secondes (plus fréquent)
+            if (now - lastPowerUpSpawnRef.current > 7000 && (gameMode === 'SOLO' || mp.isHost)) {
                 const pw = spawnPowerUp();
                 lastPowerUpSpawnRef.current = now;
                 if (gameMode === 'ONLINE') {
