@@ -111,7 +111,7 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
             </div>
 
             {/* Transaction Log Table */}
-            <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col min-h-[300px] relative shadow-2xl">
+            <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col min-h-[400px] relative shadow-2xl">
                 {loading && (
                     <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-[2px] flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">
@@ -123,7 +123,7 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                 
                 <div className="overflow-y-auto custom-scrollbar h-full">
                     <table className="w-full text-left text-sm border-collapse">
-                        <thead className="bg-gray-800/90 text-gray-400 font-black uppercase text-[10px] sticky top-0 z-20 backdrop-blur-md border-b border-white/10">
+                        <thead className="bg-gray-800/95 text-gray-400 font-black uppercase text-[10px] sticky top-0 z-20 backdrop-blur-md border-b border-white/10">
                             <tr>
                                 <th className="p-4">Horodatage</th>
                                 <th className="p-4">Joueur</th>
@@ -148,8 +148,8 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold text-white uppercase">{(t.username || "??").substring(0,2)}</div>
-                                                    <span className="font-bold text-white">{t.username || "Inconnu"}</span>
+                                                    <div className="w-6 h-6 rounded bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-[10px] font-black text-white uppercase">{(t.username || "??").substring(0,2)}</div>
+                                                    <span className="font-black text-white text-xs">{t.username || "Inconnu"}</span>
                                                 </div>
                                             </td>
                                             <td className="p-4">
@@ -162,7 +162,7 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                                                     {t.type || 'ADJUST'}
                                                 </span>
                                             </td>
-                                            <td className="p-4 text-gray-400 text-xs italic max-w-[200px] truncate">{t.description || "Aucune description"}</td>
+                                            <td className="p-4 text-gray-400 text-[11px] italic max-w-[200px] truncate">{t.description || "Aucune description"}</td>
                                             <td className={`p-4 text-right font-black font-mono text-lg ${isPositive ? 'text-green-400' : 'text-pink-500'}`}>
                                                 {isPositive ? '+' : ''}{amount}
                                             </td>
