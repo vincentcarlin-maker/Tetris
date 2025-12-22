@@ -3,7 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useCurrency } from '../../../hooks/useCurrency';
 import { useHighScores } from '../../../hooks/useHighScores';
 import { 
-    CANVAS_WIDTH, CANVAS_HEIGHT, MAPS, COLORS, BOT_NAMES, 
+    CANVAS_WIDTH, CANVAS_HEIGHT, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, MAPS, COLORS, BOT_NAMES, 
     MATCH_DURATION, BULLET_SPEED, RESPAWN_TIME, ARENA_DIFFICULTY_SETTINGS,
     Character, Bullet, PowerUp, Particle, KillEvent, PowerUpType, Difficulty 
 } from '../constants';
@@ -18,7 +18,6 @@ export const useArenaLogic = (
     const { updateHighScore } = useHighScores();
     const { playLaserShoot, playExplosion, playPowerUpCollect, playVictory, playGameOver, playCoin } = audio;
 
-    // --- STATE ---
     const [timeLeft, setTimeLeft] = useState(MATCH_DURATION);
     const [gameState, setGameState] = useState<'MENU' | 'LOBBY' | 'DIFFICULTY' | 'PLAYING' | 'RESPAWNING' | 'GAMEOVER'>('MENU');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
@@ -31,7 +30,6 @@ export const useArenaLogic = (
     const [opponentLeft, setOpponentLeft] = useState(false);
     const [score, setScore] = useState(0);
 
-    // --- REFS (GAME ENTITIES) ---
     const playerRef = useRef<Character | null>(null);
     const botsRef = useRef<Character[]>([]);
     const bulletsRef = useRef<Bullet[]>([]);
@@ -42,7 +40,6 @@ export const useArenaLogic = (
     const recoilRef = useRef<{ [key: string]: number }>({});
     const frameRef = useRef(0);
 
-    // --- REFS (LOGIC UTILS) ---
     const gameStateRef = useRef(gameState);
     const timeLeftRef = useRef(timeLeft);
     const difficultyRef = useRef<Difficulty>(difficulty);
@@ -57,7 +54,6 @@ export const useArenaLogic = (
     });
     const mouseRef = useRef({ x: 0, y: 0, down: false });
 
-    // Sync refs
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
     useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
     useEffect(() => { selectedMapIndexRef.current = selectedMapIndex; }, [selectedMapIndex]);
@@ -70,8 +66,8 @@ export const useArenaLogic = (
         const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
         
         do {
-            x = 100 + Math.random() * (CANVAS_WIDTH - 200);
-            y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
+            x = 150 + Math.random() * (CANVAS_WIDTH - 300);
+            y = 150 + Math.random() * (CANVAS_HEIGHT - 300);
             safe = true;
             for (const obs of obstacles) {
                 if (x > obs.x - 60 && x < obs.x + obs.w + 60 && y > obs.y - 60 && y < obs.y + obs.h + 60) safe = false;
@@ -79,7 +75,7 @@ export const useArenaLogic = (
         } while (!safe);
 
         return {
-            id, name, x, y, radius: 20,
+            id, name, x, y, radius: 22,
             color: isPlayer ? COLORS.player : COLORS.enemy,
             hp: isPlayer || isRemote ? 100 : diffSettings.botHp, 
             maxHp: isPlayer || isRemote ? 100 : diffSettings.botHp,
@@ -98,85 +94,110 @@ export const useArenaLogic = (
     const spawnParticles = (x: number, y: number, color: string, count: number, type: 'spark' | 'smoke' | 'explosion' = 'spark') => {
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = type === 'explosion' ? Math.random() * 8 + 2 : Math.random() * 3 + 1;
+            const speed = type === 'explosion' ? Math.random() * 10 + 3 : Math.random() * 4 + 1;
             particlesRef.current.push({
                 x, y, 
                 vx: Math.cos(angle) * speed, 
                 vy: Math.sin(angle) * speed,
-                life: type === 'smoke' ? 40 : 20 + Math.random() * 20, 
+                life: type === 'smoke' ? 40 : 25 + Math.random() * 20, 
                 maxLife: 50, 
                 color, 
-                size: type === 'smoke' ? Math.random() * 6 + 2 : Math.random() * 3 + 1
+                size: type === 'smoke' ? Math.random() * 6 + 2 : Math.random() * 4 + 1
             });
         }
     };
 
-    const applyPowerUp = (char: Character, type: PowerUpType) => {
-        const now = Date.now();
-        if (type === 'HEALTH') char.hp = Math.min(char.maxHp, char.hp + 50);
-        else if (type === 'SHIELD') char.shield = 50;
-        else char.powerups.push({ type, expiry: now + 10000 });
-        playPowerUpCollect(type);
-    };
-
-    const spawnPowerUp = useCallback(() => {
-        if (powerUpsRef.current.length > 8) return;
-        let x, y, safe;
-        const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
-        do {
-            x = 50 + Math.random() * (CANVAS_WIDTH - 100);
-            y = 50 + Math.random() * (CANVAS_HEIGHT - 100);
-            safe = true;
-            for (const obs of obstacles) {
-                if (x > obs.x - 30 && x < obs.x + obs.w + 30 && y > obs.y - 30 && y < obs.y + obs.h + 30) safe = false;
-            }
-        } while (!safe);
-
-        const types: PowerUpType[] = ['HEALTH', 'SHIELD', 'SPEED', 'DAMAGE'];
-        const newPowerUp: PowerUp = {
-            id: `pu_${Date.now()}_${Math.random()}`,
-            x, y, radius: 15, color: '#fff', type: types[Math.floor(Math.random() * types.length)]
-        };
-        powerUpsRef.current.push(newPowerUp);
-        if (gameMode === 'ONLINE' && mp.isHost) mp.sendData({ type: 'ARENA_POWERUP_SPAWN', powerup: newPowerUp });
-    }, [gameMode, mp.isHost]);
-
     const fireBullet = (char: Character, boosted: boolean) => {
-        const damage = boosted ? 25 : 10;
+        const damage = boosted ? 35 : 15;
         const speed = BULLET_SPEED;
         const color = boosted ? '#ff00ff' : char.id === (mp.peerId || 'player') ? COLORS.player : COLORS.bullet;
-        const barrelLen = 35; 
+        const barrelLen = 38; 
         
         bulletsRef.current.push({
-            id: `b_${Date.now()}_${Math.random()}`,
-            x: char.x + Math.cos(char.angle) * barrelLen, y: char.y + Math.sin(char.angle) * barrelLen,
-            vx: Math.cos(char.angle) * speed, vy: Math.sin(char.angle) * speed,
-            radius: 4, color, ownerId: char.id, damage, life: 2000
+            id: `b_${char.id}_${Date.now()}_${Math.random()}`,
+            x: char.x + Math.cos(char.angle) * barrelLen, 
+            y: char.y + Math.sin(char.angle) * barrelLen,
+            vx: Math.cos(char.angle) * speed, 
+            vy: Math.sin(char.angle) * speed,
+            radius: 5, color, ownerId: char.id, damage, life: 2500
         });
         
         char.lastShot = Date.now();
-        recoilRef.current[char.id] = 10;
+        recoilRef.current[char.id] = 12;
         playLaserShoot();
     };
 
-    const endGame = useCallback(() => {
-        setGameState('GAMEOVER'); gameStateRef.current = 'GAMEOVER'; playVictory();
-        const player = playerRef.current;
-        if (player) {
-            updateHighScore('arenaclash', player.score);
-            if (onReportProgress) onReportProgress('score', player.score);
-            const coinMult = gameMode === 'SOLO' ? ARENA_DIFFICULTY_SETTINGS[difficultyRef.current].coinMult : 2.5;
-            const coins = Math.floor(player.score * 12 * coinMult) + 100;
-            addCoins(coins);
-            setEarnedCoins(coins);
+    const takeDamage = (char: Character, dmg: number, attackerId: string) => {
+        if (char.isDead) return;
+        
+        spawnParticles(char.x, char.y, char.color, 8, 'spark');
+        
+        if (char.shield > 0) {
+            char.shield -= dmg;
+            if (char.shield < 0) char.shield = 0;
+            return;
         }
-    }, [addCoins, updateHighScore, playVictory, onReportProgress, gameMode]);
+        
+        char.hp -= dmg;
+        if (char.hp <= 0) {
+            char.isDead = true; 
+            char.respawnTimer = RESPAWN_TIME; 
+            char.hp = 0;
+            playExplosion(); 
+            spawnParticles(char.x, char.y, char.color, 50, 'explosion');
+            
+            const player = playerRef.current;
+            if (attackerId === player?.id) {
+                player.score += 1;
+                setScore(player.score);
+                const killEvent = { id: Date.now(), killer: player.name, victim: char.name, time: Date.now() };
+                setKillFeed(prev => [killEvent, ...prev].slice(0, 5));
+            } else {
+                const botAttacker = botsRef.current.find(b => b.id === attackerId);
+                if (botAttacker) {
+                    botAttacker.score += 1;
+                    const killEvent = { id: Date.now(), killer: botAttacker.name, victim: char.name, time: Date.now() };
+                    setKillFeed(prev => [killEvent, ...prev].slice(0, 5));
+                }
+            }
+
+            if (char.id === player?.id) { 
+                setGameState('RESPAWNING'); 
+                gameStateRef.current = 'RESPAWNING'; 
+                playGameOver(); 
+            }
+        }
+    };
+
+    // MULTIPLAYER SYNC
+    useEffect(() => {
+        const unsubscribe = mp.subscribe((data: any) => {
+            if (data.type === 'ARENA_UPDATE' && data.player) {
+                const remote = data.player;
+                if (remote.id === mp.peerId) return;
+                const existing = botsRef.current.find(b => b.id === remote.id);
+                if (existing) {
+                    existing.x = remote.x; existing.y = remote.y;
+                    existing.angle = remote.angle; existing.hp = remote.hp;
+                    existing.shield = remote.shield; existing.isDead = remote.isDead;
+                    existing.score = remote.score;
+                }
+            }
+            if (data.type === 'ARENA_SHOOT' && data.id !== mp.peerId) {
+                const shooter = botsRef.current.find(b => b.id === data.id);
+                if (shooter) fireBullet(shooter, data.boosted);
+            }
+            if (data.type === 'ARENA_KILL_FEED') {
+                setKillFeed(prev => [{ id: Date.now(), killer: data.killer, victim: data.victim, time: Date.now() }, ...prev].slice(0, 5));
+            }
+            if (data.type === 'LEAVE_GAME') setOpponentLeft(true);
+        });
+        return () => unsubscribe();
+    }, [mp]);
 
     const startGame = useCallback((modeOverride?: 'SOLO' | 'ONLINE', diffOverride?: Difficulty) => {
         const currentMode = modeOverride || gameMode;
         if (diffOverride) setDifficulty(diffOverride);
-
-        if (currentMode === 'ONLINE' && mp.isHost) mp.sendData({ type: 'ARENA_INIT_MAP', mapIndex: selectedMapIndex });
 
         playerRef.current = spawnCharacter(mp.peerId || 'player', username, true);
         setScore(0);
@@ -199,61 +220,61 @@ export const useArenaLogic = (
         setEarnedCoins(0);
         audio.resumeAudio();
         if (onReportProgress) onReportProgress('play', 1);
-        lastTimeRef.current = Date.now();
-    }, [spawnCharacter, gameMode, username, mp.peerId, mp.gameOpponent, selectedMapIndex, mp.isHost, onReportProgress, audio]);
+    }, [spawnCharacter, gameMode, username, mp, audio, onReportProgress]);
 
     const update = useCallback((dt: number) => {
         const now = Date.now();
         frameRef.current++;
         const player = playerRef.current;
-        const currentObstacles = MAPS[selectedMapIndexRef.current].obstacles;
-        
         if (!player) return;
+
         const speedFactor = Math.min(dt, 100) / 16.67;
+        const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
 
         if (gameStateRef.current === 'PLAYING' || gameStateRef.current === 'RESPAWNING') {
             timeLeftRef.current = Math.max(0, timeLeftRef.current - dt / 1000);
-            if (Math.floor(timeLeftRef.current) % 10 === 0 && Math.floor(timeLeftRef.current) !== Math.floor(lastTimeRef.current / 1000)) {
-                if (gameMode === 'SOLO' || (gameMode === 'ONLINE' && mp.isHost)) spawnPowerUp();
-                lastTimeRef.current = timeLeftRef.current * 1000;
+            if (timeLeftRef.current <= 0) {
+                 setGameState('GAMEOVER'); gameStateRef.current = 'GAMEOVER'; playVictory();
+                 updateHighScore('arenaclash', player.score);
+                 const coins = Math.floor(player.score * 15) + 100;
+                 addCoins(coins); setEarnedCoins(coins);
+                 return;
             }
-            if (timeLeftRef.current <= 0 && gameStateRef.current !== 'GAMEOVER') { endGame(); return; }
+        }
+
+        // Camera Logic: Follow Player
+        cameraRef.current.x = player.x - VIEWPORT_WIDTH / 2;
+        cameraRef.current.y = player.y - VIEWPORT_HEIGHT / 2;
+        // Clamp camera to world bounds
+        cameraRef.current.x = Math.max(0, Math.min(CANVAS_WIDTH - VIEWPORT_WIDTH, cameraRef.current.x));
+        cameraRef.current.y = Math.max(0, Math.min(CANVAS_HEIGHT - VIEWPORT_HEIGHT, cameraRef.current.y));
+
+        if (shakeRef.current > 0) {
+            cameraRef.current.x += (Math.random() - 0.5) * shakeRef.current;
+            cameraRef.current.y += (Math.random() - 0.5) * shakeRef.current;
+            shakeRef.current *= 0.9;
         }
 
         const allChars = [player, ...botsRef.current];
 
         allChars.forEach(char => {
             if (recoilRef.current[char.id] > 0) recoilRef.current[char.id] *= Math.pow(0.85, speedFactor);
-            
             if (char.isDead) {
                 if (char.respawnTimer > 0) {
                     char.respawnTimer -= dt;
                     if (char.respawnTimer <= 0) {
-                        const s = char.score;
+                        const oldScore = char.score;
                         const spawn = spawnCharacter(char.id, char.name, char.id === player.id);
                         Object.assign(char, spawn);
-                        char.score = s;
-                        if (char.id === player.id) { setGameState('PLAYING'); gameStateRef.current = 'PLAYING'; setScore(s); }
+                        char.score = oldScore;
+                        if (char.id === player.id) { setGameState('PLAYING'); gameStateRef.current = 'PLAYING'; }
                     }
                 }
                 return;
             }
 
-            // Power-up pick-up detection
-            for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
-                const pu = powerUpsRef.current[i];
-                const dist = Math.hypot(char.x - pu.x, char.y - pu.y);
-                if (dist < char.radius + pu.radius) {
-                    applyPowerUp(char, pu.type);
-                    powerUpsRef.current.splice(i, 1);
-                    if (gameMode === 'ONLINE' && mp.isHost) mp.sendData({ type: 'ARENA_POWERUP_COLLECT', id: pu.id });
-                }
-            }
-
             char.powerups = char.powerups.filter(p => p.expiry > now);
-            const hasSpeed = char.powerups.some(p => p.type === 'SPEED');
-            const hasDamage = char.powerups.some(p => p.type === 'DAMAGE');
-            const currentSpeed = hasSpeed ? char.speed * 1.5 : char.speed;
+            const currentSpeed = char.powerups.some(p => p.type === 'SPEED') ? char.speed * 1.6 : char.speed;
 
             if (char.id === player.id) {
                 let dx = 0, dy = 0;
@@ -267,41 +288,43 @@ export const useArenaLogic = (
                     const len = Math.sqrt(dx*dx + dy*dy);
                     char.x += (dx/len) * currentSpeed * speedFactor;
                     char.y += (dy/len) * currentSpeed * speedFactor;
-                    if (frameRef.current % 5 === 0) spawnParticles(char.x - (dx/len)*15, char.y - (dy/len)*15, char.color, 1, 'smoke');
                 }
+
                 if (controlsRef.current.aim.active) {
                     char.angle = Math.atan2(controlsRef.current.aim.y, controlsRef.current.aim.x);
-                    if (now - char.lastShot > char.weaponDelay) fireBullet(char, hasDamage);
+                    if (now - char.lastShot > char.weaponDelay) fireBullet(char, false);
                 } else if (mouseRef.current.down && now - char.lastShot > char.weaponDelay) {
-                    fireBullet(char, hasDamage);
+                    fireBullet(char, false);
+                }
+                
+                if (gameMode === 'ONLINE' && now - lastNetworkUpdateRef.current > 50) {
+                    mp.sendData({ type: 'ARENA_UPDATE', player: { id: char.id, x: char.x, y: char.y, angle: char.angle, hp: char.hp, shield: char.shield, isDead: char.isDead, score: char.score } });
+                    lastNetworkUpdateRef.current = now;
                 }
             } else if (gameMode === 'SOLO') {
-                // Improved Bot AI Movement
-                let target = null, minDist = 1500;
-                powerUpsRef.current.forEach(pu => { const d = Math.hypot(pu.x-char.x, pu.y-char.y); if(d < minDist) { minDist=d; target=pu; } });
-                allChars.forEach(other => { if(other.id !== char.id && !other.isDead) { const d = Math.hypot(other.x-char.x, other.y-char.y); if(d < minDist) { minDist=d; target=other; } } });
-
-                if (target) {
-                    const botAngle = Math.atan2(target.y - char.y, target.x - char.x);
-                    char.angle = botAngle;
-                    // Bots now move if they are further than 40px (just outside their radius)
-                    if (minDist > 40) { 
-                        char.x += Math.cos(botAngle) * currentSpeed * 0.8 * speedFactor; 
-                        char.y += Math.sin(botAngle) * currentSpeed * 0.8 * speedFactor; 
+                // AI Logic
+                let target = player;
+                const dist = Math.hypot(target.x - char.x, target.y - char.y);
+                if (dist < 800 && !target.isDead) {
+                    const angle = Math.atan2(target.y - char.y, target.x - char.x);
+                    char.angle = angle;
+                    if (dist > 150) {
+                        char.x += Math.cos(angle) * currentSpeed * 0.7 * speedFactor;
+                        char.y += Math.sin(angle) * currentSpeed * 0.7 * speedFactor;
                     }
-                    if ((target as any).hp && now - char.lastShot > char.weaponDelay && minDist < 600) fireBullet(char, hasDamage);
+                    if (now - char.lastShot > char.weaponDelay) fireBullet(char, false);
                 }
             }
 
             // Wall Collisions
-            currentObstacles.forEach(obs => {
-                const closestX = Math.max(obs.x, Math.min(char.x, obs.x + obs.w));
-                const closestY = Math.max(obs.y, Math.min(char.y, obs.y + obs.h));
-                const dist = Math.hypot(char.x - closestX, char.y - closestY);
-                if (dist < char.radius) {
-                    const overlap = char.radius - dist;
-                    const nx = (char.x - closestX) / (dist || 1);
-                    const ny = (char.y - closestY) / (dist || 1);
+            obstacles.forEach(obs => {
+                const cx = Math.max(obs.x, Math.min(char.x, obs.x + obs.w));
+                const cy = Math.max(obs.y, Math.min(char.y, obs.y + obs.h));
+                const d = Math.hypot(char.x - cx, char.y - cy);
+                if (d < char.radius) {
+                    const overlap = char.radius - d;
+                    const nx = (char.x - cx) / (d || 1);
+                    const ny = (char.y - cy) / (d || 1);
                     char.x += nx * overlap; char.y += ny * overlap;
                 }
             });
@@ -309,24 +332,40 @@ export const useArenaLogic = (
             char.y = Math.max(char.radius, Math.min(CANVAS_HEIGHT-char.radius, char.y));
         });
 
-        // Bullets & Particles Update
-        bulletsRef.current.forEach((b, i) => {
+        // project collision
+        for (let i = bulletsRef.current.length - 1; i >= 0; i--) {
+            const b = bulletsRef.current[i];
             b.x += b.vx * speedFactor; b.y += b.vy * speedFactor; b.life -= dt;
-            if (b.life <= 0) bulletsRef.current.splice(i, 1);
-        });
+            let hit = false;
+            
+            // Wall
+            for (const obs of obstacles) {
+                if (b.x > obs.x && b.x < obs.x + obs.w && b.y > obs.y && b.y < obs.y + obs.h) { hit = true; break; }
+            }
+            
+            if (!hit) {
+                for (const char of allChars) {
+                    if (char.id !== b.ownerId && !char.isDead) {
+                        if (Math.hypot(b.x - char.x, b.y - char.y) < char.radius + b.radius) {
+                            hit = true;
+                            takeDamage(char, b.damage, b.ownerId);
+                            break;
+                        }
+                    }
+                }
+            }
+            if (hit || b.life <= 0) bulletsRef.current.splice(i, 1);
+        }
+
         particlesRef.current.forEach(p => { p.x += p.vx * speedFactor; p.y += p.vy * speedFactor; p.life -= speedFactor; });
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
-
-        // Update Leaderboard
-        if (frameRef.current % 30 === 0) {
-            const sorted = allChars
-                .map(c => ({ name: c.name, score: c.score, isMe: c.id === player.id }))
-                .sort((a, b) => b.score - a.score);
-            setLeaderboard(sorted);
+        
+        if (frameRef.current % 60 === 0) {
+            setLeaderboard(allChars.map(c => ({ name: c.name, score: c.score, isMe: c.id === player.id })).sort((a,b) => b.score - a.score));
         }
 
         setTimeLeft(timeLeftRef.current);
-    }, [endGame, gameMode, mp, spawnPowerUp, spawnCharacter, playExplosion, playGameOver, playCoin, playPowerUpCollect, playLaserShoot]);
+    }, [addCoins, mp, updateHighScore, spawnCharacter, playVictory, fireBullet]);
 
     return {
         gameState, setGameState, gameMode, setGameMode, difficulty, setDifficulty,
