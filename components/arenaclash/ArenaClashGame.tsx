@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useArenaLogic } from './hooks/useArenaLogic';
 import { ArenaRenderer } from './components/ArenaRenderer';
@@ -37,6 +36,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         cameraRef={logic.cameraRef}
                         selectedMapIndex={logic.selectedMapIndex}
                         mouseRef={logic.mouseRef}
+                        // Fix: Pass recoilRef which is a required prop in ArenaRenderer
+                        recoilRef={logic.recoilRef}
                         onUpdate={logic.update}
                         gameState={logic.gameState}
                         showTutorial={false}
