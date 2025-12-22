@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Home, Users, ShoppingBag, MessageSquare, Settings } from 'lucide-react';
 
@@ -45,29 +46,29 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     }) => (
         <button 
             onClick={onClick}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all relative ${active ? activeColor : 'text-gray-500 hover:text-gray-300'}`}
+            className={`flex flex-col items-center justify-center flex-1 py-0.5 transition-all relative ${active ? activeColor : 'text-gray-500 hover:text-gray-300'}`}
         >
             <div className={`p-1.5 rounded-xl transition-all ${active ? bgActiveClass : ''}`}>
-                <Icon size={24} style={active ? { filter: `drop-shadow(0 0 8px ${glowColor})` } : {}} />
+                <Icon size={22} style={active ? { filter: `drop-shadow(0 0 8px ${glowColor})` } : {}} />
             </div>
-            <span className={`text-[10px] font-black tracking-widest mt-0.5 uppercase ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
+            <span className={`text-[9px] font-black tracking-widest mt-0.5 uppercase ${active ? 'opacity-100' : 'opacity-60'}`}>{label}</span>
             
             {badge !== undefined && badge > 0 && (
-                <div className="absolute top-1 right-[20%] bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border border-black animate-pulse shadow-[0_0_5px_red]">
+                <div className="absolute top-0.5 right-[18%] bg-red-500 text-white text-[8px] font-bold min-w-[14px] h-3.5 px-1 rounded-full flex items-center justify-center border border-black animate-pulse shadow-[0_0_5px_red]">
                     {badge > 9 ? '9+' : badge}
                 </div>
             )}
             
             {active && (
-                <div className={`absolute -bottom-1 w-12 h-1 rounded-full animate-in slide-in-from-bottom-1 duration-300`} 
+                <div className={`absolute -bottom-0.5 w-10 h-0.5 rounded-full animate-in slide-in-from-bottom-1 duration-300`} 
                      style={{ backgroundColor: glowColor, boxShadow: `0 0 10px ${glowColor}` }}></div>
             )}
         </button>
     );
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-[350] px-4 pb-4 pointer-events-none" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-            <div className="max-w-md mx-auto w-full bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] flex items-center justify-between p-1 pointer-events-auto ring-1 ring-white/5">
+        <div className="fixed bottom-0 left-0 right-0 z-[350] px-4 pb-1.5 pointer-events-none" style={{ paddingBottom: 'calc(0.4rem + env(safe-area-inset-bottom))' }}>
+            <div className="max-w-md mx-auto w-full bg-black/85 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] flex items-center justify-between p-1 pointer-events-auto ring-1 ring-white/5">
                 <NavButton 
                     icon={Home} 
                     label="Accueil" 
