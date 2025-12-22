@@ -421,6 +421,20 @@ export const useArenaLogic = (
         setTimeLeft(timeLeftRef.current);
     }, [addCoins, mp, updateHighScore, spawnCharacter, playVictory, spawnPowerUp]);
 
+    // GESTION DU LOBBY ONLINE
+    useEffect(() => {
+        if (gameMode !== 'ONLINE') return;
+        const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
+        
+        if (mp.mode === 'lobby') {
+            setOnlineStep(isHosting ? 'game' : 'lobby');
+            if (gameState !== 'LOBBY' && gameState !== 'MENU') setGameState('LOBBY');
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            if (gameState !== 'PLAYING') startGame('ONLINE');
+        }
+    }, [mp.mode, mp.isHost, mp.players, gameMode]);
+
     return {
         gameState, setGameState, gameMode, setGameMode, difficulty, setDifficulty,
         score, timeLeft, killFeed, leaderboard, earnedCoins, playerRef, botsRef, bulletsRef,

@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, X } from 'lucide-react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, X, Wifi, Play, Search, Loader2 } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar } from '../../../hooks/useCurrency';
 
@@ -136,6 +136,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         </div>
     );
 
+    // --- MENU PRINCIPAL ---
     if (gameState === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
@@ -169,20 +170,100 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         );
     }
 
+    // --- LOBBY MULTIJOUEUR ---
+    if (gameState === 'LOBBY') {
+        const hostingPlayers = mp.players.filter((p: any) => p.status === 'hosting' && p.id !== mp.peerId);
+        
+        return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
+                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/40 via-[#050510] to-black"></div>
+                <div className="relative z-10 w-full max-w-4xl flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-8 shrink-0">
+                        <button onClick={onReturnToMenu} className="p-3 bg-gray-900/80 rounded-xl text-gray-400 hover:text-white border border-white/10 transition-transform active:scale-95"><ChevronLeft size={20} /></button>
+                        <h1 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 uppercase tracking-tighter">Salles de Combat</h1>
+                        <div className="w-12"></div>
+                    </div>
+
+                    {onlineStep === 'connecting' ? (
+                        <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-orange-400 animate-spin mb-4" /><p className="text-orange-300 font-black tracking-widest uppercase">Liaison satellite...</p></div>
+                    ) : (
+                        <div className="flex-1 flex flex-col md:flex-row gap-8 min-h-0">
+                            {/* Créer */}
+                            <div className="md:w-1/3 flex flex-col gap-6">
+                                <div className="bg-gradient-to-br from-gray-900 to-black border border-orange-500/30 rounded-[32px] p-8 shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                                    <h3 className="text-sm font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest"><Wifi size={18} className="text-orange-400"/> Émission</h3>
+                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 uppercase">
+                                        <Play size={20} fill="currentColor"/> Créer Salon
+                                    </button>
+                                </div>
+                                <div className="bg-gray-900/60 border border-white/5 rounded-[32px] p-6 text-center">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Statut Réseau</p>
+                                    <span className="text-green-400 text-xs font-black animate-pulse uppercase">Opérationnel</span>
+                                </div>
+                            </div>
+
+                            {/* Liste */}
+                            <div className="flex-1 bg-black/40 backdrop-blur-md rounded-[40px] border border-white/10 p-8 flex flex-col min-h-0 shadow-2xl">
+                                <div className="flex justify-between items-center mb-6 px-2">
+                                    <span className="text-xs font-black text-gray-400 uppercase tracking-[0.3em]">Canaux Détectés</span>
+                                    <span className="text-[10px] font-mono text-orange-400 bg-orange-950/30 px-3 py-1 rounded-full border border-orange-500/30">{hostingPlayers.length} LIVE</span>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                                    {hostingPlayers.length > 0 ? (
+                                        hostingPlayers.map((player: any) => {
+                                            const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
+                                            return (
+                                                <div key={player.id} className="flex items-center justify-between p-4 bg-gray-800/60 hover:bg-gray-800 rounded-3xl border border-white/5 hover:border-orange-500/30 transition-all group animate-in slide-in-from-right-4 shadow-lg">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center relative shadow-xl`}>
+                                                            {React.createElement(avatar.icon, { size: 28, className: avatar.color })}
+                                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-gray-900 rounded-full animate-pulse shadow-lg"></div>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black text-lg text-white group-hover:text-orange-300 transition-colors italic uppercase">{player.name}</span>
+                                                            <span className="text-[10px] text-gray-500 font-mono tracking-widest">EN ATTENTE...</span>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => mp.joinRoom(player.id)} className="px-6 py-3 bg-white text-black font-black text-xs rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-xl active:scale-95 uppercase tracking-widest">
+                                                        Rejoindre
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="flex-1 flex flex-col items-center justify-center text-gray-600 gap-6 opacity-30">
+                                            <div className="relative">
+                                                <div className="absolute inset-0 bg-orange-500/20 rounded-full animate-ping"></div>
+                                                <div className="relative bg-gray-800 p-6 rounded-full border border-gray-700">
+                                                    <Search size={40} />
+                                                </div>
+                                            </div>
+                                            <p className="text-xs font-black tracking-[0.3em] text-center leading-loose">SCAN DES FRÉQUENCES...<br/>AUCUN COMBAT DÉTECTÉ</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // --- HUD EN JEU ---
     return (
         <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center pointer-events-none overflow-hidden">
             
-            {/* HUD PRINCIPAL */}
             {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
-                        {/* GAUCHE : HOME & CLASSEMENT MOBILE */}
                         <div className="flex items-center gap-3 pointer-events-auto">
                             <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all"><Home size={24} /></button>
                             <button onClick={() => setShowMobileLeaderboard(true)} className="md:hidden p-3 bg-gray-900/90 rounded-2xl text-yellow-400 border border-white/10 active:scale-90 shadow-2xl transition-all"><Trophy size={24} /></button>
                         </div>
 
-                        {/* CENTRE : TIMER */}
                         <div className="flex flex-col items-center">
                             <div className={`text-2xl md:text-4xl font-black font-mono drop-shadow-[0_0_15px_rgba(0,0,0,1)] px-4 md:px-6 py-1.5 md:py-2 bg-black/40 rounded-2xl md:rounded-3xl border border-white/10 backdrop-blur-md ${timeLeft < 10 ? 'text-red-500 animate-pulse border-red-500' : 'text-white'}`}>
                                 {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
@@ -194,13 +275,11 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             )}
                         </div>
 
-                        {/* DROITE : CLASSEMENT DESKTOP */}
                         <div className="hidden md:block w-48 bg-gray-900/90 p-5 rounded-[32px] border border-white/10 backdrop-blur-md shadow-2xl pointer-events-auto">
                             <LeaderboardContent />
                         </div>
                     </div>
 
-                    {/* KILLFEED - Positionné au dessus des joysticks sur mobile */}
                     <div className="absolute left-4 bottom-60 md:top-24 md:left-6 flex flex-col gap-1.5 z-10 max-w-[200px]">
                         {killFeed.map(k => (
                             <div key={k.id} className="text-[9px] md:text-[10px] font-black bg-black/70 px-3 py-1.5 rounded-lg text-white animate-in slide-in-from-left-4 border-l-2 border-red-500 backdrop-blur-sm">
@@ -211,7 +290,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         ))}
                     </div>
 
-                    {/* OVERLAY CLASSEMENT MOBILE */}
                     {showMobileLeaderboard && (
                         <div className="md:hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in">
                             <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]">
@@ -220,7 +298,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                     )}
 
-                    {/* JOYSTICKS */}
                     <div className="absolute bottom-0 w-full h-56 grid grid-cols-2 gap-4 md:gap-8 shrink-0 z-40 p-4 md:p-8 pointer-events-auto">
                         <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 shadow-inner group">
                             <div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75"><Activity size={24} className="text-white opacity-50"/></div>
@@ -234,7 +311,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </>
             )}
 
-            {/* GAMEOVER */}
             {gameState === 'GAMEOVER' && (
                 <div className="absolute inset-0 z-[80] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl animate-in zoom-in p-8 text-center pointer-events-auto">
                     <Trophy size={100} className="text-yellow-400 mb-8 drop-shadow-[0_0_40px_gold] animate-bounce"/>
@@ -251,7 +327,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </div>
             )}
             
-            {/* DIFFICULTE */}
             {gameState === 'DIFFICULTY' && (
                 <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto animate-in fade-in">
                     <h2 className="text-3xl md:text-4xl font-black text-white mb-10 italic uppercase tracking-[0.2em]">Niveau de menace</h2>
@@ -267,6 +342,15 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         })}
                     </div>
                     <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase">Annuler</button>
+                </div>
+            )}
+            
+            {gameMode === 'ONLINE' && gameState === 'LOBBY' && isHost && !hasOpponent && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
+                    <Loader2 size={64} className="text-orange-400 animate-spin mb-6" />
+                    <h2 className="text-2xl font-black text-white italic mb-2 uppercase tracking-widest">En attente d'un adversaire...</h2>
+                    <p className="text-gray-400 text-sm mb-8">Votre signal est diffusé sur la grille.</p>
+                    <button onClick={onCancelHosting} className="px-8 py-3 bg-red-600/20 text-red-500 border border-red-500/50 rounded-xl font-black text-xs uppercase tracking-widest">Annuler</button>
                 </div>
             )}
         </div>
