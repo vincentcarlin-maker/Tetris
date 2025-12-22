@@ -316,6 +316,17 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
     const updateBotAI = (bot: Worm, allWorms: Worm[], speedFactor: number, player: Worm) => {
         if (bot.isDead) return;
         const bHead = bot.segments[0];
+
+        // --- FIXED: HARD BOUNDARY CHECK FOR BOTS ---
+        if (bHead.x < 0 || bHead.x > WORLD_SIZE || bHead.y < 0 || bHead.y > WORLD_SIZE) {
+            bot.isDead = true;
+            spawnParticles(bHead.x, bHead.y, bot.color, 15);
+            bot.segments.forEach((s, idx) => { 
+                if(idx % 4 === 0) foodRef.current.push({ id: `f_bot_wall_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.skin?.primaryColor || bot.color }); 
+            });
+            return;
+        }
+
         bot.aiDecisionTimer = (bot.aiDecisionTimer || 0) - speedFactor;
 
         if (bot.aiDecisionTimer <= 0) {
@@ -325,7 +336,7 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             let collisionFound = false;
             let clearAngle = bot.angle;
             
-            // Bounds check
+            // Bounds check (soft avoidance)
             if (bHead.x < 200) { clearAngle = 0; collisionFound = true; }
             else if (bHead.x > WORLD_SIZE - 200) { clearAngle = Math.PI; collisionFound = true; }
             else if (bHead.y < 200) { clearAngle = Math.PI / 2; collisionFound = true; }
