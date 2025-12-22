@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette } from 'lucide-react';
+import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses } from 'lucide-react';
 import { useCurrency } from '../hooks/useCurrency';
 import { useGlobal } from '../context/GlobalContext';
 
@@ -20,6 +20,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         currentTitleId, selectTitle, buyTitle, ownedTitles, titlesCatalog,
         currentMalletId, selectMallet, buyMallet, ownedMallets, malletsCatalog,
         currentSlitherSkinId, selectSlitherSkin, buySlitherSkin, ownedSlitherSkins, slitherSkinsCatalog,
+        currentSlitherAccessoryId, selectSlitherAccessory, buySlitherAccessory, ownedSlitherAccessories, slitherAccessoriesCatalog,
     } = currency;
 
     const [activeGroup, setActiveGroup] = useState<ShopGroup>(null);
@@ -51,6 +52,14 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 const bgStyle: React.CSSProperties = { backgroundColor: item.colors[0], boxShadow: `0 0 15px ${item.colors[0]}` };
                 if (item.type === 'gradient' || item.type === 'complex') bgStyle.background = `linear-gradient(135deg, ${item.colors.join(', ')})`;
                 return <div className="w-14 h-14 rounded-full border-2 border-white/40 relative shadow-2xl overflow-hidden" style={bgStyle}><div className="absolute inset-0 rounded-full border-4 border-black/20"></div></div>;
+            }
+            if (category === 'SLITHER_ACCESSORIES') {
+                return (
+                    <div className="w-14 h-14 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center relative shadow-lg overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
+                        <div className="w-8 h-8 rounded-full border-2 border-white/20" style={{ backgroundColor: item.color, boxShadow: `0 0 10px ${item.color}` }}></div>
+                    </div>
+                );
             }
             return null;
         };
@@ -142,6 +151,43 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             </>
                         )}
 
+                        {activeGroup === 'SLITHER' && (
+                            <>
+                                <SectionHeader title="Skins Cyber Serpent" icon={Pipette} color="text-indigo-400" />
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {slitherSkinsCatalog.map(skin => (
+                                        <div key={skin.id} className={`p-4 rounded-3xl border flex flex-col items-center text-center transition-all group relative overflow-hidden ${currentSlitherSkinId === skin.id ? 'bg-indigo-900/30 border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.3)]' : ownedSlitherSkins.includes(skin.id) ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'}`}>
+                                            <div className="mb-2 relative w-24 h-24 flex items-center justify-center">
+                                                <div className="w-16 h-16 rounded-full border-2 relative overflow-hidden shadow-2xl transition-transform group-hover:scale-110" style={{ background: `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`, borderColor: 'rgba(255,255,255,0.4)', boxShadow: `0 0 25px ${skin.glowColor}80` }}><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,transparent_30%,rgba(0,0,0,0.5)_100%)]"></div></div>
+                                            </div>
+                                            <h3 className="font-black text-[10px] text-white mb-3 truncate w-full uppercase">{skin.name}</h3>
+                                            {ownedSlitherSkins.includes(skin.id) ? (
+                                                <button onClick={() => selectSlitherSkin(skin.id)} disabled={currentSlitherSkinId === skin.id} className={`w-full py-2.5 rounded-2xl text-[10px] font-black transition-all ${currentSlitherSkinId === skin.id ? 'bg-green-600/20 text-green-400' : 'bg-indigo-600 text-white'}`}>{currentSlitherSkinId === skin.id ? 'ACTIF' : 'CHOISIR'}</button>
+                                            ) : (
+                                                <button onClick={() => handleBuyItem(skin, 'Skin Slither', buySlitherSkin, ownedSlitherSkins)} disabled={coins < skin.price} className={`w-full py-2.5 rounded-2xl text-[10px] font-black flex items-center justify-center gap-1.5 transition-all ${coins >= skin.price ? 'bg-yellow-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}>{skin.price.toLocaleString()} <Coins size={12} /></button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <SectionHeader title="Accessoires Cyber" icon={Glasses} color="text-purple-400" />
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {slitherAccessoriesCatalog.map(acc => (
+                                        <ItemCard 
+                                            key={acc.id} 
+                                            item={acc} 
+                                            category="SLITHER_ACCESSORIES" 
+                                            isOwned={ownedSlitherAccessories.includes(acc.id)} 
+                                            isSelected={currentSlitherAccessoryId === acc.id} 
+                                            onBuy={() => handleBuyItem(acc, 'Accessoire Slither', buySlitherAccessory, ownedSlitherAccessories)} 
+                                            onSelect={() => selectSlitherAccessory(acc.id)} 
+                                            colorClass="purple" 
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
                         {activeGroup === 'GEAR' && (
                             <>
                                 <SectionHeader title="Skins Maillets" icon={Disc} color="text-pink-400" />
@@ -161,8 +207,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 </div>
                             </>
                         )}
-
-                        {/* ... (Slither Group) */}
                     </div>
                 )}
             </div>
