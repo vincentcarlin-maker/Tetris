@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { MessageSquare, Globe, Home as HomeIcon } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -52,7 +53,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const [selectedPlayer, setSelectedPlayer] = useState<Friend | null>(null);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     
-    // Search states managed by children, but can be lifted if needed
     const [friendsSearchTerm, setFriendsSearchTerm] = useState('');
     const [isCommunitySearching, setIsCommunitySearching] = useState(false);
 
@@ -68,43 +68,62 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     // --- NOTIFICATIONS ---
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
 
+    // Sauvegarde Cloud de la liste d'amis quand elle change
+    const syncFriendsToCloud = async (newFriends: Friend[]) => {
+        if (isConnectedToSupabase && username) {
+            await DB.updateUserData(username, { friends: newFriends });
+        }
+    };
+
     // --- INITIAL LOAD & SYNC ---
     useEffect(() => {
-        // Load local friends
-        const storedFriends = localStorage.getItem('neon_friends');
-        if (storedFriends) {
-            try {
-                const parsed = JSON.parse(storedFriends);
-                if (Array.isArray(parsed)) setFriends(parsed.map((f: any) => ({ ...f, status: 'offline' })));
-            } catch (e) { localStorage.removeItem('neon_friends'); }
-        }
+        const loadInitialData = async () => {
+            // 1. Load local friends as fallback
+            const storedFriends = localStorage.getItem('neon_friends');
+            let initialFriends: Friend[] = [];
+            if (storedFriends) {
+                try {
+                    const parsed = JSON.parse(storedFriends);
+                    if (Array.isArray(parsed)) initialFriends = parsed.map((f: any) => ({ ...f, status: 'offline' }));
+                } catch (e) { localStorage.removeItem('neon_friends'); }
+            }
 
-        // Sync with DB
-        if (isConnectedToSupabase && username) {
-            DB.getUnreadCount(username).then(count => setUnreadCount(count));
-            DB.getPendingRequests(username).then(reqs => {
-                setFriendRequests(prev => {
-                    const existingIds = new Set(prev.map(r => r.id));
-                    const newReqs = reqs.filter((r: any) => !existingIds.has(r.id));
-                    return [...prev, ...newReqs];
-                });
-            });
-
-            // Load support history
-            DB.getMessages(username, SUPPORT_ID).then(msgs => {
-                if (msgs && msgs.length > 0) {
-                    const formatted = msgs.map((m: any) => ({
-                        id: m.id.toString(),
-                        senderId: m.sender_id,
-                        text: m.text,
-                        timestamp: new Date(m.created_at).getTime(),
-                        read: m.read
-                    }));
-                    setMessages(prev => ({ ...prev, [SUPPORT_ID]: formatted }));
+            // 2. Sync with Cloud
+            if (isConnectedToSupabase && username) {
+                const profile = await DB.getUserProfile(username);
+                if (profile?.data?.friends) {
+                    initialFriends = profile.data.friends;
+                    localStorage.setItem('neon_friends', JSON.stringify(initialFriends));
                 }
-            });
-        }
-    }, [isConnectedToSupabase, username, setFriendRequests]);
+                
+                DB.getUnreadCount(username).then(count => setUnreadCount(count));
+                DB.getPendingRequests(username).then(reqs => {
+                    setFriendRequests(prev => {
+                        const existingIds = new Set(prev.map(r => r.id));
+                        const newReqs = reqs.filter((r: any) => !existingIds.has(r.id));
+                        return [...prev, ...newReqs];
+                    });
+                });
+
+                // Load support history
+                DB.getMessages(username, SUPPORT_ID).then(msgs => {
+                    if (msgs && msgs.length > 0) {
+                        const formatted = msgs.map((m: any) => ({
+                            id: m.id.toString(),
+                            senderId: m.sender_id,
+                            text: m.text,
+                            timestamp: new Date(m.created_at).getTime(),
+                            read: m.read
+                        }));
+                        setMessages(prev => ({ ...prev, [SUPPORT_ID]: formatted }));
+                    }
+                });
+            }
+            setFriends(initialFriends);
+        };
+        
+        loadInitialData();
+    }, [isConnectedToSupabase, username]);
 
     // --- REALTIME MESSAGES ---
     useEffect(() => {
@@ -170,6 +189,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                     if (prev.some(f => f.name === newFriend.name)) return prev;
                     const newList = [...prev, newFriend];
                     localStorage.setItem('neon_friends', JSON.stringify(newList));
+                    syncFriendsToCloud(newList);
                     return newList;
                 });
             }
@@ -289,6 +309,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         setFriends(prev => {
             const newList = prev.filter(f => f.id !== friendId);
             localStorage.setItem('neon_friends', JSON.stringify(newList));
+            syncFriendsToCloud(newList);
             return newList;
         });
         setSelectedPlayer(null);
@@ -300,6 +321,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             if (prev.some(f => f.name === newFriend.name)) return prev;
             const newList = [...prev, newFriend];
             localStorage.setItem('neon_friends', JSON.stringify(newList));
+            syncFriendsToCloud(newList);
             return newList;
         });
         setFriendRequests(prev => prev.filter(r => r.id !== req.id));

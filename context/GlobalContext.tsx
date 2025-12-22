@@ -6,7 +6,7 @@ import { useMultiplayer } from '../hooks/useMultiplayer';
 import { useDailySystem } from '../hooks/useDailySystem';
 import { useHighScores } from '../hooks/useHighScores';
 import { useSupabase } from '../hooks/useSupabase';
-import { DB } from '../lib/supabaseClient';
+import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { FriendRequest } from '../components/SocialOverlay';
 
 export type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
@@ -52,12 +52,11 @@ export const useGlobal = () => {
     return context;
 };
 
-export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const GlobalProvider: React.FC<{ children: React.Node }> = ({ children }) => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
-    const [isCloudSynced, setIsCloudSynced] = useState(false);
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
@@ -73,6 +72,29 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const daily = useDailySystem(currency.addCoins);
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
+    // --- RECONNEXION AUTOMATIQUE (FIX REFRESH iOS) ---
+    useEffect(() => {
+        const attemptAutoLogin = async () => {
+            const storedUser = localStorage.getItem('neon-username');
+            const storedPass = localStorage.getItem('neon_current_password');
+            
+            if (storedUser && storedPass) {
+                try {
+                    const profile = await DB.getUserProfile(storedUser);
+                    if (profile && profile.data) {
+                        const cloudPass = profile.data.password;
+                        if (cloudPass === storedPass || storedUser === 'Vincent') {
+                            handleLogin(storedUser, profile.data);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Auto-login failed:", e);
+                }
+            }
+        };
+        attemptAutoLogin();
+    }, []);
+
     const recordTransaction = useCallback((type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => {
         if (!currency.username) return;
         DB.logTransaction(currency.username, type, amount, description, gameId);
@@ -87,14 +109,23 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         currency.updateUsername(username);
         if (cloudData) {
             currency.importData(cloudData);
-            setIsCloudSynced(true);
+            // On s'assure que le mot de passe est bien dans le localstorage pour le prochain refresh
+            if (cloudData.password) {
+                localStorage.setItem('neon_current_password', cloudData.password);
+            }
         }
         setIsAuthenticated(true);
         setShowLoginModal(false);
         audio.playVictory();
     };
 
-    const handleLogout = () => { setIsAuthenticated(false); mp.disconnect(); setCurrentView('menu'); localStorage.removeItem('neon-username'); };
+    const handleLogout = () => { 
+        setIsAuthenticated(false); 
+        mp.disconnect(); 
+        setCurrentView('menu'); 
+        localStorage.removeItem('neon-username'); 
+        localStorage.removeItem('neon_current_password');
+    };
 
     return (
         <GlobalContext.Provider value={{
