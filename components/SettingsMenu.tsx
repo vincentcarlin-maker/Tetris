@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { Volume2, VolumeX, Vibrate, VibrateOff, LogOut, Shield, RefreshCw, ArrowLeft, Settings, Info, LayoutGrid, Key, X, Check, Lock, Palette, EyeOff, Eye, UserX, Activity, Trash2, Sliders, Trophy, Star, Coins, UserCircle, Target, Clock, Mail, Edit2, FileText, Gavel, ShieldCheck, Languages, HelpCircle, Mic, MicOff } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -242,7 +241,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
                             <h2 className="text-2xl font-black text-white italic truncate">{currency.username}</h2>
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {currentTitle && currentTitle.id !== 't_none' && (
-                                    <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>
+                                    /* Apply the custom shadow style if available from the Title type */
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} ${currentTitle.shadow || ''} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>
                                         {currentTitle.name}
                                     </span>
                                 )}

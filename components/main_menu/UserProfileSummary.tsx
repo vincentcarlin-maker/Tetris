@@ -16,7 +16,7 @@ interface UserProfileSummaryProps {
 export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({ 
     currency, isAuthenticated, onLoginRequest, onLogout, onSelectGame, streak, t, language 
 }) => {
-    const { username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, currentTitleId, titlesCatalog, inventory, catalog, playerRank } = currency;
+    const { username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, currentTitleId, titlesCatalog, inventory, badgesCatalog, playerRank } = currency;
     const [isEditingName, setIsEditingName] = useState(false);
     const [tempName, setTempName] = useState(username);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -25,7 +25,7 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
     const currentFrame = framesCatalog.find((f: any) => f.id === currentFrameId) || framesCatalog[0];
     const currentTitle = titlesCatalog.find((t: any) => t.id === currentTitleId);
     const AvatarIcon = currentAvatar.icon;
-    const ownedBadges = catalog.filter((b: any) => inventory.includes(b.id));
+    const ownedBadges = (badgesCatalog || []).filter((b: any) => inventory.includes(b.id));
 
     useEffect(() => { if (isEditingName && inputRef.current) inputRef.current.focus(); }, [isEditingName]);
 
@@ -34,11 +34,6 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
         if (tempName.trim()) { updateUsername(tempName.trim()); } else { setTempName(username); } 
         setIsEditingName(false); 
     };
-
-    const bindGlow = (color: string) => ({
-        onMouseEnter: (e: any) => { /* logic could be lifted if needed, simplified here */ },
-        onMouseLeave: (e: any) => { },
-    });
 
     return (
         <div className="w-full bg-black/60 border accent-border rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
@@ -64,7 +59,7 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
                         <>
                             <div className="flex items-center gap-2">
                                 {isEditingName ? (
-                                    <form onSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
+                                    <form handleNameSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
                                         <input ref={inputRef} type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={() => handleNameSubmit()} maxLength={12} className="bg-black/50 border border-neon-blue rounded px-2 py-0.5 text-white font-bold text-base w-full outline-none focus:ring-1 ring-neon-blue/50" />
                                         <button type="submit" className="text-green-400"><Check size={16} /></button>
                                     </form>
@@ -76,7 +71,11 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
                                 )}
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                {currentTitle && currentTitle.id !== 't_none' && (<span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>{currentTitle.name}</span>)}
+                                {currentTitle && currentTitle.id !== 't_none' && (
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${currentTitle.color} ${currentTitle.shadow || ''} bg-gray-900/80 px-1.5 py-0.5 rounded border border-white/10`}>
+                                        {currentTitle.name}
+                                    </span>
+                                )}
                                 <span className={`text-[9px] font-bold tracking-wider uppercase ${playerRank.color}`}>{playerRank.title}</span>
                             </div>
                             {ownedBadges.length > 0 && (

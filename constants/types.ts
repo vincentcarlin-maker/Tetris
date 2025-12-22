@@ -1,4 +1,3 @@
-
 import { LucideIcon } from 'lucide-react';
 
 export interface Badge {
@@ -62,6 +61,8 @@ export interface Title {
     name: string;
     price: number;
     color: string;
+    // Add optional shadow property to fix type errors in titles catalog
+    shadow?: string;
     description: string;
 }
 
