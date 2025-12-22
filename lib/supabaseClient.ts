@@ -63,21 +63,18 @@ export const DB = {
             return;
         }
         try {
-            // Toujours logger dans SQL si possible
+            // 1. Log dans la table SQL
             const { error } = await supabase.from('transactions').insert([{ 
                 username, type, amount, description, game_id: gameId, timestamp 
             }]);
             
-            // Doubler la sauvegarde dans SYSTEM_CONFIG par sécurité (mode secours)
+            // 2. Backup dans SYSTEM_CONFIG (au cas où la table SQL est supprimée ou inaccessible)
             const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
             const logs = sys?.data?.transaction_logs || [];
             const newLog = { username, type, amount, description, gameId, timestamp };
             
-            // On garde les 200 dernières
-            const updatedLogs = [newLog, ...logs].slice(0, 200);
-            
             await supabase.from('profiles').update({ 
-                data: { ...sys?.data, transaction_logs: updatedLogs } 
+                data: { ...sys?.data, transaction_logs: [newLog, ...logs].slice(0, 300) } 
             }).eq('username', 'SYSTEM_CONFIG');
 
         } catch (e) {
@@ -93,7 +90,7 @@ export const DB = {
         let allLogs: any[] = [];
         
         try {
-            // 1. Tenter SQL
+            // 1. Récupération SQL
             const { data: sqlData } = await supabase
                 .from('transactions')
                 .select('*')
@@ -104,31 +101,28 @@ export const DB = {
                 allLogs = [...sqlData];
             }
 
-            // 2. Tenter JSON (Backup)
+            // 2. Récupération JSON de secours
             const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
             const jsonLogs = sys?.data?.transaction_logs || [];
             
-            // 3. Fusion intelligente : On garde tout ce qui a un timestamp unique
-            const existingTimestamps = new Set(allLogs.map(l => l.timestamp));
+            // 3. Fusion Anti-Doublons stricte
+            // On crée une signature unique pour chaque transaction
+            const signatures = new Set(allLogs.map(l => `${new Date(l.timestamp).getTime()}_${l.username}_${l.amount}`));
             
             jsonLogs.forEach((jLog: any) => {
-                if (!existingTimestamps.has(jLog.timestamp)) {
+                const sig = `${new Date(jLog.timestamp).getTime()}_${jLog.username}_${jLog.amount}`;
+                if (!signatures.has(sig)) {
                     allLogs.push(jLog);
+                    signatures.add(sig);
                 }
             });
 
-            // 4. Tri final par date
+            // 4. Tri chronologique final
             return allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         } catch (e) { 
-            console.error("Critical error in getTransactions:", e);
-            // Ultime secours : retour des logs JSON uniquement
-            try {
-                const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
-                return sys?.data?.transaction_logs || [];
-            } catch {
-                return [];
-            }
+            console.error("Error in getTransactions:", e);
+            return [];
         }
     },
 

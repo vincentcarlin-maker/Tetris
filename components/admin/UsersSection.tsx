@@ -26,7 +26,8 @@ export const UsersSection: React.FC<UsersSectionProps> = ({ profiles, setProfile
         return true;
     });
 
-    const handleGlobalUpdate = (username: string, prop: string, val: any, actionType?: string, actionValue?: number) => {
+    const handleGlobalUpdate = async (username: string, prop: string, val: any, actionType?: string, actionValue?: number) => {
+        // Mise à jour locale immédiate
         const updated = profiles.map(p => p.username === username ? { ...p, data: { ...p.data, [prop]: val } } : p);
         setProfiles(updated);
         
@@ -34,9 +35,20 @@ export const UsersSection: React.FC<UsersSectionProps> = ({ profiles, setProfile
             setSelectedUser({ ...selectedUser, data: { ...selectedUser.data, [prop]: val } });
         }
         
-        if (isSupabaseConfigured) DB.updateUserData(username, { [prop]: val });
+        // Journalisation si c'est un ajustement d'argent
+        if (prop === 'coins' && actionValue !== undefined) {
+            await DB.logTransaction(
+                username, 
+                'ADMIN_ADJUST', 
+                actionValue, 
+                `Ajustement manuel par Admin`
+            );
+        }
         
-        // Broadcast notification to the specific user if online
+        // Sauvegarde cloud
+        if (isSupabaseConfigured) await DB.updateUserData(username, { [prop]: val });
+        
+        // Notification
         mp.sendAdminBroadcast(
             actionType === 'ADD_COINS' ? `Félicitations ! Vous avez reçu ${actionValue} pièces.` : "Compte mis à jour par l'administrateur", 
             "user_update", 
@@ -116,8 +128,8 @@ const UserDetailModal = ({ user, onClose, onUpdate }: any) => {
     const handleCoinAdjustment = (amount: number) => {
         const currentCoins = user.data?.coins || 0;
         const newTotal = Math.max(0, currentCoins + amount);
-        // We use ADD_COINS action type so the client-side hook can process relative addition
-        onUpdate('coins', newTotal, amount > 0 ? 'ADD_COINS' : undefined, amount);
+        // On passe le montant relatif (delta) pour le log
+        onUpdate('coins', newTotal, amount > 0 ? 'ADD_COINS' : 'REMOVE_COINS', amount);
     };
 
     return (

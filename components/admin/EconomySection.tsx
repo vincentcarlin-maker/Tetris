@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Coins, Banknote, User, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft, ShoppingBag, Gamepad2, Search, RefreshCw, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Coins, Banknote, User, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft, ShoppingBag, Gamepad2, Search, RefreshCw, Calendar, Clock, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 
 export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [filter, setFilter] = useState<'ALL' | 'EARN' | 'PURCHASE'>('ALL');
+    const [filter, setFilter] = useState<'ALL' | 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST'>('ALL');
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
@@ -31,7 +31,8 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
     const stats = useMemo(() => {
         const earned = transactions.filter(t => t.type === 'EARN').reduce((acc, t) => acc + (t.amount || 0), 0);
         const spent = transactions.filter(t => t.type === 'PURCHASE').reduce((acc, t) => acc + Math.abs(t.amount || 0), 0);
-        return { earned, spent };
+        const adminAdjust = transactions.filter(t => t.type === 'ADMIN_ADJUST').reduce((acc, t) => acc + (t.amount || 0), 0);
+        return { earned, spent, adminAdjust };
     }, [transactions]);
 
     const filteredTransactions = useMemo(() => {
@@ -68,12 +69,14 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                     </div>
                 </div>
                 <div className="bg-gray-800 p-6 rounded-xl border border-white/10 shadow-lg group">
-                    <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">TOTAL CONSOMMÉ (Shop)</p>
+                    <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">AJUSTEMENTS ADMIN</p>
                     <div className="flex items-center gap-3">
-                        <div className="p-3 bg-pink-500/10 rounded-xl text-pink-400 border border-pink-500/20 group-hover:shadow-[0_0_15px_rgba(236,72,153,0.2)] transition-all">
-                            <ArrowDownLeft size={24}/>
+                        <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] transition-all">
+                            <ShieldCheck size={24}/>
                         </div>
-                        <span className="text-3xl font-black text-pink-400">-{stats.spent.toLocaleString()}</span>
+                        <span className={`text-3xl font-black ${stats.adminAdjust >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                            {stats.adminAdjust >= 0 ? '+' : ''}{stats.adminAdjust.toLocaleString()}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -90,14 +93,14 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                         className="w-full bg-black/40 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-blue-500 outline-none" 
                     />
                 </div>
-                <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
-                    {(['ALL', 'EARN', 'PURCHASE'] as const).map(f => (
+                <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/5 overflow-x-auto no-scrollbar">
+                    {(['ALL', 'EARN', 'PURCHASE', 'ADMIN_ADJUST'] as const).map(f => (
                         <button 
                             key={f} 
                             onClick={() => setFilter(f)}
-                            className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            className={`px-3 py-2 rounded-lg text-[9px] font-black transition-all whitespace-nowrap ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                         >
-                            {f === 'ALL' ? 'TOUT' : f === 'EARN' ? 'GAINS' : 'ACHATS'}
+                            {f === 'ALL' ? 'TOUT' : f === 'EARN' ? 'GAINS' : f === 'PURCHASE' ? 'ACHATS' : 'ADMIN'}
                         </button>
                     ))}
                 </div>
@@ -156,10 +159,11 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                                                 <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black border flex items-center gap-1 w-fit ${
                                                     t.type === 'EARN' ? 'bg-green-950/40 text-green-400 border-green-500/30' : 
                                                     t.type === 'PURCHASE' ? 'bg-pink-950/40 text-pink-400 border-pink-500/30' :
+                                                    t.type === 'ADMIN_ADJUST' ? 'bg-blue-950/40 text-blue-400 border-blue-500/30' :
                                                     'bg-yellow-950/40 text-yellow-400 border-yellow-500/30'
                                                 }`}>
-                                                    {t.type === 'EARN' ? <Gamepad2 size={10}/> : t.type === 'PURCHASE' ? <ShoppingBag size={10}/> : <RefreshCw size={10}/>}
-                                                    {t.type || 'ADJUST'}
+                                                    {t.type === 'EARN' ? <Gamepad2 size={10}/> : t.type === 'PURCHASE' ? <ShoppingBag size={10}/> : <ShieldCheck size={10}/>}
+                                                    {t.type === 'ADMIN_ADJUST' ? 'ADMIN' : (t.type || 'ADJUST')}
                                                 </span>
                                             </td>
                                             <td className="p-4 text-gray-400 text-[11px] italic max-w-[200px] truncate">{t.description || "Aucune description"}</td>
