@@ -55,24 +55,29 @@ export const DB = {
 
     // --- ECONOMY TRANSACTIONS ---
     logTransaction: async (username: string, type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => {
+        const timestamp = new Date().toISOString();
         if (!supabase) {
-            // Local fallback for dev/offline
             const localLogs = JSON.parse(localStorage.getItem('neon_local_transactions') || '[]');
-            localLogs.unshift({ id: Date.now(), username, type, amount, description, gameId, timestamp: new Date().toISOString() });
+            localLogs.unshift({ id: Date.now(), username, type, amount, description, gameId, timestamp });
             localStorage.setItem('neon_local_transactions', JSON.stringify(localLogs.slice(0, 100)));
             return;
         }
         try {
-            // On utilise une table 'transactions' si elle existe, sinon on stocke dans une clé globale de log
-            await supabase.from('transactions').insert([{ 
-                username, type, amount, description, game_id: gameId, timestamp: new Date().toISOString() 
+            const { error } = await supabase.from('transactions').insert([{ 
+                username, type, amount, description, game_id: gameId, timestamp 
             }]);
+            
+            // Si erreur (ex: table manquante), fallback sur SYSTEM_CONFIG
+            if (error) {
+                const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
+                const logs = sys?.data?.transaction_logs || [];
+                logs.unshift({ username, type, amount, description, gameId, timestamp });
+                await supabase.from('profiles').update({ 
+                    data: { ...sys?.data, transaction_logs: logs.slice(0, 200) } 
+                }).eq('username', 'SYSTEM_CONFIG');
+            }
         } catch (e) {
-            // Si la table n'existe pas encore, on log dans SYSTEM_CONFIG pour ne pas perdre les données
-            const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
-            const logs = sys?.data?.transaction_logs || [];
-            logs.unshift({ username, type, amount, description, gameId, timestamp: new Date().toISOString() });
-            await supabase.from('profiles').update({ data: { ...sys?.data, transaction_logs: logs.slice(0, 200) } }).eq('username', 'SYSTEM_CONFIG');
+            console.error("Transaction logging failed:", e);
         }
     },
 
@@ -84,10 +89,21 @@ export const DB = {
             const { data, error } = await supabase.from('transactions').select('*').order('timestamp', { ascending: false }).limit(200);
             if (!error && data) return data;
             
-            // Fallback SYSTEM_CONFIG
+            // Fallback SYSTEM_CONFIG si erreur ou table vide
             const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
-            return sys?.data?.transaction_logs || [];
-        } catch (e) { return []; }
+            const cloudLogs = sys?.data?.transaction_logs || [];
+            
+            // On peut aussi merger avec les logs locaux si besoin, mais ici on privilégie le cloud
+            return cloudLogs;
+        } catch (e) { 
+            // Ultime recours sur SYSTEM_CONFIG même en cas de crash de la requête initiale
+            try {
+                const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
+                return sys?.data?.transaction_logs || [];
+            } catch {
+                return []; 
+            }
+        }
     },
 
     getSystemConfig: async () => {
@@ -124,11 +140,6 @@ export const DB = {
     },
 
     // --- MESSAGING & SOCIAL ---
-    // Fix: Added missing methods for social and messaging features to address reported type errors
-
-    /**
-     * Retourne le nombre de messages non lus pour un utilisateur donné.
-     */
     getUnreadCount: async (username: string) => {
         if (!supabase) return 0;
         try {
@@ -142,9 +153,6 @@ export const DB = {
         } catch (e) { return 0; }
     },
 
-    /**
-     * Récupère les demandes d'amis en attente pour un utilisateur.
-     */
     getPendingRequests: async (username: string) => {
         if (!supabase) return [];
         try {
@@ -170,9 +178,6 @@ export const DB = {
         } catch (e) { return []; }
     },
 
-    /**
-     * Récupère l'historique des messages entre deux utilisateurs.
-     */
     getMessages: async (user1: string, user2: string) => {
         if (!supabase) return [];
         try {
@@ -186,9 +191,6 @@ export const DB = {
         } catch (e) { return []; }
     },
 
-    /**
-     * Marque les messages d'un expéditeur vers un destinataire comme lus.
-     */
     markMessagesAsRead: async (sender_id: string, receiver_id: string) => {
         if (!supabase) return;
         try {
@@ -201,9 +203,6 @@ export const DB = {
         } catch (e) {}
     },
 
-    /**
-     * Envoie un message privé ou un signal système.
-     */
     sendMessage: async (sender_id: string, receiver_id: string, text: string) => {
         if (!supabase) return null;
         try {
@@ -216,16 +215,10 @@ export const DB = {
         } catch (e) { return null; }
     },
 
-    /**
-     * Envoie une demande d'ami via un signal spécial dans la table messages.
-     */
     sendFriendRequestDB: async (sender_id: string, receiver_id: string) => {
         return await DB.sendMessage(sender_id, receiver_id, 'CMD:FRIEND_REQUEST');
     },
 
-    /**
-     * Accepte une demande d'ami en supprimant le signal correspondant.
-     */
     acceptFriendRequestDB: async (username: string, requesterId: string) => {
         if (!supabase) return;
         try {
@@ -238,9 +231,6 @@ export const DB = {
         } catch (e) {}
     },
 
-    /**
-     * Recherche des utilisateurs par pseudo pour le hub social.
-     */
     searchUsers: async (query: string) => {
         if (!supabase) return [];
         try {
@@ -259,9 +249,6 @@ export const DB = {
         } catch (e) { return []; }
     },
 
-    /**
-     * Récupère un utilisateur via son e-mail (champ de secours stocké dans data).
-     */
     getUserByEmail: async (email: string) => {
         if (!supabase) return null;
         try {
@@ -275,9 +262,6 @@ export const DB = {
         } catch (e) { return null; }
     },
 
-    /**
-     * Supprime un utilisateur et ses données associées (messages, transactions).
-     */
     deleteUser: async (username: string) => {
         if (!supabase) return;
         try {
@@ -287,9 +271,6 @@ export const DB = {
         } catch (e) {}
     },
 
-    /**
-     * Récupère les messages de support (commençant par le tag [SUPPORT]).
-     */
     getSupportMessages: async () => {
         if (!supabase) return [];
         try {

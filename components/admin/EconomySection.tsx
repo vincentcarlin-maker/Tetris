@@ -15,25 +15,35 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
 
     const loadTransactions = async () => {
         setLoading(true);
-        const data = await DB.getTransactions();
-        setTransactions(data);
-        setLoading(false);
+        try {
+            const data = await DB.getTransactions();
+            setTransactions(data || []);
+        } catch (err) {
+            console.error("Failed to load transactions", err);
+            setTransactions([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const totalCoins = profiles.reduce((acc, p) => acc + (p.data?.coins || 0), 0);
     
     const stats = useMemo(() => {
-        const earned = transactions.filter(t => t.type === 'EARN').reduce((acc, t) => acc + t.amount, 0);
-        const spent = transactions.filter(t => t.type === 'PURCHASE').reduce((acc, t) => acc + Math.abs(t.amount), 0);
+        const earned = transactions.filter(t => t.type === 'EARN').reduce((acc, t) => acc + (t.amount || 0), 0);
+        const spent = transactions.filter(t => t.type === 'PURCHASE').reduce((acc, t) => acc + Math.abs(t.amount || 0), 0);
         return { earned, spent };
     }, [transactions]);
 
-    const filteredTransactions = transactions.filter(t => {
-        const matchesType = filter === 'ALL' || t.type === filter;
-        const matchesSearch = t.username.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             t.description.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchesType && matchesSearch;
-    });
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(t => {
+            const matchesType = filter === 'ALL' || t.type === filter;
+            const searchLower = searchTerm.toLowerCase();
+            const username = (t.username || "").toLowerCase();
+            const description = (t.description || "").toLowerCase();
+            const matchesSearch = username.includes(searchLower) || description.includes(searchLower);
+            return matchesType && matchesSearch;
+        });
+    }, [transactions, filter, searchTerm]);
 
     return (
         <div className="space-y-6 animate-in fade-in h-full flex flex-col">
@@ -85,7 +95,7 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                         <button 
                             key={f} 
                             onClick={() => setFilter(f)}
-                            className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                            className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all ${filter === f ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                         >
                             {f === 'ALL' ? 'TOUT' : f === 'EARN' ? 'GAINS' : 'ACHATS'}
                         </button>
@@ -93,7 +103,8 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                 </div>
                 <button 
                     onClick={loadTransactions}
-                    className="p-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-xl border border-white/10 transition-all active:scale-95"
+                    disabled={loading}
+                    className="p-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50"
                 >
                     <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                 </button>
@@ -114,19 +125,20 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             {filteredTransactions.map((t, i) => {
-                                const isPositive = t.amount > 0;
+                                const isPositive = (t.amount || 0) > 0;
+                                const date = t.timestamp ? new Date(t.timestamp) : new Date();
                                 return (
                                     <tr key={t.id || i} className="hover:bg-white/5 transition-colors group">
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex flex-col">
-                                                <span className="text-gray-300 font-mono text-[11px]">{new Date(t.timestamp).toLocaleDateString()}</span>
-                                                <span className="text-gray-500 font-mono text-[10px]">{new Date(t.timestamp).toLocaleTimeString()}</span>
+                                                <span className="text-gray-300 font-mono text-[11px]">{date.toLocaleDateString()}</span>
+                                                <span className="text-gray-500 font-mono text-[10px]">{date.toLocaleTimeString()}</span>
                                             </div>
                                         </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold text-white uppercase">{t.username.substring(0,2)}</div>
-                                                <span className="font-bold text-white">{t.username}</span>
+                                                <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold text-white uppercase">{(t.username || "??").substring(0,2)}</div>
+                                                <span className="font-bold text-white">{t.username || "Inconnu"}</span>
                                             </div>
                                         </td>
                                         <td className="p-4">
@@ -136,17 +148,17 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                                                 'bg-yellow-950/40 text-yellow-400 border-yellow-500/30'
                                             }`}>
                                                 {t.type === 'EARN' ? <Gamepad2 size={10}/> : t.type === 'PURCHASE' ? <ShoppingBag size={10}/> : <RefreshCw size={10}/>}
-                                                {t.type}
+                                                {t.type || 'ADJUST'}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-gray-400 text-xs italic max-w-[200px] truncate">{t.description}</td>
+                                        <td className="p-4 text-gray-400 text-xs italic max-w-[200px] truncate">{t.description || "Aucune description"}</td>
                                         <td className={`p-4 text-right font-black font-mono text-lg ${isPositive ? 'text-green-400' : 'text-pink-500'}`}>
-                                            {isPositive ? '+' : ''}{t.amount}
+                                            {isPositive ? '+' : ''}{t.amount || 0}
                                         </td>
                                     </tr>
                                 );
                             })}
-                            {filteredTransactions.length === 0 && (
+                            {filteredTransactions.length === 0 && !loading && (
                                 <tr>
                                     <td colSpan={5} className="p-12 text-center text-gray-600 italic">Aucune transaction enregistrée.</td>
                                 </tr>
