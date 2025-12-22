@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { useArenaLogic } from './hooks/useArenaLogic';
 import { ArenaRenderer } from './components/ArenaRenderer';
 import { ArenaUI } from './components/ArenaUI';
@@ -16,10 +17,19 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const { username, currentAvatarId, avatarsCatalog } = useCurrency();
     const logic = useArenaLogic(mp, audio, addCoins, onReportProgress);
 
-    // Initialisation
-    React.useEffect(() => {
+    // Initialisation & Sync Social
+    useEffect(() => {
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Arena Clash');
     }, [username, currentAvatarId, mp]);
+
+    // Gérer la connexion MP si on passe en mode ONLINE
+    useEffect(() => {
+        if (logic.gameMode === 'ONLINE') {
+            mp.connect();
+        } else {
+            mp.disconnect();
+        }
+    }, [logic.gameMode, mp]);
 
     return (
         <div id="arena-container" className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden select-none relative">
@@ -36,7 +46,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         cameraRef={logic.cameraRef}
                         selectedMapIndex={logic.selectedMapIndex}
                         mouseRef={logic.mouseRef}
-                        // Fix: Pass recoilRef which is a required prop in ArenaRenderer
                         recoilRef={logic.recoilRef}
                         onUpdate={logic.update}
                         gameState={logic.gameState}
@@ -59,12 +68,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 isHost={logic.isHost}
                 hasOpponent={!!mp.gameOpponent}
                 onBack={onBack}
-                onToggleTutorial={() => {}} // TODO: Add Tutorial state in hook if needed
+                onToggleTutorial={() => {}} 
                 onSetGameMode={logic.setGameMode}
                 onStartGame={logic.startGame}
-                onChangeMap={(delta) => logic.setSelectedMapIndex((prev: number) => (prev + delta + 3) % 3)} // 3 maps hardcoded for now based on constants
+                onChangeMap={(delta) => logic.setSelectedMapIndex((prev: number) => (prev + delta + 3) % 3)}
                 onCancelHosting={mp.cancelHosting}
-                onLeaveGame={() => { logic.setOpponentLeft(true); logic.setGameState('GAMEOVER'); }} 
+                onLeaveGame={() => { mp.leaveGame(); onBack(); }} 
                 onRematch={() => logic.startGame('ONLINE')}
                 onReturnToMenu={() => logic.setGameState('MENU')}
                 onSetGameState={logic.setGameState}
