@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Coins, Banknote, User, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft, ShoppingBag, Gamepad2, Search, RefreshCw, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Coins, Banknote, User, TrendingUp, Trophy, ArrowUpRight, ArrowDownLeft, ShoppingBag, Gamepad2, Search, RefreshCw, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 
 export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
@@ -46,7 +46,7 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
     }, [transactions, filter, searchTerm]);
 
     return (
-        <div className="space-y-6 animate-in fade-in h-full flex flex-col">
+        <div className="space-y-6 animate-in fade-in h-full flex flex-col min-h-0">
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
                 <div className="bg-gray-800 p-6 rounded-xl border border-white/10 shadow-lg group">
@@ -78,14 +78,6 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                 </div>
             </div>
 
-            {/* Hint if empty but connected to cloud */}
-            {isSupabaseConfigured && transactions.length === 0 && !loading && (
-                <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 flex items-center gap-3 text-blue-100">
-                    <AlertCircle className="text-blue-400" />
-                    <p className="text-xs">L'historique est vide. Assurez-vous d'avoir créé la table <code className="bg-black/40 px-1 rounded">transactions</code> dans votre console Supabase pour activer la journalisation SQL.</p>
-                </div>
-            )}
-
             {/* Filter & Search Bar */}
             <div className="bg-gray-900 border border-white/10 rounded-xl p-4 flex flex-col md:flex-row gap-4 shrink-0">
                 <div className="relative flex-1">
@@ -95,7 +87,7 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                         placeholder="Rechercher par joueur ou action..." 
                         value={searchTerm} 
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 outline-none" 
+                        className="w-full bg-black/40 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-blue-500 outline-none" 
                     />
                 </div>
                 <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
@@ -119,10 +111,19 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
             </div>
 
             {/* Transaction Log Table */}
-            <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
-                <div className="overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-800/80 text-gray-400 font-black uppercase text-[10px] sticky top-0 z-20 backdrop-blur-md">
+            <div className="bg-gray-900 border border-white/10 rounded-xl overflow-hidden flex-1 flex flex-col min-h-[300px] relative shadow-2xl">
+                {loading && (
+                    <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-[2px] flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-3">
+                            <Loader2 size={32} className="text-blue-500 animate-spin" />
+                            <span className="text-[10px] font-black text-white tracking-widest uppercase">Synchronisation...</span>
+                        </div>
+                    </div>
+                )}
+                
+                <div className="overflow-y-auto custom-scrollbar h-full">
+                    <table className="w-full text-left text-sm border-collapse">
+                        <thead className="bg-gray-800/90 text-gray-400 font-black uppercase text-[10px] sticky top-0 z-20 backdrop-blur-md border-b border-white/10">
                             <tr>
                                 <th className="p-4">Horodatage</th>
                                 <th className="p-4">Joueur</th>
@@ -132,45 +133,52 @@ export const EconomySection: React.FC<{ profiles: any[] }> = ({ profiles }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                            {filteredTransactions.map((t, i) => {
-                                const isPositive = (t.amount || 0) > 0;
-                                const date = t.timestamp ? new Date(t.timestamp) : new Date();
-                                return (
-                                    <tr key={t.id || i} className="hover:bg-white/5 transition-colors group">
-                                        <td className="p-4 whitespace-nowrap">
-                                            <div className="flex flex-col">
-                                                <span className="text-gray-300 font-mono text-[11px]">{date.toLocaleDateString()}</span>
-                                                <span className="text-gray-500 font-mono text-[10px]">{date.toLocaleTimeString()}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold text-white uppercase">{(t.username || "??").substring(0,2)}</div>
-                                                <span className="font-bold text-white">{t.username || "Inconnu"}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black border flex items-center gap-1 w-fit ${
-                                                t.type === 'EARN' ? 'bg-green-950/40 text-green-400 border-green-500/30' : 
-                                                t.type === 'PURCHASE' ? 'bg-pink-950/40 text-pink-400 border-pink-500/30' :
-                                                'bg-yellow-950/40 text-yellow-400 border-yellow-500/30'
-                                            }`}>
-                                                {t.type === 'EARN' ? <Gamepad2 size={10}/> : t.type === 'PURCHASE' ? <ShoppingBag size={10}/> : <RefreshCw size={10}/>}
-                                                {t.type || 'ADJUST'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-gray-400 text-xs italic max-w-[200px] truncate">{t.description || "Aucune description"}</td>
-                                        <td className={`p-4 text-right font-black font-mono text-lg ${isPositive ? 'text-green-400' : 'text-pink-500'}`}>
-                                            {isPositive ? '+' : ''}{t.amount || 0}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            {filteredTransactions.length === 0 && !loading && (
+                            {filteredTransactions.length > 0 ? (
+                                filteredTransactions.map((t, i) => {
+                                    const amount = t.amount || 0;
+                                    const isPositive = amount > 0;
+                                    const date = t.timestamp ? new Date(t.timestamp) : new Date();
+                                    return (
+                                        <tr key={t.id || `trans-${i}-${t.timestamp}`} className="hover:bg-white/5 transition-colors group">
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex flex-col">
+                                                    <span className="text-gray-300 font-mono text-[11px]">{date.toLocaleDateString()}</span>
+                                                    <span className="text-gray-500 font-mono text-[10px]">{date.toLocaleTimeString()}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold text-white uppercase">{(t.username || "??").substring(0,2)}</div>
+                                                    <span className="font-bold text-white">{t.username || "Inconnu"}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black border flex items-center gap-1 w-fit ${
+                                                    t.type === 'EARN' ? 'bg-green-950/40 text-green-400 border-green-500/30' : 
+                                                    t.type === 'PURCHASE' ? 'bg-pink-950/40 text-pink-400 border-pink-500/30' :
+                                                    'bg-yellow-950/40 text-yellow-400 border-yellow-500/30'
+                                                }`}>
+                                                    {t.type === 'EARN' ? <Gamepad2 size={10}/> : t.type === 'PURCHASE' ? <ShoppingBag size={10}/> : <RefreshCw size={10}/>}
+                                                    {t.type || 'ADJUST'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-gray-400 text-xs italic max-w-[200px] truncate">{t.description || "Aucune description"}</td>
+                                            <td className={`p-4 text-right font-black font-mono text-lg ${isPositive ? 'text-green-400' : 'text-pink-500'}`}>
+                                                {isPositive ? '+' : ''}{amount}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            ) : !loading ? (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center text-gray-600 italic">Aucune transaction enregistrée.</td>
+                                    <td colSpan={5} className="p-20 text-center text-gray-600 italic">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <AlertCircle size={32} className="opacity-20" />
+                                            <span>Aucune transaction enregistrée.</span>
+                                        </div>
+                                    </td>
                                 </tr>
-                            )}
+                            ) : null}
                         </tbody>
                     </table>
                 </div>

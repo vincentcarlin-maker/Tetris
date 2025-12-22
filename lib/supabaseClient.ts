@@ -63,11 +63,12 @@ export const DB = {
             return;
         }
         try {
+            // On tente l'insertion SQL
             const { error } = await supabase.from('transactions').insert([{ 
                 username, type, amount, description, game_id: gameId, timestamp 
             }]);
             
-            // Si erreur (ex: table manquante), fallback sur SYSTEM_CONFIG
+            // Si erreur (ex: table manquante ou problème de droits), on stocke aussi dans SYSTEM_CONFIG par sécurité
             if (error) {
                 const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
                 const logs = sys?.data?.transaction_logs || [];
@@ -85,22 +86,39 @@ export const DB = {
         if (!supabase) {
             return JSON.parse(localStorage.getItem('neon_local_transactions') || '[]');
         }
+        
+        let allLogs: any[] = [];
+        
         try {
-            const { data, error } = await supabase.from('transactions').select('*').order('timestamp', { ascending: false }).limit(200);
-            if (!error && data) return data;
+            // 1. Récupérer les logs SQL
+            const { data: sqlData, error: sqlError } = await supabase
+                .from('transactions')
+                .select('*')
+                .order('timestamp', { ascending: false })
+                .limit(200);
             
-            // Fallback SYSTEM_CONFIG si erreur ou table vide
-            const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
-            const cloudLogs = sys?.data?.transaction_logs || [];
-            return cloudLogs;
-        } catch (e) { 
-            // Ultime recours sur SYSTEM_CONFIG même en cas de crash de la requête initiale
-            try {
-                const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
-                return sys?.data?.transaction_logs || [];
-            } catch {
-                return []; 
+            if (!sqlError && sqlData) {
+                allLogs = [...sqlData];
             }
+
+            // 2. Récupérer les logs de secours (JSON) et les fusionner
+            const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
+            const jsonLogs = sys?.data?.transaction_logs || [];
+            
+            // On ajoute les logs JSON qui ne sont pas déjà dans SQL (basé sur le timestamp ou une combinaison unique)
+            const sqlTimestamps = new Set(allLogs.map(l => l.timestamp));
+            jsonLogs.forEach((jLog: any) => {
+                if (!sqlTimestamps.has(jLog.timestamp)) {
+                    allLogs.push(jLog);
+                }
+            });
+
+            // 3. Trier le tout par date décroissante
+            return allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        } catch (e) { 
+            console.error("Error fetching transactions:", e);
+            return [];
         }
     },
 
