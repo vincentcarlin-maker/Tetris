@@ -328,9 +328,9 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </>
             )}
 
-            {/* GAMEOVER */}
+            {/* GAMEOVER - Overlay haute priorité */}
             {gameState === 'GAMEOVER' && (
-                <div className="absolute inset-0 z-[120] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl animate-in zoom-in p-8 text-center pointer-events-auto">
+                <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl animate-in zoom-in p-8 text-center pointer-events-auto">
                     <Trophy size={100} className="text-yellow-400 mb-8 drop-shadow-[0_0_40px_gold] animate-bounce"/>
                     <h2 className="text-4xl md:text-7xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-orange-500 to-red-600 mb-6 uppercase tracking-tighter">Données de combat</h2>
                     <div className="bg-gray-800/40 p-6 md:p-8 rounded-[40px] border border-white/10 mb-10 backdrop-blur-md shadow-2xl flex flex-col items-center">
@@ -338,9 +338,27 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         <span className="text-6xl md:text-7xl font-black text-white font-mono drop-shadow-[0_0_20px_white]">{score}</span>
                     </div>
                     {earnedCoins > 0 && <div className="mb-12 flex items-center gap-4 bg-yellow-500/20 px-8 py-4 rounded-3xl border-2 border-yellow-500/50 shadow-lg animate-pulse"><Coins className="text-yellow-400" size={32} /><span className="text-yellow-100 font-black text-2xl md:text-3xl">+{earnedCoins}</span></div>}
-                    <div className="flex gap-4 md:gap-6 w-full max-w-md">
-                        <button onClick={() => { if(gameMode === 'ONLINE') onRematch(); else onStartGame(); }} className="flex-1 py-4 md:py-5 bg-red-600 text-white font-black tracking-[0.2em] rounded-3xl hover:bg-red-500 shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all text-sm cursor-pointer"><RefreshCw size={24} /> REPLAY</button>
-                        <button onClick={onReturnToMenu} className="flex-1 py-4 md:py-5 bg-gray-800 text-gray-300 font-black tracking-[0.2em] rounded-3xl hover:bg-gray-700 text-sm cursor-pointer">MENU</button>
+                    <div className="flex gap-4 md:gap-6 w-full max-w-md relative z-[210] pointer-events-auto">
+                        <button 
+                            onClick={(e) => { 
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if(gameMode === 'ONLINE') onRematch(); else onStartGame(); 
+                            }} 
+                            className="flex-1 py-4 md:py-5 bg-red-600 text-white font-black tracking-[0.2em] rounded-3xl hover:bg-red-500 shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all text-sm cursor-pointer"
+                        >
+                            <RefreshCw size={24} /> REPLAY
+                        </button>
+                        <button 
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onReturnToMenu();
+                            }} 
+                            className="flex-1 py-4 md:py-5 bg-gray-800 text-gray-300 font-black tracking-[0.2em] rounded-3xl hover:bg-gray-700 text-sm cursor-pointer"
+                        >
+                            MENU
+                        </button>
                     </div>
                 </div>
             )}

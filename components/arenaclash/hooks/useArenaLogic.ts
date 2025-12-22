@@ -225,7 +225,7 @@ export const useArenaLogic = (
         gameStateRef.current = 'PLAYING';
         setEarnedCoins(0);
         
-        // Spawn immédiat d'un bonus au début pour tester
+        // Spawn immédiat d'un bonus au début
         lastPowerUpSpawnRef.current = Date.now() - 3000; 
         
         audio.resumeAudio();
@@ -233,6 +233,9 @@ export const useArenaLogic = (
     }, [spawnCharacter, gameMode, username, mp, audio, onReportProgress]);
 
     const update = useCallback((dt: number) => {
+        // BLOCAGE CRITIQUE : Si le jeu est fini, on ne traite plus rien
+        if (gameStateRef.current === 'GAMEOVER') return;
+
         const now = Date.now();
         frameRef.current++;
         const player = playerRef.current;
@@ -244,14 +247,16 @@ export const useArenaLogic = (
         if (gameStateRef.current === 'PLAYING' || gameStateRef.current === 'RESPAWNING') {
             timeLeftRef.current = Math.max(0, timeLeftRef.current - dt / 1000);
             if (timeLeftRef.current <= 0) {
-                 setGameState('GAMEOVER'); gameStateRef.current = 'GAMEOVER'; playVictory();
+                 setGameState('GAMEOVER'); 
+                 gameStateRef.current = 'GAMEOVER'; 
+                 playVictory();
                  updateHighScore('arenaclash', player.score);
                  const coins = Math.floor(player.score * 15) + 100;
                  addCoins(coins); setEarnedCoins(coins);
                  return;
             }
             
-            // Spawn PowerUps toutes les 7 secondes (plus fréquent)
+            // Spawn PowerUps toutes les 7 secondes
             if (now - lastPowerUpSpawnRef.current > 7000 && (gameMode === 'SOLO' || mp.isHost)) {
                 const pw = spawnPowerUp();
                 lastPowerUpSpawnRef.current = now;
