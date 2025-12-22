@@ -93,6 +93,15 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
 
             // Découverte des joueurs
             if (data.type === 'SLITHER_JOIN') {
+                // Si on est le Master, on envoie DIRECTEMENT l'état du monde au nouveau
+                if (isMasterRef.current) {
+                    mp.sendData({ 
+                        type: 'SLITHER_WORLD_SYNC', 
+                        food: foodRef.current, 
+                        bots: othersRef.current.filter(w => w.id.startsWith('bot_'))
+                    });
+                }
+                // Dans tous les cas, on se manifeste
                 if (playerWormRef.current) {
                     mp.sendData({ type: 'SLITHER_UPDATE', worm: playerWormRef.current });
                 }
@@ -104,24 +113,19 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
                 
                 const existingIdx = othersRef.current.findIndex(w => w.id === remoteWorm.id);
                 if (existingIdx !== -1) {
-                    // Update existing
                     const w = othersRef.current[existingIdx];
                     w.angle = remoteWorm.angle;
                     w.score = remoteWorm.score;
                     w.radius = remoteWorm.radius;
                     w.isBoost = remoteWorm.isBoost;
-                    // Interpolation des segments pour éviter les saccades
                     w.segments = remoteWorm.segments; 
                 } else {
-                    // New player
                     othersRef.current.push({ ...remoteWorm, isDead: false });
                 }
             }
 
-            // Synchronisation du monde (Nourriture et Bots) par le Master
             if (data.type === 'SLITHER_WORLD_SYNC' && !isMasterRef.current) {
                 foodRef.current = data.food;
-                // Fusion des bots gérés par le master dans othersRef
                 const remoteBots = data.bots || [];
                 othersRef.current = othersRef.current.filter(w => !w.id.startsWith('bot_'));
                 othersRef.current.push(...remoteBots);
@@ -163,7 +167,12 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             mp.joinPublicRoom(serverId);
             othersRef.current = [];
             foodRef.current = [];
-            // Le master sera déterminé via Presence plus tard dans updatePhysics
+            // On vérifie si on est seul (potentiel master)
+            const sortedPlayers = [...mp.players].sort((a, b) => (a.online_at || "").localeCompare(b.online_at || ""));
+            if (sortedPlayers.length <= 1) {
+                isMasterRef.current = true;
+                foodRef.current = generateFood(INITIAL_FOOD_COUNT);
+            }
         } else {
             isMasterRef.current = true;
             othersRef.current = Array.from({length: BOT_COUNT}, (_, i) => spawnWorm(`bot_${i}`, `Bot ${i+1}`, COLORS[Math.floor(Math.random() * COLORS.length)]));
@@ -180,7 +189,8 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         audio.resumeAudio();
         
         if (mode === 'ONLINE') {
-            setTimeout(() => mp.sendData({ type: 'SLITHER_JOIN' }), 500);
+            // Signalement immédiat
+            setTimeout(() => mp.sendData({ type: 'SLITHER_JOIN' }), 200);
         }
         
         if (onReportProgress) onReportProgress('play', 1);
@@ -220,7 +230,7 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
 
         // 1. Détermination du Master (le plus ancien dans la salle)
         if (gameMode === 'ONLINE') {
-            const sortedPlayers = [...mp.players].sort((a, b) => (a.online_at || "").localeCompare(b.online_at || ""));
+            const sortedPlayers = [...mp.players].filter(p => p.extraInfo === 'Slither').sort((a, b) => (a.online_at || "").localeCompare(b.online_at || ""));
             const master = sortedPlayers[0];
             isMasterRef.current = master?.id === mp.peerId;
         }
@@ -239,23 +249,26 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             return;
         }
 
-        // 3. Sync World (Master Only)
-        if (gameMode === 'ONLINE' && isMasterRef.current && now - lastWorldSyncRef.current > 2000) {
-            // Master regen food if needed
+        // 3. Sync World (Master Only) - Fréquence augmentée à 1s
+        if (gameMode === 'ONLINE' && isMasterRef.current && now - lastWorldSyncRef.current > 1000) {
+            let changed = false;
             if (foodRef.current.length < MIN_FOOD_REGEN) {
-                foodRef.current.push(...generateFood(200));
+                foodRef.current.push(...generateFood(150));
+                changed = true;
             }
-            // Master manages bots
-            if (othersRef.current.filter(w => w.id.startsWith('bot_')).length < 10) {
+            if (othersRef.current.filter(w => w.id.startsWith('bot_')).length < 15) {
                 othersRef.current.push(spawnWorm(`bot_${Date.now()}_${Math.random()}`, "Dronoid", COLORS[Math.floor(Math.random()*COLORS.length)]));
+                changed = true;
             }
             
-            mp.sendData({ 
-                type: 'SLITHER_WORLD_SYNC', 
-                food: foodRef.current, 
-                bots: othersRef.current.filter(w => w.id.startsWith('bot_'))
-            });
-            lastWorldSyncRef.current = now;
+            if (changed || now - lastWorldSyncRef.current > 3000) {
+                mp.sendData({ 
+                    type: 'SLITHER_WORLD_SYNC', 
+                    food: foodRef.current, 
+                    bots: othersRef.current.filter(w => w.id.startsWith('bot_'))
+                });
+                lastWorldSyncRef.current = now;
+            }
         }
 
         // 4. Player Update & Network Broadcast
@@ -311,7 +324,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         // Worm Collision
         othersRef.current.forEach(other => {
             if (other.isDead) return;
-            // Optimisation : ne vérifier que si proche
             if (Math.abs(other.segments[0].x - head.x) > 1000 || Math.abs(other.segments[0].y - head.y) > 1000) return;
             
             for (let sIdx = 0; sIdx < other.segments.length; sIdx += 3) {
@@ -328,7 +340,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
                 if (!bot.id.startsWith('bot_')) return;
                 updateBotAI(bot, [player, ...othersRef.current], speedFactor);
             });
-            // Cleanup dead bots
             othersRef.current = othersRef.current.filter(b => !b.isDead);
         }
 
@@ -367,14 +378,12 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         if (bot.isDead) return;
         const bHead = bot.segments[0];
 
-        // Soft avoidance des bords
         if (bHead.x < 100 || bHead.x > WORLD_SIZE - 100 || bHead.y < 100 || bHead.y > WORLD_SIZE - 100) {
             bot.aiTargetAngle = Math.atan2(WORLD_SIZE/2 - bHead.y, WORLD_SIZE/2 - bHead.x);
         }
 
         bot.aiDecisionTimer = (bot.aiDecisionTimer || 0) - speedFactor;
         if (bot.aiDecisionTimer <= 0) {
-            // Find food or avoid
             let closestF = null, minDistSq = 600**2;
             for (let f of foodRef.current) {
                 const dSq = (bHead.x - f.x)**2 + (bHead.y - f.y)**2;
@@ -386,14 +395,12 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
 
         updateWormMovement(bot, bot.aiTargetAngle || bot.angle, BASE_SPEED, speedFactor);
 
-        // Check if Bot hits any other worm
         allWorms.forEach(w => {
             if (w.id === bot.id || w.isDead) return;
             for (let sIdx = 0; sIdx < w.segments.length; sIdx += 4) {
                  if ((bHead.x - w.segments[sIdx].x)**2 + (bHead.y - w.segments[sIdx].y)**2 < (w.radius + 5)**2) {
                      bot.isDead = true;
                      spawnParticles(bHead.x, bHead.y, bot.color, 15);
-                     // Conversion en nourriture
                      bot.segments.forEach((s, idx) => { if(idx % 4 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.color }); });
                      break;
                  }
