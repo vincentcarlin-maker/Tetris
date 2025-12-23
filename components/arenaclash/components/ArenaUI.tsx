@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette } from 'lucide-react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar, useCurrency } from '../../../hooks/useCurrency';
 import { QuickLocker } from '../../common/QuickLocker';
@@ -431,6 +431,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
     return (
         <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center overflow-hidden pointer-events-none">
+            {/* HUD EN JEU */}
             {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
@@ -458,6 +459,53 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner"><div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75"><Crosshair size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase">Viseur</span></div>
                     </div>
                 </>
+            )}
+
+            {/* ÉCRAN DE FIN DE PARTIE */}
+            {gameState === 'GAMEOVER' && (
+                <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-8 pointer-events-auto animate-in zoom-in fade-in duration-300">
+                    <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_30px_rgba(234,179,8,0.6)] animate-bounce" />
+                    
+                    <h2 className="text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-pink-500 mb-2 tracking-tighter uppercase">
+                        Partie Finie
+                    </h2>
+                    
+                    <div className="bg-gray-800/50 p-6 rounded-3xl border border-white/10 mb-8 w-full max-w-sm text-center backdrop-blur-xl">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="text-center">
+                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Votre Score</p>
+                                <p className="text-4xl font-mono font-black text-white">{score}</p>
+                            </div>
+                            <div className="text-center border-l border-white/10">
+                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Rang</p>
+                                <p className="text-4xl font-mono font-black text-cyan-400">#{myRank || '?'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {earnedCoins > 0 && (
+                        <div className="mb-8 flex items-center gap-3 bg-yellow-500/20 px-6 py-3 rounded-full border-2 border-yellow-500 animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+                            <Coins className="text-yellow-400" size={24} />
+                            <span className="text-yellow-100 font-black text-xl">+{earnedCoins} PIÈCES</span>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                        <button 
+                            onClick={onRematch}
+                            className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-cyan-400 transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 text-sm uppercase"
+                        >
+                            <RefreshCw size={20} /> Recommencer
+                        </button>
+                        
+                        <button 
+                            onClick={onBack}
+                            className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 active:scale-95 text-sm uppercase"
+                        >
+                            <Home size={20} /> Retour Menu
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

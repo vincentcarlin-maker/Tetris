@@ -220,7 +220,10 @@ export const useArenaLogic = (
 
     const startGame = useCallback((modeOverride?: 'SOLO' | 'ONLINE', diffOverride?: Difficulty) => {
         const currentMode = modeOverride || gameMode;
-        if (diffOverride) setDifficulty(diffOverride);
+        if (diffOverride) {
+            setDifficulty(diffOverride);
+            difficultyRef.current = diffOverride;
+        }
 
         playerRef.current = spawnCharacter(mp.peerId || 'player', username, true);
         setScore(0);
@@ -250,8 +253,7 @@ export const useArenaLogic = (
     }, [spawnCharacter, gameMode, username, mp, audio, onReportProgress]);
 
     const update = useCallback((dt: number) => {
-        // BLOCAGE CRITIQUE : Si le jeu est fini, on ne traite plus rien
-        if (gameStateRef.current === 'GAMEOVER') return;
+        if (gameStateRef.current === 'GAMEOVER' || gameStateRef.current === 'MENU') return;
 
         const now = Date.now();
         frameRef.current++;
@@ -307,7 +309,10 @@ export const useArenaLogic = (
                         const spawn = spawnCharacter(char.id, char.name, char.id === player.id);
                         Object.assign(char, spawn);
                         char.score = oldScore;
-                        if (char.id === player.id) { setGameState('PLAYING'); gameStateRef.current = 'PLAYING'; }
+                        if (char.id === player.id) { 
+                            setGameState('PLAYING'); 
+                            gameStateRef.current = 'PLAYING'; 
+                        }
                     }
                 }
                 return;
@@ -423,7 +428,11 @@ export const useArenaLogic = (
                                     if (attacker.id === player.id) setScore(attacker.score);
                                     setKillFeed(prev => [{ id: Date.now(), killer: attacker.name, victim: char.name, time: now }, ...prev].slice(0, 5));
                                 }
-                                if (char.id === player.id) { setGameState('RESPAWNING'); gameStateRef.current = 'RESPAWNING'; playGameOver(); }
+                                if (char.id === player.id) { 
+                                    setGameState('RESPAWNING'); 
+                                    gameStateRef.current = 'RESPAWNING'; 
+                                    playGameOver(); 
+                                }
                             }
                             break;
                         }
@@ -441,7 +450,7 @@ export const useArenaLogic = (
         }
 
         setTimeLeft(timeLeftRef.current);
-    }, [addCoins, mp, updateHighScore, spawnCharacter, playVictory, spawnPowerUp]);
+    }, [addCoins, mp, updateHighScore, spawnCharacter, playVictory, spawnPowerUp, playExplosion, playGameOver, playPowerUpCollect]);
 
     // GESTION DU LOBBY ONLINE
     useEffect(() => {
