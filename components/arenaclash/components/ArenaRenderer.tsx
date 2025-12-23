@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useCallback } from 'react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, MAPS, COLORS, Character, Bullet, PowerUp, Particle } from '../constants';
 
@@ -16,8 +17,6 @@ interface ArenaRendererProps {
     showTutorial: boolean;
 }
 
-const flagImageCache = new Map<string, HTMLImageElement>();
-
 export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
     playerRef, botsRef, bulletsRef, powerUpsRef, particlesRef, cameraRef,
     selectedMapIndex, mouseRef, recoilRef, onUpdate, gameState, showTutorial
@@ -26,15 +25,9 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
 
-    const onUpdateRef = useRef(onUpdate);
-    const gameStateRef = useRef(gameState);
-
-    useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
-    useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
-
     const drawFlag = (ctx: CanvasRenderingContext2D, char: Character) => {
         const acc = char.accessory;
-        if (!acc || acc.id === 'ta_none') return;
+        if (!acc || acc.id === 'ta_none' || !acc.colors || acc.colors.length === 0) return;
 
         ctx.save();
         const radius = char.radius;
@@ -48,59 +41,35 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.lineTo(poleX, poleY - 25);
         ctx.stroke();
 
+        const time = Date.now() / 200;
+        const flagWidth = 18;
+        const flagHeight = 12;
+        const segments = 6;
+        const segW = flagWidth / segments;
+
         ctx.translate(poleX, poleY - 25);
 
-        if (acc.svg) {
-            const flagWidth = 18;
-            const flagHeight = 12;
+        acc.colors.forEach((color, cIdx) => {
+            ctx.fillStyle = color;
+            const hPart = flagHeight / acc.colors.length;
+            const yOff = cIdx * hPart;
 
-            if (flagImageCache.has(acc.id)) {
-                const img = flagImageCache.get(acc.id)!;
-                ctx.drawImage(img, 0, 0, flagWidth, flagHeight);
-            } else {
-                if (!flagImageCache.has('loading_' + acc.id)) { // Prevent multiple loads
-                    flagImageCache.set('loading_' + acc.id, new Image()); // "Lock"
-                    const img = new Image();
-                    img.onload = () => {
-                        flagImageCache.set(acc.id, img);
-                        flagImageCache.delete('loading_' + acc.id);
-                    };
-                    img.onerror = () => {
-                        console.error("Failed to load SVG flag image for:", acc.id);
-                        flagImageCache.delete('loading_' + acc.id); // allow retry
-                    }
-                    img.src = `data:image/svg+xml;base64,${acc.svg}`;
-                }
+            ctx.beginPath();
+            ctx.moveTo(0, yOff);
+
+            for (let i = 0; i <= segments; i++) {
+                const x = i * segW;
+                const wave = Math.sin(time + i * 0.8) * 3;
+                ctx.lineTo(x, yOff + wave);
             }
-        } else if (acc.colors && acc.colors.length > 0) {
-            const time = Date.now() / 200;
-            const flagWidth = 18;
-            const flagHeight = 12;
-            const segments = 6;
-            const segW = flagWidth / segments;
-
-            acc.colors.forEach((color, cIdx) => {
-                ctx.fillStyle = color;
-                const hPart = flagHeight / acc.colors.length;
-                const yOff = cIdx * hPart;
-
-                ctx.beginPath();
-                ctx.moveTo(0, yOff);
-
-                for (let i = 0; i <= segments; i++) {
-                    const x = i * segW;
-                    const wave = Math.sin(time + i * 0.8) * 3;
-                    ctx.lineTo(x, yOff + wave);
-                }
-                for (let i = segments; i >= 0; i--) {
-                    const x = i * segW;
-                    const wave = Math.sin(time + i * 0.8) * 3;
-                    ctx.lineTo(x, yOff + hPart + wave);
-                }
-                ctx.closePath();
-                ctx.fill();
-            });
-        }
+            for (let i = segments; i >= 0; i--) {
+                const x = i * segW;
+                const wave = Math.sin(time + i * 0.8) * 3;
+                ctx.lineTo(x, yOff + hPart + wave);
+            }
+            ctx.closePath();
+            ctx.fill();
+        });
 
         ctx.restore();
     };

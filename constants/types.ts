@@ -1,3 +1,4 @@
+
 import { LucideIcon } from 'lucide-react';
 
 export interface Badge {
@@ -56,7 +57,6 @@ export interface TankAccessory {
     price: number;
     type: 'flag' | 'antenna' | 'exhaust';
     colors: string[];
-    svg?: string;
     rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
     description: string;
 }

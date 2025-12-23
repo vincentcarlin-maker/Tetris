@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
@@ -276,24 +277,15 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onSelect={selectTankAccessory}
                         onClose={() => setLockerTab('NONE')}
                         onGoToShop={() => setCurrentView('shop')}
-                        renderPreview={(acc) => {
-                            if (acc.svg) {
-                                return (
-                                    <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
-                                        <img src={`data:image/svg+xml;base64,${acc.svg}`} alt={acc.name} className="w-full h-full object-cover bg-gray-700" />
-                                    </div>
-                                );
-                            }
-                            return (
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
-                                        {acc.colors.map((c: string, idx: number) => (
-                                            <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
-                                        ))}
-                                    </div>
+                        renderPreview={(acc) => (
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
+                                    {acc.colors.map((c: string, idx: number) => (
+                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
+                                    ))}
                                 </div>
-                            );
-                        }}
+                            </div>
+                        )}
                     />
                 )}
             </div>
@@ -401,30 +393,21 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onSelect={selectTankAccessory}
                         onClose={() => setLockerTab('NONE')}
                         onGoToShop={() => setCurrentView('shop')}
-                        renderPreview={(acc) => {
-                            if (acc.svg) {
-                                return (
-                                    <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
-                                        <img src={`data:image/svg+xml;base64,${acc.svg}`} alt={acc.name} className="w-full h-full object-cover bg-gray-700" />
-                                    </div>
-                                );
-                            }
-                            return (
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
-                                        {acc.colors.map((c: string, idx: number) => (
-                                            <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
-                                        ))}
-                                    </div>
+                        renderPreview={(acc) => (
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
+                                    {acc.colors.map((c: string, idx: number) => (
+                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
+                                    ))}
                                 </div>
-                            );
-                        }}
+                            </div>
+                        )}
                     />
                 )}
             </div>
         );
     }
-    
+
     if (gameState === 'DIFFICULTY') {
         return (
             <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto animate-in fade-in">
@@ -493,6 +476,104 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
             </div>
         );
     }
-    
-    return null;
+
+    return (
+        <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center overflow-hidden pointer-events-none">
+            {/* HUD EN JEU */}
+            {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
+                <>
+                    <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
+                        <div className="flex items-center gap-3 pointer-events-auto">
+                            <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Home size={24} /></button>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className={`text-2xl md:text-4xl font-black font-mono drop-shadow-[0_0_15px_rgba(0,0,0,1)] px-4 md:px-6 py-1.5 md:py-2 bg-black/40 rounded-2xl md:rounded-3xl border border-white/10 backdrop-blur-md ${timeLeft < 10 ? 'text-red-500 animate-pulse border-red-500' : 'text-white'}`}>
+                                {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
+                            </div>
+                        </div>
+                        <div className="pointer-events-none"><MiniLeaderboard /></div>
+                    </div>
+
+                    {/* OVERLAY DE RESPAWN */}
+                    {gameState === 'RESPAWNING' && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+                             <div className="p-8 rounded-[40px] border-2 border-red-500/50 bg-gray-900/80 flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+                                <div className="w-20 h-20 bg-red-600/20 rounded-full flex items-center justify-center border-2 border-red-500 animate-pulse">
+                                    <SkullIcon size={40} className="text-red-500" />
+                                </div>
+                                <h3 className="text-3xl font-black italic text-white uppercase tracking-tight">DÉTRUIT</h3>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] mb-2">Réapparition dans</span>
+                                    <span className="text-5xl font-mono font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                                        {Math.ceil(respawnTimer / 1000)}s
+                                    </span>
+                                </div>
+                             </div>
+                        </div>
+                    )}
+
+                    <div className="absolute left-4 bottom-60 md:top-24 md:left-6 flex flex-col gap-1.5 z-10 max-w-[200px]">
+                        {killFeed.map(k => (
+                            <div key={k.id} className="text-[9px] md:text-[10px] font-black bg-black/70 px-3 py-1.5 rounded-lg text-white animate-in slide-in-from-left-4 border-l-2 border-red-500 backdrop-blur-sm">
+                                <span className="text-cyan-400">{k.killer.toUpperCase()}</span>
+                                <span className="text-gray-500 mx-1.5 md:mx-2">ELIM</span>
+                                <span className="text-red-500">{k.victim.toUpperCase()}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="absolute bottom-0 w-full h-56 grid grid-cols-2 gap-4 md:gap-8 shrink-0 z-40 p-4 md:p-8 pointer-events-auto">
+                        <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner"><div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75"><Activity size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-cyan-500 font-black tracking-[0.3em] uppercase">Mouvement</span></div>
+                        <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner"><div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75"><Crosshair size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase">Viseur</span></div>
+                    </div>
+                </>
+            )}
+
+            {/* ÉCRAN DE FIN DE PARTIE */}
+            {gameState === 'GAMEOVER' && (
+                <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-8 pointer-events-auto animate-in zoom-in fade-in duration-300">
+                    <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_30px_rgba(234,179,8,0.6)] animate-bounce" />
+                    
+                    <h2 className="text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-pink-500 mb-2 tracking-tighter uppercase">
+                        Partie Finie
+                    </h2>
+                    
+                    <div className="bg-gray-800/50 p-6 rounded-3xl border border-white/10 mb-8 w-full max-w-sm text-center backdrop-blur-xl">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="text-center">
+                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Votre Score</p>
+                                <p className="text-4xl font-mono font-black text-white">{score}</p>
+                            </div>
+                            <div className="text-center border-l border-white/10">
+                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Rang</p>
+                                <p className="text-4xl font-mono font-black text-cyan-400">#{myRank || '?'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {earnedCoins > 0 && (
+                        <div className="mb-8 flex items-center gap-3 bg-yellow-500/20 px-6 py-3 rounded-full border-2 border-yellow-500 animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+                            <Coins className="text-yellow-400" size={24} />
+                            <span className="text-yellow-100 font-black text-xl">+{earnedCoins} PIÈCES</span>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                        <button 
+                            onClick={onRematch}
+                            className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-cyan-400 transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 text-sm uppercase"
+                        >
+                            <RefreshCw size={20} /> Recommencer
+                        </button>
+                        
+                        <button 
+                            onClick={onBack}
+                            className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 active:scale-95 text-sm uppercase"
+                        >
+                            <Home size={20} /> Retour Menu
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
