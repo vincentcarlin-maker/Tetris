@@ -138,31 +138,55 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     if (gameState === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
-                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/40 via-[#050510] to-black"></div>
-                <div className="relative z-10 w-full max-w-5xl flex flex-col items-center min-h-full justify-center">
-                    <div className="mb-12 text-center animate-in slide-in-from-top-10 duration-700">
-                         <h1 className="text-7xl md:text-9xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 drop-shadow-[0_0_30px_rgba(239,68,68,0.6)] tracking-tighter uppercase">Arena Clash</h1>
-                         <p className="text-red-400 font-black tracking-[0.5em] text-sm mt-4 uppercase">Duel Néon Infini</p>
+                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/40 via-[#050510] to-black pointer-events-none"></div>
+                <div className="fixed inset-0 bg-[linear-gradient(rgba(239,68,68,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+
+                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
+                    <div className="mb-8 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
+                        <div className="flex items-center justify-center gap-6 mb-4">
+                            <Crosshair size={56} className="text-red-400 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)] animate-pulse hidden md:block" />
+                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 drop-shadow-[0_0_30px_rgba(239,68,68,0.6)] tracking-tighter w-full uppercase">
+                                ARENA<br className="md:hidden"/> CLASH
+                            </h1>
+                            <Crosshair size={56} className="text-red-400 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)] animate-pulse hidden md:block" />
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4 mb-10 bg-gray-900/80 p-2 rounded-2xl border border-white/10 backdrop-blur-md w-full max-w-xs shadow-2xl">
-                        <button onClick={() => onChangeMap(-1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 cursor-pointer"><ChevronLeft/></button>
+
+                    <div className="flex items-center gap-4 mb-8 bg-gray-900/80 p-2 rounded-2xl border border-white/10 backdrop-blur-md w-full max-w-xs shadow-2xl animate-in fade-in duration-700 delay-200">
+                        <button onClick={() => onChangeMap(-1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 transition-colors"><ChevronLeft/></button>
                         <div className="text-center w-full">
                             <p className="text-[10px] text-gray-500 font-black tracking-widest mb-1 uppercase">Secteur</p>
-                            <p className="text-white font-black italic text-lg truncate" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
+                            <p className="text-white font-black italic text-lg truncate uppercase" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
                         </div>
-                        <button onClick={() => onChangeMap(1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 cursor-pointer"><ChevronRight/></button>
+                        <button onClick={() => onChangeMap(1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 transition-colors"><ChevronRight/></button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-                        <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group cursor-pointer relative h-64 md:h-80 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.3)] text-left p-8 flex flex-col justify-between">
-                            <div className="relative z-10"><div className="w-16 h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-6 shadow-xl"><User size={40} className="text-red-400" /></div><h2 className="text-4xl font-black text-white italic mb-2 group-hover:text-red-300">PROTOCOLE SOLO</h2><p className="text-gray-400 text-sm font-medium leading-relaxed">Défiez les sentinelles de la grille.</p></div>
-                            <div className="relative z-10 flex items-center gap-2 text-red-400 font-black text-xs tracking-[0.2em] group-hover:text-white uppercase">Initialiser <ArrowRight size={20} /></div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
+                        <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)]"><User size={32} className="text-red-400" /></div>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-red-300 transition-colors uppercase">Solo</h2>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez les sentinelles de la grille.</p>
+                            </div>
+                            <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase">Initialiser <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                         </button>
-                        <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group cursor-pointer relative h-64 md:h-80 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.3)] text-left p-8 flex flex-col justify-between">
-                            <div className="relative z-10"><div className="w-16 h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-6 shadow-xl"><Globe size={40} className="text-orange-400" /></div><div className="flex items-center gap-3 mb-2"><h2 className="text-4xl font-black text-white italic group-hover:text-orange-300">RESEAU LIVE</h2><span className="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">EN LIGNE</span></div><p className="text-gray-400 text-sm font-medium leading-relaxed">Confrontation directe mondiale.</p></div>
-                            <div className="relative z-10 flex items-center gap-2 text-orange-400 font-black text-xs tracking-[0.2em] group-hover:text-white uppercase">Rechercher canal <ArrowRight size={20} /></div>
+
+                        <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                            <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(249,115,22,0.3)]"><Globe size={32} className="text-orange-400" /></div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-orange-300 transition-colors uppercase">En Ligne</h2>
+                                    <span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span>
+                                </div>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Confrontation directe mondiale.</p>
+                            </div>
+                            <div className="relative z-10 flex items-center gap-2 text-orange-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase">Rechercher <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                         </button>
                     </div>
-                    <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.3em] flex items-center gap-2 py-3 px-6 hover:bg-white/5 rounded-2xl transition-all cursor-pointer"><Home size={16}/> RETOUR ARCADE</button>
+
+                    <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest"><Home size={14} /> Retour arcade</button>
                 </div>
             </div>
         );
@@ -192,8 +216,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                         <Play size={20} fill="currentColor"/> Créer Salon
                                     </button>
                                 </div>
-                                <button onClick={() => setShowLocker(true)} className="py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all">
-                                    <Palette size={18}/> VESTIAIRE CHARS
+                                <button onClick={() => setShowLocker(true)} className="py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
+                                    <Palette size={18}/> Vestiaire Chars
                                 </button>
                             </div>
 
@@ -273,8 +297,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     })}
                 </div>
                 
-                <button onClick={() => setShowLocker(true)} className="mt-8 px-8 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all">
-                    <Palette size={18}/> PERSONNALISER MON CHAR
+                <button onClick={() => setShowLocker(true)} className="mt-8 px-8 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase">
+                    <Palette size={18}/> Personnaliser mon char
                 </button>
 
                 <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer">Annuler</button>
