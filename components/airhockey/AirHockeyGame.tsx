@@ -10,6 +10,7 @@ import { GameMode, Difficulty } from './types';
 import { MAX_SCORE } from './constants';
 import { useCurrency } from '../../hooks/useCurrency';
 import { QuickLocker } from '../common/QuickLocker';
+import { useGlobal } from '../../context/GlobalContext';
 
 interface AirHockeyGameProps {
     onBack: () => void;
@@ -24,6 +25,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
     const [showTutorial, setShowTutorial] = useState(false);
     const [showLocker, setShowLocker] = useState(false);
     const { avatarsCatalog, ownedMallets, currentMalletId, selectMallet, malletsCatalog } = useCurrency();
+    const { setCurrentView } = useGlobal();
 
     const logic = useAirHockeyLogic(audio, addCoins, mp, onReportProgress);
     const { 
@@ -113,7 +115,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
                 {showLocker && (
                     <QuickLocker 
-                        title="Mes Maillets" items={malletsCatalog} ownedIds={ownedMallets} currentId={currentMalletId} onSelect={selectMallet} onClose={() => setShowLocker(false)}
+                        title="Mes Maillets" items={malletsCatalog} ownedIds={ownedMallets} currentId={currentMalletId} onSelect={selectMallet} onClose={() => setShowLocker(false)} onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(mallet) => (
                             <div className="w-12 h-12 rounded-full border-2" style={{ backgroundColor: mallet.colors[0], boxShadow: `0 0 15px ${mallet.colors[0]}` }}></div>
                         )}
@@ -148,7 +150,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
                 {showLocker && (
                     <QuickLocker 
-                        title="Mes Maillets" items={malletsCatalog} ownedIds={ownedMallets} currentId={currentMalletId} onSelect={selectMallet} onClose={() => setShowLocker(false)}
+                        title="Mes Maillets" items={malletsCatalog} ownedIds={ownedMallets} currentId={currentMalletId} onSelect={selectMallet} onClose={() => setShowLocker(false)} onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(mallet) => (
                             <div className="w-12 h-12 rounded-full border-2" style={{ backgroundColor: mallet.colors[0], boxShadow: `0 0 15px ${mallet.colors[0]}` }}></div>
                         )}
@@ -196,7 +198,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
 
             {showLocker && (
                 <QuickLocker 
-                    title="Mes Maillets" items={malletsCatalog} ownedIds={ownedMallets} currentId={currentMalletId} onSelect={selectMallet} onClose={() => setShowLocker(false)}
+                    title="Mes Maillets" items={malletsCatalog} ownedIds={ownedMallets} currentId={currentMalletId} onSelect={selectMallet} onClose={() => setShowLocker(false)} onGoToShop={() => setCurrentView('shop')}
                     renderPreview={(mallet) => (
                         <div className="w-12 h-12 rounded-full border-2" style={{ backgroundColor: mallet.colors[0], boxShadow: `0 0 15px ${mallet.colors[0]}` }}></div>
                     )}

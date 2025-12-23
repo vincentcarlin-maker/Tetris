@@ -5,6 +5,7 @@ import { SERVERS } from '../constants';
 import { OnlineUser } from '../../hooks/useSupabase';
 import { QuickLocker } from '../../common/QuickLocker';
 import { useCurrency } from '../../../hooks/useCurrency';
+import { useGlobal } from '../../../context/GlobalContext';
 
 interface SlitherUIProps {
     gameState: string;
@@ -33,6 +34,7 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
         currentSlitherSkinId, selectSlitherSkin, ownedSlitherSkins, slitherSkinsCatalog,
         currentSlitherAccessoryId, selectSlitherAccessory, ownedSlitherAccessories, slitherAccessoriesCatalog
     } = useCurrency();
+    const { setCurrentView } = useGlobal();
     
     const [lockerTab, setLockerTab] = useState<'NONE' | 'SKINS' | 'ACCESSORIES'>('NONE');
 
@@ -96,6 +98,7 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
                         currentId={currentSlitherSkinId}
                         onSelect={selectSlitherSkin}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(skin) => (
                             <div className="w-12 h-12 rounded-full border-2" style={{ background: `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`, borderColor: 'rgba(255,255,255,0.4)', boxShadow: `0 0 15px ${skin.glowColor}80` }}></div>
                         )}
@@ -110,6 +113,7 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
                         currentId={currentSlitherAccessoryId}
                         onSelect={selectSlitherAccessory}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(acc) => {
                             const Icon = acc.icon;
                             return <Icon size={32} style={{ color: acc.color }} />;

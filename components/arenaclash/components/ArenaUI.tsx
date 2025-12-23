@@ -4,6 +4,7 @@ import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins,
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar, useCurrency } from '../../../hooks/useCurrency';
 import { QuickLocker } from '../../common/QuickLocker';
+import { useGlobal } from '../../../context/GlobalContext';
 
 interface ArenaUIProps {
     gameState: string;
@@ -44,6 +45,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         currentTankId, selectTank, ownedTanks, tanksCatalog,
         currentTankAccessoryId, selectTankAccessory, ownedTankAccessories, tankAccessoriesCatalog
     } = useCurrency();
+    const { setCurrentView } = useGlobal();
     
     const [lockerTab, setLockerTab] = useState<'NONE' | 'TANKS' | 'FLAGS'>('NONE');
     
@@ -208,6 +210,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         currentId={currentTankId}
                         onSelect={selectTank}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(tank) => (
                             <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
                                 <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
@@ -225,6 +228,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         currentId={currentTankAccessoryId}
                         onSelect={selectTankAccessory}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(acc) => (
                             <div className="flex flex-col items-center gap-1">
                                 <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
@@ -322,6 +326,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         currentId={currentTankId}
                         onSelect={selectTank}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(tank) => (
                             <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
                                 <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
@@ -339,6 +344,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         currentId={currentTankAccessoryId}
                         onSelect={selectTankAccessory}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(acc) => (
                             <div className="flex flex-col items-center gap-1">
                                 <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
@@ -389,6 +395,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         currentId={currentTankId}
                         onSelect={selectTank}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(tank) => (
                             <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
                                 <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
@@ -406,6 +413,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         currentId={currentTankAccessoryId}
                         onSelect={selectTankAccessory}
                         onClose={() => setLockerTab('NONE')}
+                        onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(acc) => (
                             <div className="flex flex-col items-center gap-1">
                                 <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">

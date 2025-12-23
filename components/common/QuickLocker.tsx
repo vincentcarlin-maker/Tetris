@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Check, Lock, Palette } from 'lucide-react';
+import { X, Check, Lock, Palette, ShoppingBag } from 'lucide-react';
 
 interface QuickLockerProps {
     title: string;
@@ -9,15 +9,16 @@ interface QuickLockerProps {
     currentId: string;
     onSelect: (id: string) => void;
     onClose: () => void;
+    onGoToShop?: () => void;
     renderPreview: (item: any) => React.ReactNode;
 }
 
 export const QuickLocker: React.FC<QuickLockerProps> = ({ 
-    title, items, ownedIds, currentId, onSelect, onClose, renderPreview 
+    title, items, ownedIds, currentId, onSelect, onClose, onGoToShop, renderPreview 
 }) => {
     return (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
-            <div className="bg-gray-900 w-full max-w-md rounded-[32px] border-2 border-white/10 shadow-2xl overflow-hidden flex flex-col relative max-h-[80vh]">
+            <div className="bg-gray-900 w-full max-w-md rounded-[32px] border-2 border-white/10 shadow-2xl overflow-hidden flex flex-col relative max-h-[85vh]">
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-gray-800/50">
                     <h3 className="text-xl font-black text-white italic flex items-center gap-2 uppercase tracking-tight">
                         <Palette className="text-neon-accent" /> {title}
@@ -63,7 +64,15 @@ export const QuickLocker: React.FC<QuickLockerProps> = ({
                     </div>
                 </div>
                 
-                <div className="p-4 border-t border-white/10 bg-gray-800/30">
+                <div className="p-4 border-t border-white/10 bg-gray-800/30 flex flex-col gap-3">
+                    {onGoToShop && (
+                        <button 
+                            onClick={onGoToShop}
+                            className="w-full py-3 bg-yellow-500/10 border border-yellow-500/50 text-yellow-400 font-black tracking-widest rounded-2xl hover:bg-yellow-500 hover:text-black transition-all flex items-center justify-center gap-2 uppercase text-xs shadow-[0_0_10px_rgba(234,179,8,0.2)]"
+                        >
+                            <ShoppingBag size={16}/> Plus de choix en boutique
+                        </button>
+                    )}
                     <button onClick={onClose} className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-neon-accent transition-all shadow-lg uppercase text-sm">
                         Terminer
                     </button>
