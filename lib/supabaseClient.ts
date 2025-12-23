@@ -254,19 +254,27 @@ export const DB = {
     searchUsers: async (query: string) => {
         if (!supabase) return [];
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('username, data')
-                .ilike('username', `%${query}%`)
-                .neq('username', 'SYSTEM_CONFIG')
-                .limit(20);
+            // Utilisation d'un appel RPC pour contourner les policies RLS
+            // qui peuvent empêcher la recherche de profils publics.
+            const { data, error } = await supabase.rpc('search_users_by_name', {
+                p_username: query
+            });
+
+            if (error) {
+                console.error('Erreur lors de la recherche via RPC:', error);
+                return [];
+            }
+            
             return (data || []).map(u => ({
                 id: u.username,
                 name: u.username,
                 avatarId: u.data?.avatarId || 'av_bot',
                 frameId: u.data?.frameId
             }));
-        } catch (e) { return []; }
+        } catch (e) {
+            console.error('Exception lors de la recherche de joueur:', e);
+            return [];
+        }
     },
 
     getUserByEmail: async (email: string) => {
