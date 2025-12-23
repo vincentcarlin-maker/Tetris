@@ -181,7 +181,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.shadowBlur = 0;
 
         } else if (map.id === 'forest' && obs.type === 'pond') {
-            // --- EAU BLEUE ---
             ctx.save();
             const cx = obs.x + obs.w / 2;
             const cy = obs.y + obs.h / 2;
@@ -211,12 +210,10 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.restore();
 
         } else if (map.id === 'forest' && obs.type === 'bridge') {
-            // --- PONTS MARRONS ---
             ctx.save();
             const brown = '#5d4037';
             const lightBrown = '#8d6e63';
             
-            // Base du pont
             ctx.fillStyle = brown;
             ctx.strokeStyle = lightBrown;
             ctx.lineWidth = 2;
@@ -228,7 +225,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.stroke();
             ctx.shadowBlur = 0;
 
-            // Traverses (effet planches)
             ctx.strokeStyle = 'rgba(0,0,0,0.3)';
             ctx.beginPath();
             if (obs.w > obs.h) {
@@ -244,7 +240,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             }
             ctx.stroke();
 
-            // Bordures lumineuses ambrées
             ctx.strokeStyle = '#ffb300';
             ctx.lineWidth = 1;
             ctx.shadowColor = '#ffb300';
@@ -253,6 +248,8 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.restore();
 
         } else {
+            // Immeubles ou Roches
+            ctx.save();
             ctx.fillStyle = map.colors.wall;
             ctx.strokeStyle = map.colors.wallBorder;
             ctx.lineWidth = 2;
@@ -262,6 +259,62 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.shadowBlur = 0;
 
             if (map.id === 'city') {
+                // --- TOIT DES IMMEUBLES DÉTAILLÉ ---
+                // Rebord intérieur
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.strokeRect(obs.x + 8, obs.y + 8, obs.w - 16, obs.h - 16);
+                
+                // Helipad si l'immeuble est assez grand
+                if (obs.w > 180 && obs.h > 180) {
+                    const cx = obs.x + obs.w / 2;
+                    const cy = obs.y + obs.h / 2;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.font = 'black 48px Rajdhani';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('H', cx, cy + 4);
+                }
+
+                // Unités CVC / Climatisation aléatoires
+                const seed = (obs.x * obs.y) % 1000;
+                ctx.fillStyle = '#1a1a2a';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                
+                const drawHVAC = (hx: number, hy: number) => {
+                    ctx.fillRect(hx, hy, 25, 25);
+                    ctx.strokeRect(hx, hy, 25, 25);
+                    ctx.beginPath();
+                    ctx.moveTo(hx + 5, hy + 5); ctx.lineTo(hx + 20, hy + 20);
+                    ctx.moveTo(hx + 20, hy + 5); ctx.lineTo(hx + 5, hy + 20);
+                    ctx.stroke();
+                };
+
+                if (seed > 200) drawHVAC(obs.x + 20, obs.y + 20);
+                if (seed > 500) drawHVAC(obs.x + obs.w - 45, obs.y + obs.h - 45);
+                if (seed > 800) drawHVAC(obs.x + 20, obs.y + obs.h - 45);
+
+                // Panneaux solaires
+                if (seed < 400 && obs.w > 120) {
+                    ctx.fillStyle = 'rgba(0, 136, 255, 0.1)';
+                    ctx.fillRect(obs.x + obs.w - 70, obs.y + 20, 50, 60);
+                    ctx.strokeStyle = 'rgba(0, 243, 255, 0.2)';
+                    for(let i=0; i<5; i++) {
+                        ctx.beginPath(); ctx.moveTo(obs.x + obs.w - 70, obs.y + 20 + i*12); ctx.lineTo(obs.x + obs.w - 20, obs.y + 20 + i*12); ctx.stroke();
+                    }
+                }
+
+                // Bordure Néon principale
                 ctx.strokeStyle = map.colors.wallBorder;
                 ctx.lineWidth = 3;
                 ctx.shadowColor = map.colors.wallBorder;
@@ -274,6 +327,7 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                 ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
                 ctx.shadowBlur = 0;
             }
+            ctx.restore();
         }
     };
 
@@ -305,18 +359,70 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             const roadWidth = 140;
             const hAvenues = [100, 450, 750, 1350, 1700, 2300];
             const vAvenues = [100, 550, 900, 1450, 1800, 2300];
+            
+            // Asphalte
             ctx.fillStyle = '#05050f';
             hAvenues.forEach(y => ctx.fillRect(0, y - roadWidth/2, CANVAS_WIDTH, roadWidth));
             vAvenues.forEach(x => ctx.fillRect(x - roadWidth/2, 0, roadWidth, CANVAS_HEIGHT));
+            
+            // Marquage central (Ligne pointillée néon)
             ctx.strokeStyle = '#00f3ff';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             ctx.shadowColor = '#00f3ff';
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 8;
             ctx.setLineDash([30, 40]);
             hAvenues.forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); });
             vAvenues.forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); });
             ctx.setLineDash([]);
             ctx.shadowBlur = 0;
+
+            // --- SIGNALISATION ROUTIÈRE SUPPLÉMENTAIRE ---
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 3;
+
+            // Passages piétons aux intersections
+            hAvenues.forEach(y => {
+                vAvenues.forEach(x => {
+                    // Vertical crosswalks (above/below intersection)
+                    const drawXWalk = (cx: number, cy: number, horizontal: boolean) => {
+                        for(let i=-3; i<=3; i++) {
+                            if (horizontal) ctx.strokeRect(cx + i*15 - 5, cy - 25, 10, 50);
+                            else ctx.strokeRect(cx - 25, cy + i*15 - 5, 50, 10);
+                        }
+                    };
+                    drawXWalk(x, y - roadWidth/2 - 20, true);
+                    drawXWalk(x, y + roadWidth/2 + 20, true);
+                    drawXWalk(x - roadWidth/2 - 20, y, false);
+                    drawXWalk(x + roadWidth/2 + 20, y, false);
+                });
+            });
+
+            // Flèches directionnelles
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.1)';
+            const drawArrow = (ax: number, ay: number, rot: number) => {
+                ctx.save();
+                ctx.translate(ax, ay);
+                ctx.rotate(rot);
+                ctx.beginPath();
+                ctx.moveTo(-10, 15); ctx.lineTo(0, -15); ctx.lineTo(10, 15);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            };
+
+            // Ajouter quelques flèches sur les routes
+            for(let i=300; i<CANVAS_WIDTH; i+=600) {
+                hAvenues.forEach(y => drawArrow(i, y - 30, Math.PI/2));
+                hAvenues.forEach(y => drawArrow(i + 300, y + 30, -Math.PI/2));
+            }
+            for(let i=300; i<CANVAS_HEIGHT; i+=600) {
+                vAvenues.forEach(x => drawArrow(x - 30, i, 0));
+                vAvenues.forEach(x => drawArrow(x + 30, i + 300, Math.PI));
+            }
+
+            ctx.restore();
         }
     };
 
