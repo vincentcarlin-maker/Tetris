@@ -1,3 +1,4 @@
+
 import { TankSkin, TankAccessory } from '../../constants/types';
 
 export const CANVAS_WIDTH = 2400;
@@ -43,6 +44,7 @@ export interface Obstacle {
     y: number;
     w: number;
     h: number;
+    type?: 'building' | 'tree' | 'pond' | 'rock' | 'bridge';
 }
 
 export interface MapConfig {
@@ -53,6 +55,7 @@ export interface MapConfig {
         grid: string;
         wall: string;
         wallBorder: string;
+        accent?: string;
     };
     obstacles: Obstacle[];
 }
@@ -63,38 +66,44 @@ export const MAPS: MapConfig[] = [
         name: 'MÉGAPOPOLE NÉON',
         colors: { bg: '#020208', grid: 'rgba(0, 217, 255, 0.03)', wall: '#0a0a1a', wallBorder: '#00f3ff' },
         obstacles: [
-            // --- QUARTIER NORD-OUEST ---
-            { x: 150, y: 150, w: 350, h: 250 }, { x: 600, y: 150, w: 200, h: 250 },
-            { x: 150, y: 500, w: 650, h: 150 },
-            
-            // --- QUARTIER NORD-EST ---
-            { x: 1000, y: 150, w: 400, h: 250 }, { x: 1500, y: 150, w: 300, h: 250 }, { x: 1900, y: 150, w: 350, h: 250 },
-            { x: 1000, y: 500, w: 1250, h: 150 },
-
-            // --- QUARTIER CENTRAL ---
-            { x: 150, y: 850, w: 400, h: 400 }, { x: 750, y: 850, w: 300, h: 300 },
-            { x: 1250, y: 850, w: 400, h: 700 }, { x: 1850, y: 850, w: 400, h: 300 },
-
-            // --- QUARTIER SUD-OUEST ---
-            { x: 150, y: 1450, w: 650, h: 200 },
-            { x: 150, y: 1750, w: 300, h: 500 }, { x: 550, y: 1750, w: 250, h: 500 },
-
-            // --- QUARTIER SUD-EST ---
-            { x: 1000, y: 1750, w: 500, h: 500 }, { x: 1600, y: 1750, w: 650, h: 250 },
-            { x: 1600, y: 2100, w: 650, h: 150 },
-
-            // --- BLOCS DE SIGNALISATION / DÉCOR ---
-            { x: 1100, y: 1100, w: 100, h: 100 }, // Rond-point central décor
+            { x: 150, y: 150, w: 350, h: 250, type: 'building' }, { x: 600, y: 150, w: 200, h: 250, type: 'building' },
+            { x: 150, y: 500, w: 650, h: 150, type: 'building' },
+            { x: 1000, y: 150, w: 400, h: 250, type: 'building' }, { x: 1500, y: 150, w: 300, h: 250, type: 'building' }, { x: 1900, y: 150, w: 350, h: 250, type: 'building' },
+            { x: 1000, y: 500, w: 1250, h: 150, type: 'building' },
+            { x: 150, y: 850, w: 400, h: 400, type: 'building' }, { x: 750, y: 850, w: 300, h: 300, type: 'building' },
+            { x: 1250, y: 850, w: 400, h: 700, type: 'building' }, { x: 1850, y: 850, w: 400, h: 300, type: 'building' },
+            { x: 150, y: 1450, w: 650, h: 200, type: 'building' },
+            { x: 150, y: 1750, w: 300, h: 500, type: 'building' }, { x: 550, y: 1750, w: 250, h: 500, type: 'building' },
+            { x: 1000, y: 1750, w: 500, h: 500, type: 'building' }, { x: 1600, y: 1750, w: 650, h: 250, type: 'building' },
+            { x: 1600, y: 2100, w: 650, h: 150, type: 'building' },
+            { x: 1100, y: 1100, w: 100, h: 100, type: 'building' },
         ]
     },
     {
         id: 'forest',
         name: 'CYBER FOREST',
-        colors: { bg: '#020f02', grid: 'rgba(34, 197, 94, 0.1)', wall: 'rgba(34, 197, 94, 0.2)', wallBorder: '#22c55e' },
+        colors: { bg: '#020502', grid: 'rgba(34, 197, 94, 0.05)', wall: '#051405', wallBorder: '#22c55e', accent: '#0088ff' },
         obstacles: [
-            { x: 300, y: 300, w: 120, h: 120 }, { x: 1800, y: 300, w: 120, h: 120 },
-            { x: 300, y: 1800, w: 120, h: 120 }, { x: 1800, y: 1800, w: 120, h: 120 },
-            { x: 1100, y: 1100, w: 200, h: 200 },
+            // --- RIVIÈRES BLEUES ---
+            { x: 0, y: 1100, w: 2400, h: 180, type: 'pond' }, // Rivière Centrale
+            { x: 500, y: 0, w: 150, h: 1100, type: 'pond' },  // Affluent Nord
+            { x: 1600, y: 1280, w: 150, h: 1120, type: 'pond' }, // Affluent Sud
+            
+            // --- PONTS MARRONS ---
+            { x: 450, y: 1080, w: 250, h: 220, type: 'bridge' }, // Pont Central Ouest
+            { x: 1550, y: 1080, w: 250, h: 220, type: 'bridge' }, // Pont Central Est
+            { x: 1550, y: 1600, w: 250, h: 120, type: 'bridge' }, // Pont Sud
+            
+            // --- ARBRES (Multiples) ---
+            { x: 200, y: 200, w: 120, h: 120, type: 'tree' }, { x: 350, y: 350, w: 100, h: 100, type: 'tree' },
+            { x: 800, y: 200, w: 140, h: 140, type: 'tree' }, { x: 1000, y: 400, w: 110, h: 110, type: 'tree' },
+            { x: 1300, y: 250, w: 130, h: 130, type: 'tree' }, { x: 1800, y: 300, w: 150, h: 150, type: 'tree' },
+            { x: 2100, y: 500, w: 120, h: 120, type: 'tree' }, { x: 2000, y: 100, w: 90, h: 90, type: 'tree' },
+            { x: 200, y: 1500, w: 130, h: 130, type: 'tree' }, { x: 400, y: 1700, w: 110, h: 110, type: 'tree' },
+            { x: 800, y: 1500, w: 140, h: 140, type: 'tree' }, { x: 1100, y: 1800, w: 160, h: 160, type: 'tree' },
+            { x: 1400, y: 2100, w: 130, h: 130, type: 'tree' }, { x: 1900, y: 1500, w: 120, h: 120, type: 'tree' },
+            { x: 2100, y: 1800, w: 150, h: 150, type: 'tree' }, { x: 100, y: 2100, w: 100, h: 100, type: 'tree' },
+            { x: 700, y: 2000, w: 115, h: 115, type: 'tree' }, { x: 1600, y: 800, w: 140, h: 140, type: 'tree' }
         ]
     },
     {
@@ -102,8 +111,8 @@ export const MAPS: MapConfig[] = [
         name: 'SOLAR DUST',
         colors: { bg: '#1a0c00', grid: 'rgba(249, 115, 22, 0.1)', wall: 'rgba(234, 179, 8, 0.2)', wallBorder: '#facc15' },
         obstacles: [
-            { x: 400, y: 400, w: 1600, h: 80 }, { x: 400, y: 1900, w: 1600, h: 80 },
-            { x: 400, y: 480, w: 80, h: 1420 }, { x: 1920, y: 480, w: 80, h: 1420 },
+            { x: 400, y: 400, w: 1600, h: 80, type: 'rock' }, { x: 400, y: 1900, w: 1600, h: 80, type: 'rock' },
+            { x: 400, y: 480, w: 80, h: 1420, type: 'rock' }, { x: 1920, y: 480, w: 80, h: 1420, type: 'rock' },
         ]
     }
 ];

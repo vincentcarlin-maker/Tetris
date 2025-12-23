@@ -59,7 +59,6 @@ export const useArenaLogic = (
     useEffect(() => { selectedMapIndexRef.current = selectedMapIndex; }, [selectedMapIndex]);
     useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
 
-    // Live update of character skin/accessory when changed in shop/locker
     useEffect(() => {
         if (playerRef.current) {
             const skin = tanksCatalog.find(t => t.id === currentTankId);
@@ -80,6 +79,7 @@ export const useArenaLogic = (
             y = 150 + Math.random() * (CANVAS_HEIGHT - 300);
             safe = true;
             for (const obs of obstacles) {
+                // Pour le spawn, on évite aussi les ponts et l'eau pour être propre
                 if (x > obs.x - 60 && x < obs.x + obs.w + 60 && y > obs.y - 60 && y < obs.y + obs.h + 60) safe = false;
             }
         } while (!safe);
@@ -174,6 +174,7 @@ export const useArenaLogic = (
             y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
             safe = true;
             for (const obs of obstacles) {
+                // On évite de faire spawn des powerups sur l'eau ou les murs
                 if (x > obs.x - 20 && x < obs.x + obs.w + 20 && y > obs.y - 20 && y < obs.y + obs.h + 20) safe = false;
             }
         } while(!safe && attempts < 50);
@@ -185,7 +186,6 @@ export const useArenaLogic = (
         return newPowerUp;
     }, []);
 
-    // MULTIPLAYER SYNC
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'ARENA_UPDATE' && data.player) {
@@ -245,7 +245,6 @@ export const useArenaLogic = (
         gameStateRef.current = 'PLAYING';
         setEarnedCoins(0);
         
-        // Spawn immédiat d'un bonus au début
         lastPowerUpSpawnRef.current = Date.now() - 3000; 
         
         audio.resumeAudio();
@@ -275,7 +274,6 @@ export const useArenaLogic = (
                  return;
             }
             
-            // Spawn PowerUps toutes les 7 secondes
             if (now - lastPowerUpSpawnRef.current > 7000 && (gameMode === 'SOLO' || mp.isHost)) {
                 const pw = spawnPowerUp();
                 lastPowerUpSpawnRef.current = now;
@@ -285,7 +283,6 @@ export const useArenaLogic = (
             }
         }
 
-        // Camera follow
         cameraRef.current.x = player.x - VIEWPORT_WIDTH / 2;
         cameraRef.current.y = player.y - VIEWPORT_HEIGHT / 2;
         cameraRef.current.x = Math.max(0, Math.min(CANVAS_WIDTH - VIEWPORT_WIDTH, cameraRef.current.x));
@@ -347,7 +344,6 @@ export const useArenaLogic = (
                     lastNetworkUpdateRef.current = now;
                 }
             } else if (gameMode === 'SOLO') {
-                // IA 
                 let nearest = null; let minDist = Infinity;
                 allChars.forEach(other => {
                     if (other.id === char.id || other.isDead) return;
@@ -366,7 +362,6 @@ export const useArenaLogic = (
                 }
             }
 
-            // PowerUp Collection
             for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
                 const pw = powerUpsRef.current[i];
                 if (Math.hypot(char.x - pw.x, char.y - pw.y) < char.radius + pw.radius) {
@@ -379,8 +374,22 @@ export const useArenaLogic = (
                 }
             }
 
-            // Wall Collisions
+            // --- NOUVELLE LOGIQUE DE COLLISION BLOQUANTE ---
+            // On vérifie d'abord si le personnage est sur un pont
+            const isOnBridge = obstacles.some(obs => 
+                obs.type === 'bridge' && 
+                char.x > obs.x && char.x < obs.x + obs.w && 
+                char.y > obs.y && char.y < obs.y + obs.h
+            );
+
             obstacles.forEach(obs => {
+                // 1. Les ponts ne sont jamais bloquants
+                if (obs.type === 'bridge') return;
+
+                // 2. L'eau ne bloque pas si on est sur un pont
+                if (obs.type === 'pond' && isOnBridge) return;
+
+                // 3. Calcul de collision standard
                 const cx = Math.max(obs.x, Math.min(char.x, obs.x + obs.w));
                 const cy = Math.max(obs.y, Math.min(char.y, obs.y + obs.h));
                 const d = Math.hypot(char.x - cx, char.y - cy);
@@ -391,17 +400,20 @@ export const useArenaLogic = (
                     char.x += nx * overlap; char.y += ny * overlap;
                 }
             });
+
             char.x = Math.max(char.radius, Math.min(CANVAS_WIDTH-char.radius, char.x));
             char.y = Math.max(char.radius, Math.min(CANVAS_HEIGHT-char.radius, char.y));
         });
 
-        // project collision
         for (let i = bulletsRef.current.length - 1; i >= 0; i--) {
             const b = bulletsRef.current[i];
             b.x += b.vx * speedFactor; b.y += b.vy * speedFactor; b.life -= dt;
             let hit = false;
             
             for (const obs of obstacles) {
+                // Les balles traversent les ponts et l'eau
+                if (obs.type === 'bridge' || obs.type === 'pond') continue;
+
                 if (b.x > obs.x && b.x < obs.x + obs.w && b.y > obs.y && b.y < obs.y + obs.h) { hit = true; break; }
             }
             
@@ -410,7 +422,6 @@ export const useArenaLogic = (
                     if (char.id !== b.ownerId && !char.isDead) {
                         if (Math.hypot(b.x - char.x, b.y - char.y) < char.radius + b.radius) {
                             hit = true;
-                            // Take Damage
                             const dmg = b.damage;
                             if (char.shield > 0) {
                                 char.shield -= dmg;
@@ -452,7 +463,6 @@ export const useArenaLogic = (
         setTimeLeft(timeLeftRef.current);
     }, [addCoins, mp, updateHighScore, spawnCharacter, playVictory, spawnPowerUp, playExplosion, playGameOver, playPowerUpCollect]);
 
-    // GESTION DU LOBBY ONLINE
     useEffect(() => {
         if (gameMode !== 'ONLINE') return;
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';

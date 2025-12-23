@@ -138,167 +138,186 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.restore();
     };
 
-    const drawBuilding = (ctx: CanvasRenderingContext2D, obs: any, map: any) => {
-        const isCity = map.id === 'city';
-        
-        // 1. Base du bâtiment (Structure principale)
-        ctx.fillStyle = map.colors.wall;
-        ctx.strokeStyle = map.colors.wallBorder;
-        ctx.lineWidth = 2;
-        
-        // Ombre portée interne pour simuler la hauteur
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 10;
-        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-        ctx.shadowBlur = 0;
+    const drawHexagon = (ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) => {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i;
+            const px = x + radius * Math.cos(angle);
+            const py = y + radius * Math.sin(angle);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+    };
 
-        if (isCity) {
-            // 2. Bordure Néon du toit (Parapet)
-            ctx.strokeStyle = map.colors.wallBorder;
-            ctx.lineWidth = 3;
-            ctx.shadowColor = map.colors.wallBorder;
-            ctx.shadowBlur = 12;
-            ctx.strokeRect(obs.x + 2, obs.y + 2, obs.w - 4, obs.h - 4);
+    const drawObstacle = (ctx: CanvasRenderingContext2D, obs: any, map: any) => {
+        const time = Date.now() / 1000;
+        
+        if (map.id === 'forest' && obs.type === 'tree') {
+            const cx = obs.x + obs.w / 2;
+            const cy = obs.y + obs.h / 2;
+            const baseRad = obs.w / 2;
+
+            for (let i = 0; i < 3; i++) {
+                const rad = baseRad * (1 - i * 0.25);
+                const pulse = Math.sin(time + i) * 5;
+                ctx.save();
+                ctx.shadowColor = map.colors.wallBorder;
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = i === 0 ? map.colors.wall : `rgba(34, 197, 94, ${0.1 + i * 0.15})`;
+                ctx.strokeStyle = map.colors.wallBorder;
+                ctx.lineWidth = 2;
+                drawHexagon(ctx, cx, cy, rad + pulse);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+            ctx.fillStyle = '#fff';
+            ctx.shadowColor = '#fff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fill();
             ctx.shadowBlur = 0;
 
-            // 3. Détails techniques sur le toit
-            // Ventilation / HVAC
-            const seed = (obs.x * 7 + obs.y * 13);
-            const drawHVAC = (hx: number, hy: number, size: number) => {
-                ctx.fillStyle = '#151525';
-                ctx.fillRect(hx, hy, size, size);
-                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(hx, hy, size, size);
-                // Grilles
+        } else if (map.id === 'forest' && obs.type === 'pond') {
+            // --- EAU BLEUE ---
+            ctx.save();
+            const cx = obs.x + obs.w / 2;
+            const cy = obs.y + obs.h / 2;
+            
+            ctx.fillStyle = 'rgba(0, 136, 255, 0.15)';
+            ctx.beginPath();
+            ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 20);
+            ctx.fill();
+
+            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(obs.w, obs.h) / 1.5);
+            grad.addColorStop(0, 'rgba(0, 243, 255, 0.2)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            [0, 1.5, 3].forEach((offset) => {
+                const progress = ((time + offset) % 4) / 4;
+                const rw = obs.w * progress;
+                const rh = obs.h * progress;
                 ctx.beginPath();
-                for(let i=2; i<size; i+=4) {
-                    ctx.moveTo(hx + 2, hy + i);
-                    ctx.lineTo(hx + size - 2, hy + i);
+                ctx.roundRect(cx - rw/2, cy - rh/2, rw, rh, 20 * progress);
+                ctx.globalAlpha = 1 - progress;
+                ctx.stroke();
+            });
+            ctx.restore();
+
+        } else if (map.id === 'forest' && obs.type === 'bridge') {
+            // --- PONTS MARRONS ---
+            ctx.save();
+            const brown = '#5d4037';
+            const lightBrown = '#8d6e63';
+            
+            // Base du pont
+            ctx.fillStyle = brown;
+            ctx.strokeStyle = lightBrown;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 4);
+            ctx.fill();
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Traverses (effet planches)
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            if (obs.w > obs.h) {
+                for(let i = 10; i < obs.w; i += 20) {
+                    ctx.moveTo(obs.x + i, obs.y + 2);
+                    ctx.lineTo(obs.x + i, obs.y + obs.h - 2);
                 }
-                ctx.stroke();
-            };
-
-            // Placement déterministe basé sur la position
-            if (obs.w > 60 && obs.h > 60) {
-                drawHVAC(obs.x + 20, obs.y + 20, 25);
-                if (obs.w > 150) drawHVAC(obs.x + obs.w - 45, obs.y + 20, 20);
+            } else {
+                for(let i = 10; i < obs.h; i += 20) {
+                    ctx.moveTo(obs.x + 2, obs.y + i);
+                    ctx.lineTo(obs.x + obs.w - 2, obs.y + i);
+                }
             }
+            ctx.stroke();
 
-            // Héliport ou marquage technique pour les très grands bâtiments
-            if (obs.w > 200 && obs.h > 150) {
-                const cx = obs.x + obs.w / 2;
-                const cy = obs.y + obs.h / 2;
-                
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.arc(cx, cy, 40, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                ctx.font = 'bold 30px Rajdhani';
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText("H", cx, cy);
-            }
+            // Bordures lumineuses ambrées
+            ctx.strokeStyle = '#ffb300';
+            ctx.lineWidth = 1;
+            ctx.shadowColor = '#ffb300';
+            ctx.shadowBlur = 8;
+            ctx.strokeRect(obs.x + 2, obs.y + 2, obs.w - 4, obs.h - 4);
+            ctx.restore();
 
-            // Lumières d'avertissement aérien (coins)
-            if (Date.now() % 1000 > 500) {
-                ctx.fillStyle = '#ef4444';
-                ctx.shadowColor = '#ef4444';
-                ctx.shadowBlur = 8;
-                ctx.beginPath();
-                ctx.arc(obs.x + 5, obs.y + 5, 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(obs.x + obs.w - 5, obs.y + obs.h - 5, 2, 0, Math.PI * 2);
-                ctx.fill();
+        } else {
+            ctx.fillStyle = map.colors.wall;
+            ctx.strokeStyle = map.colors.wallBorder;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 10;
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.shadowBlur = 0;
+
+            if (map.id === 'city') {
+                ctx.strokeStyle = map.colors.wallBorder;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = map.colors.wallBorder;
+                ctx.shadowBlur = 12;
+                ctx.strokeRect(obs.x + 2, obs.y + 2, obs.w - 4, obs.h - 4);
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.shadowColor = map.colors.wallBorder;
+                ctx.shadowBlur = 15;
+                ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
                 ctx.shadowBlur = 0;
             }
-        } else {
-            // Pour les autres maps (Forest, Desert), un simple contour suffit
-            ctx.shadowColor = map.colors.wallBorder;
-            ctx.shadowBlur = 15;
-            ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
-            ctx.shadowBlur = 0;
         }
     };
 
-    const drawRoadDecor = (ctx: CanvasRenderingContext2D) => {
-        if (MAPS[selectedMapIndex].id !== 'city') return;
-        
-        const roadWidth = 140;
-        const hAvenues = [100, 450, 750, 1350, 1700, 2300];
-        const vAvenues = [100, 550, 900, 1450, 1800, 2300];
-
-        // 1. Dessiner le bitume (Contrast)
-        ctx.fillStyle = '#05050f';
-        hAvenues.forEach(y => ctx.fillRect(0, y - roadWidth/2, CANVAS_WIDTH, roadWidth));
-        vAvenues.forEach(x => ctx.fillRect(x - roadWidth/2, 0, roadWidth, CANVAS_HEIGHT));
-
-        // 2. Bordures de routes fines
-        ctx.strokeStyle = 'rgba(0, 243, 255, 0.1)';
-        ctx.lineWidth = 1;
-        hAvenues.forEach(y => {
-            ctx.beginPath(); ctx.moveTo(0, y - roadWidth/2); ctx.lineTo(CANVAS_WIDTH, y - roadWidth/2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, y + roadWidth/2); ctx.lineTo(CANVAS_WIDTH, y + roadWidth/2); ctx.stroke();
-        });
-
-        // 3. Signalisation Néon Principale
-        ctx.strokeStyle = '#00f3ff';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = '#00f3ff';
-        ctx.shadowBlur = 10;
-        
-        // Lignes pointillées centrales
-        ctx.setLineDash([30, 40]);
-        hAvenues.forEach(y => {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke();
-        });
-        vAvenues.forEach(x => {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke();
-        });
-        ctx.setLineDash([]);
-        ctx.shadowBlur = 0;
-
-        // 4. Passages piétons et flèches
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        hAvenues.forEach(y => {
-            vAvenues.forEach(x => {
-                // Marquages d'intersection (Passages piétons larges)
-                const pSize = 40;
-                // Horizontal
-                for(let i=-60; i<=60; i+=15) {
-                    ctx.fillRect(x + i, y - roadWidth/2 + 5, 8, 20);
-                    ctx.fillRect(x + i, y + roadWidth/2 - 25, 8, 20);
+    const drawMapDecor = (ctx: CanvasRenderingContext2D, map: any) => {
+        if (map.id === 'forest') {
+            ctx.strokeStyle = 'rgba(0, 255, 157, 0.08)';
+            ctx.lineWidth = 1.5;
+            const trees = map.obstacles.filter((o: any) => o.type === 'tree');
+            for(let i = 0; i < trees.length; i++) {
+                for(let j = i + 1; j < trees.length; j++) {
+                    const dist = Math.hypot(trees[i].x - trees[j].x, trees[i].y - trees[j].y);
+                    if (dist < 400) {
+                        ctx.beginPath();
+                        ctx.moveTo(trees[i].x + trees[i].w/2, trees[i].y + trees[i].h/2);
+                        ctx.lineTo(trees[j].x + trees[j].w/2, trees[j].y + trees[j].h/2);
+                        ctx.stroke();
+                    }
                 }
-                // Vertical
-                for(let i=-60; i<=60; i+=15) {
-                    ctx.fillRect(x - roadWidth/2 + 5, y + i, 20, 8);
-                    ctx.fillRect(x + roadWidth/2 - 25, y + i, 20, 8);
-                }
-            });
-        });
-
-        // 5. Flèches de direction néon (quelques unes)
-        ctx.fillStyle = '#00f3ff';
-        ctx.globalAlpha = 0.4;
-        const drawArrow = (ax: number, ay: number, rot: number) => {
-            ctx.save();
-            ctx.translate(ax, ay);
-            ctx.rotate(rot);
-            ctx.beginPath();
-            ctx.moveTo(-10, 10); ctx.lineTo(10, 0); ctx.lineTo(-10, -10);
-            ctx.fill();
-            ctx.restore();
-        };
-
-        hAvenues.forEach(y => {
-            for(let x=300; x<CANVAS_WIDTH; x+=600) drawArrow(x, y-30, 0);
-            for(let x=600; x<CANVAS_WIDTH; x+=600) drawArrow(x, y+30, Math.PI);
-        });
-        ctx.globalAlpha = 1.0;
+            }
+            if (Date.now() % 100 < 15) {
+                 const x = Math.random() * CANVAS_WIDTH;
+                 const y = Math.random() * CANVAS_HEIGHT;
+                 particlesRef.current.push({
+                     x, y, vx: (Math.random() - 0.5) * 0.8, vy: 0.3 + Math.random() * 0.5,
+                     life: 120, maxLife: 120, color: 'rgba(0, 255, 157, 0.25)', size: 2.5
+                 });
+            }
+        } else if (map.id === 'city') {
+            const roadWidth = 140;
+            const hAvenues = [100, 450, 750, 1350, 1700, 2300];
+            const vAvenues = [100, 550, 900, 1450, 1800, 2300];
+            ctx.fillStyle = '#05050f';
+            hAvenues.forEach(y => ctx.fillRect(0, y - roadWidth/2, CANVAS_WIDTH, roadWidth));
+            vAvenues.forEach(x => ctx.fillRect(x - roadWidth/2, 0, roadWidth, CANVAS_HEIGHT));
+            ctx.strokeStyle = '#00f3ff';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#00f3ff';
+            ctx.shadowBlur = 10;
+            ctx.setLineDash([30, 40]);
+            hAvenues.forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); });
+            vAvenues.forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); });
+            ctx.setLineDash([]);
+            ctx.shadowBlur = 0;
+        }
     };
 
     const draw = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -315,7 +334,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.fillStyle = map.colors.bg;
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // Grille de fond plus discrète
         ctx.strokeStyle = map.colors.grid; ctx.lineWidth = 1;
         for (let x = 0; x <= CANVAS_WIDTH; x += 100) { 
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); 
@@ -324,7 +342,7 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); 
         }
 
-        drawRoadDecor(ctx);
+        drawMapDecor(ctx, map);
 
         powerUpsRef.current.forEach(pw => {
             const floatY = Math.sin(now / 200) * 5;
@@ -353,7 +371,7 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         });
 
         map.obstacles.forEach(obs => { 
-            drawBuilding(ctx, obs, map);
+            drawObstacle(ctx, obs, map);
         });
 
         bulletsRef.current.forEach(b => {
