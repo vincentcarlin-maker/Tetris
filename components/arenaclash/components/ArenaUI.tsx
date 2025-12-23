@@ -1,6 +1,6 @@
 
-import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, X, Wifi, Play, Search, Loader2 } from 'lucide-react';
+import React, { useRef, useEffect, useMemo } from 'react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2 } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar } from '../../../hooks/useCurrency';
 
@@ -39,7 +39,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, onSetGameState, controlsRef,
     mp, avatarsCatalog
 }) => {
-    const [showMobileLeaderboard, setShowMobileLeaderboard] = useState(false);
     
     const leftZoneRef = useRef<HTMLDivElement>(null);
     const rightZoneRef = useRef<HTMLDivElement>(null);
@@ -52,11 +51,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         const index = leaderboard.findIndex(p => p.isMe);
         return index !== -1 ? index + 1 : null;
     }, [leaderboard]);
-
-    // Fermer le classement mobile si le jeu s'arrête ou si le joueur réapparaît
-    useEffect(() => {
-        if (gameState !== 'PLAYING') setShowMobileLeaderboard(false);
-    }, [gameState]);
 
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
         if (gameState === 'GAMEOVER') return; 
@@ -119,37 +113,30 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         return () => { document.removeEventListener('touchstart', handleTouch); document.removeEventListener('touchmove', handleTouch); document.removeEventListener('touchend', handleTouch); };
     }, [gameState]);
 
-    const LeaderboardContent = ({ onClose }: { onClose?: () => void }) => (
-        <div className="flex flex-col h-full pointer-events-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
-                <div className="flex items-center gap-2">
-                    <Trophy size={18} className="text-yellow-400"/>
-                    <span className="text-xs font-black text-white uppercase tracking-widest">Classement</span>
-                </div>
-                {onClose && (
-                    <button 
-                        onClick={(e) => { 
-                            e.preventDefault(); 
-                            e.stopPropagation(); 
-                            onClose(); 
-                        }} 
-                        className="p-2 bg-white/10 hover:bg-red-500/40 rounded-lg text-white transition-colors cursor-pointer z-[110]"
-                    >
-                        <X size={18} />
-                    </button>
-                )}
+    // Mini Classement (Top 3)
+    const MiniLeaderboard = () => (
+        <div className="flex flex-col w-40 bg-black/20 backdrop-blur-sm p-3 rounded-2xl border border-white/10 pointer-events-none">
+            <div className="flex items-center gap-1.5 mb-2 border-b border-white/10 pb-1">
+                <Trophy size={12} className="text-yellow-400/80"/>
+                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Top 3</span>
             </div>
-            <div className="space-y-2.5 overflow-y-auto custom-scrollbar flex-1 pr-1">
-                {leaderboard.length > 0 ? leaderboard.map((p, i) => (
-                    <div key={i} className={`flex justify-between items-center p-2 rounded-lg border transition-all ${p.isMe ? 'bg-cyan-500/20 border-cyan-500 shadow-[0_0_10px_rgba(0,217,255,0.2)]' : 'bg-black/20 border-white/5'}`}>
-                        <div className="flex items-center gap-2 truncate">
-                            <span className={`text-[10px] font-mono ${p.isMe ? 'text-white' : 'text-gray-500'}`}>{i+1}.</span>
-                            <span className={`text-xs truncate ${p.isMe ? 'text-white font-black' : 'text-gray-300 font-bold'}`}>{p.name.toUpperCase()}</span>
+            <div className="space-y-1">
+                {leaderboard.length > 0 ? leaderboard.slice(0, 3).map((p, i) => (
+                    <div key={i} className={`flex justify-between items-center px-1.5 py-0.5 rounded ${p.isMe ? 'bg-cyan-500/20' : ''}`}>
+                        <div className="flex items-center gap-1 truncate max-w-[80px]">
+                            <span className={`text-[9px] font-mono ${p.isMe ? 'text-white' : 'text-gray-500'}`}>{i+1}.</span>
+                            <span className={`text-[10px] truncate ${p.isMe ? 'text-cyan-400 font-black' : 'text-gray-300 font-bold'}`}>{p.name.toUpperCase()}</span>
                         </div>
-                        <span className={`font-mono text-xs ${p.isMe ? 'text-cyan-400' : 'text-white'}`}>{p.score}</span>
+                        <span className={`font-mono text-[10px] ${p.isMe ? 'text-cyan-400' : 'text-white/60'}`}>{p.score}</span>
                     </div>
-                )) : <div className="text-[10px] text-gray-600 animate-pulse italic text-center py-4">Initialisation...</div>}
+                )) : <div className="text-[9px] text-gray-600 italic">Sync...</div>}
             </div>
+            {myRank && myRank > 3 && (
+                <div className="mt-1 pt-1 border-t border-white/5 flex justify-between items-center px-1.5 bg-cyan-500/10 rounded">
+                    <span className="text-[10px] text-cyan-400 font-black">#{myRank} TOI</span>
+                    <span className="text-[10px] text-cyan-400 font-mono">{score}</span>
+                </div>
+            )}
         </div>
     );
 
@@ -276,14 +263,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
                         <div className="flex items-center gap-3 pointer-events-auto">
                             <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Home size={24} /></button>
-                            <button onClick={() => setShowMobileLeaderboard(true)} className="md:hidden p-3 bg-gray-900/90 rounded-2xl text-yellow-400 border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer relative">
-                                <Trophy size={24} />
-                                {myRank && (
-                                    <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-gray-900 shadow-lg animate-pop">
-                                        #{myRank}
-                                    </div>
-                                )}
-                            </button>
                         </div>
 
                         <div className="flex flex-col items-center">
@@ -297,8 +276,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             )}
                         </div>
 
-                        <div className="hidden md:block w-48 bg-gray-900/90 p-5 rounded-[32px] border border-white/10 backdrop-blur-md shadow-2xl pointer-events-auto">
-                            <LeaderboardContent />
+                        <div className="pointer-events-none">
+                            <MiniLeaderboard />
                         </div>
                     </div>
 
@@ -311,14 +290,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         ))}
                     </div>
-
-                    {showMobileLeaderboard && (
-                        <div className="md:hidden fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 pointer-events-auto animate-in fade-in" onClick={() => setShowMobileLeaderboard(false)}>
-                            <div className="w-full max-w-xs bg-gray-900 border-2 border-yellow-500/30 rounded-[40px] p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-                                <LeaderboardContent onClose={() => setShowMobileLeaderboard(false)} />
-                            </div>
-                        </div>
-                    )}
 
                     <div className="absolute bottom-0 w-full h-56 grid grid-cols-2 gap-4 md:gap-8 shrink-0 z-40 p-4 md:p-8 pointer-events-auto">
                         <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 shadow-inner group">
