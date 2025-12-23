@@ -30,7 +30,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         if (coins >= item.price && !ownedList.includes(item.id)) {
             buyFn(item.id, item.price);
             recordTransaction('PURCHASE', -item.price, `Achat ${category}: ${item.name}`);
-            // Force Cloud Sync pour éviter les réversions sur refresh
             await syncDataWithCloud();
         }
     };
@@ -57,10 +56,15 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 return <div className="w-14 h-14 rounded-full border-2 border-white/40 relative shadow-2xl overflow-hidden" style={bgStyle}><div className="absolute inset-0 rounded-full border-4 border-black/20"></div></div>;
             }
             if (category === 'SLITHER_ACCESSORIES') {
+                const AccessoryIcon = item.icon;
                 return (
-                    <div className="w-14 h-14 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center relative shadow-lg overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
-                        <div className="w-8 h-8 rounded-full border-2 border-white/20" style={{ backgroundColor: item.color, boxShadow: `0 0 10px ${item.color}` }}></div>
+                    <div className="w-14 h-14 rounded-2xl bg-gray-800/80 border border-white/10 flex items-center justify-center relative shadow-lg group-hover:border-white/30 transition-all overflow-hidden">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)]"></div>
+                        <AccessoryIcon 
+                            size={32} 
+                            style={{ color: item.color, filter: `drop-shadow(0 0 8px ${item.color})` }}
+                            className="relative z-10 transform group-hover:scale-110 transition-transform" 
+                        />
                     </div>
                 );
             }
@@ -80,7 +84,10 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         return (
             <div className={`p-4 rounded-3xl border flex flex-col items-center text-center transition-all group relative overflow-hidden ${isSelected ? `bg-${colorClass}-900/30 border-${colorClass}-500 shadow-[0_0_30px_rgba(var(--neon-accent-rgb),0.3)]` : isOwned ? 'bg-gray-800/60 border-white/10' : 'bg-gray-900/60 border-white/5'}`}>
                 <div className="mb-3 h-16 flex items-center justify-center">{renderPreview()}</div>
-                <h3 className="font-black text-[10px] text-white mb-3 truncate w-full uppercase tracking-widest">{item.name}</h3>
+                <div className="flex flex-col gap-1 mb-3 w-full">
+                    <h3 className="font-black text-[10px] text-white truncate uppercase tracking-widest">{item.name}</h3>
+                    {item.rarity && <span className={`text-[7px] font-black tracking-[0.2em] px-1.5 py-0.5 rounded border self-center ${item.rarity === 'LEGENDARY' ? 'text-yellow-400 border-yellow-500/50 bg-yellow-500/10' : item.rarity === 'EPIC' ? 'text-purple-400 border-purple-500/50 bg-purple-500/10' : 'text-gray-500 border-white/10 bg-white/5'}`}>{item.rarity}</span>}
+                </div>
                 {isOwned ? (
                     <button onClick={onSelect} disabled={isSelected} className={`w-full py-2 rounded-xl text-[10px] font-black transition-all ${isSelected ? 'bg-green-600/20 text-green-400 cursor-default' : 'bg-blue-600 text-white shadow-lg'}`}>{isSelected ? 'ÉQUIPÉ' : 'CHOISIR'}</button>
                 ) : (
@@ -188,7 +195,10 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                             <div className="mb-2 relative w-24 h-24 flex items-center justify-center">
                                                 <div className="w-16 h-16 rounded-full border-2 relative overflow-hidden shadow-2xl transition-transform group-hover:scale-110" style={{ background: `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`, borderColor: 'rgba(255,255,255,0.4)', boxShadow: `0 0 25px ${skin.glowColor}80` }}><div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,transparent_30%,rgba(0,0,0,0.5)_100%)]"></div></div>
                                             </div>
-                                            <h3 className="font-black text-[10px] text-white mb-3 truncate w-full uppercase">{skin.name}</h3>
+                                            <div className="flex flex-col gap-1 mb-3 w-full">
+                                                <h3 className="font-black text-[10px] text-white truncate w-full uppercase">{skin.name}</h3>
+                                                <span className={`text-[7px] font-black tracking-[0.2em] px-1.5 py-0.5 rounded border self-center ${skin.rarity === 'LEGENDARY' ? 'text-yellow-400 border-yellow-500/50 bg-yellow-500/10' : skin.rarity === 'EPIC' ? 'text-purple-400 border-purple-500/50 bg-purple-500/10' : 'text-gray-500 border-white/10 bg-white/5'}`}>{skin.rarity}</span>
+                                            </div>
                                             {ownedSlitherSkins.includes(skin.id) ? (
                                                 <button onClick={() => selectSlitherSkin(skin.id)} disabled={currentSlitherSkinId === skin.id} className={`w-full py-2.5 rounded-2xl text-[10px] font-black transition-all ${currentSlitherSkinId === skin.id ? 'bg-green-600/20 text-green-400' : 'bg-indigo-600 text-white'}`}>{currentSlitherSkinId === skin.id ? 'ACTIF' : 'CHOISIR'}</button>
                                             ) : (

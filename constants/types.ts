@@ -43,8 +43,10 @@ export interface SlitherAccessory {
     id: string;
     name: string;
     price: number;
-    type: 'CROWN' | 'HAT' | 'GLASSES' | 'NINJA' | 'VIKING' | 'HALO' | 'HORNS' | 'CAT_EARS' | 'MOUSTACHE' | 'MONOCLE' | 'EYEPATCH' | 'BERET' | 'CAP' | 'FEZ' | 'SOMBRERO' | 'TIARA' | 'WITCH' | 'COWBOY' | 'MASK' | 'FLOWER' | 'STAR' | 'ROBOT' | 'DEVIL' | 'ANGEL' | 'HERO';
+    icon: any;
+    type: string;
     color: string;
+    rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
     description: string;
 }
 
@@ -62,7 +64,6 @@ export interface Title {
     name: string;
     price: number;
     color: string;
-    // Add optional shadow property to fix type errors in titles catalog
     shadow?: string;
     description: string;
 }
