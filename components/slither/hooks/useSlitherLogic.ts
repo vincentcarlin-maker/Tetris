@@ -91,9 +91,7 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         handleDataRef.current = (data: any, from: string) => {
             if (gameState === 'MENU' || gameState === 'SERVER_SELECT') return;
 
-            // Découverte des joueurs
             if (data.type === 'SLITHER_JOIN') {
-                // Si on est le Master, on envoie DIRECTEMENT l'état du monde au nouveau
                 if (isMasterRef.current) {
                     mp.sendData({ 
                         type: 'SLITHER_WORLD_SYNC', 
@@ -101,7 +99,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
                         bots: othersRef.current.filter(w => w.id.startsWith('bot_'))
                     });
                 }
-                // Dans tous les cas, on se manifeste
                 if (playerWormRef.current) {
                     mp.sendData({ type: 'SLITHER_UPDATE', worm: playerWormRef.current });
                 }
@@ -119,6 +116,8 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
                     w.radius = remoteWorm.radius;
                     w.isBoost = remoteWorm.isBoost;
                     w.segments = remoteWorm.segments; 
+                    w.skin = remoteWorm.skin;
+                    w.accessory = remoteWorm.accessory;
                 } else {
                     othersRef.current.push({ ...remoteWorm, isDead: false });
                 }
@@ -162,12 +161,14 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         setIsBoosting(false);
         isBoostingRef.current = false;
         
+        const playerSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId) || slitherSkinsCatalog[0];
+        const playerAcc = slitherAccessoriesCatalog.find(a => a.id === currentSlitherAccessoryId);
+
         if (mode === 'ONLINE' && serverId) {
             setCurrentServer(serverId);
             mp.joinPublicRoom(serverId);
             othersRef.current = [];
             foodRef.current = [];
-            // On vérifie si on est seul (potentiel master)
             const sortedPlayers = [...mp.players].sort((a, b) => (a.online_at || "").localeCompare(b.online_at || ""));
             if (sortedPlayers.length <= 1) {
                 isMasterRef.current = true;
@@ -179,9 +180,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             foodRef.current = generateFood(INITIAL_FOOD_COUNT);
         }
 
-        const playerSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId) || slitherSkinsCatalog[0];
-        const playerAcc = slitherAccessoriesCatalog.find(a => a.id === currentSlitherAccessoryId);
-        
         playerWormRef.current = spawnWorm(getMyUniqueId(), username, playerSkin.primaryColor, playerSkin, playerAcc);
         
         setGameState('PLAYING');
@@ -189,7 +187,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         audio.resumeAudio();
         
         if (mode === 'ONLINE') {
-            // Signalement immédiat
             setTimeout(() => mp.sendData({ type: 'SLITHER_JOIN' }), 200);
         }
         
@@ -228,14 +225,12 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         const speedFactor = dt / 16.67;
         const now = Date.now();
 
-        // 1. Détermination du Master (le plus ancien dans la salle)
         if (gameMode === 'ONLINE') {
             const sortedPlayers = [...mp.players].filter(p => p.extraInfo === 'Slither').sort((a, b) => (a.online_at || "").localeCompare(b.online_at || ""));
             const master = sortedPlayers[0];
             isMasterRef.current = master?.id === mp.peerId;
         }
 
-        // 2. Particules & Shake
         particlesRef.current.forEach(p => { p.x += p.vx * speedFactor; p.y += p.vy * speedFactor; p.life -= 0.02 * speedFactor; });
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
         if (shakeRef.current > 0) { shakeRef.current *= Math.pow(0.9, speedFactor); if (shakeRef.current < 0.5) shakeRef.current = 0; }
@@ -249,7 +244,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             return;
         }
 
-        // 3. Sync World (Master Only) - Fréquence augmentée à 1s
         if (gameMode === 'ONLINE' && isMasterRef.current && now - lastWorldSyncRef.current > 1000) {
             let changed = false;
             if (foodRef.current.length < MIN_FOOD_REGEN) {
@@ -271,7 +265,6 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             }
         }
 
-        // 4. Player Update & Network Broadcast
         if (gameMode === 'ONLINE' && now - lastNetworkUpdateRef.current > 45) {
             mp.sendData({ type: 'SLITHER_UPDATE', worm: player });
             lastNetworkUpdateRef.current = now;
@@ -289,6 +282,17 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         
         if (player.isBoost) {
             boostCounterRef.current += speedFactor;
+            // Création d'une traînée de boost (bulles de score perdues)
+            if (frameRef.current % 5 === 0) {
+                 foodRef.current.push({
+                    id: `boost_f_${now}_${Math.random()}`,
+                    x: player.segments[player.segments.length-1].x + (Math.random()-0.5)*20,
+                    y: player.segments[player.segments.length-1].y + (Math.random()-0.5)*20,
+                    val: 1,
+                    color: '#fff'
+                 });
+            }
+            
             if (boostCounterRef.current >= 10) { 
                 boostCounterRef.current = 0;
                 player.segments.pop();
@@ -300,11 +304,9 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
 
         updateWormMovement(player, playerTargetAngle, currentSpeed, speedFactor);
 
-        // 5. Collisions
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) handleDeath();
 
-        // Food eating
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
             const distSq = (head.x - f.x)**2 + (head.y - f.y)**2;
@@ -321,20 +323,18 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             }
         }
 
-        // Worm Collision
         othersRef.current.forEach(other => {
             if (other.isDead) return;
             if (Math.abs(other.segments[0].x - head.x) > 1000 || Math.abs(other.segments[0].y - head.y) > 1000) return;
             
             for (let sIdx = 0; sIdx < other.segments.length; sIdx += 3) {
-                if ((head.x - other.segments[sIdx].x)**2 + (head.y - other.segments[sIdx].y)**2 < (other.radius + 5)**2) { 
+                if ((head.x - other.segments[sIdx].x)**2 + (head.y - other.segments[sIdx].y)**2 < (other.radius + player.radius * 0.4)**2) { 
                     handleDeath(); 
                     return; 
                 }
             }
         });
 
-        // 6. Bot AI (Master manages Bots)
         if (isMasterRef.current) {
             othersRef.current.forEach(bot => {
                 if (!bot.id.startsWith('bot_')) return;
@@ -398,7 +398,7 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         allWorms.forEach(w => {
             if (w.id === bot.id || w.isDead) return;
             for (let sIdx = 0; sIdx < w.segments.length; sIdx += 4) {
-                 if ((bHead.x - w.segments[sIdx].x)**2 + (bHead.y - w.segments[sIdx].y)**2 < (w.radius + 5)**2) {
+                 if ((bHead.x - w.segments[sIdx].x)**2 + (bHead.y - w.segments[sIdx].y)**2 < (w.radius + bot.radius * 0.4)**2) {
                      bot.isDead = true;
                      spawnParticles(bHead.x, bHead.y, bot.color, 15);
                      bot.segments.forEach((s, idx) => { if(idx % 4 === 0) foodRef.current.push({ id: `f_bot_${bot.id}_${idx}`, x: s.x, y: s.y, val: 2, color: bot.color }); });
@@ -407,6 +407,16 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
             }
         });
     };
+
+    const frameRef = useRef(0);
+    useEffect(() => {
+        const loop = () => {
+            frameRef.current++;
+            requestAnimationFrame(loop);
+        };
+        const id = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(id);
+    }, []);
 
     return {
         gameState, setGameState,

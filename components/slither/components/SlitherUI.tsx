@@ -1,8 +1,10 @@
 
-import React from 'react';
-import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull, Server, Signal } from 'lucide-react';
+import React, { useState } from 'react';
+import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull, Server, Signal, Palette } from 'lucide-react';
 import { SERVERS } from '../constants';
 import { OnlineUser } from '../../hooks/useSupabase';
+import { QuickLocker } from '../../common/QuickLocker';
+import { useCurrency } from '../../../hooks/useCurrency';
 
 interface SlitherUIProps {
     gameState: string;
@@ -27,6 +29,12 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
     gameState, gameMode, score, rank, earnedCoins, leaderboard, onlineUsers, isBoosting,
     onStartSolo, onSetMode, onJoinServer, onBackToMenu, onBoostStart, onBoostEnd, onQuit, mp
 }) => {
+    const { 
+        currentSlitherSkinId, selectSlitherSkin, ownedSlitherSkins, slitherSkinsCatalog,
+        currentSlitherAccessoryId, selectSlitherAccessory, ownedSlitherAccessories, slitherAccessoriesCatalog
+    } = useCurrency();
+    
+    const [lockerTab, setLockerTab] = useState<'NONE' | 'SKINS' | 'ACCESSORIES'>('NONE');
 
     if (gameState === 'MENU') {
         return (
@@ -43,9 +51,6 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
                             </h1>
                             <Zap size={56} className="text-indigo-400 drop-shadow-[0_0_25px_rgba(129,140,248,0.8)] animate-pulse hidden md:block" />
                         </div>
-                        <div className="inline-block px-6 py-2 rounded-full border border-indigo-500/30 bg-indigo-900/20 backdrop-blur-sm">
-                            <p className="text-indigo-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Mangez • Grandissez • Dominez</p>
-                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
@@ -54,7 +59,7 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(99,102,241,0.3)]"><User size={32} className="text-indigo-400" /></div>
                                 <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-indigo-300 transition-colors">SOLO</h2>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Entraînement intensif contre 50 IA.</p>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez les sentinelles du système.</p>
                             </div>
                         </button>
 
@@ -66,15 +71,51 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
                                     <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-green-300 transition-colors">EN LIGNE</h2>
                                     <span className="px-2 py-0.5 rounded bg-red-500/20 border border-red-500/50 text-red-400 text-[10px] font-black animate-pulse">LIVE</span>
                                 </div>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez de vrais joueurs.</p>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Duel de survie sur la grille mondiale.</p>
                             </div>
                         </button>
                     </div>
 
-                    <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                        <button onClick={onQuit} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+                    <div className="mt-8 flex gap-4 w-full max-w-sm md:max-w-3xl">
+                        <button onClick={() => setLockerTab('SKINS')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all">
+                            <Palette size={18}/> VESTIAIRE SKINS
+                        </button>
+                        <button onClick={() => setLockerTab('ACCESSORIES')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all">
+                            <User size={18}/> ACCESSOIRES
+                        </button>
                     </div>
+
+                    <button onClick={onQuit} className="mt-12 text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
                 </div>
+
+                {lockerTab === 'SKINS' && (
+                    <QuickLocker 
+                        title="Vos Skins Serpent"
+                        items={slitherSkinsCatalog}
+                        ownedIds={ownedSlitherSkins}
+                        currentId={currentSlitherSkinId}
+                        onSelect={selectSlitherSkin}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(skin) => (
+                            <div className="w-12 h-12 rounded-full border-2" style={{ background: `linear-gradient(to right, ${skin.primaryColor}, ${skin.secondaryColor})`, borderColor: 'rgba(255,255,255,0.4)', boxShadow: `0 0 15px ${skin.glowColor}80` }}></div>
+                        )}
+                    />
+                )}
+
+                {lockerTab === 'ACCESSORIES' && (
+                    <QuickLocker 
+                        title="Vos Accessoires Cyber"
+                        items={slitherAccessoriesCatalog}
+                        ownedIds={ownedSlitherAccessories}
+                        currentId={currentSlitherAccessoryId}
+                        onSelect={selectSlitherAccessory}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(acc) => {
+                            const Icon = acc.icon;
+                            return <Icon size={32} style={{ color: acc.color }} />;
+                        }}
+                    />
+                )}
             </div>
         );
     }

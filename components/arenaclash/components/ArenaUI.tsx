@@ -1,8 +1,9 @@
 
-import React, { useRef, useEffect, useMemo } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2 } from 'lucide-react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
-import { Avatar } from '../../../hooks/useCurrency';
+import { Avatar, useCurrency } from '../../../hooks/useCurrency';
+import { QuickLocker } from '../../common/QuickLocker';
 
 interface ArenaUIProps {
     gameState: string;
@@ -39,6 +40,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, onSetGameState, controlsRef,
     mp, avatarsCatalog
 }) => {
+    const { currentTankId, selectTank, ownedTanks, tanksCatalog } = useCurrency();
+    const [showLocker, setShowLocker] = useState(false);
     
     const leftZoneRef = useRef<HTMLDivElement>(null);
     const rightZoneRef = useRef<HTMLDivElement>(null);
@@ -46,7 +49,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     const rightKnobRef = useRef<HTMLDivElement>(null);
     const activeTouches = useRef<{ move: number | null, aim: number | null }>({ move: null, aim: null });
 
-    // Calcul du rang actuel pour affichage rapide
     const myRank = useMemo(() => {
         const index = leaderboard.findIndex(p => p.isMe);
         return index !== -1 ? index + 1 : null;
@@ -113,7 +115,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         return () => { document.removeEventListener('touchstart', handleTouch); document.removeEventListener('touchmove', handleTouch); document.removeEventListener('touchend', handleTouch); };
     }, [gameState]);
 
-    // Mini Classement (Top 3)
     const MiniLeaderboard = () => (
         <div className="flex flex-col w-40 bg-black/20 backdrop-blur-sm p-3 rounded-2xl border border-white/10 pointer-events-none">
             <div className="flex items-center gap-1.5 mb-2 border-b border-white/10 pb-1">
@@ -131,16 +132,9 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     </div>
                 )) : <div className="text-[9px] text-gray-600 italic">Sync...</div>}
             </div>
-            {myRank && myRank > 3 && (
-                <div className="mt-1 pt-1 border-t border-white/5 flex justify-between items-center px-1.5 bg-cyan-500/10 rounded">
-                    <span className="text-[10px] text-cyan-400 font-black">#{myRank} TOI</span>
-                    <span className="text-[10px] text-cyan-400 font-mono">{score}</span>
-                </div>
-            )}
         </div>
     );
 
-    // --- MENU PRINCIPAL ---
     if (gameState === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
@@ -174,10 +168,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         );
     }
 
-    // --- LOBBY MULTIJOUEUR ---
     if (gameState === 'LOBBY') {
         const hostingPlayers = mp.players.filter((p: any) => p.status === 'hosting' && p.id !== mp.peerId);
-        
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
                 <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/40 via-[#050510] to-black"></div>
@@ -200,10 +192,9 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                         <Play size={20} fill="currentColor"/> Créer Salon
                                     </button>
                                 </div>
-                                <div className="bg-gray-900/60 border border-white/5 rounded-[32px] p-6 text-center">
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Statut Réseau</p>
-                                    <span className="text-green-400 text-xs font-black animate-pulse uppercase">Opérationnel</span>
-                                </div>
+                                <button onClick={() => setShowLocker(true)} className="py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all">
+                                    <Palette size={18}/> VESTIAIRE CHARS
+                                </button>
                             </div>
 
                             <div className="flex-1 bg-black/40 backdrop-blur-md rounded-[40px] border border-white/10 p-8 flex flex-col min-h-0 shadow-2xl">
@@ -236,12 +227,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                         })
                                     ) : (
                                         <div className="flex-1 flex flex-col items-center justify-center text-gray-600 gap-6 opacity-30">
-                                            <div className="relative">
-                                                <div className="absolute inset-0 bg-orange-500/20 rounded-full animate-ping"></div>
-                                                <div className="relative bg-gray-800 p-6 rounded-full border border-gray-700">
-                                                    <Search size={40} />
-                                                </div>
-                                            </div>
+                                            <div className="relative bg-gray-800 p-6 rounded-full border border-gray-700"><Search size={40} /></div>
                                             <p className="text-xs font-black tracking-[0.3em] text-center leading-loose">SCAN DES FRÉQUENCES...<br/>AUCUN COMBAT DÉTECTÉ</p>
                                         </div>
                                     )}
@@ -250,37 +236,84 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                     )}
                 </div>
+
+                {showLocker && (
+                    <QuickLocker 
+                        title="Blindages Arena"
+                        items={tanksCatalog}
+                        ownedIds={ownedTanks}
+                        currentId={currentTankId}
+                        onSelect={selectTank}
+                        onClose={() => setShowLocker(false)}
+                        renderPreview={(tank) => (
+                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
+                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
+                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            </div>
+                        )}
+                    />
+                )}
             </div>
         );
     }
 
-    // --- HUD EN JEU ---
+    if (gameState === 'DIFFICULTY') {
+        return (
+            <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto animate-in fade-in">
+                <h2 className="text-3xl md:text-4xl font-black text-white mb-10 italic uppercase tracking-[0.2em]">Niveau de menace</h2>
+                <div className="flex flex-col gap-4 w-full max-w-[340px]">
+                    {(Object.keys(ARENA_DIFFICULTY_SETTINGS) as Difficulty[]).map(d => {
+                        const s = ARENA_DIFFICULTY_SETTINGS[d];
+                        return (
+                            <button key={d} onClick={() => onStartGame('SOLO', d)} className={`group cursor-pointer flex items-center justify-between px-8 py-6 border-2 rounded-3xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95 shadow-xl`}>
+                                <div className="flex items-center gap-4">{d==='EASY' && <Shield size={32}/>}{d==='MEDIUM' && <Zap size={32}/>}{d==='HARD' && <Skull size={32}/>}<span className="font-black text-xl uppercase tracking-wider">{d==='EASY'?'Novice':d==='MEDIUM'?'Vétéran':'Elite'}</span></div>
+                                <div className="text-[10px] font-black font-mono text-right opacity-60 group-hover:opacity-100">X{s.coinMult}</div>
+                            </button>
+                        );
+                    })}
+                </div>
+                
+                <button onClick={() => setShowLocker(true)} className="mt-8 px-8 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all">
+                    <Palette size={18}/> PERSONNALISER MON CHAR
+                </button>
+
+                <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer">Annuler</button>
+
+                {showLocker && (
+                    <QuickLocker 
+                        title="Blindages Arena"
+                        items={tanksCatalog}
+                        ownedIds={ownedTanks}
+                        currentId={currentTankId}
+                        onSelect={selectTank}
+                        onClose={() => setShowLocker(false)}
+                        renderPreview={(tank) => (
+                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
+                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
+                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            </div>
+                        )}
+                    />
+                )}
+            </div>
+        );
+    }
+
     return (
         <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center overflow-hidden pointer-events-none">
-            
             {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
                         <div className="flex items-center gap-3 pointer-events-auto">
                             <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Home size={24} /></button>
                         </div>
-
                         <div className="flex flex-col items-center">
                             <div className={`text-2xl md:text-4xl font-black font-mono drop-shadow-[0_0_15px_rgba(0,0,0,1)] px-4 md:px-6 py-1.5 md:py-2 bg-black/40 rounded-2xl md:rounded-3xl border border-white/10 backdrop-blur-md ${timeLeft < 10 ? 'text-red-500 animate-pulse border-red-500' : 'text-white'}`}>
                                 {Math.floor(timeLeft / 60)}:{String(Math.ceil(timeLeft % 60)).padStart(2, '0')}
                             </div>
-                            {gameState === 'RESPAWNING' && (
-                                <div className="mt-4 bg-red-950/90 px-4 md:px-6 py-2 rounded-xl md:rounded-2xl text-red-100 font-black animate-pulse border border-red-500 text-[10px] md:text-xs shadow-[0_0_20px_rgba(239,68,68,0.4)] backdrop-blur-md uppercase tracking-[0.2em]">
-                                    Initialisation... {Math.ceil(respawnTimer / 1000)}s
-                                </div>
-                            )}
                         </div>
-
-                        <div className="pointer-events-none">
-                            <MiniLeaderboard />
-                        </div>
+                        <div className="pointer-events-none"><MiniLeaderboard /></div>
                     </div>
-
                     <div className="absolute left-4 bottom-60 md:top-24 md:left-6 flex flex-col gap-1.5 z-10 max-w-[200px]">
                         {killFeed.map(k => (
                             <div key={k.id} className="text-[9px] md:text-[10px] font-black bg-black/70 px-3 py-1.5 rounded-lg text-white animate-in slide-in-from-left-4 border-l-2 border-red-500 backdrop-blur-sm">
@@ -290,81 +323,11 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         ))}
                     </div>
-
                     <div className="absolute bottom-0 w-full h-56 grid grid-cols-2 gap-4 md:gap-8 shrink-0 z-40 p-4 md:p-8 pointer-events-auto">
-                        <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 shadow-inner group">
-                            <div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75"><Activity size={24} className="text-white opacity-50"/></div>
-                            <span className="absolute bottom-3 text-[8px] md:text-[9px] text-cyan-500 font-black tracking-[0.3em] uppercase">Mouvement</span>
-                        </div>
-                        <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden active:bg-white/10 shadow-inner group">
-                            <div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75"><Crosshair size={24} className="text-white opacity-50"/></div>
-                            <span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase">Viseur</span>
-                        </div>
+                        <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner"><div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75"><Activity size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-cyan-500 font-black tracking-[0.3em] uppercase">Mouvement</span></div>
+                        <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner"><div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75"><Crosshair size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase">Viseur</span></div>
                     </div>
                 </>
-            )}
-
-            {/* GAMEOVER - Overlay haute priorité */}
-            {gameState === 'GAMEOVER' && (
-                <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl animate-in zoom-in p-8 text-center pointer-events-auto">
-                    <Trophy size={100} className="text-yellow-400 mb-8 drop-shadow-[0_0_40px_gold] animate-bounce"/>
-                    <h2 className="text-4xl md:text-7xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-orange-500 to-red-600 mb-6 uppercase tracking-tighter">Données de combat</h2>
-                    <div className="bg-gray-800/40 p-6 md:p-8 rounded-[40px] border border-white/10 mb-10 backdrop-blur-md shadow-2xl flex flex-col items-center">
-                        <span className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-[0.4em] mb-2">Eliminations</span>
-                        <span className="text-6xl md:text-7xl font-black text-white font-mono drop-shadow-[0_0_20px_white]">{score}</span>
-                    </div>
-                    {earnedCoins > 0 && <div className="mb-12 flex items-center gap-4 bg-yellow-500/20 px-8 py-4 rounded-3xl border-2 border-yellow-500/50 shadow-lg animate-pulse"><Coins className="text-yellow-400" size={32} /><span className="text-yellow-100 font-black text-2xl md:text-3xl">+{earnedCoins}</span></div>}
-                    <div className="flex gap-4 md:gap-6 w-full max-w-md relative z-[210] pointer-events-auto">
-                        <button 
-                            onClick={(e) => { 
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if(gameMode === 'ONLINE') onRematch(); else onStartGame(); 
-                            }} 
-                            className="flex-1 py-4 md:py-5 bg-red-600 text-white font-black tracking-[0.2em] rounded-3xl hover:bg-red-500 shadow-2xl flex items-center justify-center gap-3 active:scale-95 transition-all text-sm cursor-pointer"
-                        >
-                            <RefreshCw size={24} /> REPLAY
-                        </button>
-                        <button 
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onReturnToMenu();
-                            }} 
-                            className="flex-1 py-4 md:py-5 bg-gray-800 text-gray-300 font-black tracking-[0.2em] rounded-3xl hover:bg-gray-700 text-sm cursor-pointer"
-                        >
-                            MENU
-                        </button>
-                    </div>
-                </div>
-            )}
-            
-            {/* DIFFICULTE */}
-            {gameState === 'DIFFICULTY' && (
-                <div className="absolute inset-0 z-[110] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6 pointer-events-auto animate-in fade-in">
-                    <h2 className="text-3xl md:text-4xl font-black text-white mb-10 italic uppercase tracking-[0.2em]">Niveau de menace</h2>
-                    <div className="flex flex-col gap-4 w-full max-w-[340px]">
-                        {(Object.keys(ARENA_DIFFICULTY_SETTINGS) as Difficulty[]).map(d => {
-                            const s = ARENA_DIFFICULTY_SETTINGS[d];
-                            return (
-                                <button key={d} onClick={() => onStartGame('SOLO', d)} className={`group cursor-pointer flex items-center justify-between px-8 py-6 border-2 rounded-3xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95 shadow-xl`}>
-                                    <div className="flex items-center gap-4">{d==='EASY' && <Shield size={32}/>}{d==='MEDIUM' && <Zap size={32}/>}{d==='HARD' && <Skull size={32}/>}<span className="font-black text-xl uppercase tracking-wider">{d==='EASY'?'Novice':d==='MEDIUM'?'Vétéran':'Elite'}</span></div>
-                                    <div className="text-[10px] font-black font-mono text-right opacity-60 group-hover:opacity-100">X{s.coinMult}</div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer">Annuler</button>
-                </div>
-            )}
-            
-            {gameMode === 'ONLINE' && gameState === 'LOBBY' && isHost && !hasOpponent && (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
-                    <Loader2 size={64} className="text-orange-400 animate-spin mb-6" />
-                    <h2 className="text-2xl font-black text-white italic mb-2 uppercase tracking-widest">En attente d'un adversaire...</h2>
-                    <p className="text-gray-400 text-sm mb-8">Votre signal est diffusé sur la grille.</p>
-                    <button onClick={onCancelHosting} className="px-8 py-3 bg-red-600/20 text-red-500 border border-red-500/50 rounded-xl font-black text-xs uppercase tracking-widest cursor-pointer">Annuler</button>
-                </div>
             )}
         </div>
     );
