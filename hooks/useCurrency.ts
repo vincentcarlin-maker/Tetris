@@ -1,13 +1,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-    Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin,
+    Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin, TankAccessory,
     SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, 
-    FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG, TRANSLATIONS 
+    FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG, TANK_ACCESSORIES_CATALOG, TRANSLATIONS 
 } from '../constants/catalog';
 
-export type { Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin };
-export { SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG };
+export type { Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin, TankAccessory };
+export { SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG, TANK_ACCESSORIES_CATALOG };
 
 const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -68,6 +68,11 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-owned-tanks') || '["tk_classic"]'); } catch { return ["tk_classic"]; }
     });
 
+    const [currentTankAccessoryId, setCurrentTankAccessoryId] = useState(() => localStorage.getItem('neon-tank-accessory') || "ta_none");
+    const [ownedTankAccessories, setOwnedTankAccessories] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-tank-accessories') || '["ta_none"]'); } catch { return ["ta_none"]; }
+    });
+
     const [accentColor, setAccentColor] = useState(() => localStorage.getItem('neon-accent-color') || 'default');
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
     const [voiceChatEnabled, setVoiceChatEnabled] = useState(() => localStorage.getItem('neon-voice-chat') !== 'false');
@@ -112,7 +117,7 @@ export const useCurrency = () => {
     const t = useMemo(() => TRANSLATIONS[language] || TRANSLATIONS.fr, [language]);
 
     return { 
-        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories, ownedTanks,
+        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories, ownedTanks, ownedTankAccessories,
         accentColor, updateAccentColor: (c: string) => { setAccentColor(c); localStorage.setItem('neon-accent-color', c); },
         voiceChatEnabled, toggleVoiceChat: () => setVoiceChatEnabled(v => !v),
         language, setLanguage: (l: string) => { setLanguageState(l); localStorage.setItem('neon-language', l); }, t,
@@ -130,6 +135,9 @@ export const useCurrency = () => {
         currentTankId, selectTank: (id: string) => { setCurrentTankId(id); localStorage.setItem('neon-tank', id); },
         buyTank: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedTanks(p => [...p, id]); localStorage.setItem('neon-owned-tanks', JSON.stringify([...ownedTanks, id])); } },
         tanksCatalog: TANKS_CATALOG,
+        currentTankAccessoryId, selectTankAccessory: (id: string) => { setCurrentTankAccessoryId(id); localStorage.setItem('neon-tank-accessory', id); },
+        buyTankAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedTankAccessories(p => [...p, id]); localStorage.setItem('neon-owned-tank-accessories', JSON.stringify([...ownedTankAccessories, id])); } },
+        tankAccessoriesCatalog: TANK_ACCESSORIES_CATALOG,
         currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
         buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
         wallpapersCatalog: WALLPAPERS_CATALOG,

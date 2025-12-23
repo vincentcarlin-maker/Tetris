@@ -40,8 +40,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, onSetGameState, controlsRef,
     mp, avatarsCatalog
 }) => {
-    const { currentTankId, selectTank, ownedTanks, tanksCatalog } = useCurrency();
-    const [showLocker, setShowLocker] = useState(false);
+    const { 
+        currentTankId, selectTank, ownedTanks, tanksCatalog,
+        currentTankAccessoryId, selectTankAccessory, ownedTankAccessories, tankAccessoriesCatalog
+    } = useCurrency();
+    
+    const [lockerTab, setLockerTab] = useState<'NONE' | 'TANKS' | 'FLAGS'>('NONE');
     
     const leftZoneRef = useRef<HTMLDivElement>(null);
     const rightZoneRef = useRef<HTMLDivElement>(null);
@@ -135,23 +139,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         </div>
     );
 
-    const TankLocker = () => showLocker ? (
-        <QuickLocker 
-            title="Blindages Arena"
-            items={tanksCatalog}
-            ownedIds={ownedTanks}
-            currentId={currentTankId}
-            onSelect={selectTank}
-            onClose={() => setShowLocker(false)}
-            renderPreview={(tank) => (
-                <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
-                    <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
-                    <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
-                </div>
-            )}
-        />
-    ) : null;
-
     if (gameState === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
@@ -186,7 +173,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-red-300 transition-colors uppercase">Solo</h2>
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez les sentinelles de la grille.</p>
                             </div>
-                            <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase">Initialiser <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                         </button>
 
                         <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
@@ -199,17 +185,57 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 </div>
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Confrontation directe mondiale.</p>
                             </div>
-                            <div className="relative z-10 flex items-center gap-2 text-orange-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase">Rechercher <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                         </button>
                     </div>
 
-                    <button onClick={() => setShowLocker(true)} className="mt-8 w-full max-w-sm md:max-w-3xl py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
-                        <Palette size={18}/> VESTIAIRE CHARS
-                    </button>
+                    <div className="mt-8 flex gap-4 w-full max-w-sm md:max-w-3xl">
+                        <button onClick={() => setLockerTab('TANKS')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
+                            <Palette size={18}/> BLINDAGES
+                        </button>
+                        <button onClick={() => setLockerTab('FLAGS')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
+                            <Globe size={18}/> DRAPEAUX
+                        </button>
+                    </div>
 
                     <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest"><Home size={14} /> Retour arcade</button>
                 </div>
-                <TankLocker />
+
+                {lockerTab === 'TANKS' && (
+                    <QuickLocker 
+                        title="Blindages Arena"
+                        items={tanksCatalog}
+                        ownedIds={ownedTanks}
+                        currentId={currentTankId}
+                        onSelect={selectTank}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(tank) => (
+                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
+                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
+                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            </div>
+                        )}
+                    />
+                )}
+
+                {lockerTab === 'FLAGS' && (
+                    <QuickLocker 
+                        title="Drapeaux Nationaux"
+                        items={tankAccessoriesCatalog}
+                        ownedIds={ownedTankAccessories}
+                        currentId={currentTankAccessoryId}
+                        onSelect={selectTankAccessory}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(acc) => (
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
+                                    {acc.colors.map((c: string, idx: number) => (
+                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    />
+                )}
             </div>
         );
     }
@@ -238,9 +264,14 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                         <Play size={20} fill="currentColor"/> Créer Salon
                                     </button>
                                 </div>
-                                <button onClick={() => setShowLocker(true)} className="py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
-                                    <Palette size={18}/> VESTIAIRE CHARS
-                                </button>
+                                <div className="flex flex-col gap-2">
+                                    <button onClick={() => setLockerTab('TANKS')} className="py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
+                                        <Palette size={18}/> BLINDAGES
+                                    </button>
+                                    <button onClick={() => setLockerTab('FLAGS')} className="py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
+                                        <Globe size={18}/> DRAPEAUX
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex-1 bg-black/40 backdrop-blur-md rounded-[40px] border border-white/10 p-8 flex flex-col min-h-0 shadow-2xl">
@@ -282,7 +313,43 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                     )}
                 </div>
-                <TankLocker />
+
+                {lockerTab === 'TANKS' && (
+                    <QuickLocker 
+                        title="Blindages Arena"
+                        items={tanksCatalog}
+                        ownedIds={ownedTanks}
+                        currentId={currentTankId}
+                        onSelect={selectTank}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(tank) => (
+                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
+                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
+                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            </div>
+                        )}
+                    />
+                )}
+
+                {lockerTab === 'FLAGS' && (
+                    <QuickLocker 
+                        title="Drapeaux Nationaux"
+                        items={tankAccessoriesCatalog}
+                        ownedIds={ownedTankAccessories}
+                        currentId={currentTankAccessoryId}
+                        onSelect={selectTankAccessory}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(acc) => (
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
+                                    {acc.colors.map((c: string, idx: number) => (
+                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    />
+                )}
             </div>
         );
     }
@@ -303,12 +370,53 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     })}
                 </div>
                 
-                <button onClick={() => setShowLocker(true)} className="mt-8 px-8 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase">
-                    <Palette size={18}/> Personnaliser mon char
-                </button>
+                <div className="mt-8 flex gap-3 w-full max-w-sm">
+                    <button onClick={() => setLockerTab('TANKS')} className="flex-1 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase">
+                        <Palette size={18}/> BLINDAGES
+                    </button>
+                    <button onClick={() => setLockerTab('FLAGS')} className="flex-1 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase">
+                        <Globe size={18}/> DRAPEAUX
+                    </button>
+                </div>
 
                 <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer">Annuler</button>
-                <TankLocker />
+                
+                {lockerTab === 'TANKS' && (
+                    <QuickLocker 
+                        title="Blindages Arena"
+                        items={tanksCatalog}
+                        ownedIds={ownedTanks}
+                        currentId={currentTankId}
+                        onSelect={selectTank}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(tank) => (
+                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
+                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
+                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            </div>
+                        )}
+                    />
+                )}
+
+                {lockerTab === 'FLAGS' && (
+                    <QuickLocker 
+                        title="Drapeaux Nationaux"
+                        items={tankAccessoriesCatalog}
+                        ownedIds={ownedTankAccessories}
+                        currentId={currentTankAccessoryId}
+                        onSelect={selectTankAccessory}
+                        onClose={() => setLockerTab('NONE')}
+                        renderPreview={(acc) => (
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
+                                    {acc.colors.map((c: string, idx: number) => (
+                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    />
+                )}
             </div>
         );
     }

@@ -1,3 +1,4 @@
+import { TankSkin, TankAccessory } from '../../constants/types';
 
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 1200;
@@ -103,6 +104,9 @@ export interface Entity {
     color: string;
 }
 
+// Added missing PowerUpType export used by Character and PowerUp interfaces
+export type PowerUpType = 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
+
 export interface Character extends Entity {
     name: string;
     hp: number;
@@ -119,23 +123,18 @@ export interface Character extends Entity {
     shield: number;
     powerups: { type: PowerUpType, expiry: number }[];
     targetId?: string | null;
-    skin?: {
-        primaryColor: string;
-        secondaryColor: string;
-        glowColor: string;
-        isAnimated?: boolean;
-    };
+    skin?: TankSkin;
+    accessory?: TankAccessory;
 }
 
+// Added missing Bullet interface export to fix import errors in useArenaLogic and ArenaRenderer
 export interface Bullet extends Entity {
-    ownerId: string;
     vx: number;
     vy: number;
+    ownerId: string;
     damage: number;
     life: number;
 }
-
-export type PowerUpType = 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
 
 export interface PowerUp extends Entity {
     type: PowerUpType;

@@ -25,6 +25,59 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
 
+    const drawFlag = (ctx: CanvasRenderingContext2D, char: Character) => {
+        const acc = char.accessory;
+        if (!acc || acc.id === 'ta_none' || !acc.colors || acc.colors.length === 0) return;
+
+        ctx.save();
+        // Positionnement à l'arrière du tank
+        // On ne subit pas la rotation du tank pour que le drapeau flotte toujours vers l'arrière
+        const radius = char.radius;
+        const poleX = -radius * 0.8;
+        const poleY = -radius * 0.8;
+        
+        // Dessin du mât
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(poleX, poleY);
+        ctx.lineTo(poleX, poleY - 25);
+        ctx.stroke();
+
+        // Animation du flottement
+        const time = Date.now() / 200;
+        const flagWidth = 18;
+        const flagHeight = 12;
+        const segments = 6;
+        const segW = flagWidth / segments;
+
+        ctx.translate(poleX, poleY - 25);
+
+        acc.colors.forEach((color, cIdx) => {
+            ctx.fillStyle = color;
+            const hPart = flagHeight / acc.colors.length;
+            const yOff = cIdx * hPart;
+
+            ctx.beginPath();
+            ctx.moveTo(0, yOff);
+
+            for (let i = 0; i <= segments; i++) {
+                const x = i * segW;
+                const wave = Math.sin(time + i * 0.8) * 3;
+                ctx.lineTo(x, yOff + wave);
+            }
+            for (let i = segments; i >= 0; i--) {
+                const x = i * segW;
+                const wave = Math.sin(time + i * 0.8) * 3;
+                ctx.lineTo(x, yOff + hPart + wave);
+            }
+            ctx.closePath();
+            ctx.fill();
+        });
+
+        ctx.restore();
+    };
+
     const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil: number) => {
         const { x, y, angle, color, radius, shield, skin } = char;
         ctx.save();
@@ -40,6 +93,9 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.stroke();
             ctx.globalAlpha = 1.0;
         }
+
+        // Dessin du drapeau (au dessus du châssis mais suit la position)
+        drawFlag(ctx, char);
 
         ctx.rotate(angle);
         

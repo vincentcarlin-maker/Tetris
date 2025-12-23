@@ -14,7 +14,7 @@ export const useArenaLogic = (
     addCoins: (amount: number) => void,
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void
 ) => {
-    const { username, currentTankId, tanksCatalog } = useCurrency();
+    const { username, currentTankId, tanksCatalog, currentTankAccessoryId, tankAccessoriesCatalog } = useCurrency();
     const { updateHighScore } = useHighScores();
     const { playLaserShoot, playExplosion, playPowerUpCollect, playVictory, playGameOver, playCoin } = audio;
 
@@ -59,7 +59,17 @@ export const useArenaLogic = (
     useEffect(() => { selectedMapIndexRef.current = selectedMapIndex; }, [selectedMapIndex]);
     useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
 
-    const spawnCharacter = useCallback((id: string, name: string, isPlayer: boolean, isRemote: boolean = false, remoteSkin?: any): Character => {
+    // Live update of character skin/accessory when changed in shop/locker
+    useEffect(() => {
+        if (playerRef.current) {
+            const skin = tanksCatalog.find(t => t.id === currentTankId);
+            const acc = tankAccessoriesCatalog.find(a => a.id === currentTankAccessoryId);
+            if (skin) playerRef.current.skin = skin;
+            if (acc) playerRef.current.accessory = acc;
+        }
+    }, [currentTankId, currentTankAccessoryId, tanksCatalog, tankAccessoriesCatalog]);
+
+    const spawnCharacter = useCallback((id: string, name: string, isPlayer: boolean, isRemote: boolean = false, remoteSkin?: any, remoteAcc?: any): Character => {
         let x, y, safe;
         const currentDifficulty = difficultyRef.current;
         const diffSettings = ARENA_DIFFICULTY_SETTINGS[currentDifficulty];
@@ -75,11 +85,13 @@ export const useArenaLogic = (
         } while (!safe);
 
         const playerSkin = tanksCatalog.find(t => t.id === currentTankId) || tanksCatalog[0];
+        const playerAcc = tankAccessoriesCatalog.find(a => a.id === currentTankAccessoryId) || tankAccessoriesCatalog[0];
 
         return {
             id, name, x, y, radius: 22,
             color: isPlayer ? playerSkin.primaryColor : COLORS.enemy,
             skin: isPlayer ? playerSkin : (isRemote ? remoteSkin : undefined),
+            accessory: isPlayer ? playerAcc : (isRemote ? remoteAcc : undefined),
             hp: 100, maxHp: 100,
             angle: 0, vx: 0, vy: 0, 
             speed: isPlayer || isRemote ? 5 : diffSettings.botSpeed,
@@ -91,7 +103,7 @@ export const useArenaLogic = (
             powerups: [],
             targetId: null
         };
-    }, [currentTankId, tanksCatalog]);
+    }, [currentTankId, tanksCatalog, currentTankAccessoryId, tankAccessoriesCatalog]);
 
     const spawnParticles = (x: number, y: number, color: string, count: number, type: 'spark' | 'smoke' | 'explosion' = 'spark') => {
         for (let i = 0; i < count; i++) {
@@ -181,7 +193,7 @@ export const useArenaLogic = (
                 if (remote.id === mp.peerId) return;
                 let existing = botsRef.current.find(b => b.id === remote.id);
                 if (!existing) {
-                    existing = spawnCharacter(remote.id, remote.name || "Adversaire", false, true, remote.skin);
+                    existing = spawnCharacter(remote.id, remote.name || "Adversaire", false, true, remote.skin, remote.accessory);
                     botsRef.current.push(existing);
                 }
                 existing.x = remote.x; existing.y = remote.y;
@@ -189,6 +201,7 @@ export const useArenaLogic = (
                 existing.shield = remote.shield; existing.isDead = remote.isDead;
                 existing.score = remote.score;
                 if (remote.skin) existing.skin = remote.skin;
+                if (remote.accessory) existing.accessory = remote.accessory;
             }
             if (data.type === 'ARENA_SHOOT' && data.id !== mp.peerId) {
                 const shooter = botsRef.current.find(b => b.id === data.id);
@@ -325,7 +338,7 @@ export const useArenaLogic = (
                 }
                 
                 if (gameMode === 'ONLINE' && now - lastNetworkUpdateRef.current > 50) {
-                    mp.sendData({ type: 'ARENA_UPDATE', player: { id: char.id, x: char.x, y: char.y, angle: char.angle, hp: char.hp, shield: char.shield, isDead: char.isDead, score: char.score, skin: char.skin } });
+                    mp.sendData({ type: 'ARENA_UPDATE', player: { id: char.id, x: char.x, y: char.y, angle: char.angle, hp: char.hp, shield: char.shield, isDead: char.isDead, score: char.score, skin: char.skin, accessory: char.accessory } });
                     lastNetworkUpdateRef.current = now;
                 }
             } else if (gameMode === 'SOLO') {
@@ -440,6 +453,7 @@ export const useArenaLogic = (
             if (gameState !== 'LOBBY' && gameState !== 'MENU') setGameState('LOBBY');
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
+            setOpponentLeft(false);
             if (gameState !== 'PLAYING') startGame('ONLINE');
         }
     }, [mp.mode, mp.isHost, mp.players, gameMode]);

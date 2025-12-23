@@ -1,5 +1,5 @@
 
-import { TankSkin } from '../types';
+import { TankSkin, TankAccessory } from '../types';
 
 export const TANKS_CATALOG: TankSkin[] = [
     { id: 'tk_classic', name: 'Char Classique', price: 0, primaryColor: '#00d9ff', secondaryColor: '#0055ff', glowColor: '#00d9ff', description: 'Le blindage standard de la grille.' },
@@ -11,4 +11,17 @@ export const TANKS_CATALOG: TankSkin[] = [
     { id: 'tk_gold', name: 'Royal Armor', price: 10000, primaryColor: '#ffe600', secondaryColor: '#ff9d00', glowColor: '#ffe600', description: 'L\'armure des champions de l\'arène.', isAnimated: true },
     { id: 'tk_plasma', name: 'Noyau Plasma', price: 7500, primaryColor: '#00f3ff', secondaryColor: '#ff00ff', glowColor: '#00f3ff', description: 'Réacteur énergétique instable.', isAnimated: true },
     { id: 'tk_void', name: 'Néant Obscur', price: 15000, primaryColor: '#1e1b4b', secondaryColor: '#000000', glowColor: '#9d00ff', description: 'Venu des confins du vide.', isAnimated: true }
+];
+
+export const TANK_ACCESSORIES_CATALOG: TankAccessory[] = [
+    { id: 'ta_none', name: 'Aucun', price: 0, type: 'flag', colors: [], rarity: 'COMMON', description: 'Pas de fioritures.' },
+    { id: 'ta_flag_fr', name: 'Drapeau France', price: 400, type: 'flag', colors: ['#0055A4', '#FFFFFF', '#EF4135'], rarity: 'RARE', description: 'Fierté tricolore.' },
+    { id: 'ta_flag_it', name: 'Drapeau Italie', price: 400, type: 'flag', colors: ['#009246', '#FFFFFF', '#CE2B37'], rarity: 'RARE', description: 'Forza sur le champ de bataille.' },
+    { id: 'ta_flag_de', name: 'Drapeau Allemagne', price: 400, type: 'flag', colors: ['#000000', '#DD0000', '#FFCE00'], rarity: 'RARE', description: 'La rigueur du combat.' },
+    { id: 'ta_flag_es', name: 'Drapeau Espagne', price: 400, type: 'flag', colors: ['#AA151B', '#F1BF00', '#AA151B'], rarity: 'RARE', description: 'La passion du néon.' },
+    { id: 'ta_flag_us', name: 'Drapeau USA', price: 400, type: 'flag', colors: ['#3C3B6E', '#FFFFFF', '#B22234'], rarity: 'RARE', description: 'Stars and Stripes.' },
+    { id: 'ta_flag_jp', name: 'Drapeau Japon', price: 400, type: 'flag', colors: ['#FFFFFF', '#BC002D'], rarity: 'RARE', description: 'Le soleil levant.' },
+    { id: 'ta_flag_br', name: 'Drapeau Brésil', price: 400, type: 'flag', colors: ['#009739', '#FEDD00', '#012169'], rarity: 'RARE', description: 'Le rythme de l\'arène.' },
+    { id: 'ta_flag_pirate', name: 'Jolly Roger', price: 1200, type: 'flag', colors: ['#000000', '#FFFFFF', '#000000'], rarity: 'EPIC', description: 'Pas de quartier !' },
+    { id: 'ta_flag_neon', name: 'Bannière Néon', price: 2500, type: 'flag', colors: ['#00f3ff', '#ff00ff', '#9d00ff'], rarity: 'LEGENDARY', description: 'L\'emblème ultime de l\'Arcade.' },
 ];

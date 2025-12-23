@@ -51,6 +51,16 @@ export interface SlitherAccessory {
     description: string;
 }
 
+export interface TankAccessory {
+    id: string;
+    name: string;
+    price: number;
+    type: 'flag' | 'antenna' | 'exhaust';
+    colors: string[];
+    rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+    description: string;
+}
+
 export interface Wallpaper {
     id: string;
     name: string;
