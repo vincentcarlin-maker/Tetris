@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-/* Added X to the imports from lucide-react */
 import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses, Crosshair, Flag, X } from 'lucide-react';
 import { useCurrency } from '../hooks/useCurrency';
 import { useGlobal } from '../context/GlobalContext';
@@ -80,7 +79,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                 );
             }
             if (category === 'TANK_ACCESSORIES') {
-                /* Fix: Import X from lucide-react to resolve the error. */
                 if (item.id === 'ta_none') return <X className="text-gray-500 opacity-30" size={32} />;
                 return (
                     <div className="flex border border-white/20 w-14 h-9 rounded-sm overflow-hidden shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform">
@@ -149,7 +147,6 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                         <button onClick={() => setActiveGroup('GEAR')} className="group relative h-40 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-yellow-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/40 via-orange-900/40 to-black"></div>
                             <div className="absolute inset-0 p-6 flex flex-col justify-end items-start text-left">
-                                /* Fix: Corrected syntax error in className and ensured Disc icon is correctly referenced. */
                                 <Disc size={32} className="text-yellow-400 mb-3" />
                                 <h2 className="text-xl font-black italic tracking-tight uppercase">Matériel</h2>
                                 <p className="text-[9px] text-gray-400 font-bold tracking-widest mt-1">MAILLETS HOCKEY</p>
