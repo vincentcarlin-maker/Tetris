@@ -1,7 +1,7 @@
 import { TankSkin, TankAccessory } from '../../constants/types';
 
-export const CANVAS_WIDTH = 1200;
-export const CANVAS_HEIGHT = 1200;
+export const CANVAS_WIDTH = 2400;
+export const CANVAS_HEIGHT = 2400;
 export const VIEWPORT_WIDTH = 800;
 export const VIEWPORT_HEIGHT = 600;
 
@@ -21,7 +21,7 @@ export const COLORS = {
     }
 };
 
-export const BOT_NAMES = ["Neo", "Glitch", "Viper", "Ghost", "Cyborg", "Pixel", "Byte", "Kilo", "Mega", "Tera"];
+export const BOT_NAMES = ["Neo", "Glitch", "Viper", "Ghost", "Cyborg", "Pixel", "Byte", "Kilo", "Mega", "Tera", "Apex", "Zero", "Rogue", "Titan", "Volt"];
 
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
@@ -33,9 +33,9 @@ export const ARENA_DIFFICULTY_SETTINGS: Record<Difficulty, {
     coinMult: number,
     color: string
 }> = {
-    EASY: { botSpeed: 2.5, botHp: 80, botShield: 0, botWeaponDelay: 1000, coinMult: 1, color: 'text-green-400 border-green-500' },
-    MEDIUM: { botSpeed: 3.5, botHp: 100, botShield: 0, botWeaponDelay: 600, coinMult: 1.5, color: 'text-yellow-400 border-yellow-500' },
-    HARD: { botSpeed: 4.8, botHp: 150, botShield: 50, botWeaponDelay: 300, coinMult: 2.5, color: 'text-red-500 border-red-500' }
+    EASY: { botSpeed: 2.8, botHp: 80, botShield: 0, botWeaponDelay: 1000, coinMult: 1, color: 'text-green-400 border-green-500' },
+    MEDIUM: { botSpeed: 3.8, botHp: 100, botShield: 0, botWeaponDelay: 600, coinMult: 1.5, color: 'text-yellow-400 border-yellow-500' },
+    HARD: { botSpeed: 5.2, botHp: 150, botShield: 50, botWeaponDelay: 300, coinMult: 2.5, color: 'text-red-500 border-red-500' }
 };
 
 export interface Obstacle {
@@ -60,14 +60,31 @@ export interface MapConfig {
 export const MAPS: MapConfig[] = [
     {
         id: 'city',
-        name: 'NÉON CITY',
-        colors: { bg: '#050510', grid: 'rgba(0, 217, 255, 0.1)', wall: 'rgba(176, 0, 255, 0.2)', wallBorder: '#b000ff' },
+        name: 'MÉGAPOPOLE NÉON',
+        colors: { bg: '#020208', grid: 'rgba(0, 217, 255, 0.03)', wall: '#0a0a1a', wallBorder: '#00f3ff' },
         obstacles: [
-            { x: 200, y: 200, w: 100, h: 100 }, { x: 900, y: 200, w: 100, h: 100 },
-            { x: 200, y: 900, w: 100, h: 100 }, { x: 900, y: 900, w: 100, h: 100 },
-            { x: 550, y: 550, w: 100, h: 100 }, { x: 500, y: 100, w: 200, h: 50 },
-            { x: 500, y: 1050, w: 200, h: 50 }, { x: 100, y: 500, w: 50, h: 200 },
-            { x: 1050, y: 500, w: 50, h: 200 },
+            // --- QUARTIER NORD-OUEST ---
+            { x: 150, y: 150, w: 350, h: 250 }, { x: 600, y: 150, w: 200, h: 250 },
+            { x: 150, y: 500, w: 650, h: 150 },
+            
+            // --- QUARTIER NORD-EST ---
+            { x: 1000, y: 150, w: 400, h: 250 }, { x: 1500, y: 150, w: 300, h: 250 }, { x: 1900, y: 150, w: 350, h: 250 },
+            { x: 1000, y: 500, w: 1250, h: 150 },
+
+            // --- QUARTIER CENTRAL ---
+            { x: 150, y: 850, w: 400, h: 400 }, { x: 750, y: 850, w: 300, h: 300 },
+            { x: 1250, y: 850, w: 400, h: 700 }, { x: 1850, y: 850, w: 400, h: 300 },
+
+            // --- QUARTIER SUD-OUEST ---
+            { x: 150, y: 1450, w: 650, h: 200 },
+            { x: 150, y: 1750, w: 300, h: 500 }, { x: 550, y: 1750, w: 250, h: 500 },
+
+            // --- QUARTIER SUD-EST ---
+            { x: 1000, y: 1750, w: 500, h: 500 }, { x: 1600, y: 1750, w: 650, h: 250 },
+            { x: 1600, y: 2100, w: 650, h: 150 },
+
+            // --- BLOCS DE SIGNALISATION / DÉCOR ---
+            { x: 1100, y: 1100, w: 100, h: 100 }, // Rond-point central décor
         ]
     },
     {
@@ -75,12 +92,9 @@ export const MAPS: MapConfig[] = [
         name: 'CYBER FOREST',
         colors: { bg: '#020f02', grid: 'rgba(34, 197, 94, 0.1)', wall: 'rgba(34, 197, 94, 0.2)', wallBorder: '#22c55e' },
         obstacles: [
-            { x: 300, y: 300, w: 80, h: 80 }, { x: 820, y: 300, w: 80, h: 80 },
-            { x: 300, y: 820, w: 80, h: 80 }, { x: 820, y: 820, w: 80, h: 80 },
-            { x: 560, y: 560, w: 80, h: 80 }, { x: 100, y: 100, w: 150, h: 150 },
-            { x: 950, y: 950, w: 150, h: 150 }, { x: 950, y: 100, w: 150, h: 150 },
-            { x: 100, y: 950, w: 150, h: 150 }, { x: 580, y: 200, w: 40, h: 200 },
-            { x: 580, y: 800, w: 40, h: 200 },
+            { x: 300, y: 300, w: 120, h: 120 }, { x: 1800, y: 300, w: 120, h: 120 },
+            { x: 300, y: 1800, w: 120, h: 120 }, { x: 1800, y: 1800, w: 120, h: 120 },
+            { x: 1100, y: 1100, w: 200, h: 200 },
         ]
     },
     {
@@ -88,10 +102,8 @@ export const MAPS: MapConfig[] = [
         name: 'SOLAR DUST',
         colors: { bg: '#1a0c00', grid: 'rgba(249, 115, 22, 0.1)', wall: 'rgba(234, 179, 8, 0.2)', wallBorder: '#facc15' },
         obstacles: [
-            { x: 400, y: 400, w: 400, h: 50 }, { x: 400, y: 750, w: 400, h: 50 },
-            { x: 400, y: 450, w: 50, h: 300 }, { x: 750, y: 450, w: 50, h: 300 },
-            { x: 150, y: 150, w: 100, h: 100 }, { x: 950, y: 950, w: 100, h: 100 },
-            { x: 150, y: 950, w: 100, h: 100 }, { x: 950, y: 150, w: 100, h: 100 },
+            { x: 400, y: 400, w: 1600, h: 80 }, { x: 400, y: 1900, w: 1600, h: 80 },
+            { x: 400, y: 480, w: 80, h: 1420 }, { x: 1920, y: 480, w: 80, h: 1420 },
         ]
     }
 ];
@@ -104,7 +116,6 @@ export interface Entity {
     color: string;
 }
 
-// Added missing PowerUpType export used by Character and PowerUp interfaces
 export type PowerUpType = 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
 
 export interface Character extends Entity {
@@ -127,7 +138,6 @@ export interface Character extends Entity {
     accessory?: TankAccessory;
 }
 
-// Added missing Bullet interface export to fix import errors in useArenaLogic and ArenaRenderer
 export interface Bullet extends Entity {
     vx: number;
     vy: number;

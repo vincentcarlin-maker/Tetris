@@ -30,12 +30,10 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         if (!acc || acc.id === 'ta_none' || !acc.colors || acc.colors.length === 0) return;
 
         ctx.save();
-        // Positionnement à l'arrière du tank
         const radius = char.radius;
         const poleX = -radius * 0.8;
         const poleY = -radius * 0.8;
         
-        // Dessin du mât
         ctx.strokeStyle = '#666';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -43,7 +41,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.lineTo(poleX, poleY - 25);
         ctx.stroke();
 
-        // Animation du flottement
         const time = Date.now() / 200;
         const flagWidth = 18;
         const flagHeight = 12;
@@ -82,7 +79,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.save();
         ctx.translate(x, y);
         
-        // Shield Bubble
         if (shield > 0) {
             ctx.beginPath();
             ctx.arc(0, 0, radius + 10, 0, Math.PI * 2);
@@ -93,12 +89,10 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.globalAlpha = 1.0;
         }
 
-        // Dessin du drapeau (au dessus du châssis mais suit la position)
         drawFlag(ctx, char);
 
         ctx.rotate(angle);
         
-        // Body Style
         const primary = skin?.primaryColor || color;
         const secondary = skin?.secondaryColor || '#1a1a2e';
         const glow = skin?.glowColor || color;
@@ -108,18 +102,15 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.strokeStyle = primary;
         ctx.lineWidth = 3;
         
-        // Animated Glow
         const glowPulse = isAnimated ? Math.sin(Date.now() / 200) * 10 + 15 : 10;
         ctx.shadowBlur = glowPulse;
         ctx.shadowColor = glow;
 
-        // Draw Body
         ctx.beginPath();
         ctx.roundRect(-radius, -radius, radius * 2, radius * 2, 6);
         ctx.fill();
         ctx.stroke();
         
-        // Pattern or reflection
         if (isAnimated) {
             ctx.globalAlpha = 0.2;
             ctx.fillStyle = glow;
@@ -131,7 +122,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
         ctx.shadowBlur = 0;
 
-        // Turret
         ctx.save();
         ctx.translate(-recoil, 0);
         ctx.fillStyle = '#333';
@@ -140,7 +130,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.strokeRect(0, -5, radius * 1.6, 10);
         ctx.restore();
 
-        // Cockpit
         ctx.fillStyle = primary;
         ctx.beginPath();
         ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
@@ -149,23 +138,184 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.restore();
     };
 
+    const drawBuilding = (ctx: CanvasRenderingContext2D, obs: any, map: any) => {
+        const isCity = map.id === 'city';
+        
+        // 1. Base du bâtiment (Structure principale)
+        ctx.fillStyle = map.colors.wall;
+        ctx.strokeStyle = map.colors.wallBorder;
+        ctx.lineWidth = 2;
+        
+        // Ombre portée interne pour simuler la hauteur
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+        ctx.shadowBlur = 0;
+
+        if (isCity) {
+            // 2. Bordure Néon du toit (Parapet)
+            ctx.strokeStyle = map.colors.wallBorder;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = map.colors.wallBorder;
+            ctx.shadowBlur = 12;
+            ctx.strokeRect(obs.x + 2, obs.y + 2, obs.w - 4, obs.h - 4);
+            ctx.shadowBlur = 0;
+
+            // 3. Détails techniques sur le toit
+            // Ventilation / HVAC
+            const seed = (obs.x * 7 + obs.y * 13);
+            const drawHVAC = (hx: number, hy: number, size: number) => {
+                ctx.fillStyle = '#151525';
+                ctx.fillRect(hx, hy, size, size);
+                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(hx, hy, size, size);
+                // Grilles
+                ctx.beginPath();
+                for(let i=2; i<size; i+=4) {
+                    ctx.moveTo(hx + 2, hy + i);
+                    ctx.lineTo(hx + size - 2, hy + i);
+                }
+                ctx.stroke();
+            };
+
+            // Placement déterministe basé sur la position
+            if (obs.w > 60 && obs.h > 60) {
+                drawHVAC(obs.x + 20, obs.y + 20, 25);
+                if (obs.w > 150) drawHVAC(obs.x + obs.w - 45, obs.y + 20, 20);
+            }
+
+            // Héliport ou marquage technique pour les très grands bâtiments
+            if (obs.w > 200 && obs.h > 150) {
+                const cx = obs.x + obs.w / 2;
+                const cy = obs.y + obs.h / 2;
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.font = 'bold 30px Rajdhani';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("H", cx, cy);
+            }
+
+            // Lumières d'avertissement aérien (coins)
+            if (Date.now() % 1000 > 500) {
+                ctx.fillStyle = '#ef4444';
+                ctx.shadowColor = '#ef4444';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(obs.x + 5, obs.y + 5, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(obs.x + obs.w - 5, obs.y + obs.h - 5, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        } else {
+            // Pour les autres maps (Forest, Desert), un simple contour suffit
+            ctx.shadowColor = map.colors.wallBorder;
+            ctx.shadowBlur = 15;
+            ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.shadowBlur = 0;
+        }
+    };
+
+    const drawRoadDecor = (ctx: CanvasRenderingContext2D) => {
+        if (MAPS[selectedMapIndex].id !== 'city') return;
+        
+        const roadWidth = 140;
+        const hAvenues = [100, 450, 750, 1350, 1700, 2300];
+        const vAvenues = [100, 550, 900, 1450, 1800, 2300];
+
+        // 1. Dessiner le bitume (Contrast)
+        ctx.fillStyle = '#05050f';
+        hAvenues.forEach(y => ctx.fillRect(0, y - roadWidth/2, CANVAS_WIDTH, roadWidth));
+        vAvenues.forEach(x => ctx.fillRect(x - roadWidth/2, 0, roadWidth, CANVAS_HEIGHT));
+
+        // 2. Bordures de routes fines
+        ctx.strokeStyle = 'rgba(0, 243, 255, 0.1)';
+        ctx.lineWidth = 1;
+        hAvenues.forEach(y => {
+            ctx.beginPath(); ctx.moveTo(0, y - roadWidth/2); ctx.lineTo(CANVAS_WIDTH, y - roadWidth/2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, y + roadWidth/2); ctx.lineTo(CANVAS_WIDTH, y + roadWidth/2); ctx.stroke();
+        });
+
+        // 3. Signalisation Néon Principale
+        ctx.strokeStyle = '#00f3ff';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00f3ff';
+        ctx.shadowBlur = 10;
+        
+        // Lignes pointillées centrales
+        ctx.setLineDash([30, 40]);
+        hAvenues.forEach(y => {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke();
+        });
+        vAvenues.forEach(x => {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke();
+        });
+        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+
+        // 4. Passages piétons et flèches
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        hAvenues.forEach(y => {
+            vAvenues.forEach(x => {
+                // Marquages d'intersection (Passages piétons larges)
+                const pSize = 40;
+                // Horizontal
+                for(let i=-60; i<=60; i+=15) {
+                    ctx.fillRect(x + i, y - roadWidth/2 + 5, 8, 20);
+                    ctx.fillRect(x + i, y + roadWidth/2 - 25, 8, 20);
+                }
+                // Vertical
+                for(let i=-60; i<=60; i+=15) {
+                    ctx.fillRect(x - roadWidth/2 + 5, y + i, 20, 8);
+                    ctx.fillRect(x + roadWidth/2 - 25, y + i, 20, 8);
+                }
+            });
+        });
+
+        // 5. Flèches de direction néon (quelques unes)
+        ctx.fillStyle = '#00f3ff';
+        ctx.globalAlpha = 0.4;
+        const drawArrow = (ax: number, ay: number, rot: number) => {
+            ctx.save();
+            ctx.translate(ax, ay);
+            ctx.rotate(rot);
+            ctx.beginPath();
+            ctx.moveTo(-10, 10); ctx.lineTo(10, 0); ctx.lineTo(-10, -10);
+            ctx.fill();
+            ctx.restore();
+        };
+
+        hAvenues.forEach(y => {
+            for(let x=300; x<CANVAS_WIDTH; x+=600) drawArrow(x, y-30, 0);
+            for(let x=600; x<CANVAS_WIDTH; x+=600) drawArrow(x, y+30, Math.PI);
+        });
+        ctx.globalAlpha = 1.0;
+    };
+
     const draw = useCallback((ctx: CanvasRenderingContext2D) => {
         const map = MAPS[selectedMapIndex];
         const cam = cameraRef.current;
         const now = Date.now();
         
-        // Viewport BG
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
         
         ctx.save(); 
         ctx.translate(-cam.x, -cam.y);
 
-        // Map BG
         ctx.fillStyle = map.colors.bg;
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // Grid
+        // Grille de fond plus discrète
         ctx.strokeStyle = map.colors.grid; ctx.lineWidth = 1;
         for (let x = 0; x <= CANVAS_WIDTH; x += 100) { 
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); 
@@ -174,7 +324,8 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); 
         }
 
-        // PowerUps
+        drawRoadDecor(ctx);
+
         powerUpsRef.current.forEach(pw => {
             const floatY = Math.sin(now / 200) * 5;
             ctx.save();
@@ -188,8 +339,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.stroke();
-            
-            // Icon label
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 12px Rajdhani';
             ctx.textAlign = 'center';
@@ -203,49 +352,34 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.restore();
         });
 
-        // Obstacles
         map.obstacles.forEach(obs => { 
-            ctx.fillStyle = map.colors.wall;
-            ctx.strokeStyle = map.colors.wallBorder;
-            ctx.lineWidth = 2;
-            ctx.shadowColor = map.colors.wallBorder;
-            ctx.shadowBlur = 15;
-            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-            ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
-            ctx.shadowBlur = 0;
+            drawBuilding(ctx, obs, map);
         });
 
-        // Bullets
         bulletsRef.current.forEach(b => {
             ctx.shadowColor = b.color; ctx.shadowBlur = 10; ctx.fillStyle = b.color;
             ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
             ctx.shadowBlur = 0;
         });
 
-        // Tanks
         const player = playerRef.current;
         if (player && !player.isDead) drawTank(ctx, player, recoilRef.current[player.id] || 0);
         botsRef.current.forEach(bot => {
             if (!bot.isDead) drawTank(ctx, bot, recoilRef.current[bot.id] || 0);
         });
 
-        // HUD Elements (Health Bars) - Offset increased to reveal flag
         [player, ...botsRef.current].forEach(char => {
             if (!char || char.isDead) return;
             const hpPct = char.hp / char.maxHp;
             const shieldPct = char.shield / 50;
             const barW = 50;
-            
-            // On remonte tout le bloc HUD (barres + nom) d'environ 20-25 pixels
             const hudBaseY = char.y - 65; 
 
-            // HP Bar
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fillRect(char.x - barW/2, hudBaseY, barW, 6);
             ctx.fillStyle = hpPct > 0.4 ? '#0f0' : '#f00';
             ctx.fillRect(char.x - barW/2, hudBaseY, barW * hpPct, 6);
             
-            // Shield Bar
             if (char.shield > 0) {
                 ctx.fillStyle = '#3b82f6';
                 ctx.fillRect(char.x - barW/2, hudBaseY - 5, barW * shieldPct, 3);
@@ -260,7 +394,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.shadowBlur = 0;
         });
 
-        // Particles
         particlesRef.current.forEach(p => {
             ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
