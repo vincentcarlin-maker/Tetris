@@ -1,11 +1,11 @@
 import { TankSkin, TankAccessory } from '../../constants/types';
 
-export const CANVAS_WIDTH = 1200;
-export const CANVAS_HEIGHT = 1200;
+export const CANVAS_WIDTH = 1400;
+export const CANVAS_HEIGHT = 1400;
 export const VIEWPORT_WIDTH = 800;
 export const VIEWPORT_HEIGHT = 600;
 
-export const BULLET_SPEED = 12;
+export const BULLET_SPEED = 14;
 export const MATCH_DURATION = 120;
 export const RESPAWN_TIME = 3000;
 
@@ -21,7 +21,7 @@ export const COLORS = {
     }
 };
 
-export const BOT_NAMES = ["Neo", "Glitch", "Viper", "Ghost", "Cyborg", "Pixel", "Byte", "Kilo", "Mega", "Tera"];
+export const BOT_NAMES = ["Spectre-01", "Neon-Ripper", "Viper-X", "Ghost-Unit", "Cyber-Drone", "Glitch-Bot", "Byte-Z", "Mega-Bit"];
 
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
@@ -34,8 +34,8 @@ export const ARENA_DIFFICULTY_SETTINGS: Record<Difficulty, {
     color: string
 }> = {
     EASY: { botSpeed: 2.5, botHp: 80, botShield: 0, botWeaponDelay: 1000, coinMult: 1, color: 'text-green-400 border-green-500' },
-    MEDIUM: { botSpeed: 3.5, botHp: 100, botShield: 0, botWeaponDelay: 600, coinMult: 1.5, color: 'text-yellow-400 border-yellow-500' },
-    HARD: { botSpeed: 4.8, botHp: 150, botShield: 50, botWeaponDelay: 300, coinMult: 2.5, color: 'text-red-500 border-red-500' }
+    MEDIUM: { botSpeed: 3.8, botHp: 100, botShield: 20, botWeaponDelay: 600, coinMult: 1.5, color: 'text-yellow-400 border-yellow-500' },
+    HARD: { botSpeed: 5.2, botHp: 160, botShield: 60, botWeaponDelay: 350, coinMult: 2.5, color: 'text-red-500 border-red-500' }
 };
 
 export interface Obstacle {
@@ -43,16 +43,20 @@ export interface Obstacle {
     y: number;
     w: number;
     h: number;
+    type?: 'building' | 'wall' | 'kiosk';
+    label?: string;
 }
 
 export interface MapConfig {
     id: string;
     name: string;
+    description: string;
     colors: {
         bg: string;
         grid: string;
         wall: string;
         wallBorder: string;
+        floorDetail: string;
     };
     obstacles: Obstacle[];
 }
@@ -60,20 +64,43 @@ export interface MapConfig {
 export const MAPS: MapConfig[] = [
     {
         id: 'city',
-        name: 'NÉON CITY',
-        colors: { bg: '#050510', grid: 'rgba(0, 217, 255, 0.1)', wall: 'rgba(176, 0, 255, 0.2)', wallBorder: '#b000ff' },
+        name: 'NÉON CITY - DISTRICT 7',
+        description: 'Zone urbaine dense avec gratte-ciels et enseignes holographiques.',
+        colors: { 
+            bg: '#020208', 
+            grid: 'rgba(0, 243, 255, 0.05)', 
+            wall: '#0a0a1f', 
+            wallBorder: '#00f3ff',
+            floorDetail: 'rgba(255, 255, 255, 0.03)'
+        },
         obstacles: [
-            { x: 200, y: 200, w: 100, h: 100 }, { x: 900, y: 200, w: 100, h: 100 },
-            { x: 200, y: 900, w: 100, h: 100 }, { x: 900, y: 900, w: 100, h: 100 },
-            { x: 550, y: 550, w: 100, h: 100 }, { x: 500, y: 100, w: 200, h: 50 },
-            { x: 500, y: 1050, w: 200, h: 50 }, { x: 100, y: 500, w: 50, h: 200 },
-            { x: 1050, y: 500, w: 50, h: 200 },
+            // AVENUE CENTRALE (Bâtiments massifs)
+            { x: 300, y: 300, w: 250, h: 180, type: 'building', label: 'TETRO TOWER' },
+            { x: 850, y: 300, w: 250, h: 180, type: 'building', label: 'CYBER HUB' },
+            { x: 300, y: 920, w: 250, h: 180, type: 'building', label: 'PAC-CORP' },
+            { x: 850, y: 920, w: 250, h: 180, type: 'building', label: 'SNAKE LAB' },
+            
+            // BLOCS CENTRAUX (Plaza)
+            { x: 625, y: 625, w: 150, h: 150, type: 'building', label: 'ARCADE HQ' },
+            
+            // RUES LATÉRALES (Murs de soutien)
+            { x: 50, y: 650, w: 150, h: 40, type: 'wall' },
+            { x: 1200, y: 650, w: 150, h: 40, type: 'wall' },
+            { x: 650, y: 50, w: 40, h: 150, type: 'wall' },
+            { x: 650, y: 1200, w: 40, h: 150, type: 'wall' },
+
+            // PETITS KIOSQUES (Abri temporaire)
+            { x: 100, y: 100, w: 60, h: 60, type: 'kiosk' },
+            { x: 1240, y: 100, w: 60, h: 60, type: 'kiosk' },
+            { x: 100, y: 1240, w: 60, h: 60, type: 'kiosk' },
+            { x: 1240, y: 1240, w: 60, h: 60, type: 'kiosk' },
         ]
     },
     {
         id: 'forest',
         name: 'CYBER FOREST',
-        colors: { bg: '#020f02', grid: 'rgba(34, 197, 94, 0.1)', wall: 'rgba(34, 197, 94, 0.2)', wallBorder: '#22c55e' },
+        description: 'Forêt synthétique aux arbres de fibre optique.',
+        colors: { bg: '#020f02', grid: 'rgba(34, 197, 94, 0.1)', wall: 'rgba(34, 197, 94, 0.2)', wallBorder: '#22c55e', floorDetail: 'rgba(34, 197, 94, 0.05)' },
         obstacles: [
             { x: 300, y: 300, w: 80, h: 80 }, { x: 820, y: 300, w: 80, h: 80 },
             { x: 300, y: 820, w: 80, h: 80 }, { x: 820, y: 820, w: 80, h: 80 },
@@ -86,7 +113,8 @@ export const MAPS: MapConfig[] = [
     {
         id: 'desert',
         name: 'SOLAR DUST',
-        colors: { bg: '#1a0c00', grid: 'rgba(249, 115, 22, 0.1)', wall: 'rgba(234, 179, 8, 0.2)', wallBorder: '#facc15' },
+        description: 'Plaine désertique brûlée par un soleil de données.',
+        colors: { bg: '#1a0c00', grid: 'rgba(249, 115, 22, 0.1)', wall: 'rgba(234, 179, 8, 0.2)', wallBorder: '#facc15', floorDetail: 'rgba(234, 179, 8, 0.05)' },
         obstacles: [
             { x: 400, y: 400, w: 400, h: 50 }, { x: 400, y: 750, w: 400, h: 50 },
             { x: 400, y: 450, w: 50, h: 300 }, { x: 750, y: 450, w: 50, h: 300 },
@@ -104,7 +132,6 @@ export interface Entity {
     color: string;
 }
 
-// Added missing PowerUpType export used by Character and PowerUp interfaces
 export type PowerUpType = 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
 
 export interface Character extends Entity {
@@ -127,7 +154,6 @@ export interface Character extends Entity {
     accessory?: TankAccessory;
 }
 
-// Added missing Bullet interface export to fix import errors in useArenaLogic and ArenaRenderer
 export interface Bullet extends Entity {
     vx: number;
     vy: number;
@@ -149,6 +175,7 @@ export interface Particle {
     maxLife: number;
     color: string;
     size: number;
+    type?: 'spark' | 'smoke' | 'debris';
 }
 
 export interface KillEvent {
