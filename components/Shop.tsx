@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses, Crosshair, Flag, X } from 'lucide-react';
 import { useCurrency } from '../hooks/useCurrency';
@@ -92,6 +91,13 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
             }
             if (category === 'TANK_ACCESSORIES') {
                 if (item.id === 'ta_none') return <X className="text-gray-500 opacity-30" size={32} />;
+                if (item.svg) {
+                    return (
+                        <div className="flex border border-white/20 w-14 h-9 rounded-sm overflow-hidden shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform">
+                            <img src={`data:image/svg+xml;base64,${item.svg}`} alt={item.name} className="w-full h-full object-cover bg-gray-700" />
+                        </div>
+                    );
+                }
                 return (
                     <div className="flex border border-white/20 w-14 h-9 rounded-sm overflow-hidden shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform">
                         {item.colors.map((c: string, idx: number) => (

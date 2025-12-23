@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useArenaLogic } from './hooks/useArenaLogic';
 import { ArenaRenderer } from './components/ArenaRenderer';
