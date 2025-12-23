@@ -38,6 +38,25 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
     const boostCounterRef = useRef<number>(0);
     const isMasterRef = useRef(false);
 
+    // --- EFFECT: LIVE CUSTOMIZATION SYNC ---
+    // Cette partie est CRUCIALE : elle met à jour le serpent dès que vous changez d'item dans le vestiaire
+    useEffect(() => {
+        if (playerWormRef.current) {
+            const newSkin = slitherSkinsCatalog.find(s => s.id === currentSlitherSkinId);
+            const newAcc = slitherAccessoriesCatalog.find(a => a.id === currentSlitherAccessoryId);
+            
+            if (newSkin) {
+                playerWormRef.current.skin = newSkin;
+                playerWormRef.current.color = newSkin.primaryColor;
+            }
+            if (newAcc) {
+                playerWormRef.current.accessory = newAcc;
+            } else {
+                playerWormRef.current.accessory = undefined;
+            }
+        }
+    }, [currentSlitherSkinId, currentSlitherAccessoryId, slitherSkinsCatalog, slitherAccessoriesCatalog]);
+
     // --- HELPERS ---
     const getMyUniqueId = () => {
         return localStorage.getItem('neon_social_id') || mp.peerId || `anon_${Math.random().toString(36).substr(2, 5)}`;
