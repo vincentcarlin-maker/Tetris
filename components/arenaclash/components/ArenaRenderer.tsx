@@ -297,7 +297,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                 ctx.shadowBlur = 12;
                 ctx.strokeRect(obs.x + 2, obs.y + 2, obs.w - 4, obs.h - 4);
             } else if (map.id === 'desert') {
-                 // Effet roche sablonneuse
                  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
                  for(let i=0; i<3; i++) {
                      ctx.strokeRect(obs.x + i*4, obs.y + i*4, obs.w - i*8, obs.h - i*8);
@@ -346,9 +345,13 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             const roadWidth = 140;
             const hAvenues = [100, 450, 750, 1350, 1700, 2300];
             const vAvenues = [100, 550, 900, 1450, 1800, 2300];
+            
+            // Asphalte
             ctx.fillStyle = '#05050f';
             hAvenues.forEach(y => ctx.fillRect(0, y - roadWidth/2, CANVAS_WIDTH, roadWidth));
             vAvenues.forEach(x => ctx.fillRect(x - roadWidth/2, 0, roadWidth, CANVAS_HEIGHT));
+            
+            // Marquage central
             ctx.strokeStyle = '#00f3ff';
             ctx.lineWidth = 2;
             ctx.shadowColor = '#00f3ff';
@@ -358,12 +361,74 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             vAvenues.forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); });
             ctx.setLineDash([]);
             ctx.shadowBlur = 0;
+
+            // --- LAMPADAIRES NÉON ---
+            ctx.save();
+            const drawLamp = (lx: number, ly: number) => {
+                // Halo de lumière au sol
+                const halo = ctx.createRadialGradient(lx, ly, 0, lx, ly, 60);
+                halo.addColorStop(0, 'rgba(0, 243, 255, 0.15)');
+                halo.addColorStop(1, 'transparent');
+                ctx.fillStyle = halo;
+                ctx.beginPath();
+                ctx.arc(lx, ly, 60, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Base du lampadaire
+                ctx.fillStyle = '#222';
+                ctx.beginPath();
+                ctx.arc(lx, ly, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Tête lumineuse (un peu décalée pour simuler la hauteur)
+                const glowY = ly - 10;
+                ctx.fillStyle = '#00f3ff';
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(lx, glowY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Petit reflet blanc au centre
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(lx, glowY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            };
+
+            // Placer des lampadaires aux intersections et le long des routes
+            hAvenues.forEach(y => {
+                vAvenues.forEach(x => {
+                    // Aux 4 coins des intersections
+                    const off = roadWidth/2 + 15;
+                    drawLamp(x - off, y - off);
+                    drawLamp(x + off, y - off);
+                    drawLamp(x - off, y + off);
+                    drawLamp(x + off, y + off);
+                });
+            });
+
+            // Entre les intersections
+            for(let i=300; i<CANVAS_WIDTH; i+=600) {
+                hAvenues.forEach(y => {
+                    drawLamp(i, y - (roadWidth/2 + 15));
+                    drawLamp(i, y + (roadWidth/2 + 15));
+                });
+            }
+            for(let i=300; i<CANVAS_HEIGHT; i+=600) {
+                vAvenues.forEach(x => {
+                    drawLamp(x - (roadWidth/2 + 15), i);
+                    drawLamp(x + (roadWidth/2 + 15), i);
+                });
+            }
+            ctx.restore();
+
         } else if (map.id === 'desert') {
-            // --- TEMPÊTE DE SABLE ---
             const cam = cameraRef.current;
-            
-            // 1. Spawner de particules de sable (Similaire à Neon Run)
-            // On spawne des particules sur les bords du viewport pour optimiser
             if (Date.now() % 10 < 4) {
                  for(let i=0; i<3; i++) {
                     const side = Math.random() > 0.5 ? 'right' : 'top';
@@ -378,8 +443,8 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
                     particlesRef.current.push({
                         x, y, 
-                        vx: -15 - Math.random() * 10, // Vent violent vers la gauche
-                        vy: 5 + Math.random() * 5,    // Légère descente
+                        vx: -15 - Math.random() * 10,
+                        vy: 5 + Math.random() * 5,
                         life: 80, maxLife: 80, 
                         color: Math.random() > 0.5 ? '#facc15' : '#f97316', 
                         size: Math.random() * 3 + 1
@@ -387,13 +452,11 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                  }
             }
 
-            // 2. Voile atmosphérique (Haze)
             ctx.save();
             const hazeIntensity = 0.1 + Math.sin(time) * 0.05;
             ctx.fillStyle = `rgba(250, 204, 21, ${hazeIntensity})`;
             ctx.fillRect(cam.x, cam.y, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
             
-            // Nuages de poussière occasionnels
             ctx.globalAlpha = 0.15;
             for(let i=0; i<3; i++) {
                 const cloudTime = (time + i*2) % 10;
@@ -503,7 +566,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
         particlesRef.current.forEach(p => {
             ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
-            // Dessiner les particules de sable comme des petits traits si map desert
             if (map.id === 'desert' && p.vx < -5) {
                 ctx.lineWidth = 1; ctx.strokeStyle = p.color;
                 ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx*0.5, p.y - p.vy*0.5); ctx.stroke();

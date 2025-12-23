@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft } from 'lucide-react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar, useCurrency } from '../../../hooks/useCurrency';
 import { QuickLocker } from '../../common/QuickLocker';
@@ -61,7 +61,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     }, [leaderboard]);
 
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
-        if (gameState === 'GAMEOVER') return; 
+        if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') return; 
         const rect = zone.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
@@ -88,7 +88,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
     useEffect(() => {
         const handleTouch = (e: TouchEvent) => {
-            if (gameState === 'GAMEOVER') return;
+            if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 if (e.type === 'touchstart') {
@@ -445,6 +445,25 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                         <div className="pointer-events-none"><MiniLeaderboard /></div>
                     </div>
+
+                    {/* OVERLAY DE RESPAWN */}
+                    {gameState === 'RESPAWNING' && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+                             <div className="p-8 rounded-[40px] border-2 border-red-500/50 bg-gray-900/80 flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+                                <div className="w-20 h-20 bg-red-600/20 rounded-full flex items-center justify-center border-2 border-red-500 animate-pulse">
+                                    <SkullIcon size={40} className="text-red-500" />
+                                </div>
+                                <h3 className="text-3xl font-black italic text-white uppercase tracking-tight">DÉTRUIT</h3>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] mb-2">Réapparition dans</span>
+                                    <span className="text-5xl font-mono font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                                        {Math.ceil(respawnTimer / 1000)}s
+                                    </span>
+                                </div>
+                             </div>
+                        </div>
+                    )}
+
                     <div className="absolute left-4 bottom-60 md:top-24 md:left-6 flex flex-col gap-1.5 z-10 max-w-[200px]">
                         {killFeed.map(k => (
                             <div key={k.id} className="text-[9px] md:text-[10px] font-black bg-black/70 px-3 py-1.5 rounded-lg text-white animate-in slide-in-from-left-4 border-l-2 border-red-500 backdrop-blur-sm">
