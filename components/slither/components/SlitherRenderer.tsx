@@ -41,77 +41,158 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         
         ctx.strokeStyle = acc.color;
         ctx.fillStyle = acc.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(1, radius * 0.1);
         ctx.shadowBlur = 10;
         ctx.shadowColor = acc.color;
 
         const id = acc.id;
 
         if (id === 'sa_cyber_visor') {
+            // Visière futuriste placée devant les yeux
             ctx.globalAlpha = 0.8;
             ctx.beginPath();
-            ctx.roundRect(radius * 0.2, -radius * 0.7, radius * 0.4, radius * 1.4, 2);
+            // Positionnée sur l'avant de la tête (x positif)
+            ctx.roundRect(radius * 0.3, -radius * 0.8, radius * 0.4, radius * 1.6, radius * 0.1);
             ctx.fill();
+            ctx.strokeStyle = '#fff';
             ctx.stroke();
+            
+            // Effet de scanline brillant
             ctx.fillStyle = '#fff';
-            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 100) * 0.5;
-            ctx.fillRect(radius * 0.4, -radius * 0.6, 2, radius * 1.2);
+            ctx.globalAlpha = 0.4 + Math.sin(Date.now() / 150) * 0.4;
+            ctx.fillRect(radius * 0.45, -radius * 0.7, 2, radius * 1.4);
         }
         else if (id === 'sa_royal_crown') {
+            // Couronne posée sur le dessus
+            ctx.translate(-radius * 0.2, 0); // Légèrement centrée
             ctx.beginPath();
-            ctx.moveTo(-radius * 0.5, -radius * 0.8);
-            ctx.lineTo(-radius * 0.8, -radius * 1.5);
-            ctx.lineTo(-radius * 0.4, -radius * 1.1);
-            ctx.lineTo(0, -radius * 1.6);
-            ctx.lineTo(radius * 0.4, -radius * 1.1);
-            ctx.lineTo(radius * 0.8, -radius * 1.5);
-            ctx.lineTo(radius * 0.5, -radius * 0.8);
+            const w = radius * 1.2;
+            const h = radius * 1.0;
+            ctx.moveTo(-w/2, 0);
+            ctx.lineTo(-w/2, -h);
+            ctx.lineTo(-w/3, -h*0.6);
+            ctx.lineTo(0, -h*1.2);
+            ctx.lineTo(w/3, -h*0.6);
+            ctx.lineTo(w/2, -h);
+            ctx.lineTo(w/2, 0);
             ctx.closePath();
             ctx.fill();
+            ctx.strokeStyle = '#fff';
             ctx.stroke();
+            // Gemme centrale
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(0, -h * 0.5, radius * 0.15, 0, Math.PI * 2);
+            ctx.fill();
         }
         else if (id === 'sa_dj_phones') {
+            // Casque audio sur les "oreilles"
             ctx.beginPath();
-            ctx.arc(0, -radius * 0.8, radius * 0.4, Math.PI, 0);
+            // Arceau
+            ctx.arc(0, 0, radius * 1.1, Math.PI, 0);
             ctx.stroke();
-            ctx.beginPath();
-            ctx.roundRect(-radius * 0.3, -radius * 1.1, radius * 0.6, radius * 0.3, 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(0, -radius * 0.7, radius * 0.3, 0, Math.PI * 2);
-            ctx.stroke();
+            // Écouteurs
+            [-1, 1].forEach(side => {
+                ctx.save();
+                ctx.translate(0, side * radius * 0.9);
+                ctx.beginPath();
+                ctx.roundRect(-radius * 0.4, -radius * 0.3, radius * 0.8, radius * 0.6, radius * 0.2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+                // Effet de pulsation LED
+                ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 200) * 0.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.restore();
+            });
         }
         else if (id === 'sa_oni_mask') {
+            // Masque facial couvrant l'avant
             ctx.beginPath();
-            ctx.moveTo(-radius * 0.3, -radius * 0.5);
-            ctx.quadraticCurveTo(-radius * 0.8, -radius * 1.5, -radius * 1.2, -radius * 1.2);
+            ctx.arc(radius * 0.4, 0, radius * 0.9, -Math.PI/2, Math.PI/2);
+            ctx.lineTo(radius * 0.2, radius * 0.9);
+            ctx.lineTo(radius * 0.2, -radius * 0.9);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
             ctx.stroke();
-            ctx.moveTo(radius * 0.3, -radius * 0.5);
-            ctx.quadraticCurveTo(radius * 0.8, -radius * 1.5, radius * 1.2, -radius * 1.2);
-            ctx.stroke();
+            // Cornes
+            [-1, 1].forEach(side => {
+                ctx.beginPath();
+                ctx.moveTo(radius * 0.5, side * radius * 0.5);
+                ctx.quadraticCurveTo(radius * 0.8, side * radius * 1.5, radius * 1.5, side * radius * 1.8);
+                ctx.stroke();
+            });
         }
         else if (id === 'sa_energy_halo') {
+            // Halo flottant au dessus
+            const pulse = Math.sin(Date.now() / 300) * 5;
             ctx.beginPath();
-            ctx.ellipse(0, -radius * 0.5, radius * 0.8, radius * 0.3, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, radius * 1.4 + pulse, radius * 1.4 + pulse, 0, 0, Math.PI * 2);
+            ctx.lineWidth = 4;
             ctx.stroke();
+            // Particules de halo
+            for(let i=0; i<4; i++) {
+                const a = (Date.now() / 500 + i * Math.PI / 2) % (Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(Math.cos(a) * (radius * 1.4 + pulse), Math.sin(a) * (radius * 1.4 + pulse), 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
         else if (id === 'sa_samurai_blades') {
-            ctx.rotate(-Math.PI / 2);
-            ctx.beginPath();
-            ctx.moveTo(-radius, -radius);
-            ctx.lineTo(-radius * 2, -radius * 0.5);
-            ctx.stroke();
-            ctx.moveTo(-radius, radius);
-            ctx.lineTo(-radius * 2, radius * 0.5);
-            ctx.stroke();
+            // Katanas dans le dos (derrière la tête)
+            ctx.translate(-radius * 0.5, 0);
+            [-1, 1].forEach(side => {
+                ctx.save();
+                ctx.rotate(side * Math.PI / 4);
+                // Fourreau/Poignée
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-radius * 0.2, side * radius * 0.2, radius * 0.4, side * radius * 0.6);
+                // Lame
+                ctx.strokeStyle = acc.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, side * radius * 0.8);
+                ctx.lineTo(0, side * radius * 2.5);
+                ctx.stroke();
+                ctx.restore();
+            });
         }
         else if (id === 'sa_void_eye') {
+            // Monocle / Oeil tech
+            ctx.translate(radius * 0.6, radius * 0.6); // Sur l'un des yeux
             ctx.beginPath();
-            ctx.arc(0, 0, radius * 1.2, 0, Math.PI * 2);
-            ctx.globalAlpha = 0.2;
+            ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
+            ctx.globalAlpha = 0.3;
             ctx.fill();
             ctx.globalAlpha = 1;
             ctx.stroke();
+            // Cercle intérieur animé
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
+            ctx.stroke();
+            // Viseur
+            ctx.beginPath();
+            ctx.moveTo(-radius * 0.6, 0); ctx.lineTo(radius * 0.6, 0);
+            ctx.moveTo(0, -radius * 0.6); ctx.lineTo(0, radius * 0.6);
+            ctx.stroke();
+        }
+        else if (id === 'sa_hacker_tag') {
+            // Badge flottant sur le côté
+            ctx.translate(-radius, -radius * 1.2);
+            ctx.rotate(-Math.PI / 12);
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, radius * 1.5, radius * 0.8, 4);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = acc.color;
+            ctx.font = `bold ${radius * 0.4}px monospace`;
+            ctx.fillText(">ROOT", radius * 0.1, radius * 0.5);
         }
 
         ctx.restore();
@@ -128,15 +209,15 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         const radius = worm.radius;
 
         ctx.save();
+        // Dessiner le corps de l'arrière vers l'avant
         for (let i = segs.length - 1; i >= 0; i--) {
             const seg = segs[i]; 
             const isHead = i === 0;
             
             let segmentColor = primary;
-            let currentRadius = radius;
+            let currentRadius = isHead ? radius : radius * 0.95; // Tête légèrement plus large
             let currentGlow = glow;
 
-            // Logique de pattern améliorée pour les drapeaux
             if (pattern === 'rainbow') {
                 segmentColor = `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)`;
                 currentGlow = segmentColor;
@@ -144,18 +225,15 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
                 segmentColor = (Math.floor(i / 3) % 2 === 0) ? primary : secondary;
                 currentGlow = segmentColor;
             } else if (pattern === 'flag' && skin?.flagColors) {
-                // Bandes plus larges (3 segments par couleur) pour une meilleure visibilité
                 const colorIdx = Math.floor(i / 3) % skin.flagColors.length;
                 segmentColor = skin.flagColors[colorIdx];
-                // Lueur assortie à la couleur du drapeau
                 currentGlow = segmentColor;
             } else if (pattern === 'pulse') {
                 const pulseFactor = 0.5 + Math.sin(Date.now() / 200 - i * 0.2) * 0.5;
                 ctx.globalAlpha = 0.7 + pulseFactor * 0.3;
             }
 
-            // Effet visuel plus intense sur la tête ou en boost
-            ctx.shadowBlur = isHead ? (worm.isBoost ? 35 : 25) : (pattern === 'flag' ? 12 : 5); 
+            ctx.shadowBlur = isHead ? (worm.isBoost ? 35 : 25) : 5; 
             ctx.shadowColor = worm.isBoost ? '#ffffff' : currentGlow;
             
             const bodyGrad = ctx.createRadialGradient(
@@ -167,7 +245,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
                 currentRadius
             );
             
-            // Pour les drapeaux, on réduit le reflet blanc pour garder la couleur pure
             const highlightAlpha = pattern === 'flag' ? '44' : '88';
             bodyGrad.addColorStop(0, pattern === 'metallic' ? '#ffffff' : `#ffffff${highlightAlpha}`); 
             bodyGrad.addColorStop(0.3, segmentColor); 
@@ -178,7 +255,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.arc(seg.x, seg.y, currentRadius, 0, Math.PI * 2); 
             ctx.fill();
 
-            // Détails du motif Grid
             if (pattern === 'grid') {
                 ctx.strokeStyle = secondary;
                 ctx.lineWidth = 1;
@@ -191,18 +267,31 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             }
         }
 
-        // Yeux
+        // Yeux et Accessoires (toujours sur la tête, index 0)
         const head = segs[0]; 
         const eyeOffset = radius * 0.6;
-        [{ x: head.x + Math.cos(worm.angle + 0.6) * eyeOffset, y: head.y + Math.sin(worm.angle + 0.6) * eyeOffset }, 
-         { x: head.x + Math.cos(worm.angle - 0.6) * eyeOffset, y: head.y + Math.sin(worm.angle - 0.6) * eyeOffset }].forEach(pos => {
+        
+        // Dessin des yeux orientés vers l'angle du serpent
+        [-0.6, 0.6].forEach(eyeAngle => {
+            const ex = head.x + Math.cos(worm.angle + eyeAngle) * eyeOffset;
+            const ey = head.y + Math.sin(worm.angle + eyeAngle) * eyeOffset;
             const eyeSize = radius * 0.45; 
-            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(pos.x, pos.y, eyeSize, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(pos.x + Math.cos(worm.angle) * (eyeSize*0.3), pos.y + Math.sin(worm.angle) * (eyeSize*0.3), eyeSize*0.5, 0, Math.PI * 2); ctx.fill();
+            
+            ctx.fillStyle = '#fff'; 
+            ctx.beginPath(); 
+            ctx.arc(ex, ey, eyeSize, 0, Math.PI * 2); 
+            ctx.fill();
+            
+            // Pupille orientée vers le mouvement
+            ctx.fillStyle = '#000'; 
+            ctx.beginPath(); 
+            ctx.arc(ex + Math.cos(worm.angle) * (eyeSize*0.3), ey + Math.sin(worm.angle) * (eyeSize*0.3), eyeSize*0.5, 0, Math.PI * 2); 
+            ctx.fill();
         });
 
         drawAccessory(ctx, worm, head, radius);
         
+        // Nom du joueur
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; 
         ctx.font = `bold ${Math.max(14, radius * 1.0)}px Rajdhani`; 
         ctx.textAlign = 'center';
