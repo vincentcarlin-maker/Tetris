@@ -47,19 +47,16 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
 
         const id = acc.id;
 
-        // Visière Cyber
         if (id === 'sa_cyber_visor') {
             ctx.globalAlpha = 0.8;
             ctx.beginPath();
             ctx.roundRect(radius * 0.2, -radius * 0.7, radius * 0.4, radius * 1.4, 2);
             ctx.fill();
             ctx.stroke();
-            // Lueur de scan
             ctx.fillStyle = '#fff';
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 100) * 0.5;
             ctx.fillRect(radius * 0.4, -radius * 0.6, 2, radius * 1.2);
         }
-        // Couronne
         else if (id === 'sa_royal_crown') {
             ctx.beginPath();
             ctx.moveTo(-radius * 0.5, -radius * 0.8);
@@ -73,7 +70,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.fill();
             ctx.stroke();
         }
-        // Casque DJ
         else if (id === 'sa_dj_phones') {
             ctx.beginPath();
             ctx.arc(0, -radius * 0.8, radius * 0.4, Math.PI, 0);
@@ -81,15 +77,12 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.beginPath();
             ctx.roundRect(-radius * 0.3, -radius * 1.1, radius * 0.6, radius * 0.3, 2);
             ctx.fill();
-            // Écouteurs latéraux
             ctx.beginPath();
             ctx.arc(0, -radius * 0.7, radius * 0.3, 0, Math.PI * 2);
             ctx.stroke();
         }
-        // Masque Oni
         else if (id === 'sa_oni_mask') {
             ctx.beginPath();
-            // Cornes
             ctx.moveTo(-radius * 0.3, -radius * 0.5);
             ctx.quadraticCurveTo(-radius * 0.8, -radius * 1.5, -radius * 1.2, -radius * 1.2);
             ctx.stroke();
@@ -97,13 +90,11 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.quadraticCurveTo(radius * 0.8, -radius * 1.5, radius * 1.2, -radius * 1.2);
             ctx.stroke();
         }
-        // Auréole
         else if (id === 'sa_energy_halo') {
             ctx.beginPath();
             ctx.ellipse(0, -radius * 0.5, radius * 0.8, radius * 0.3, 0, 0, Math.PI * 2);
             ctx.stroke();
         }
-        // Lames Samurai (Sur le dos/derrière la tête)
         else if (id === 'sa_samurai_blades') {
             ctx.rotate(-Math.PI / 2);
             ctx.beginPath();
@@ -114,7 +105,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.lineTo(-radius * 2, radius * 0.5);
             ctx.stroke();
         }
-        // Oeil du néant
         else if (id === 'sa_void_eye') {
             ctx.beginPath();
             ctx.arc(0, 0, radius * 1.2, 0, Math.PI * 2);
@@ -144,53 +134,52 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             
             let segmentColor = primary;
             let currentRadius = radius;
+            let currentGlow = glow;
 
-            // Logique de pattern
+            // Logique de pattern améliorée pour les drapeaux
             if (pattern === 'rainbow') {
                 segmentColor = `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)`;
+                currentGlow = segmentColor;
             } else if (pattern === 'stripes') {
                 segmentColor = (Math.floor(i / 3) % 2 === 0) ? primary : secondary;
+                currentGlow = segmentColor;
             } else if (pattern === 'flag' && skin?.flagColors) {
-                // Alternance des couleurs du drapeau tous les 2 segments pour un effet net
-                const colorIdx = Math.floor(i / 2) % skin.flagColors.length;
+                // Bandes plus larges (3 segments par couleur) pour une meilleure visibilité
+                const colorIdx = Math.floor(i / 3) % skin.flagColors.length;
                 segmentColor = skin.flagColors[colorIdx];
+                // Lueur assortie à la couleur du drapeau
+                currentGlow = segmentColor;
             } else if (pattern === 'pulse') {
                 const pulseFactor = 0.5 + Math.sin(Date.now() / 200 - i * 0.2) * 0.5;
                 ctx.globalAlpha = 0.7 + pulseFactor * 0.3;
-            } else if (pattern === 'grid') {
-                segmentColor = primary;
-            } else if (pattern === 'metallic') {
-                segmentColor = primary;
             }
 
-            ctx.shadowBlur = isHead ? (worm.isBoost ? 30 : 20) : 5; 
-            ctx.shadowColor = worm.isBoost ? '#fff' : glow;
+            // Effet visuel plus intense sur la tête ou en boost
+            ctx.shadowBlur = isHead ? (worm.isBoost ? 35 : 25) : (pattern === 'flag' ? 12 : 5); 
+            ctx.shadowColor = worm.isBoost ? '#ffffff' : currentGlow;
             
             const bodyGrad = ctx.createRadialGradient(
-                seg.x - currentRadius * 0.3, 
-                seg.y - currentRadius * 0.3, 
-                currentRadius * 0.1, 
+                seg.x - currentRadius * 0.2, 
+                seg.y - currentRadius * 0.2, 
+                currentRadius * 0.05, 
                 seg.x, 
                 seg.y, 
                 currentRadius
             );
             
-            bodyGrad.addColorStop(0, pattern === 'metallic' ? '#fff' : '#ffffff88'); 
+            // Pour les drapeaux, on réduit le reflet blanc pour garder la couleur pure
+            const highlightAlpha = pattern === 'flag' ? '44' : '88';
+            bodyGrad.addColorStop(0, pattern === 'metallic' ? '#ffffff' : `#ffffff${highlightAlpha}`); 
             bodyGrad.addColorStop(0.3, segmentColor); 
-            bodyGrad.addColorStop(1, 'rgba(0,0,0,0.8)');
+            bodyGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
             
             ctx.fillStyle = bodyGrad; 
             ctx.beginPath(); 
             ctx.arc(seg.x, seg.y, currentRadius, 0, Math.PI * 2); 
             ctx.fill();
 
-            // Motifs additionnels sur les segments
-            if (pattern === 'dots' && i % 2 === 0) {
-                ctx.fillStyle = secondary;
-                ctx.beginPath();
-                ctx.arc(seg.x, seg.y, currentRadius * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (pattern === 'grid') {
+            // Détails du motif Grid
+            if (pattern === 'grid') {
                 ctx.strokeStyle = secondary;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -212,29 +201,27 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(pos.x + Math.cos(worm.angle) * (eyeSize*0.3), pos.y + Math.sin(worm.angle) * (eyeSize*0.3), eyeSize*0.5, 0, Math.PI * 2); ctx.fill();
         });
 
-        // Rendu de l'accessoire
         drawAccessory(ctx, worm, head, radius);
         
-        // Nom
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; 
-        ctx.font = `bold ${Math.max(12, radius * 0.9)}px Rajdhani`; 
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; 
+        ctx.font = `bold ${Math.max(14, radius * 1.0)}px Rajdhani`; 
         ctx.textAlign = 'center';
-        ctx.shadowBlur = 4;
+        ctx.shadowBlur = 6;
         ctx.shadowColor = 'black';
-        ctx.fillText(worm.name, head.x, head.y - (radius + 25));
+        ctx.fillText(worm.name, head.x, head.y - (radius + 30));
         ctx.restore();
     };
 
     const drawDirectionArrow = (ctx: CanvasRenderingContext2D, worm: Worm) => {
         if (worm.isDead) return;
         const head = worm.segments[0];
-        const arrowDist = 50 + worm.radius;
-        const arrowSize = 14;
+        const arrowDist = 60 + worm.radius;
+        const arrowSize = 16;
         ctx.save();
         ctx.translate(head.x + Math.cos(worm.angle) * arrowDist, head.y + Math.sin(worm.angle) * arrowDist);
         ctx.rotate(worm.angle);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; 
-        ctx.lineWidth = 3; 
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; 
+        ctx.lineWidth = 4; 
         ctx.beginPath(); 
         ctx.moveTo(-arrowSize, -arrowSize); 
         ctx.lineTo(0, 0); 
@@ -254,7 +241,7 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(10, 10, 20, 0.6)';
+        ctx.fillStyle = 'rgba(10, 10, 20, 0.7)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.lineWidth = 2;
@@ -315,8 +302,7 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         ctx.translate(-ctx.canvas.width/2, -ctx.canvas.height/2);
         ctx.translate(offsetX, offsetY);
         
-        // Grid
-        ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
+        ctx.strokeStyle = 'rgba(0, 243, 255, 0.06)';
         ctx.lineWidth = 4;
         for (let i = Math.max(0, Math.floor(minX / 400) * 400); i <= Math.min(WORLD_SIZE, Math.ceil(maxX / 400) * 400); i += 400) { 
             ctx.beginPath(); ctx.moveTo(i, Math.max(0, minY)); ctx.lineTo(i, Math.min(WORLD_SIZE, maxY)); ctx.stroke(); 
@@ -325,12 +311,10 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.beginPath(); ctx.moveTo(Math.max(0, minX), i); ctx.lineTo(Math.min(WORLD_SIZE, maxX), i); ctx.stroke(); 
         }
         
-        // World Border
-        ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)'; 
+        ctx.strokeStyle = 'rgba(255, 0, 255, 0.35)'; 
         ctx.lineWidth = 40; 
         ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-        // Food
         foodRef.current.forEach(f => {
             if (f.x < minX || f.x > maxX || f.y < minY || f.y > maxY) return;
             const grad = ctx.createRadialGradient(f.x - 2, f.y - 2, 0, f.x, f.y, 4 + f.val);
@@ -338,7 +322,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(f.x, f.y, 4 + f.val, 0, Math.PI * 2); ctx.fill();
         });
 
-        // Particles
         particlesRef.current.forEach(p => { 
             ctx.fillStyle = p.color; 
             ctx.globalAlpha = p.life; 
@@ -346,7 +329,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.globalAlpha = 1.0; 
         });
 
-        // Worms
         othersRef.current.forEach(worm => { 
             if (worm.segments[0].x > minX - 1000 && worm.segments[0].x < maxX + 1000 && worm.segments[0].y > minY - 1000 && worm.segments[0].y < maxY + 1000) {
                 drawWorm(ctx, worm); 
