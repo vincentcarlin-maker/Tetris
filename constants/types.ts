@@ -1,3 +1,4 @@
+
 import { LucideIcon } from 'lucide-react';
 
 export interface Badge {
@@ -72,5 +73,16 @@ export interface Mallet {
     price: number;
     colors: string[];
     type: 'basic' | 'gradient' | 'ring' | 'flower' | 'target' | 'complex';
+    description: string;
+}
+
+export interface TankSkin {
+    id: string;
+    name: string;
+    price: number;
+    primaryColor: string;
+    secondaryColor: string;
+    glowColor: string;
+    isAnimated?: boolean;
     description: string;
 }

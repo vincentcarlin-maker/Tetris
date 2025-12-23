@@ -1,13 +1,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-    Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet,
+    Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin,
     SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, 
-    FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TRANSLATIONS 
+    FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG, TRANSLATIONS 
 } from '../constants/catalog';
 
-export type { Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet };
-export { SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG };
+export type { Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin };
+export { SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG };
 
 const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -63,6 +63,11 @@ export const useCurrency = () => {
         try { return JSON.parse(localStorage.getItem('neon-owned-mallets') || '["m_classic"]'); } catch { return ["m_classic"]; }
     });
 
+    const [currentTankId, setCurrentTankId] = useState(() => localStorage.getItem('neon-tank') || "tk_classic");
+    const [ownedTanks, setOwnedTanks] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon-owned-tanks') || '["tk_classic"]'); } catch { return ["tk_classic"]; }
+    });
+
     const [accentColor, setAccentColor] = useState(() => localStorage.getItem('neon-accent-color') || 'default');
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
     const [voiceChatEnabled, setVoiceChatEnabled] = useState(() => localStorage.getItem('neon-voice-chat') !== 'false');
@@ -100,13 +105,14 @@ export const useCurrency = () => {
         if (data.ownedFrames) { setOwnedFrames(data.ownedFrames); localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames)); }
         if (data.malletId) { setCurrentMalletId(data.malletId); localStorage.setItem('neon-mallet', data.malletId); }
         if (data.ownedMallets) { setOwnedMallets(data.ownedMallets); localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets)); }
-        // ... (autres imports)
+        if (data.tankId) { setCurrentTankId(data.tankId); localStorage.setItem('neon-tank', data.tankId); }
+        if (data.ownedTanks) { setOwnedTanks(data.ownedTanks); localStorage.setItem('neon-owned-tanks', JSON.stringify(data.ownedTanks)); }
     }, []);
 
     const t = useMemo(() => TRANSLATIONS[language] || TRANSLATIONS.fr, [language]);
 
     return { 
-        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories,
+        coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories, ownedTanks,
         accentColor, updateAccentColor: (c: string) => { setAccentColor(c); localStorage.setItem('neon-accent-color', c); },
         voiceChatEnabled, toggleVoiceChat: () => setVoiceChatEnabled(v => !v),
         language, setLanguage: (l: string) => { setLanguageState(l); localStorage.setItem('neon-language', l); }, t,
@@ -121,6 +127,9 @@ export const useCurrency = () => {
         currentMalletId, selectMallet: (id: string) => { setCurrentMalletId(id); localStorage.setItem('neon-mallet', id); },
         buyMallet: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedMallets(p => [...p, id]); localStorage.setItem('neon-owned-mallets', JSON.stringify([...ownedMallets, id])); } },
         malletsCatalog: MALLETS_CATALOG,
+        currentTankId, selectTank: (id: string) => { setCurrentTankId(id); localStorage.setItem('neon-tank', id); },
+        buyTank: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedTanks(p => [...p, id]); localStorage.setItem('neon-owned-tanks', JSON.stringify([...ownedTanks, id])); } },
+        tanksCatalog: TANKS_CATALOG,
         currentWallpaperId, selectWallpaper: (id: string) => { setCurrentWallpaperId(id); localStorage.setItem('neon-wallpaper', id); },
         buyWallpaper: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedWallpapers(p => [...p, id]); localStorage.setItem('neon-owned-wallpapers', JSON.stringify([...ownedWallpapers, id])); } },
         wallpapersCatalog: WALLPAPERS_CATALOG,

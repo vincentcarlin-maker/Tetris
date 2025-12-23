@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses } from 'lucide-react';
+import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses, Crosshair } from 'lucide-react';
 import { useCurrency } from '../hooks/useCurrency';
 import { useGlobal } from '../context/GlobalContext';
 
@@ -9,7 +9,7 @@ interface ShopProps {
     currency: ReturnType<typeof useCurrency>;
 }
 
-type ShopGroup = 'PLAYER' | 'SLITHER' | 'AMBIANCE' | 'GEAR' | null;
+type ShopGroup = 'PLAYER' | 'SLITHER' | 'ARENA' | 'AMBIANCE' | 'GEAR' | null;
 
 export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
     const { recordTransaction, syncDataWithCloud } = useGlobal();
@@ -21,6 +21,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         currentMalletId, selectMallet, buyMallet, ownedMallets, malletsCatalog,
         currentSlitherSkinId, selectSlitherSkin, buySlitherSkin, ownedSlitherSkins, slitherSkinsCatalog,
         currentSlitherAccessoryId, selectSlitherAccessory, buySlitherAccessory, ownedSlitherAccessories, slitherAccessoriesCatalog,
+        currentTankId, selectTank, buyTank, ownedTanks, tanksCatalog
     } = currency;
 
     const [activeGroup, setActiveGroup] = useState<ShopGroup>(null);
@@ -60,6 +61,16 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                     <div className="w-14 h-14 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center relative shadow-lg overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"></div>
                         <div className="w-8 h-8 rounded-full border-2 border-white/20" style={{ backgroundColor: item.color, boxShadow: `0 0 10px ${item.color}` }}></div>
+                    </div>
+                );
+            }
+            if (category === 'TANKS') {
+                return (
+                    <div className="relative w-14 h-14 flex items-center justify-center">
+                        <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: item.primaryColor, boxShadow: `0 0 10px ${item.glowColor}50` }}>
+                             <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: item.primaryColor }}></div>
+                             <div className="w-4 h-4 rounded-full bg-current" style={{ color: item.primaryColor }}></div>
+                        </div>
                     </div>
                 );
             }
@@ -104,6 +115,10 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/40 via-blue-900/40 to-black"></div>
                             <div className="absolute inset-0 p-6 flex flex-col justify-end items-start text-left"><User size={32} className="text-cyan-400 mb-3" /><h2 className="text-xl font-black italic tracking-tight uppercase">Identité</h2><p className="text-[9px] text-gray-400 font-bold tracking-widest mt-1">AVATARS • CADRES • TITRES</p></div>
                         </button>
+                        <button onClick={() => setActiveGroup('ARENA')} className="group relative h-40 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-red-500/50 hover:scale-[1.02] shadow-2xl">
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-600/40 via-orange-900/40 to-black"></div>
+                            <div className="absolute inset-0 p-6 flex flex-col justify-end items-start text-left"><Crosshair size={32} className="text-red-400 mb-3" /><h2 className="text-xl font-black italic tracking-tight uppercase">Arena Clash</h2><p className="text-[9px] text-gray-400 font-bold tracking-widest mt-1">PERSONNALISATION CHARS</p></div>
+                        </button>
                         <button onClick={() => setActiveGroup('SLITHER')} className="group relative h-40 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-indigo-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/40 via-purple-900/40 to-black"></div>
                             <div className="absolute inset-0 p-6 flex flex-col justify-end items-start text-left"><Sparkles size={32} className="text-indigo-400 mb-3" /><h2 className="text-xl font-black italic tracking-tight uppercase">Cyber Serpent</h2><p className="text-[9px] text-gray-400 font-bold tracking-widest mt-1">SKINS • ACCESSOIRES</p></div>
@@ -137,6 +152,17 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     {framesCatalog.map(frame => (
                                         <ItemCard key={frame.id} item={frame} category="FRAMES" isOwned={ownedFrames.includes(frame.id)} isSelected={currentFrameId === frame.id} onBuy={() => handleBuyItem(frame, 'Cadre', buyFrame, ownedFrames)} onSelect={() => selectFrame(frame.id)} colorClass="pink" />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {activeGroup === 'ARENA' && (
+                            <>
+                                <SectionHeader title="Blindages Arena Clash" icon={Crosshair} color="text-red-400" />
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {tanksCatalog.map(tank => (
+                                        <ItemCard key={tank.id} item={tank} category="TANKS" isOwned={ownedTanks.includes(tank.id)} isSelected={currentTankId === tank.id} onBuy={() => handleBuyItem(tank, 'Char', buyTank, ownedTanks)} onSelect={() => selectTank(tank.id)} colorClass="red" />
                                     ))}
                                 </div>
                             </>

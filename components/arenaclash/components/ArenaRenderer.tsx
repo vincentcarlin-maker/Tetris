@@ -26,7 +26,7 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
     const lastTimeRef = useRef<number>(0);
 
     const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil: number) => {
-        const { x, y, angle, color, radius, shield } = char;
+        const { x, y, angle, color, radius, shield, skin } = char;
         ctx.save();
         ctx.translate(x, y);
         
@@ -43,16 +43,37 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
         ctx.rotate(angle);
         
-        // Body
-        ctx.fillStyle = '#1a1a2e';
-        ctx.strokeStyle = color;
+        // Body Style
+        const primary = skin?.primaryColor || color;
+        const secondary = skin?.secondaryColor || '#1a1a2e';
+        const glow = skin?.glowColor || color;
+        const isAnimated = skin?.isAnimated;
+
+        ctx.fillStyle = secondary;
+        ctx.strokeStyle = primary;
         ctx.lineWidth = 3;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = color;
+        
+        // Animated Glow
+        const glowPulse = isAnimated ? Math.sin(Date.now() / 200) * 10 + 15 : 10;
+        ctx.shadowBlur = glowPulse;
+        ctx.shadowColor = glow;
+
+        // Draw Body
         ctx.beginPath();
         ctx.roundRect(-radius, -radius, radius * 2, radius * 2, 6);
         ctx.fill();
         ctx.stroke();
+        
+        // Pattern or reflection
+        if (isAnimated) {
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(Math.sin(Date.now() / 500) * radius, 0, radius / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
         ctx.shadowBlur = 0;
 
         // Turret
@@ -60,12 +81,12 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.translate(-recoil, 0);
         ctx.fillStyle = '#333';
         ctx.fillRect(0, -5, radius * 1.6, 10);
-        ctx.strokeStyle = color;
+        ctx.strokeStyle = primary;
         ctx.strokeRect(0, -5, radius * 1.6, 10);
         ctx.restore();
 
         // Cockpit
-        ctx.fillStyle = color;
+        ctx.fillStyle = primary;
         ctx.beginPath();
         ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
         ctx.fill();

@@ -119,6 +119,12 @@ export interface Character extends Entity {
     shield: number;
     powerups: { type: PowerUpType, expiry: number }[];
     targetId?: string | null;
+    skin?: {
+        primaryColor: string;
+        secondaryColor: string;
+        glowColor: string;
+        isAnimated?: boolean;
+    };
 }
 
 export interface Bullet extends Entity {

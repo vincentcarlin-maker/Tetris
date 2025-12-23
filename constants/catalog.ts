@@ -7,4 +7,5 @@ export * from './items/mallets';
 export * from './items/slither';
 export * from './items/titles';
 export * from './items/wallpapers';
+export * from './items/tanks';
 export * from './translations';
