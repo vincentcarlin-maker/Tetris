@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses, Crosshair, Flag, X } from 'lucide-react';
 import { useCurrency } from '../hooks/useCurrency';
@@ -31,6 +32,17 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
             buyFn(item.id, item.price);
             recordTransaction('PURCHASE', -item.price, `Achat ${category}: ${item.name}`);
             await syncDataWithCloud();
+        }
+    };
+
+    const getGroupLabel = (group: ShopGroup) => {
+        switch(group) {
+            case 'PLAYER': return 'Identité';
+            case 'SLITHER': return 'Cyber Serpent';
+            case 'ARENA': return 'Arena Clash';
+            case 'AMBIANCE': return 'Atmosphère';
+            case 'GEAR': return 'Air Hockey';
+            default: return 'CATÉGORIES';
         }
     };
 
@@ -116,7 +128,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                     <button onClick={activeGroup ? () => setActiveGroup(null) : onBack} className="p-2.5 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"><ArrowLeft size={20} /></button>
                     <div>
                         <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.3)] leading-none">BOUTIQUE</h1>
-                        <p className="text-[10px] font-bold text-gray-500 tracking-[0.2em] mt-1 uppercase">{activeGroup || "CATÉGORIES"}</p>
+                        <p className="text-[10px] font-bold text-gray-500 tracking-[0.2em] mt-1 uppercase">{getGroupLabel(activeGroup)}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 bg-black/60 px-4 py-2 rounded-2xl border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)] backdrop-blur-md">
@@ -148,7 +160,7 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                             <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/40 via-orange-900/40 to-black"></div>
                             <div className="absolute inset-0 p-6 flex flex-col justify-end items-start text-left">
                                 <Disc size={32} className="text-yellow-400 mb-3" />
-                                <h2 className="text-xl font-black italic tracking-tight uppercase">Matériel</h2>
+                                <h2 className="text-xl font-black italic tracking-tight uppercase">Air Hockey</h2>
                                 <p className="text-[9px] text-gray-400 font-bold tracking-widest mt-1">MAILLETS HOCKEY</p>
                             </div>
                         </button>
