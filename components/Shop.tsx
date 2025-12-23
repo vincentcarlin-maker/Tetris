@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
-import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses, Crosshair } from 'lucide-react';
+/* Added X to the imports from lucide-react */
+import { ArrowLeft, Check, Coins, User, Disc, LayoutGrid, Palette, Sparkles, UserCircle, Type, Map, Pipette, Glasses, Crosshair, Flag, X } from 'lucide-react';
 import { useCurrency } from '../hooks/useCurrency';
 import { useGlobal } from '../context/GlobalContext';
 
@@ -21,7 +21,8 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
         currentMalletId, selectMallet, buyMallet, ownedMallets, malletsCatalog,
         currentSlitherSkinId, selectSlitherSkin, buySlitherSkin, ownedSlitherSkins, slitherSkinsCatalog,
         currentSlitherAccessoryId, selectSlitherAccessory, buySlitherAccessory, ownedSlitherAccessories, slitherAccessoriesCatalog,
-        currentTankId, selectTank, buyTank, ownedTanks, tanksCatalog
+        currentTankId, selectTank, buyTank, ownedTanks, tanksCatalog,
+        currentTankAccessoryId, selectTankAccessory, buyTankAccessory, ownedTankAccessories, tankAccessoriesCatalog
     } = currency;
 
     const [activeGroup, setActiveGroup] = useState<ShopGroup>(null);
@@ -75,6 +76,17 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                              <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: item.primaryColor }}></div>
                              <div className="w-4 h-4 rounded-full bg-current" style={{ color: item.primaryColor }}></div>
                         </div>
+                    </div>
+                );
+            }
+            if (category === 'TANK_ACCESSORIES') {
+                /* Fix: Import X from lucide-react to resolve the error. */
+                if (item.id === 'ta_none') return <X className="text-gray-500 opacity-30" size={32} />;
+                return (
+                    <div className="flex border border-white/20 w-14 h-9 rounded-sm overflow-hidden shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform">
+                        {item.colors.map((c: string, idx: number) => (
+                            <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
+                        ))}
                     </div>
                 );
             }
@@ -136,7 +148,12 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                         </button>
                         <button onClick={() => setActiveGroup('GEAR')} className="group relative h-40 rounded-[32px] overflow-hidden border border-white/10 transition-all hover:border-yellow-500/50 hover:scale-[1.02] shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/40 via-orange-900/40 to-black"></div>
-                            <div className="absolute inset-0 p-6 flex flex-col justify-end items-start text-left"><Disc size={32} className="text-yellow-400 mb-3" /><h2 className="text-xl font-black italic tracking-tight uppercase">Matériel</h2><p className="text-[9px] text-gray-400 font-bold tracking-widest mt-1">MAILLETS HOCKEY</p></div>
+                            <div className="absolute inset-0 p-6 flex flex-col justify-end items-start text-left">
+                                /* Fix: Corrected syntax error in className and ensured Disc icon is correctly referenced. */
+                                <Disc size={32} className="text-yellow-400 mb-3" />
+                                <h2 className="text-xl font-black italic tracking-tight uppercase">Matériel</h2>
+                                <p className="text-[9px] text-gray-400 font-bold tracking-widest mt-1">MAILLETS HOCKEY</p>
+                            </div>
                         </button>
                     </div>
                 ) : (
@@ -170,6 +187,13 @@ export const Shop: React.FC<ShopProps> = ({ onBack, currency }) => {
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     {tanksCatalog.map(tank => (
                                         <ItemCard key={tank.id} item={tank} category="TANKS" isOwned={ownedTanks.includes(tank.id)} isSelected={currentTankId === tank.id} onBuy={() => handleBuyItem(tank, 'Char', buyTank, ownedTanks)} onSelect={() => selectTank(tank.id)} colorClass="red" />
+                                    ))}
+                                </div>
+                                
+                                <SectionHeader title="Drapeaux de Combat" icon={Flag} color="text-blue-400" />
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {tankAccessoriesCatalog.map(acc => (
+                                        <ItemCard key={acc.id} item={acc} category="TANK_ACCESSORIES" isOwned={ownedTankAccessories.includes(acc.id)} isSelected={currentTankAccessoryId === acc.id} onBuy={() => handleBuyItem(acc, 'Drapeau', buyTankAccessory, ownedTankAccessories)} onSelect={() => selectTankAccessory(acc.id)} colorClass="blue" />
                                     ))}
                                 </div>
                             </>

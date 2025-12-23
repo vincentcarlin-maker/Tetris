@@ -31,7 +31,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
         ctx.save();
         // Positionnement à l'arrière du tank
-        // On ne subit pas la rotation du tank pour que le drapeau flotte toujours vers l'arrière
         const radius = char.radius;
         const poleX = -radius * 0.8;
         const poleY = -radius * 0.8;
@@ -230,27 +229,35 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             if (!bot.isDead) drawTank(ctx, bot, recoilRef.current[bot.id] || 0);
         });
 
-        // HUD Elements (Health Bars)
+        // HUD Elements (Health Bars) - Offset increased to reveal flag
         [player, ...botsRef.current].forEach(char => {
             if (!char || char.isDead) return;
             const hpPct = char.hp / char.maxHp;
             const shieldPct = char.shield / 50;
             const barW = 50;
             
+            // On remonte tout le bloc HUD (barres + nom) d'environ 20-25 pixels
+            const hudBaseY = char.y - 65; 
+
             // HP Bar
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(char.x - barW/2, char.y - 45, barW, 6);
+            ctx.fillRect(char.x - barW/2, hudBaseY, barW, 6);
             ctx.fillStyle = hpPct > 0.4 ? '#0f0' : '#f00';
-            ctx.fillRect(char.x - barW/2, char.y - 45, barW * hpPct, 6);
+            ctx.fillRect(char.x - barW/2, hudBaseY, barW * hpPct, 6);
             
             // Shield Bar
             if (char.shield > 0) {
                 ctx.fillStyle = '#3b82f6';
-                ctx.fillRect(char.x - barW/2, char.y - 50, barW * shieldPct, 3);
+                ctx.fillRect(char.x - barW/2, hudBaseY - 5, barW * shieldPct, 3);
             }
 
-            ctx.fillStyle = '#fff'; ctx.font = '12px Rajdhani'; ctx.textAlign = 'center';
-            ctx.fillText(char.name, char.x, char.y - 55);
+            ctx.fillStyle = '#fff'; 
+            ctx.font = 'bold 12px Rajdhani'; 
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 2;
+            ctx.shadowColor = 'black';
+            ctx.fillText(char.name, char.x, hudBaseY - 10);
+            ctx.shadowBlur = 0;
         });
 
         // Particles
