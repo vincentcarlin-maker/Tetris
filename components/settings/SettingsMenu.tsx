@@ -1,18 +1,15 @@
 import React from 'react';
-import { useGlobal } from '../context/GlobalContext';
-
-// Import sub-components and hook
-import { useSettings } from './settings/hooks/useSettings';
-import { SettingsHeader } from './settings/components/SettingsHeader';
-import { UserProfileCard } from './settings/components/UserProfileCard';
-import { LanguageSelector } from './settings/components/LanguageSelector';
-import { StyleSettings } from './settings/components/StyleSettings';
-import { AudioSettings } from './settings/components/AudioSettings';
-import { AccountSettings } from './settings/components/AccountSettings';
-import { LegalAndSupport } from './settings/components/LegalAndSupport';
-import { DangerZone } from './settings/components/DangerZone';
-import { PasswordModal } from './settings/components/PasswordModal';
-import { LegalModal } from './settings/components/LegalModal';
+import { useSettings } from './hooks/useSettings';
+import { SettingsHeader } from './components/SettingsHeader';
+import { UserProfileCard } from './components/UserProfileCard';
+import { LanguageSelector } from './components/LanguageSelector';
+import { StyleSettings } from './components/StyleSettings';
+import { AudioSettings } from './components/AudioSettings';
+import { AccountSettings } from './components/AccountSettings';
+import { LegalAndSupport } from './components/LegalAndSupport';
+import { DangerZone } from './components/DangerZone';
+import { PasswordModal } from './components/PasswordModal';
+import { LegalModal } from './components/LegalModal';
 
 interface SettingsMenuProps {
     onBack: () => void;

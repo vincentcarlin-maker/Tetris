@@ -24,7 +24,7 @@ import { SlitherGame } from './slither/SlitherGame';
 import { Shop } from './shop/Shop';
 import { AdminDashboard } from './AdminDashboard';
 import { SocialOverlay } from './SocialOverlay';
-import { SettingsMenu } from './SettingsMenu';
+import { SettingsMenu } from './settings/SettingsMenu';
 import { ContactOverlay } from './ContactOverlay';
 import { Construction } from 'lucide-react';
 
@@ -73,7 +73,7 @@ export const GameRouter: React.FC = () => {
     if (currentView === 'shop' && isAuthenticated) return <Shop onBack={handleBackToMenu} />;
     if (currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser) return <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={supabase.onlineUsers} />;
     if (currentView === 'social' && isAuthenticated) return <SocialOverlay audio={audio} currency={currency} mp={mp} onlineUsers={supabase.onlineUsers} isConnectedToSupabase={supabase.isConnectedToSupabase} isSupabaseConfigured={supabase.isSupabaseConfigured} onUnreadChange={setUnreadMessages} friendRequests={friendRequests} setFriendRequests={setFriendRequests} activeTabOverride={activeSocialTab} onTabChangeOverride={setActiveSocialTab} />;
-    if (currentView === 'settings' && isAuthenticated) return <SettingsMenu onBack={handleBackToMenu} onLogout={handleLogout} onOpenDashboard={() => setCurrentView('admin_dashboard')} onOpenContact={() => setCurrentView('contact')} audio={audio} currency={currency} highScores={highScores.highScores} />;
+    if (currentView === 'settings' && isAuthenticated) return <SettingsMenu onBack={handleBackToMenu} onLogout={handleLogout} onOpenDashboard={() => setCurrentView('admin_dashboard')} onOpenContact={() => setCurrentView('contact')} />;
     if (currentView === 'contact' && isAuthenticated) return <ContactOverlay onBack={() => setCurrentView('settings')} audio={audio} currency={currency} />;
 
     const gamesMap: Record<string, React.ReactElement> = {
