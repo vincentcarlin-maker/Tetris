@@ -60,8 +60,20 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         return index !== -1 ? index + 1 : null;
     }, [leaderboard]);
 
+    const resetStick = (type: 'move' | 'aim') => {
+        const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
+        if (knob) knob.style.transform = `translate(0px, 0px)`;
+        if (type === 'move') {
+            controlsRef.current.move = { x: 0, y: 0, active: false };
+        } else {
+            controlsRef.current.aim = { x: 0, y: 0, active: false };
+        }
+    };
+
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
+        // On ne permet pas de bouger le joystick visuellement si on est mort
         if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') return; 
+        
         const rect = zone.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
@@ -70,6 +82,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         let dy = clientY - centerY;
         const dist = Math.sqrt(dx*dx + dy*dy);
         const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
+        
         if (dist > 0 && knob) {
             const ratio = Math.min(dist, maxDist) / dist;
             knob.style.transform = `translate(${dx * ratio}px, ${dy * ratio}px)`;
@@ -79,47 +92,82 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         }
     };
 
-    const resetStick = (type: 'move' | 'aim') => {
-        const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
-        if (knob) knob.style.transform = `translate(0px, 0px)`;
-        if (type === 'move') controlsRef.current.move = { x: 0, y: 0, active: false };
-        else controlsRef.current.aim = { x: 0, y: 0, active: false };
-    };
+    // S'assurer que tout est reset quand on change d'état (mort/fin)
+    useEffect(() => {
+        if (gameState === 'RESPAWNING' || gameState === 'GAMEOVER') {
+            activeTouches.current.move = null;
+            activeTouches.current.aim = null;
+            resetStick('move');
+            resetStick('aim');
+        }
+    }, [gameState]);
 
     useEffect(() => {
         const handleTouch = (e: TouchEvent) => {
-            if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') return;
+            // NOTE: On ne bloque plus la fonction entière ici par le gameState
+            // On gère chaque type d'événement spécifiquement
+            
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
+                
                 if (e.type === 'touchstart') {
+                    // On ne peut pas commencer un mouvement si mort
+                    if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') continue;
+
                     if (leftZoneRef.current && activeTouches.current.move === null) {
                         const rect = leftZoneRef.current.getBoundingClientRect();
                         if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                            activeTouches.current.move = t.identifier; updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
+                            activeTouches.current.move = t.identifier; 
+                            updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
                         }
                     }
                     if (rightZoneRef.current && activeTouches.current.aim === null) {
                         const rect = rightZoneRef.current.getBoundingClientRect();
                         if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                            activeTouches.current.aim = t.identifier; updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
+                            activeTouches.current.aim = t.identifier; 
+                            updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
                         }
                     }
                 }
+                
                 if (e.type === 'touchmove') {
-                    if (t.identifier === activeTouches.current.move && leftZoneRef.current) updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
-                    if (t.identifier === activeTouches.current.aim && rightZoneRef.current) updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
+                    // On ne peut pas bouger le joystick si mort
+                    if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') continue;
+
+                    if (t.identifier === activeTouches.current.move && leftZoneRef.current) {
+                        updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
+                    }
+                    if (t.identifier === activeTouches.current.aim && rightZoneRef.current) {
+                        updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
+                    }
                 }
+                
                 if (e.type === 'touchend' || e.type === 'touchcancel') {
-                    if (t.identifier === activeTouches.current.move) { activeTouches.current.move = null; resetStick('move'); }
-                    if (t.identifier === activeTouches.current.aim) { activeTouches.current.aim = null; resetStick('aim'); }
+                    // TRÈS IMPORTANT: On autorise toujours le reset, même en respawning
+                    if (t.identifier === activeTouches.current.move) { 
+                        activeTouches.current.move = null; 
+                        resetStick('move'); 
+                    }
+                    if (t.identifier === activeTouches.current.aim) { 
+                        activeTouches.current.aim = null; 
+                        resetStick('aim'); 
+                    }
                 }
             }
         };
+
         document.addEventListener('touchstart', handleTouch, { passive: false });
         document.addEventListener('touchmove', handleTouch, { passive: false });
         document.addEventListener('touchend', handleTouch);
-        return () => { document.removeEventListener('touchstart', handleTouch); document.removeEventListener('touchmove', handleTouch); document.removeEventListener('touchend', handleTouch); };
-    }, [gameState]);
+        document.addEventListener('touchcancel', handleTouch);
+
+        return () => { 
+            document.removeEventListener('touchstart', handleTouch); 
+            document.removeEventListener('touchmove', handleTouch); 
+            document.removeEventListener('touchend', handleTouch); 
+            document.removeEventListener('touchcancel', handleTouch);
+        };
+    }, [gameState]); // Re-bind quand l'état change pour capter la bonne valeur de closure
 
     const MiniLeaderboard = () => (
         <div className="flex flex-col w-40 bg-black/20 backdrop-blur-sm p-3 rounded-2xl border border-white/10 pointer-events-none">

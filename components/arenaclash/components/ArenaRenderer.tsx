@@ -296,15 +296,26 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                 ctx.shadowBlur = 12;
                 ctx.strokeRect(obs.x + 2, obs.y + 2, obs.w - 4, obs.h - 4);
             } else if (map.id === 'desert') {
-                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                 for(let i=0; i<3; i++) {
-                     ctx.strokeRect(obs.x + i*4, obs.y + i*4, obs.w - i*8, obs.h - i*8);
+                 // --- ROCHES DU DÉSERT STRATIFIÉES ---
+                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                 ctx.lineWidth = 1;
+                 // Dessiner des strates horizontales sur les rochers
+                 for(let i=10; i < obs.h; i += 15) {
+                     ctx.beginPath();
+                     ctx.moveTo(obs.x + 2, obs.y + i);
+                     ctx.lineTo(obs.x + obs.w - 2, obs.y + i);
+                     ctx.stroke();
                  }
+
                  ctx.strokeStyle = map.colors.wallBorder;
                  ctx.lineWidth = 3;
                  ctx.shadowColor = map.colors.wallBorder;
                  ctx.shadowBlur = 15;
                  ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                 
+                 // Débris de sable à la base
+                 ctx.fillStyle = 'rgba(249, 115, 22, 0.3)';
+                 ctx.fillRect(obs.x - 5, obs.y + obs.h - 10, obs.w + 10, 15);
             } else {
                 ctx.shadowColor = map.colors.wallBorder;
                 ctx.shadowBlur = 15;
@@ -437,8 +448,46 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
         } else if (map.id === 'desert') {
             const cam = cameraRef.current;
+            
+            // --- DUNES DE SABLE (ARRIÈRE-PLAN) ---
+            ctx.save();
+            ctx.strokeStyle = 'rgba(250, 204, 21, 0.1)';
+            ctx.lineWidth = 2;
+            for(let i=0; i < CANVAS_HEIGHT; i += 150) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                for(let x=0; x <= CANVAS_WIDTH; x += 40) {
+                    const wave = Math.sin(x * 0.01 + i) * 30;
+                    ctx.lineTo(x, i + wave);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // --- SOLEIL BINAIRE MASSIF ---
+            ctx.save();
+            const sunX = CANVAS_WIDTH / 2;
+            const sunY = -200;
+            const sunGrad = ctx.createRadialGradient(sunX, sunY, 100, sunX, sunY, 1200);
+            sunGrad.addColorStop(0, 'rgba(251, 146, 60, 0.4)');
+            sunGrad.addColorStop(0.5, 'rgba(249, 115, 22, 0.1)');
+            sunGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = sunGrad;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Cercles de soleil
+            ctx.fillStyle = '#facc15';
+            ctx.shadowBlur = 100;
+            ctx.shadowColor = '#facc15';
+            ctx.beginPath(); ctx.arc(sunX - 100, 100, 150, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#f97316';
+            ctx.shadowColor = '#f97316';
+            ctx.beginPath(); ctx.arc(sunX + 250, 300, 100, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+
+            // --- TEMPÊTE DE SABLE (PARTICULES) ---
             if (Date.now() % 10 < 4) {
-                 for(let i=0; i<3; i++) {
+                 for(let i=0; i<5; i++) {
                     const side = Math.random() > 0.5 ? 'right' : 'top';
                     let x, y;
                     if (side === 'right') {
@@ -451,31 +500,45 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
                     particlesRef.current.push({
                         x, y, 
-                        vx: -15 - Math.random() * 10,
-                        vy: 5 + Math.random() * 5,
-                        life: 80, maxLife: 80, 
+                        vx: -18 - Math.random() * 12,
+                        vy: 6 + Math.random() * 8,
+                        life: 100, maxLife: 100, 
                         color: Math.random() > 0.5 ? '#facc15' : '#f97316', 
-                        size: Math.random() * 3 + 1
+                        size: Math.random() * 4 + 1
                     });
                  }
             }
 
+            // --- CACTUS NÉON (DÉCORATION ALÉATOIRE) ---
             ctx.save();
-            const hazeIntensity = 0.1 + Math.sin(time) * 0.05;
+            const drawCactus = (cx: number, cy: number) => {
+                ctx.strokeStyle = '#00ff9d';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00ff9d';
+                
+                // Tronc
+                ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 40); ctx.stroke();
+                // Bras 1
+                ctx.beginPath(); ctx.moveTo(cx, cy - 25); ctx.quadraticCurveTo(cx - 15, cy - 25, cx - 15, cy - 45); ctx.stroke();
+                // Bras 2
+                ctx.beginPath(); ctx.moveTo(cx, cy - 15); ctx.quadraticCurveTo(cx + 15, cy - 15, cx + 15, cy - 35); ctx.stroke();
+            };
+
+            // On en dessine quelques-uns à des positions fixes basées sur un seed
+            const cactusPos = [
+                {x: 400, y: 1100}, {x: 2000, y: 300}, {x: 800, y: 2000}, 
+                {x: 1500, y: 1400}, {x: 2100, y: 1800}
+            ];
+            cactusPos.forEach(p => drawCactus(p.x, p.y));
+            ctx.restore();
+
+            // Brume de chaleur
+            ctx.save();
+            const hazeIntensity = 0.12 + Math.sin(time * 0.5) * 0.04;
             ctx.fillStyle = `rgba(250, 204, 21, ${hazeIntensity})`;
             ctx.fillRect(cam.x, cam.y, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-            
-            ctx.globalAlpha = 0.15;
-            for(let i=0; i<3; i++) {
-                const cloudTime = (time + i*2) % 10;
-                const cx = (CANVAS_WIDTH - (cloudTime * 300)) % CANVAS_WIDTH;
-                const cy = (i * 800) % CANVAS_HEIGHT;
-                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 400);
-                grad.addColorStop(0, '#f97316');
-                grad.addColorStop(1, 'transparent');
-                ctx.fillStyle = grad;
-                ctx.beginPath(); ctx.arc(cx, cy, 400, 0, Math.PI*2); ctx.fill();
-            }
             ctx.restore();
         }
     };
