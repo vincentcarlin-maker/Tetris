@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { useGlobal } from '../context/GlobalContext';
 import { MainMenu } from './MainMenu';
-import { TetrisGame } from './TetrisGame';
+import { TetrisGame } from './tetris/TetrisGame';
 import { Connect4Game } from './connect4/Connect4Game';
 import { SudokuGame } from './sudoku/SudokuGame';
 import { BreakerGame } from './breaker/BreakerGame';
@@ -22,7 +21,7 @@ import { ArenaClashGame } from './arenaclash/ArenaClashGame';
 import { SkyjoGame } from './skyjo/SkyjoGame';
 import { LumenOrderGame } from './lumen/LumenOrderGame';
 import { SlitherGame } from './slither/SlitherGame';
-import { Shop } from './Shop';
+import { Shop } from './shop/Shop';
 import { AdminDashboard } from './AdminDashboard';
 import { SocialOverlay } from './SocialOverlay';
 import { SettingsMenu } from './SettingsMenu';
@@ -71,7 +70,7 @@ export const GameRouter: React.FC = () => {
         return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} mp={mp} onLogout={handleLogout} isAuthenticated={isAuthenticated} onLoginRequest={() => setShowLoginModal(true)} dailyData={{ ...daily }} onlineUsers={supabase.globalLeaderboard.length > 0 ? supabase.globalLeaderboard : supabase.onlineUsers} liveUsers={supabase.onlineUsers} onOpenSocial={(t) => { setActiveSocialTab(t); setCurrentView('social'); }} disabledGamesList={disabledGames} activeEvent={undefined} eventProgress={{}} highScores={highScores.highScores} />;
     }
 
-    if (currentView === 'shop' && isAuthenticated) return <Shop onBack={handleBackToMenu} currency={currency} />;
+    if (currentView === 'shop' && isAuthenticated) return <Shop onBack={handleBackToMenu} />;
     if (currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser) return <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={supabase.onlineUsers} />;
     if (currentView === 'social' && isAuthenticated) return <SocialOverlay audio={audio} currency={currency} mp={mp} onlineUsers={supabase.onlineUsers} isConnectedToSupabase={supabase.isConnectedToSupabase} isSupabaseConfigured={supabase.isSupabaseConfigured} onUnreadChange={setUnreadMessages} friendRequests={friendRequests} setFriendRequests={setFriendRequests} activeTabOverride={activeSocialTab} onTabChangeOverride={setActiveSocialTab} />;
     if (currentView === 'settings' && isAuthenticated) return <SettingsMenu onBack={handleBackToMenu} onLogout={handleLogout} onOpenDashboard={() => setCurrentView('admin_dashboard')} onOpenContact={() => setCurrentView('contact')} audio={audio} currency={currency} highScores={highScores.highScores} />;
