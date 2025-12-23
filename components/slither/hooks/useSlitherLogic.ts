@@ -307,22 +307,43 @@ export const useSlitherLogic = (audio: any, addCoins: any, mp: any, onReportProg
         const head = player.segments[0];
         if (head.x < 0 || head.x > WORLD_SIZE || head.y < 0 || head.y > WORLD_SIZE) handleDeath();
 
+        // --- GESTION DE LA CONSOMMATION DE NOURRITURE (TOUS LES VERS) ---
+        const activeWorms = [player, ...othersRef.current.filter(w => !w.isDead)];
+        
         for (let i = foodRef.current.length - 1; i >= 0; i--) {
             const f = foodRef.current[i];
-            const distSq = (head.x - f.x)**2 + (head.y - f.y)**2;
-            if (distSq < (player.radius + 15)**2) {
-                player.score += f.val * 5;
-                player.radius = calculateWormRadius(player.score);
-                setScore(player.score);
-                audio.playCoin();
-                for (let j = 0; j < f.val; j++) player.segments.push({ ...player.segments[player.segments.length - 1] });
+            
+            for (const worm of activeWorms) {
+                const wHead = worm.segments[0];
+                const distSq = (wHead.x - f.x)**2 + (wHead.y - f.y)**2;
                 
-                const foodId = f.id;
-                foodRef.current.splice(i, 1);
-                if (gameMode === 'ONLINE') mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId });
+                if (distSq < (worm.radius + 15)**2) {
+                    worm.score += f.val * 5;
+                    worm.radius = calculateWormRadius(worm.score);
+                    
+                    if (worm.id === player.id) {
+                        setScore(worm.score);
+                        audio.playCoin();
+                    }
+                    
+                    // Allongement du corps
+                    for (let j = 0; j < f.val; j++) {
+                        worm.segments.push({ ...worm.segments[worm.segments.length - 1] });
+                    }
+                    
+                    const foodId = f.id;
+                    foodRef.current.splice(i, 1);
+                    
+                    if (gameMode === 'ONLINE' && isMasterRef.current) {
+                        mp.sendData({ type: 'SLITHER_FOOD_EATEN', foodId });
+                    }
+                    
+                    break; // Un seul ver mange la nourriture, on passe à l'item suivant
+                }
             }
         }
 
+        // Collisions entre vers
         othersRef.current.forEach(other => {
             if (other.isDead) return;
             if (Math.abs(other.segments[0].x - head.x) > 1000 || Math.abs(other.segments[0].y - head.y) > 1000) return;
