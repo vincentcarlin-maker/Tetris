@@ -1,5 +1,6 @@
+
 import React, { useRef, useEffect, useCallback } from 'react';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, MAPS, COLORS, Character, Bullet, PowerUp, Particle, Obstacle } from '../constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, MAPS, COLORS, Character, Bullet, PowerUp, Particle } from '../constants';
 
 interface ArenaRendererProps {
     playerRef: React.MutableRefObject<Character | null>;
@@ -24,63 +25,56 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
     const animationFrameRef = useRef<number>(0);
     const lastTimeRef = useRef<number>(0);
 
-    const onUpdateRef = useRef(onUpdate);
-    const gameStateRef = useRef(gameState);
+    const drawFlag = (ctx: CanvasRenderingContext2D, char: Character) => {
+        const acc = char.accessory;
+        if (!acc || acc.id === 'ta_none' || !acc.colors || acc.colors.length === 0) return;
 
-    useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
-    useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
-
-    const drawBuilding = (ctx: CanvasRenderingContext2D, obs: Obstacle, borderColor: string) => {
-        const { x, y, w, h, type, label } = obs;
+        ctx.save();
+        // Positionnement à l'arrière du tank
+        const radius = char.radius;
+        const poleX = -radius * 0.8;
+        const poleY = -radius * 0.8;
         
-        // 1. Fond du bâtiment (Plus sombre que le sol)
-        ctx.fillStyle = '#050515';
-        ctx.fillRect(x, y, w, h);
+        // Dessin du mât
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(poleX, poleY);
+        ctx.lineTo(poleX, poleY - 25);
+        ctx.stroke();
 
-        // 2. Fenêtres (Grille de points lumineux)
-        if (type === 'building' || type === 'kiosk') {
-            const winSize = 4;
-            const gap = 12;
-            ctx.fillStyle = '#ffffff22';
-            for (let wx = x + gap; wx < x + w - gap; wx += gap) {
-                for (let wy = y + gap; wy < y + h - gap; wy += gap) {
-                    // Animation aléatoire des fenêtres
-                    if (Math.sin((wx + wy) * 0.1 + Date.now() / 1000) > 0.8) {
-                        ctx.fillStyle = `${borderColor}66`;
-                    } else {
-                        ctx.fillStyle = '#ffffff11';
-                    }
-                    ctx.fillRect(wx, wy, winSize, winSize);
-                }
+        // Animation du flottement
+        const time = Date.now() / 200;
+        const flagWidth = 18;
+        const flagHeight = 12;
+        const segments = 6;
+        const segW = flagWidth / segments;
+
+        ctx.translate(poleX, poleY - 25);
+
+        acc.colors.forEach((color, cIdx) => {
+            ctx.fillStyle = color;
+            const hPart = flagHeight / acc.colors.length;
+            const yOff = cIdx * hPart;
+
+            ctx.beginPath();
+            ctx.moveTo(0, yOff);
+
+            for (let i = 0; i <= segments; i++) {
+                const x = i * segW;
+                const wave = Math.sin(time + i * 0.8) * 3;
+                ctx.lineTo(x, yOff + wave);
             }
-        }
+            for (let i = segments; i >= 0; i--) {
+                const x = i * segW;
+                const wave = Math.sin(time + i * 0.8) * 3;
+                ctx.lineTo(x, yOff + hPart + wave);
+            }
+            ctx.closePath();
+            ctx.fill();
+        });
 
-        // 3. Bordures et Glow
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 3;
-        ctx.shadowColor = borderColor;
-        ctx.shadowBlur = 15;
-        ctx.strokeRect(x, y, w, h);
-        ctx.shadowBlur = 0;
-
-        // 4. Enseignes Néon (Label)
-        if (label) {
-            ctx.save();
-            ctx.translate(x + w / 2, y + h / 2);
-            ctx.rotate(-0.05); // Légère inclinaison stylisée
-            ctx.fillStyle = '#fff';
-            ctx.font = '900 14px Rajdhani';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = borderColor;
-            ctx.fillText(label, 0, 0);
-            ctx.restore();
-        }
-        
-        // 5. Reflet sur le toit
-        ctx.fillStyle = 'rgba(255,255,255,0.05)';
-        ctx.fillRect(x + 5, y + 5, w - 10, 5);
+        ctx.restore();
     };
 
     const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil: number) => {
@@ -88,61 +82,70 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.save();
         ctx.translate(x, y);
         
+        // Shield Bubble
         if (shield > 0) {
             ctx.beginPath();
-            ctx.arc(0, 0, radius + 12, 0, Math.PI * 2);
+            ctx.arc(0, 0, radius + 10, 0, Math.PI * 2);
             ctx.strokeStyle = '#3b82f6';
             ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.4 + Math.sin(Date.now() / 80) * 0.2;
+            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 100) * 0.2;
             ctx.stroke();
             ctx.globalAlpha = 1.0;
         }
 
-        const acc = char.accessory;
-        if (acc && acc.id !== 'ta_none') {
-            ctx.save();
-            const poleX = -radius * 0.8;
-            const poleY = -radius * 0.8;
-            ctx.strokeStyle = '#666'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(poleX, poleY); ctx.lineTo(poleX, poleY - 25); ctx.stroke();
-            const time = Date.now() / 150;
-            const flagWidth = 20; const flagHeight = 12;
-            const segments = 5; const segW = flagWidth / segments;
-            ctx.translate(poleX, poleY - 25);
-            acc.colors?.forEach((c, idx) => {
-                ctx.fillStyle = c;
-                const hPart = flagHeight / acc.colors.length;
-                const yOff = idx * hPart;
-                ctx.beginPath(); ctx.moveTo(0, yOff);
-                for (let i = 0; i <= segments; i++) { ctx.lineTo(i * segW, yOff + Math.sin(time + i * 0.7) * 4); }
-                for (let i = segments; i >= 0; i--) { ctx.lineTo(i * segW, yOff + hPart + Math.sin(time + i * 0.7) * 4); }
-                ctx.closePath(); ctx.fill();
-            });
-            ctx.restore();
-        }
+        // Dessin du drapeau (au dessus du châssis mais suit la position)
+        drawFlag(ctx, char);
 
         ctx.rotate(angle);
+        
+        // Body Style
         const primary = skin?.primaryColor || color;
         const secondary = skin?.secondaryColor || '#1a1a2e';
         const glow = skin?.glowColor || color;
+        const isAnimated = skin?.isAnimated;
+
         ctx.fillStyle = secondary;
         ctx.strokeStyle = primary;
         ctx.lineWidth = 3;
-        ctx.shadowBlur = skin?.isAnimated ? (Math.sin(Date.now() / 200) * 10 + 15) : 10;
+        
+        // Animated Glow
+        const glowPulse = isAnimated ? Math.sin(Date.now() / 200) * 10 + 15 : 10;
+        ctx.shadowBlur = glowPulse;
         ctx.shadowColor = glow;
+
+        // Draw Body
         ctx.beginPath();
         ctx.roundRect(-radius, -radius, radius * 2, radius * 2, 6);
-        ctx.fill(); ctx.stroke();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Pattern or reflection
+        if (isAnimated) {
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(Math.sin(Date.now() / 500) * radius, 0, radius / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
         ctx.shadowBlur = 0;
+
+        // Turret
         ctx.save();
         ctx.translate(-recoil, 0);
-        ctx.fillStyle = '#222';
-        ctx.fillRect(0, -6, radius * 1.8, 12);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, -5, radius * 1.6, 10);
         ctx.strokeStyle = primary;
-        ctx.strokeRect(0, -6, radius * 1.8, 12);
+        ctx.strokeRect(0, -5, radius * 1.6, 10);
         ctx.restore();
+
+        // Cockpit
         ctx.fillStyle = primary;
-        ctx.beginPath(); ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.restore();
     };
 
@@ -151,17 +154,18 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         const cam = cameraRef.current;
         const now = Date.now();
         
+        // Viewport BG
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
         
         ctx.save(); 
         ctx.translate(-cam.x, -cam.y);
 
-        // 1. Sol (Bitume Cyber)
+        // Map BG
         ctx.fillStyle = map.colors.bg;
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // 2. Grille urbaine
+        // Grid
         ctx.strokeStyle = map.colors.grid; ctx.lineWidth = 1;
         for (let x = 0; x <= CANVAS_WIDTH; x += 100) { 
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); 
@@ -170,81 +174,93 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); 
         }
 
-        // 3. Détails de route (Marquages au sol) pour la map City
-        if (map.id === 'city') {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.setLineDash([20, 20]);
-            for (let x = 300; x <= 1100; x += 300) {
-                 ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke();
-            }
-            for (let y = 300; y <= 1100; y += 300) {
-                 ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke();
-            }
-            ctx.setLineDash([]);
-        }
-
-        // 4. PowerUps avec Aura
+        // PowerUps
         powerUpsRef.current.forEach(pw => {
-            const floatY = Math.sin(now / 150) * 8;
+            const floatY = Math.sin(now / 200) * 5;
             ctx.save();
             ctx.translate(pw.x, pw.y + floatY);
-            ctx.shadowBlur = 25; ctx.shadowColor = pw.color;
-            ctx.beginPath(); ctx.arc(0, 0, pw.radius, 0, Math.PI * 2); ctx.fillStyle = pw.color; ctx.fill();
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Rajdhani'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            let label = pw.type.charAt(0);
+            ctx.beginPath();
+            ctx.arc(0, 0, pw.radius, 0, Math.PI * 2);
+            ctx.fillStyle = pw.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = pw.color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Icon label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Rajdhani';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            let label = "?";
+            if (pw.type === 'HEALTH') label = "H";
+            if (pw.type === 'SHIELD') label = "S";
+            if (pw.type === 'TRIPLE') label = "W";
+            if (pw.type === 'BOOST') label = "X";
             ctx.fillText(label, 0, 0);
             ctx.restore();
         });
 
-        // 5. Bâtiments (Obstacles)
+        // Obstacles
         map.obstacles.forEach(obs => { 
-            drawBuilding(ctx, obs, map.colors.wallBorder);
+            ctx.fillStyle = map.colors.wall;
+            ctx.strokeStyle = map.colors.wallBorder;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = map.colors.wallBorder;
+            ctx.shadowBlur = 15;
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.shadowBlur = 0;
         });
 
-        // 6. Projectiles
+        // Bullets
         bulletsRef.current.forEach(b => {
-            ctx.shadowColor = b.color; ctx.shadowBlur = 12; ctx.fillStyle = b.color;
+            ctx.shadowColor = b.color; ctx.shadowBlur = 10; ctx.fillStyle = b.color;
             ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
             ctx.shadowBlur = 0;
-            // Trace de traînée
-            ctx.strokeStyle = b.color; ctx.globalAlpha = 0.3; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 2, b.y - b.vy * 2); ctx.stroke();
-            ctx.globalAlpha = 1.0;
         });
 
-        // 7. Tanks
+        // Tanks
         const player = playerRef.current;
         if (player && !player.isDead) drawTank(ctx, player, recoilRef.current[player.id] || 0);
         botsRef.current.forEach(bot => {
             if (!bot.isDead) drawTank(ctx, bot, recoilRef.current[bot.id] || 0);
         });
 
-        // 8. HUD in-world (Health / Shield / Name)
+        // HUD Elements (Health Bars) - Offset increased to reveal flag
         [player, ...botsRef.current].forEach(char => {
             if (!char || char.isDead) return;
             const hpPct = char.hp / char.maxHp;
             const shieldPct = char.shield / 50;
-            const barW = 60;
-            const hudBaseY = char.y - 70; 
+            const barW = 50;
+            
+            // On remonte tout le bloc HUD (barres + nom) d'environ 20-25 pixels
+            const hudBaseY = char.y - 65; 
 
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            // HP Bar
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fillRect(char.x - barW/2, hudBaseY, barW, 6);
-            ctx.fillStyle = hpPct > 0.4 ? '#00ff9d' : '#ff2d55';
+            ctx.fillStyle = hpPct > 0.4 ? '#0f0' : '#f00';
             ctx.fillRect(char.x - barW/2, hudBaseY, barW * hpPct, 6);
             
+            // Shield Bar
             if (char.shield > 0) {
                 ctx.fillStyle = '#3b82f6';
-                ctx.fillRect(char.x - barW/2, hudBaseY - 6, barW * shieldPct, 3);
+                ctx.fillRect(char.x - barW/2, hudBaseY - 5, barW * shieldPct, 3);
             }
 
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Rajdhani'; ctx.textAlign = 'center';
-            ctx.shadowBlur = 4; ctx.shadowColor = 'black';
-            ctx.fillText(char.name.toUpperCase(), char.x, hudBaseY - 12);
+            ctx.fillStyle = '#fff'; 
+            ctx.font = 'bold 12px Rajdhani'; 
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 2;
+            ctx.shadowColor = 'black';
+            ctx.fillText(char.name, char.x, hudBaseY - 10);
             ctx.shadowBlur = 0;
         });
 
-        // 9. Particules
+        // Particles
         particlesRef.current.forEach(p => {
             ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
@@ -252,25 +268,21 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.globalAlpha = 1;
 
         ctx.restore();
-
-        // 10. Effet de HUD global (Scanlines)
-        ctx.fillStyle = 'rgba(18, 16, 16, 0.1)';
-        for (let i = 0; i < VIEWPORT_HEIGHT; i += 4) {
-            ctx.fillRect(0, i, VIEWPORT_WIDTH, 1);
-        }
     }, [selectedMapIndex]);
 
     const loop = useCallback((time: number) => {
         if (!lastTimeRef.current) lastTimeRef.current = time;
         const dt = time - lastTimeRef.current;
         lastTimeRef.current = time;
-        onUpdateRef.current(dt);
+        
+        onUpdate(dt);
+        
         if (canvasRef.current) {
             const ctx = canvasRef.current.getContext('2d');
             if (ctx) draw(ctx);
         }
         animationFrameRef.current = requestAnimationFrame(loop);
-    }, [draw]);
+    }, [onUpdate, draw]);
 
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
@@ -291,8 +303,8 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ref={canvasRef}
             width={VIEWPORT_WIDTH}
             height={VIEWPORT_HEIGHT}
-            className="bg-black border-2 border-white/10 rounded-xl w-full h-full object-contain cursor-crosshair shadow-[0_0_50px_rgba(0,0,0,0.5)]"
-            onMouseDown={(e) => { if(!showTutorial && gameStateRef.current === 'PLAYING') mouseRef.current.down = true; }}
+            className="bg-black border-2 border-purple-500/30 rounded-xl w-full h-full object-contain cursor-crosshair"
+            onMouseDown={(e) => { if(!showTutorial && gameState === 'PLAYING') mouseRef.current.down = true; }}
             onMouseUp={() => mouseRef.current.down = false}
             onMouseMove={(e) => handleInputPos(e.clientX, e.clientY)}
         />
