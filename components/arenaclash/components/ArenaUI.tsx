@@ -135,6 +135,23 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         </div>
     );
 
+    const TankLocker = () => showLocker ? (
+        <QuickLocker 
+            title="Blindages Arena"
+            items={tanksCatalog}
+            ownedIds={ownedTanks}
+            currentId={currentTankId}
+            onSelect={selectTank}
+            onClose={() => setShowLocker(false)}
+            renderPreview={(tank) => (
+                <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
+                    <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
+                    <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                </div>
+            )}
+        />
+    ) : null;
+
     if (gameState === 'MENU') {
         return (
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto p-6 pointer-events-auto">
@@ -186,8 +203,13 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </button>
                     </div>
 
+                    <button onClick={() => setShowLocker(true)} className="mt-8 w-full max-w-sm md:max-w-3xl py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
+                        <Palette size={18}/> VESTIAIRE CHARS
+                    </button>
+
                     <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest"><Home size={14} /> Retour arcade</button>
                 </div>
+                <TankLocker />
             </div>
         );
     }
@@ -217,7 +239,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                     </button>
                                 </div>
                                 <button onClick={() => setShowLocker(true)} className="py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
-                                    <Palette size={18}/> Vestiaire Chars
+                                    <Palette size={18}/> VESTIAIRE CHARS
                                 </button>
                             </div>
 
@@ -260,23 +282,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                     )}
                 </div>
-
-                {showLocker && (
-                    <QuickLocker 
-                        title="Blindages Arena"
-                        items={tanksCatalog}
-                        ownedIds={ownedTanks}
-                        currentId={currentTankId}
-                        onSelect={selectTank}
-                        onClose={() => setShowLocker(false)}
-                        renderPreview={(tank) => (
-                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
-                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
-                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
-                            </div>
-                        )}
-                    />
-                )}
+                <TankLocker />
             </div>
         );
     }
@@ -302,23 +308,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </button>
 
                 <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer">Annuler</button>
-
-                {showLocker && (
-                    <QuickLocker 
-                        title="Blindages Arena"
-                        items={tanksCatalog}
-                        ownedIds={ownedTanks}
-                        currentId={currentTankId}
-                        onSelect={selectTank}
-                        onClose={() => setShowLocker(false)}
-                        renderPreview={(tank) => (
-                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
-                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
-                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
-                            </div>
-                        )}
-                    />
-                )}
+                <TankLocker />
             </div>
         );
     }

@@ -34,7 +34,8 @@ export interface SlitherSkin {
     primaryColor: string;
     secondaryColor: string;
     glowColor: string;
-    pattern?: 'solid' | 'stripes' | 'dots' | 'checker' | 'rainbow' | 'grid' | 'pulse' | 'metallic';
+    pattern?: 'solid' | 'stripes' | 'dots' | 'checker' | 'rainbow' | 'grid' | 'pulse' | 'metallic' | 'flag';
+    flagColors?: string[];
     rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
     description: string;
 }

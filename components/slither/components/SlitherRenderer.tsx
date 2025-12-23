@@ -150,6 +150,10 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
                 segmentColor = `hsl(${(i * 10 + Date.now() / 20) % 360}, 100%, 60%)`;
             } else if (pattern === 'stripes') {
                 segmentColor = (Math.floor(i / 3) % 2 === 0) ? primary : secondary;
+            } else if (pattern === 'flag' && skin?.flagColors) {
+                // Alternance des couleurs du drapeau tous les 2 segments pour un effet net
+                const colorIdx = Math.floor(i / 2) % skin.flagColors.length;
+                segmentColor = skin.flagColors[colorIdx];
             } else if (pattern === 'pulse') {
                 const pulseFactor = 0.5 + Math.sin(Date.now() / 200 - i * 0.2) * 0.5;
                 ctx.globalAlpha = 0.7 + pulseFactor * 0.3;
