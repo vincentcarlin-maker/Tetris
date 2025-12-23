@@ -1,12 +1,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-    Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin, TankAccessory,
+    Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin, TankAccessory, Friend,
     SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, 
     FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG, TANK_ACCESSORIES_CATALOG, TRANSLATIONS 
 } from '../constants/catalog';
 
-export type { Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin, TankAccessory };
+export type { Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin, TankAccessory, Friend };
 export { SLITHER_SKINS_CATALOG, BADGES_CATALOG, AVATARS_CATALOG, SLITHER_ACCESSORIES_CATALOG, FRAMES_CATALOG, WALLPAPERS_CATALOG, TITLES_CATALOG, MALLETS_CATALOG, TANKS_CATALOG, TANK_ACCESSORIES_CATALOG };
 
 const hexToRgb = (hex: string) => {
@@ -72,6 +72,10 @@ export const useCurrency = () => {
     const [ownedTankAccessories, setOwnedTankAccessories] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-owned-tank-accessories') || '["ta_none"]'); } catch { return ["ta_none"]; }
     });
+    
+    const [friends, setFriends] = useState<Friend[]>(() => { try { return JSON.parse(localStorage.getItem('neon_friends') || '[]'); } catch { return []; } });
+    useEffect(() => { localStorage.setItem('neon_friends', JSON.stringify(friends)); }, [friends]);
+
 
     const [accentColor, setAccentColor] = useState(() => localStorage.getItem('neon-accent-color') || 'default');
     const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem('neon-reduced-motion') === 'true');
@@ -104,6 +108,8 @@ export const useCurrency = () => {
         if (!data) return;
         if (data.coins !== undefined) { setCoins(data.coins); localStorage.setItem('neon-coins', data.coins.toString()); }
         if (data.inventory) { setInventory(data.inventory); localStorage.setItem('neon-inventory', JSON.stringify(data.inventory)); }
+        
+        // Items & Selections
         if (data.avatarId) { setCurrentAvatarId(data.avatarId); localStorage.setItem('neon-avatar', data.avatarId); }
         if (data.ownedAvatars) { setOwnedAvatars(data.ownedAvatars); localStorage.setItem('neon_owned_avatars', JSON.stringify(data.ownedAvatars)); }
         if (data.frameId) { setCurrentFrameId(data.frameId); localStorage.setItem('neon-frame', data.frameId); }
@@ -112,6 +118,26 @@ export const useCurrency = () => {
         if (data.ownedMallets) { setOwnedMallets(data.ownedMallets); localStorage.setItem('neon-owned-mallets', JSON.stringify(data.ownedMallets)); }
         if (data.tankId) { setCurrentTankId(data.tankId); localStorage.setItem('neon-tank', data.tankId); }
         if (data.ownedTanks) { setOwnedTanks(data.ownedTanks); localStorage.setItem('neon-owned-tanks', JSON.stringify(data.ownedTanks)); }
+        if (data.wallpaperId) { setCurrentWallpaperId(data.wallpaperId); localStorage.setItem('neon-wallpaper', data.wallpaperId); }
+        if (data.ownedWallpapers) { setOwnedWallpapers(data.ownedWallpapers); localStorage.setItem('neon-owned-wallpapers', JSON.stringify(data.ownedWallpapers)); }
+        if (data.titleId) { setCurrentTitleId(data.titleId); localStorage.setItem('neon-title', data.titleId); }
+        if (data.ownedTitles) { setOwnedTitles(data.ownedTitles); localStorage.setItem('neon-owned-titles', JSON.stringify(data.ownedTitles)); }
+        if (data.slitherSkinId) { setCurrentSlitherSkinId(data.slitherSkinId); localStorage.setItem('neon-slither-skin', data.slitherSkinId); }
+        if (data.ownedSlitherSkins) { setOwnedSlitherSkins(data.ownedSlitherSkins); localStorage.setItem('neon-owned-slither-skins', JSON.stringify(data.ownedSlitherSkins)); }
+        if (data.slitherAccessoryId) { setCurrentSlitherAccessoryId(data.slitherAccessoryId); localStorage.setItem('neon-slither-accessory', data.slitherAccessoryId); }
+        if (data.ownedSlitherAccessories) { setOwnedSlitherAccessories(data.ownedSlitherAccessories); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify(data.ownedSlitherAccessories)); }
+        if (data.tankAccessoryId) { setCurrentTankAccessoryId(data.tankAccessoryId); localStorage.setItem('neon-tank-accessory', data.tankAccessoryId); }
+        if (data.ownedTankAccessories) { setOwnedTankAccessories(data.ownedTankAccessories); localStorage.setItem('neon-owned-tank-accessories', JSON.stringify(data.ownedTankAccessories)); }
+        
+        // Social
+        if (data.friends) { setFriends(data.friends); }
+        
+        // Settings
+        if (data.email) { setEmail(data.email); localStorage.setItem('neon-email', data.email); }
+        if (data.accentColor) { setAccentColor(data.accentColor); localStorage.setItem('neon-accent-color', data.accentColor); }
+        if (data.reducedMotion) { setReducedMotion(data.reducedMotion); localStorage.setItem('neon-reduced-motion', String(data.reducedMotion)); }
+        if (data.voiceChatEnabled) { setVoiceChatEnabled(data.voiceChatEnabled); localStorage.setItem('neon-voice-chat', String(data.voiceChatEnabled)); }
+        if (data.language) { setLanguageState(data.language); localStorage.setItem('neon-language', data.language); }
     }, []);
 
     const t = useMemo(() => TRANSLATIONS[language] || TRANSLATIONS.fr, [language]);
@@ -155,6 +181,9 @@ export const useCurrency = () => {
         inventoryCount: inventory.length,
         email, updateEmail: (e: string) => { setEmail(e); localStorage.setItem('neon-email', e); },
         reducedMotion, toggleReducedMotion: () => setReducedMotion(v => !v),
+        friends,
+        addFriend: (f: Friend) => setFriends(p => p.some(pf => pf.name === f.name) ? p : [...p, f]),
+        removeFriend: (name: string) => setFriends(p => p.filter(f => f.name !== name)),
         importData, refreshData: () => {}
     };
 };

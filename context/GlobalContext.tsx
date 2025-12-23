@@ -73,83 +73,84 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const mp = useMultiplayer(); 
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
-    // Fonction de synchronisation manuelle/explicite
     const syncDataWithCloud = useCallback(async () => {
         if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon') return;
-        
-        const fullData = {
-            coins: currency.coins,
-            inventory: currency.inventory,
-            avatarId: currency.currentAvatarId,
-            ownedAvatars: currency.ownedAvatars,
-            frameId: currency.currentFrameId,
-            ownedFrames: currency.ownedFrames,
-            wallpaperId: currency.currentWallpaperId,
-            ownedWallpapers: currency.ownedWallpapers,
-            titleId: currency.currentTitleId,
-            ownedTitles: currency.ownedTitles,
-            malletId: currency.currentMalletId,
-            ownedMallets: currency.ownedMallets,
-            highScores: highScoresHook.highScores,
-            email: currency.email
-        };
-        
-        await supabaseHook.syncProfileToCloud(currency.username, fullData);
-    }, [isAuthenticated, currency, highScoresHook.highScores, supabaseHook]);
 
-    // --- RECONNEXION AUTOMATIQUE & SYNC INITIALE ---
+        const fullData = {
+            password: localStorage.getItem('neon_current_password') || undefined,
+            coins: currency.coins,
+            ownedAvatars: currency.ownedAvatars, ownedFrames: currency.ownedFrames, ownedWallpapers: currency.ownedWallpapers,
+            ownedTitles: currency.ownedTitles, ownedMallets: currency.ownedMallets, ownedSlitherSkins: currency.ownedSlitherSkins,
+            ownedSlitherAccessories: currency.ownedSlitherAccessories, ownedTanks: currency.ownedTanks,
+            ownedTankAccessories: currency.ownedTankAccessories,
+            avatarId: currency.currentAvatarId, frameId: currency.currentFrameId, wallpaperId: currency.currentWallpaperId,
+            titleId: currency.currentTitleId, malletId: currency.currentMalletId, slitherSkinId: currency.currentSlitherSkinId,
+            slitherAccessoryId: currency.currentSlitherAccessoryId, tankId: currency.currentTankId, tankAccessoryId: currency.currentTankAccessoryId,
+            friends: currency.friends,
+            email: currency.email, accentColor: currency.accentColor, reducedMotion: currency.reducedMotion,
+            voiceChatEnabled: currency.voiceChatEnabled, language: currency.language,
+            highScores: highScoresHook.highScores,
+            daily: {
+                streak: daily.streak,
+                quests: daily.quests,
+                allCompletedBonusClaimed: daily.allCompletedBonusClaimed,
+                lastLogin: localStorage.getItem('neon_last_login')
+            }
+        };
+
+        await supabaseHook.syncProfileToCloud(currency.username, fullData);
+    }, [isAuthenticated, currency, highScoresHook, daily, supabaseHook]);
+
+
     useEffect(() => {
         const attemptAutoLogin = async () => {
             const storedUser = localStorage.getItem('neon-username');
             const storedPass = localStorage.getItem('neon_current_password');
             
-            if (storedUser && storedPass) {
+            if (storedUser && storedPass && storedUser !== "Joueur Néon") {
                 try {
                     const profile = await DB.getUserProfile(storedUser);
-                    if (profile && profile.data) {
-                        const cloudPass = profile.data.password;
+                    if (profile) {
+                        const cloudData = profile.data || {};
+                        const cloudPass = cloudData.password;
                         if (cloudPass === storedPass || storedUser === 'Vincent') {
-                            currency.importData(profile.data);
-                            highScoresHook.importScores(profile.data.highScores || {});
+                            handleLogin(storedUser, cloudData);
+                        } else {
+                            // Password mismatch, force logout
+                            handleLogout();
                         }
                     }
-                } catch (e) {
-                    console.error("Background sync failed:", e);
-                }
+                } catch (e) { console.error("Auto-login failed:", e); }
             }
         };
         attemptAutoLogin();
     }, []);
 
-    // --- SYNCHRONISATION AUTOMATIQUE (DEBOUNCED) ---
-    // Dès qu'une valeur importante change, on attend 2s d'inactivité pour sauvegarder
     useEffect(() => {
-        if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon') return;
+        if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon' || currentView.includes('admin')) return;
 
         const timer = setTimeout(() => {
             syncDataWithCloud();
-        }, 2000);
+        }, 3000); // Debounce de 3 secondes
 
         return () => clearTimeout(timer);
     }, [
-        isAuthenticated, 
-        currency.username, 
-        currency.coins, 
-        currency.inventory.length, // Utiliser la longueur pour éviter les cycles de rendu infinis sur les tableaux
-        currency.currentAvatarId, 
-        currency.currentFrameId, 
-        currency.currentWallpaperId,
-        currency.currentTitleId, 
-        currency.currentMalletId,
-        JSON.stringify(highScoresHook.highScores) // Surveiller les changements de contenu des scores
+        isAuthenticated, currency.username, currency.coins, currency.friends,
+        currency.ownedAvatars, currency.ownedFrames, currency.ownedWallpapers, currency.ownedTitles,
+        currency.ownedMallets, currency.ownedSlitherSkins, currency.ownedSlitherAccessories,
+        currency.ownedTanks, currency.ownedTankAccessories,
+        currency.currentAvatarId, currency.currentFrameId, currency.currentWallpaperId,
+        currency.currentTitleId, currency.currentMalletId, currency.currentSlitherSkinId,
+        currency.currentSlitherAccessoryId, currency.currentTankId, currency.currentTankAccessoryId,
+        JSON.stringify(highScoresHook.highScores),
+        JSON.stringify(daily.quests), daily.streak,
+        syncDataWithCloud
     ]);
 
     const recordTransaction = useCallback((type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => {
-        if (!currency.username) return;
+        if (!currency.username || currency.username === 'Joueur Néon') return;
         DB.logTransaction(currency.username, type, amount, description, gameId);
-        // On déclenche une sync immédiate pour les transactions financières
-        syncDataWithCloud();
-    }, [currency.username, syncDataWithCloud]);
+    }, [currency.username]);
 
     const handleGameEvent = useCallback((gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => {
         if (eventType === 'score') highScoresHook.updateHighScore(gameId as any, value);
@@ -163,6 +164,12 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (cloudData.password) {
                 localStorage.setItem('neon_current_password', cloudData.password);
             }
+            if (cloudData.highScores) {
+                highScoresHook.importScores(cloudData.highScores);
+            }
+            if (cloudData.daily) {
+                daily.importData(cloudData.daily);
+            }
         }
         setIsAuthenticated(true);
         setShowLoginModal(false);
@@ -170,11 +177,14 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const handleLogout = () => { 
-        setIsAuthenticated(false); 
-        mp.disconnect(); 
-        setCurrentView('menu'); 
-        localStorage.removeItem('neon-username'); 
-        localStorage.removeItem('neon_current_password');
+        syncDataWithCloud().then(() => {
+            setIsAuthenticated(false); 
+            mp.disconnect(); 
+            setCurrentView('menu'); 
+            localStorage.removeItem('neon-username'); 
+            localStorage.removeItem('neon_current_password');
+            window.location.reload(); // Force clean state
+        });
     };
 
     return (

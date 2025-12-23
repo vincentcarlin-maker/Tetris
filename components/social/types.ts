@@ -1,25 +1,7 @@
 
-export interface FriendRequest {
-    id: string;
-    name: string;
-    avatarId: string;
-    frameId?: string;
-    timestamp: number;
-}
+import { Friend, FriendRequest } from '../../constants/types';
 
-export interface Friend {
-    id: string;
-    name: string;
-    avatarId: string;
-    frameId?: string;
-    status: 'online' | 'offline';
-    lastSeen: number;
-    gameActivity?: string; 
-    lastMessage?: string;
-    lastMessageTime?: number;
-    stats?: any;
-    inventory?: string[];
-}
+export type { Friend, FriendRequest };
 
 export interface PrivateMessage {
     id: string;

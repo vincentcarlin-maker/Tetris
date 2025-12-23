@@ -4,12 +4,12 @@ import { MessageSquare, Globe, Home as HomeIcon } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency, BADGES_CATALOG } from '../hooks/useCurrency';
 import { useMultiplayer } from '../hooks/useMultiplayer';
-import { DB, supabase } from '../lib/supabaseClient';
+import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { OnlineUser } from '../hooks/useSupabase';
 import { useGlobal } from '../context/GlobalContext';
 
 // Sub-components
-import { Friend, FriendRequest, PrivateMessage, SUPPORT_ID } from './social/types';
+import { FriendRequest, PrivateMessage, SUPPORT_ID, Friend } from './social/types';
 import { PlayerProfileModal } from './social/PlayerProfileModal';
 import { ChatView } from './social/ChatView';
 import { FriendsList } from './social/FriendsList';
@@ -34,19 +34,17 @@ interface SocialOverlayProps {
 }
 
 export const SocialOverlay: React.FC<SocialOverlayProps> = ({ 
-    audio, currency, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured, 
+    audio, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured, 
     onUnreadChange, friendRequests, setFriendRequests, activeTabOverride, onTabChangeOverride 
 }) => {
-    const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog } = currency;
+    const { currency, setCurrentView, syncDataWithCloud } = useGlobal();
+    const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog, friends, addFriend, removeFriend } = currency;
     const { playCoin, playVictory, playLand } = audio;
-    const { setCurrentView } = useGlobal();
     
-    // --- STATE MANAGEMENT ---
     const [localTab, setLocalTab] = useState<'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS'>('COMMUNITY');
     const socialTab = activeTabOverride || localTab;
     const setSocialTab = onTabChangeOverride || setLocalTab;
 
-    const [friends, setFriends] = useState<Friend[]>([]);
     const [messages, setMessages] = useState<Record<string, PrivateMessage[]>>({});
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -56,7 +54,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const [friendsSearchTerm, setFriendsSearchTerm] = useState('');
     const [isCommunitySearching, setIsCommunitySearching] = useState(false);
 
-    // Refs for live callbacks
     const stateRef = useRef({ friends, activeChatId, username, isConnectedToSupabase, onlineUsers });
 
     useEffect(() => {
@@ -65,37 +62,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     const isMessagingCategory = socialTab === 'FRIENDS' || socialTab === 'CHAT';
 
-    // --- NOTIFICATIONS ---
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
 
-    // Sauvegarde Cloud de la liste d'amis quand elle change
-    const syncFriendsToCloud = async (newFriends: Friend[]) => {
-        if (isConnectedToSupabase && username) {
-            await DB.updateUserData(username, { friends: newFriends });
-        }
-    };
-
-    // --- INITIAL LOAD & SYNC ---
     useEffect(() => {
         const loadInitialData = async () => {
-            // 1. Load local friends as fallback
-            const storedFriends = localStorage.getItem('neon_friends');
-            let initialFriends: Friend[] = [];
-            if (storedFriends) {
-                try {
-                    const parsed = JSON.parse(storedFriends);
-                    if (Array.isArray(parsed)) initialFriends = parsed.map((f: any) => ({ ...f, status: 'offline' }));
-                } catch (e) { localStorage.removeItem('neon_friends'); }
-            }
-
-            // 2. Sync with Cloud
             if (isConnectedToSupabase && username) {
-                const profile = await DB.getUserProfile(username);
-                if (profile?.data?.friends) {
-                    initialFriends = profile.data.friends;
-                    localStorage.setItem('neon_friends', JSON.stringify(initialFriends));
-                }
-                
                 DB.getUnreadCount(username).then(count => setUnreadCount(count));
                 DB.getPendingRequests(username).then(reqs => {
                     setFriendRequests(prev => {
@@ -104,8 +75,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                         return [...prev, ...newReqs];
                     });
                 });
-
-                // Load support history
                 DB.getMessages(username, SUPPORT_ID).then(msgs => {
                     if (msgs && msgs.length > 0) {
                         const formatted = msgs.map((m: any) => ({
@@ -119,40 +88,34 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                     }
                 });
             }
-            setFriends(initialFriends);
         };
-        
         loadInitialData();
-    }, [isConnectedToSupabase, username]);
+    }, [isConnectedToSupabase, username, setFriendRequests]);
 
-    // --- REALTIME MESSAGES ---
     useEffect(() => {
-        if (!isConnectedToSupabase || !supabase || !username) return;
-        const channel = supabase.channel(`msg_${username}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        if (!isConnectedToSupabase || !mp.peerId || !username) return;
+        const channel = mp.supabase.channel(`msg_${username}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
                 const newMsg = payload.new;
                 if (newMsg.receiver_id !== username) return;
                 
                 if (newMsg.text === 'CMD:FRIEND_REQUEST') {
                     DB.getUserProfile(newMsg.sender_id).then(profile => {
-                        const newReq = {
-                            id: newMsg.sender_id,
-                            name: newMsg.sender_id,
-                            avatarId: profile?.data?.avatarId || 'av_bot',
-                            frameId: profile?.data?.frameId,
-                            timestamp: Date.now()
-                        };
-                        setFriendRequests(prev => {
-                            if (prev.some(r => r.id === newReq.id)) return prev;
-                            playCoin();
-                            return [...prev, newReq];
-                        });
+                        if (profile) {
+                            const newReq = { id: profile.username, name: profile.username, avatarId: profile.data?.avatarId || 'av_bot', frameId: profile.data?.frameId, timestamp: Date.now() };
+                            setFriendRequests(prev => {
+                                if (prev.some(r => r.id === newReq.id)) return prev;
+                                playCoin();
+                                return [...prev, newReq];
+                            });
+                        }
                     });
                     return;
                 }
                 
                 const senderUsername = newMsg.sender_id;
-                const senderId = senderUsername === SUPPORT_ID ? SUPPORT_ID : (stateRef.current.onlineUsers.find(u => u.name === senderUsername)?.id || senderUsername);
+                const onlineSender = onlineUsers.find(u => u.name === senderUsername);
+                const senderId = onlineSender ? onlineSender.id : (senderUsername === SUPPORT_ID ? SUPPORT_ID : senderUsername);
                 
                 setMessages(prev => {
                     const chat = prev[senderId] || [];
@@ -166,50 +129,20 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                     DB.markMessagesAsRead(senderUsername, username);
                 }
             }).subscribe();
-        return () => { supabase.removeChannel(channel); };
-    }, [isConnectedToSupabase, username, playCoin, setFriendRequests]);
+        return () => { mp.supabase.removeChannel(channel); };
+    }, [isConnectedToSupabase, mp.peerId, username, playCoin, setFriendRequests, onlineUsers]);
 
-    // --- REALTIME FRIEND EVENTS ---
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
             if (data.type === 'FRIEND_ACCEPT') {
                 const sender = data.sender;
                 playVictory();
-                
-                const newFriend: Friend = { 
-                    id: sender.id, 
-                    name: sender.name, 
-                    avatarId: sender.avatarId, 
-                    frameId: sender.frameId, 
-                    status: 'online', 
-                    lastSeen: Date.now() 
-                };
-                
-                setFriends(prev => {
-                    if (prev.some(f => f.name === newFriend.name)) return prev;
-                    const newList = [...prev, newFriend];
-                    localStorage.setItem('neon_friends', JSON.stringify(newList));
-                    syncFriendsToCloud(newList);
-                    return newList;
-                });
+                const newFriend: Friend = { id: sender.id, name: sender.name, avatarId: sender.avatarId, frameId: sender.frameId, status: 'online', lastSeen: Date.now() };
+                addFriend(newFriend);
             }
         });
         return () => unsubscribe();
-    }, [mp, playVictory]);
-
-    // --- SYNC ONLINE STATUS ---
-    useEffect(() => {
-        setFriends(prev => prev.map(f => {
-            const onlineEntry = onlineUsers.find(u => u.name === f.name);
-            const isReallyOnline = onlineEntry && onlineEntry.status === 'online';
-            
-            return isReallyOnline 
-                ? { ...f, id: onlineEntry.id, status: 'online', gameActivity: onlineEntry.gameActivity, lastSeen: onlineEntry.lastSeen, stats: onlineEntry.stats } 
-                : { ...f, status: 'offline' };
-        }));
-    }, [onlineUsers]);
-
-    // --- ACTIONS ---
+    }, [mp, playVictory, addFriend]);
 
     const openChat = async (friend: Friend) => {
         setActiveChatId(friend.id);
@@ -271,7 +204,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 setSelectedPlayer({
                     ...player,
                     stats: profile.data.highScores,
-                    inventory: profile.data.inventory || [],
+                    inventory: [], // Inventory data not shared for privacy/performance
                     lastSeen: new Date(profile.updated_at).getTime()
                 });
                 return;
@@ -284,12 +217,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         if (!selectedPlayer) return;
         
         let targetPeerId = selectedPlayer.id;
-        if (!targetPeerId.startsWith('user_')) {
-            const liveUser = onlineUsers.find(u => u.name === selectedPlayer.name);
-            if (liveUser) targetPeerId = liveUser.id;
-        }
+        const liveUser = onlineUsers.find(u => u.name === selectedPlayer.name);
+        if (liveUser) targetPeerId = liveUser.id;
 
-        if (mp.peerId && targetPeerId.startsWith('user_')) {
+        if (mp.peerId && targetPeerId && (targetPeerId.startsWith('user_') || targetPeerId.startsWith('peer_'))) {
             mp.sendTo(targetPeerId, {
                 type: 'FRIEND_REQUEST',
                 sender: { id: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId }
@@ -304,28 +235,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         setSelectedPlayer(null);
     };
 
-    const removeFriend = (friendId: string) => {
+    const handleRemoveFriend = (friendName: string) => {
         if (!window.confirm("Voulez-vous vraiment supprimer ce joueur de vos amis ?")) return;
-        setFriends(prev => {
-            const newList = prev.filter(f => f.id !== friendId);
-            localStorage.setItem('neon_friends', JSON.stringify(newList));
-            syncFriendsToCloud(newList);
-            return newList;
-        });
+        removeFriend(friendName);
         setSelectedPlayer(null);
     };
 
     const acceptRequest = (req: FriendRequest) => {
         const newFriend: Friend = { id: req.id, name: req.name, avatarId: req.avatarId, frameId: req.frameId, status: 'online', lastSeen: Date.now() };
-        setFriends(prev => {
-            if (prev.some(f => f.name === newFriend.name)) return prev;
-            const newList = [...prev, newFriend];
-            localStorage.setItem('neon_friends', JSON.stringify(newList));
-            syncFriendsToCloud(newList);
-            return newList;
-        });
+        addFriend(newFriend);
         setFriendRequests(prev => prev.filter(r => r.id !== req.id));
-        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.id);
+        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
         if (mp.peerId) {
             const senderOnline = onlineUsers.find(u => u.name === req.name);
             if (senderOnline) {
@@ -339,138 +259,52 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const declineRequest = (reqId: string) => {
+        const req = friendRequests.find(r => r.id === reqId);
+        if (!req) return;
         setFriendRequests(prev => prev.filter(r => r.id !== reqId));
-        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, reqId); 
+        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
     };
 
     const activeFriend = useMemo(() => {
         if (activeChatId === SUPPORT_ID) {
-            return { 
-                id: SUPPORT_ID, 
-                name: 'Support Technique', 
-                avatarId: 'av_bot', 
-                frameId: 'fr_neon_blue',
-                status: 'online', 
-                lastSeen: Date.now() 
-            } as Friend;
+            return { id: SUPPORT_ID, name: 'Support Technique', avatarId: 'av_bot', frameId: 'fr_neon_blue', status: 'online', lastSeen: Date.now() } as Friend;
         }
-        return friends.find(f => f.id === activeChatId);
+        return friends.find(f => f.id === activeChatId || f.name === activeChatId);
     }, [activeChatId, friends]);
 
     return (
         <div className="h-full w-full flex flex-col bg-black/20 font-sans text-white relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             
-            {/* --- HEADER --- */}
             <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 w-full z-10 flex flex-col shrink-0">
                 <div className="p-4 flex items-center justify-between">
-                    <button 
-                        onClick={() => setCurrentView('menu')}
-                        className="p-2 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"
-                    >
-                        <HomeIcon size={20} />
-                    </button>
-                    
-                    <h2 className={`text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 pr-4 pb-1 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>
-                        {isMessagingCategory ? <MessageSquare size={24}/> : <Globe size={24}/>} 
-                        {isMessagingCategory ? 'MESSAGERIE' : 'HUB SOCIAL'}
-                    </h2>
-
+                    <button onClick={() => setCurrentView('menu')} className="p-2 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10"><HomeIcon size={20} /></button>
+                    <h2 className={`text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 pr-4 pb-1 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>{isMessagingCategory ? <MessageSquare size={24}/> : <Globe size={24}/>} {isMessagingCategory ? 'MESSAGERIE' : 'HUB SOCIAL'}</h2>
                     <div className="w-10"></div>
                 </div>
-
                 <div className="flex p-2 gap-2 bg-black/20 mx-4 mb-2 rounded-xl">
-                    {isMessagingCategory ? (
-                        <>
-                            <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'FRIENDS' ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>DISCUSSIONS</button>
-                            {activeChatId && <button onClick={() => setSocialTab('CHAT')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'CHAT' ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>TCHAT ACTIF</button>}
-                        </>
-                    ) : (
-                        <>
-                            <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>EN LIGNE</button>
-                            <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all relative ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-white/5'}`}>
-                                REQUÊTES
-                                {friendRequests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{friendRequests.length}</span>}
-                            </button>
-                        </>
-                    )}
+                    <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'FRIENDS' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>DISCUSSIONS</button>
+                    <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>EN LIGNE</button>
+                    <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all relative ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>
+                        REQUÊTES {friendRequests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{friendRequests.length}</span>}
+                    </button>
                 </div>
             </div>
 
-            {/* --- CONTENT AREA --- */}
             <div className="flex-1 overflow-y-auto flex flex-col relative pb-4 custom-scrollbar">
-                
-                {socialTab === 'FRIENDS' && (
-                    <FriendsList 
-                        friends={friends} 
-                        messages={messages} 
-                        currentUsername={username} 
-                        avatarsCatalog={avatarsCatalog} 
-                        framesCatalog={framesCatalog} 
-                        onOpenChat={openChat}
-                        searchTerm={friendsSearchTerm}
-                        onSearchChange={setFriendsSearchTerm}
-                    />
-                )}
-
-                {socialTab === 'CHAT' && activeFriend && (
-                    <ChatView 
-                        activeFriend={activeFriend}
-                        messages={messages[activeChatId!] || []}
-                        currentUsername={username}
-                        avatarsCatalog={avatarsCatalog}
-                        framesCatalog={framesCatalog}
-                        onBack={() => setSocialTab('FRIENDS')}
-                        onOpenProfile={handlePlayerClick}
-                        onSendMessage={sendMessage}
-                        isLoadingHistory={isLoadingHistory}
-                        mp={mp}
-                    />
-                )}
-
-                {socialTab === 'COMMUNITY' && (
-                    <CommunityView 
-                        myPeerId={mp.peerId}
-                        currentUsername={username}
-                        friends={friends}
-                        onlineUsers={onlineUsers}
-                        avatarsCatalog={avatarsCatalog}
-                        framesCatalog={framesCatalog}
-                        onPlayerClick={handlePlayerClick}
-                        isSearching={isCommunitySearching}
-                        onSearch={async (query) => {
-                            if (!isConnectedToSupabase) return [];
-                            setIsCommunitySearching(true);
-                            const results = await DB.searchUsers(query);
-                            setIsCommunitySearching(false);
-                            return results;
-                        }}
-                    />
-                )}
-
-                {socialTab === 'REQUESTS' && (
-                    <RequestsList 
-                        requests={friendRequests}
-                        avatarsCatalog={avatarsCatalog}
-                        onAccept={acceptRequest}
-                        onDecline={declineRequest}
-                    />
+                {socialTab === 'CHAT' && activeFriend ? (
+                    <ChatView activeFriend={activeFriend} messages={messages[activeChatId!] || []} currentUsername={username} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onBack={() => setSocialTab('FRIENDS')} onOpenProfile={handlePlayerClick} onSendMessage={sendMessage} isLoadingHistory={isLoadingHistory} mp={mp}/>
+                ) : socialTab === 'FRIENDS' ? (
+                    <FriendsList friends={friends} messages={messages} currentUsername={username} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onOpenChat={openChat} searchTerm={friendsSearchTerm} onSearchChange={setFriendsSearchTerm}/>
+                ) : socialTab === 'COMMUNITY' ? (
+                    <CommunityView myPeerId={mp.peerId} currentUsername={username} friends={friends} onlineUsers={onlineUsers} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onPlayerClick={handlePlayerClick} isSearching={isCommunitySearching} onSearch={async (query) => { if (!isConnectedToSupabase) return []; setIsCommunitySearching(true); const results = await DB.searchUsers(query); setIsCommunitySearching(false); return results; }}/>
+                ) : (
+                    <RequestsList requests={friendRequests} avatarsCatalog={avatarsCatalog} onAccept={acceptRequest} onDecline={declineRequest}/>
                 )}
             </div>
 
-            {/* --- MODAL PROFILE --- */}
             {selectedPlayer && (
-                <PlayerProfileModal 
-                    player={selectedPlayer}
-                    onClose={() => setSelectedPlayer(null)}
-                    onAddFriend={sendFriendRequest}
-                    onRemoveFriend={removeFriend}
-                    onOpenChat={openChat}
-                    isFriend={friends.some(f => f.name === selectedPlayer.name)}
-                    avatarsCatalog={avatarsCatalog}
-                    framesCatalog={framesCatalog}
-                    badgesCatalog={BADGES_CATALOG}
-                />
+                <PlayerProfileModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} onAddFriend={sendFriendRequest} onRemoveFriend={() => handleRemoveFriend(selectedPlayer.name)} onOpenChat={openChat} isFriend={friends.some(f => f.name === selectedPlayer.name)} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} badgesCatalog={BADGES_CATALOG}/>
             )}
         </div>
     );

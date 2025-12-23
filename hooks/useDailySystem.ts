@@ -60,6 +60,17 @@ const QUEST_TEMPLATES: { difficulty: QuestDifficulty, templates: Omit<DailyQuest
     }
 ];
 
+const generateNewQuests = () => {
+    const newQuests: DailyQuest[] = [];
+    const easyPool = QUEST_TEMPLATES.find(g => g.difficulty === 'EASY')!.templates;
+    const medPool = QUEST_TEMPLATES.find(g => g.difficulty === 'MEDIUM')!.templates;
+    const hardPool = QUEST_TEMPLATES.find(g => g.difficulty === 'HARD')!.templates;
+    newQuests.push({ ...easyPool[Math.floor(Math.random() * easyPool.length)], id: `q_${Date.now()}_e`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'EASY' });
+    newQuests.push({ ...medPool[Math.floor(Math.random() * medPool.length)], id: `q_${Date.now()}_m`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'MEDIUM' });
+    newQuests.push({ ...hardPool[Math.floor(Math.random() * hardPool.length)], id: `q_${Date.now()}_h`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'HARD' });
+    return newQuests;
+};
+
 export const useDailySystem = (addCoins: (amount: number) => void) => {
     const [streak, setStreak] = useState(0);
     const [showDailyModal, setShowDailyModal] = useState(false);
@@ -75,28 +86,60 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
         return `${year}-${month}-${day}`;
     };
 
-    const updateQuestsState = useCallback((newQuests: DailyQuest[]) => {
-        setQuests(newQuests);
-        localStorage.setItem('neon_daily_quests', JSON.stringify(newQuests));
-    }, []);
+    const importData = useCallback((data?: { streak: number, quests: DailyQuest[], allCompletedBonusClaimed: boolean, lastLogin: string }) => {
+        if (!data) return;
+        const today = getTodayString();
+        
+        if (data.lastLogin === today) {
+            setStreak(data.streak);
+            setQuests(data.quests);
+            setAllCompletedBonusClaimed(data.allCompletedBonusClaimed);
+            
+            localStorage.setItem('neon_last_login', data.lastLogin);
+            localStorage.setItem('neon_streak', String(data.streak));
+            localStorage.setItem('neon_daily_quests', JSON.stringify(data.quests));
+            localStorage.setItem('neon_bonus_claimed', String(data.allCompletedBonusClaimed));
+            setShowDailyModal(false);
+        } else {
+            let newStreak = 1;
+            if (data.lastLogin) {
+                const lastDate = new Date(data.lastLogin);
+                const currDate = new Date(today);
+                const diffTime = currDate.getTime() - lastDate.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays === 1) {
+                    newStreak = (data.streak || 0) + 1;
+                    if (newStreak > 7) newStreak = 1;
+                }
+            }
+            
+            setStreak(newStreak);
+            const reward = 50 + newStreak * 20;
+            setTodaysReward(reward);
+            setShowDailyModal(true);
+            
+            const newQuests = generateNewQuests();
+            setQuests(newQuests);
+            setAllCompletedBonusClaimed(false);
+
+            localStorage.setItem('neon_last_login', today);
+            localStorage.setItem('neon_streak', String(newStreak));
+            localStorage.setItem('neon_daily_quests', JSON.stringify(newQuests));
+            localStorage.setItem('neon_bonus_claimed', 'false');
+        }
+    }, [addCoins]);
 
     useEffect(() => {
         const storedLastLogin = localStorage.getItem('neon_last_login');
-        const storedStreak = parseInt(localStorage.getItem('neon_streak') || '0', 10);
-        const storedQuests = localStorage.getItem('neon_daily_quests');
-        const storedDate = localStorage.getItem('neon_quests_date');
-        const storedBonus = localStorage.getItem('neon_bonus_claimed');
-
         const today = getTodayString();
-
         if (storedLastLogin !== today) {
+            const storedStreak = parseInt(localStorage.getItem('neon_streak') || '0', 10);
             let newStreak = 1;
             if (storedLastLogin) {
                 const lastDate = new Date(storedLastLogin);
                 const currDate = new Date(today);
                 const diffTime = Math.abs(currDate.getTime() - lastDate.getTime());
-                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
-
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 if (diffDays === 1) {
                     newStreak = storedStreak + 1;
                     if (newStreak > 7) newStreak = 1;
@@ -109,37 +152,18 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
             setTodaysReward(baseReward + bonus);
             setShowDailyModal(true);
             
-            localStorage.setItem('neon_last_login', today);
-            localStorage.setItem('neon_streak', newStreak.toString());
-        } else {
-            setStreak(storedStreak);
-        }
-
-        let parsedQuests: DailyQuest[] = [];
-        try {
-            if (storedQuests) parsedQuests = JSON.parse(storedQuests);
-        } catch (e) {
-            parsedQuests = [];
-        }
-
-        if (storedDate !== today || !storedQuests || parsedQuests.length === 0) {
-            const newQuests: DailyQuest[] = [];
-            const easyPool = QUEST_TEMPLATES.find(g => g.difficulty === 'EASY')!.templates;
-            const medPool = QUEST_TEMPLATES.find(g => g.difficulty === 'MEDIUM')!.templates;
-            const hardPool = QUEST_TEMPLATES.find(g => g.difficulty === 'HARD')!.templates;
-
-            newQuests.push({ ...easyPool[Math.floor(Math.random() * easyPool.length)], id: `q_${Date.now()}_e`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'EASY' });
-            newQuests.push({ ...medPool[Math.floor(Math.random() * medPool.length)], id: `q_${Date.now()}_m`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'MEDIUM' });
-            newQuests.push({ ...hardPool[Math.floor(Math.random() * hardPool.length)], id: `q_${Date.now()}_h`, progress: 0, isCompleted: false, isClaimed: false, difficulty: 'HARD' });
-
+            const newQuests = generateNewQuests();
             setQuests(newQuests);
             setAllCompletedBonusClaimed(false);
+
+            localStorage.setItem('neon_last_login', today);
+            localStorage.setItem('neon_streak', newStreak.toString());
             localStorage.setItem('neon_daily_quests', JSON.stringify(newQuests));
-            localStorage.setItem('neon_quests_date', today);
             localStorage.setItem('neon_bonus_claimed', 'false');
         } else {
-            setQuests(parsedQuests);
-            setAllCompletedBonusClaimed(storedBonus === 'true');
+            setStreak(parseInt(localStorage.getItem('neon_streak') || '0', 10));
+            setQuests(JSON.parse(localStorage.getItem('neon_daily_quests') || '[]'));
+            setAllCompletedBonusClaimed(localStorage.getItem('neon_bonus_claimed') === 'true');
         }
     }, []);
 
@@ -150,42 +174,26 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
 
     const reportQuestProgress = useCallback((gameId: string, metric: QuestMetric, value: number = 1) => {
         setQuests(prev => {
-            let changed = false;
             const updated = prev.map(q => {
                 if (q.isCompleted) return q;
-
                 let shouldUpdate = false;
                 let newProgress = q.progress;
-
                 if (q.metric === 'coins' && metric === 'coins') {
                     shouldUpdate = true;
                     newProgress += value;
                 } else if (q.gameId === gameId || q.gameId === 'any') {
                     if (q.metric === metric) {
                         shouldUpdate = true;
-                        if (metric === 'score') {
-                            if (value >= q.target) newProgress = q.target;
-                            else newProgress = Math.max(q.progress, value); 
-                        } else {
-                            newProgress += value;
-                        }
+                        if (metric === 'score') newProgress = Math.max(q.progress, value); 
+                        else newProgress += value;
                     }
                 }
-
                 if (shouldUpdate && newProgress !== q.progress) {
-                    changed = true;
-                    return {
-                        ...q,
-                        progress: Math.min(newProgress, q.target),
-                        isCompleted: newProgress >= q.target
-                    };
+                    return { ...q, progress: Math.min(newProgress, q.target), isCompleted: newProgress >= q.target };
                 }
                 return q;
             });
-
-            if (changed) {
-                localStorage.setItem('neon_daily_quests', JSON.stringify(updated));
-            }
+            localStorage.setItem('neon_daily_quests', JSON.stringify(updated));
             return updated;
         });
     }, []);
@@ -209,15 +217,9 @@ export const useDailySystem = (addCoins: (amount: number) => void) => {
     };
 
     return {
-        streak,
-        showDailyModal,
-        todaysReward,
-        claimDailyBonus,
-        quests,
-        reportQuestProgress, 
-        claimQuestReward,
-        claimAllBonus,
-        allCompletedBonusClaimed,
-        updateQuestsState
+        streak, showDailyModal, todaysReward, claimDailyBonus,
+        quests, reportQuestProgress, claimQuestReward,
+        claimAllBonus, allCompletedBonusClaimed,
+        importData
     };
 };

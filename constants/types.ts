@@ -59,6 +59,7 @@ export interface TankAccessory {
     colors: string[];
     rarity: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
     description: string;
+    layout?: 'vertical' | 'horizontal' | 'japan' | 'usa' | 'brazil' | 'pirate';
 }
 
 export interface Wallpaper {
@@ -97,4 +98,26 @@ export interface TankSkin {
     glowColor: string;
     isAnimated?: boolean;
     description: string;
+}
+
+export interface FriendRequest {
+    id: string;
+    name: string;
+    avatarId: string;
+    frameId?: string;
+    timestamp: number;
+}
+
+export interface Friend {
+    id: string;
+    name: string;
+    avatarId: string;
+    frameId?: string;
+    status: 'online' | 'offline';
+    lastSeen: number;
+    gameActivity?: string; 
+    lastMessage?: string;
+    lastMessageTime?: number;
+    stats?: any;
+    inventory?: string[];
 }
