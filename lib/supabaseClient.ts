@@ -254,23 +254,19 @@ export const DB = {
     searchUsers: async (query: string) => {
         if (!supabase) return [];
         try {
-            // Remplacement de l'appel RPC par une requête directe sur la table 'profiles'.
-            // Ceci permet de rechercher tous les utilisateurs, y compris ceux hors ligne,
-            // ce qui était la limitation de l'implémentation RPC précédente.
-            // On utilise .ilike() pour une recherche insensible à la casse sur le pseudo.
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('username, data')
-                .ilike('username', `%${query}%`)
-                .limit(10);
+            // Rétablissement de l'appel RPC pour contourner les politiques de sécurité (RLS)
+            // qui bloquaient la recherche directe sur la table des profils.
+            const { data, error } = await supabase.rpc('search_users_by_name', {
+                p_username: query
+            });
 
             if (error) {
-                console.error("Erreur lors de la recherche d'utilisateurs:", error);
+                console.error('Erreur lors de la recherche via RPC:', error);
                 return [];
             }
             
-            return (data || []).map(u => ({
-                id: u.username, // L'ID utilisateur est son pseudo dans le contexte de l'app
+            return (data || []).map((u: any) => ({
+                id: u.username,
                 name: u.username,
                 avatarId: u.data?.avatarId || 'av_bot',
                 frameId: u.data?.frameId
