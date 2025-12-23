@@ -258,38 +258,37 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.shadowBlur = 0;
 
             if (map.id === 'city') {
+                // --- TOIT DES IMMEUBLES DÉTAILLÉ ---
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.strokeRect(obs.x + 8, obs.y + 8, obs.w - 16, obs.h - 16);
                 
+                // Helipad pour les grands immeubles
                 if (obs.w > 180 && obs.h > 180) {
                     const cx = obs.x + obs.w / 2;
                     const cy = obs.y + obs.h / 2;
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
                     ctx.lineWidth = 4;
                     ctx.beginPath(); ctx.arc(cx, cy, 50, 0, Math.PI * 2); ctx.stroke();
                     ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(cx, cy, 40, 0, Math.PI * 2); ctx.stroke();
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
                     ctx.font = 'black 48px Rajdhani';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.fillText('H', cx, cy + 4);
                 }
 
-                const seed = (obs.x * obs.y) % 1000;
+                // Détails techniques (Clim, conduits)
+                const seed = (obs.x + obs.y) % 1000;
                 ctx.fillStyle = '#1a1a2a';
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                ctx.lineWidth = 1;
-                const drawHVAC = (hx: number, hy: number) => {
-                    ctx.fillRect(hx, hy, 25, 25);
-                    ctx.strokeRect(hx, hy, 25, 25);
-                    ctx.beginPath();
-                    ctx.moveTo(hx + 5, hy + 5); ctx.lineTo(hx + 20, hy + 20);
-                    ctx.moveTo(hx + 20, hy + 5); ctx.lineTo(hx + 5, hy + 20);
-                    ctx.stroke();
-                };
-                if (seed > 200) drawHVAC(obs.x + 20, obs.y + 20);
-                if (seed > 500) drawHVAC(obs.x + obs.w - 45, obs.y + obs.h - 45);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                if (seed > 300) {
+                    ctx.fillRect(obs.x + 20, obs.y + 20, 30, 30);
+                    ctx.strokeRect(obs.x + 20, obs.y + 20, 30, 30);
+                }
+                if (seed > 600) {
+                    ctx.fillRect(obs.x + obs.w - 50, obs.y + obs.h - 50, 30, 30);
+                    ctx.strokeRect(obs.x + obs.w - 50, obs.y + obs.h - 50, 30, 30);
+                }
 
                 ctx.strokeStyle = map.colors.wallBorder;
                 ctx.lineWidth = 3;
@@ -362,49 +361,59 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.setLineDash([]);
             ctx.shadowBlur = 0;
 
-            // --- LAMPADAIRES NÉON ---
+            // --- PASSAGES PIÉTONS NÉON ---
             ctx.save();
-            const drawLamp = (lx: number, ly: number) => {
-                // Halo de lumière au sol
-                const halo = ctx.createRadialGradient(lx, ly, 0, lx, ly, 60);
-                halo.addColorStop(0, 'rgba(0, 243, 255, 0.15)');
-                halo.addColorStop(1, 'transparent');
-                ctx.fillStyle = halo;
-                ctx.beginPath();
-                ctx.arc(lx, ly, 60, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Base du lampadaire
-                ctx.fillStyle = '#222';
-                ctx.beginPath();
-                ctx.arc(lx, ly, 6, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                // Tête lumineuse (un peu décalée pour simuler la hauteur)
-                const glowY = ly - 10;
-                ctx.fillStyle = '#00f3ff';
-                ctx.shadowColor = '#00f3ff';
-                ctx.shadowBlur = 15;
-                ctx.beginPath();
-                ctx.arc(lx, glowY, 4, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Petit reflet blanc au centre
-                ctx.fillStyle = '#fff';
-                ctx.shadowBlur = 0;
-                ctx.beginPath();
-                ctx.arc(lx, glowY, 1.5, 0, Math.PI * 2);
-                ctx.fill();
-            };
-
-            // Placer des lampadaires aux intersections et le long des routes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = 'white';
+            ctx.shadowBlur = 10;
+            
             hAvenues.forEach(y => {
                 vAvenues.forEach(x => {
-                    // Aux 4 coins des intersections
-                    const off = roadWidth/2 + 15;
+                    const offset = roadWidth / 2 + 15;
+                    const drawCrosswalk = (cx: number, cy: number, vert: boolean) => {
+                        for(let i = -3; i <= 3; i++) {
+                            const stripeX = vert ? cx + i*12 : cx - 15;
+                            const stripeY = vert ? cy - 15 : cy + i*12;
+                            const w = vert ? 6 : 30;
+                            const h = vert ? 30 : 6;
+                            ctx.strokeRect(stripeX, stripeY, w, h);
+                        }
+                    };
+                    // Haut / Bas de l'intersection
+                    drawCrosswalk(x, y - offset, true);
+                    drawCrosswalk(x, y + offset, true);
+                    // Gauche / Droite de l'intersection
+                    drawCrosswalk(x - offset, y, false);
+                    drawCrosswalk(x + offset, y, false);
+                });
+            });
+            ctx.restore();
+
+            // --- LAMPADAIRES NÉON JAUNES ---
+            ctx.save();
+            const drawLamp = (lx: number, ly: number) => {
+                const halo = ctx.createRadialGradient(lx, ly, 0, lx, ly, 60);
+                halo.addColorStop(0, 'rgba(250, 204, 21, 0.2)'); // Jaune translucide
+                halo.addColorStop(1, 'transparent');
+                ctx.fillStyle = halo;
+                ctx.beginPath(); ctx.arc(lx, ly, 60, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#222';
+                ctx.beginPath(); ctx.arc(lx, ly, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 1; ctx.stroke();
+                const glowY = ly - 10;
+                ctx.fillStyle = '#facc15'; // Jaune néon
+                ctx.shadowColor = '#facc15';
+                ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.arc(lx, glowY, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.shadowBlur = 0;
+                ctx.beginPath(); ctx.arc(lx, glowY, 1.5, 0, Math.PI * 2); ctx.fill();
+            };
+
+            hAvenues.forEach(y => {
+                vAvenues.forEach(x => {
+                    const off = roadWidth/2 + 35;
                     drawLamp(x - off, y - off);
                     drawLamp(x + off, y - off);
                     drawLamp(x - off, y + off);
@@ -412,17 +421,16 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                 });
             });
 
-            // Entre les intersections
             for(let i=300; i<CANVAS_WIDTH; i+=600) {
                 hAvenues.forEach(y => {
-                    drawLamp(i, y - (roadWidth/2 + 15));
-                    drawLamp(i, y + (roadWidth/2 + 15));
+                    drawLamp(i, y - (roadWidth/2 + 20));
+                    drawLamp(i, y + (roadWidth/2 + 20));
                 });
             }
             for(let i=300; i<CANVAS_HEIGHT; i+=600) {
                 vAvenues.forEach(x => {
-                    drawLamp(x - (roadWidth/2 + 15), i);
-                    drawLamp(x + (roadWidth/2 + 15), i);
+                    drawLamp(x - (roadWidth/2 + 20), i);
+                    drawLamp(x + (roadWidth/2 + 20), i);
                 });
             }
             ctx.restore();
@@ -578,7 +586,7 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
         ctx.restore();
     }, [selectedMapIndex]);
 
-    const loop = useCallback((time: number) => {
+    const loop = (time: number) => {
         if (!lastTimeRef.current) lastTimeRef.current = time;
         const dt = time - lastTimeRef.current;
         lastTimeRef.current = time;
@@ -590,7 +598,7 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             if (ctx) draw(ctx);
         }
         animationFrameRef.current = requestAnimationFrame(loop);
-    }, [onUpdate, draw]);
+    };
 
     useEffect(() => {
         animationFrameRef.current = requestAnimationFrame(loop);
