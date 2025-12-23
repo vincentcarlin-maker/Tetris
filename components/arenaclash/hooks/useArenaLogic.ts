@@ -79,7 +79,6 @@ export const useArenaLogic = (
             y = 150 + Math.random() * (CANVAS_HEIGHT - 300);
             safe = true;
             for (const obs of obstacles) {
-                // Pour le spawn, on évite aussi les ponts et l'eau pour être propre
                 if (x > obs.x - 60 && x < obs.x + obs.w + 60 && y > obs.y - 60 && y < obs.y + obs.h + 60) safe = false;
             }
         } while (!safe);
@@ -174,7 +173,6 @@ export const useArenaLogic = (
             y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
             safe = true;
             for (const obs of obstacles) {
-                // On évite de faire spawn des powerups sur l'eau ou les murs
                 if (x > obs.x - 20 && x < obs.x + obs.w + 20 && y > obs.y - 20 && y < obs.y + obs.h + 20) safe = false;
             }
         } while(!safe && attempts < 50);
@@ -374,8 +372,6 @@ export const useArenaLogic = (
                 }
             }
 
-            // --- NOUVELLE LOGIQUE DE COLLISION BLOQUANTE ---
-            // On vérifie d'abord si le personnage est sur un pont
             const isOnBridge = obstacles.some(obs => 
                 obs.type === 'bridge' && 
                 char.x > obs.x && char.x < obs.x + obs.w && 
@@ -383,13 +379,8 @@ export const useArenaLogic = (
             );
 
             obstacles.forEach(obs => {
-                // 1. Les ponts ne sont jamais bloquants
                 if (obs.type === 'bridge') return;
-
-                // 2. L'eau ne bloque pas si on est sur un pont
                 if (obs.type === 'pond' && isOnBridge) return;
-
-                // 3. Calcul de collision standard
                 const cx = Math.max(obs.x, Math.min(char.x, obs.x + obs.w));
                 const cy = Math.max(obs.y, Math.min(char.y, obs.y + obs.h));
                 const d = Math.hypot(char.x - cx, char.y - cy);
@@ -411,9 +402,7 @@ export const useArenaLogic = (
             let hit = false;
             
             for (const obs of obstacles) {
-                // Les balles traversent les ponts et l'eau
                 if (obs.type === 'bridge' || obs.type === 'pond') continue;
-
                 if (b.x > obs.x && b.x < obs.x + obs.w && b.y > obs.y && b.y < obs.y + obs.h) { hit = true; break; }
             }
             
@@ -473,9 +462,9 @@ export const useArenaLogic = (
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            if (gameState !== 'PLAYING') startGame('ONLINE');
+            if (gameState === 'LOBBY' || gameState === 'MENU') startGame('ONLINE');
         }
-    }, [mp.mode, mp.isHost, mp.players, gameMode]);
+    }, [mp.mode, mp.isHost, mp.players, gameMode, gameState, startGame]);
 
     return {
         gameState, setGameState, gameMode, setGameMode, difficulty, setDifficulty,
