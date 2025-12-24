@@ -1,633 +1,71 @@
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Home, RefreshCw, Trophy, Coins, HelpCircle, Rocket, Play, ArrowRight } from 'lucide-react';
-import { useGameAudio } from '../../hooks/useGameAudio';
+import { useInvadersLogic } from './hooks/useInvadersLogic';
+import { InvadersRenderer } from './components/InvadersRenderer';
 import { useHighScores } from '../../hooks/useHighScores';
 import { TutorialOverlay } from '../Tutorials';
 
 interface InvadersGameProps {
     onBack: () => void;
-    audio: ReturnType<typeof useGameAudio>;
+    audio: any;
     addCoins: (amount: number) => void;
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
-// -- CONSTANTS --
-const CANVAS_WIDTH = 400;
-const CANVAS_HEIGHT = 600;
-const PLAYER_SPEED = 0.5;
-const BULLET_SPEED = 7;
-const ENEMY_BULLET_SPEED = 4;
-const BASE_ENEMY_SPEED = 1;
-
-// -- PIXEL ART SPRITES (1 = Pixel allumé, 0 = Vide) --
-const SPRITES = {
-    PLAYER: [
-        [0,0,0,0,1,0,0,0,0],
-        [0,0,0,1,1,1,0,0,0],
-        [0,0,1,1,0,1,1,0,0],
-        [0,1,1,1,1,1,1,1,0],
-        [1,1,0,1,1,1,0,1,1],
-        [1,1,1,1,1,1,1,1,1],
-        [1,0,1,0,0,0,1,0,1],
-    ],
-    ENEMY_BASIC: [
-        [0,0,1,0,0,0,0,0,1,0,0],
-        [0,0,0,1,0,0,0,1,0,0,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,1,1,0,1,1,1,0,1,1,0],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,1,1,1,1,1,1,1,0,1],
-        [1,0,1,0,0,0,0,0,1,0,1],
-        [0,0,0,1,1,0,1,1,0,0,0]
-    ],
-    ENEMY_SHOOTER: [
-        [0,0,0,1,1,1,1,1,0,0,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,1,1,0,1,1,1,0,1,1,0],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [0,1,0,1,0,1,0,1,0,1,0],
-        [0,1,0,0,0,0,0,0,0,1,0],
-        [0,0,1,0,0,0,0,0,1,0,0]
-    ],
-    ENEMY_HEAVY: [
-        [0,0,0,0,1,1,1,0,0,0,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,1,1,1,1,1,1,1,1,1,0],
-        [1,1,0,1,1,1,1,1,0,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [0,0,1,0,0,0,0,0,1,0,0],
-        [0,1,1,0,0,0,0,0,1,1,0]
-    ],
-    ENEMY_KAMIKAZE: [
-        [0,0,0,0,0,1,0,0,0,0,0],
-        [0,0,0,0,1,1,1,0,0,0,0],
-        [0,0,0,1,1,1,1,1,0,0,0],
-        [0,0,1,1,0,1,0,1,1,0,0],
-        [0,1,1,0,0,1,0,0,1,1,0],
-        [1,1,0,0,0,1,0,0,0,1,1],
-    ]
-};
-
-// -- TYPES --
-interface Entity {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    active: boolean;
-}
-
-interface Player extends Entity {
-    color: string;
-}
-
-interface Enemy extends Entity {
-    type: 'basic' | 'shooter' | 'heavy' | 'kamikaze';
-    color: string;
-    health: number;
-    score: number;
-    dx: number;
-    dy: number;
-}
-
-interface Bullet extends Entity {
-    dy: number;
-    color: string;
-    isEnemy: boolean;
-}
-
-interface Particle {
-    x: number;
-    y: number;
-    dx: number;
-    dy: number;
-    life: number;
-    maxLife: number;
-    color: string;
-    size: number;
-}
-
 export const InvadersGame: React.FC<InvadersGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [score, setScore] = useState(0);
-    const [lives, setLives] = useState(3);
-    const [gameOver, setGameOver] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [wave, setWave] = useState(1);
-    const [earnedCoins, setEarnedCoins] = useState(0);
     const [showTutorial, setShowTutorial] = useState(false);
-    const [inMenu, setInMenu] = useState(true);
-
-    const { playLaserShoot, playExplosion, playGameOver, playVictory, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
-    const highScore = highScores.invaders || 0;
-
-    // Game Refs
-    const playerRef = useRef<Player>({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 60, width: 32, height: 32, active: true, color: '#00f3ff' });
-    const bulletsRef = useRef<Bullet[]>([]);
-    const enemiesRef = useRef<Enemy[]>([]);
-    const particlesRef = useRef<Particle[]>([]);
-    
-    // Logic Refs
-    const animationFrameRef = useRef<number>(0);
-    const lastShotTimeRef = useRef(0);
-    const lastEnemyShotTimeRef = useRef(0);
-    const waveTimerRef = useRef(0);
-    const touchXRef = useRef<number | null>(null);
-    const isTouchingRef = useRef(false);
-
-    useEffect(() => {
-        const hasSeen = localStorage.getItem('neon_invaders_tutorial_seen');
-        if (!hasSeen) {
-            setShowTutorial(true);
-            localStorage.setItem('neon_invaders_tutorial_seen', 'true');
-        }
-        return () => cancelAnimationFrame(animationFrameRef.current);
-    }, []);
-
-    const resetGame = () => {
-        setScore(0);
-        setLives(3);
-        setWave(1);
-        setGameOver(false);
-        setIsPlaying(false);
-        setEarnedCoins(0);
-        
-        playerRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 60, width: 32, height: 32, active: true, color: '#00f3ff' };
-        bulletsRef.current = [];
-        enemiesRef.current = [];
-        particlesRef.current = [];
-        touchXRef.current = null;
-        startWave(1);
-        
-        if (onReportProgress) onReportProgress('play', 1);
-    };
-
-    const startGame = () => {
-        setInMenu(false);
-        resetGame();
-    };
-
-    const startWave = (waveNum: number) => {
-        enemiesRef.current = [];
-        const rows = Math.min(3 + Math.floor(waveNum / 2), 6);
-        const cols = 6;
-        const speed = BASE_ENEMY_SPEED + (waveNum * 0.2);
-
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const typeRand = Math.random();
-                let type: Enemy['type'] = 'basic';
-                let color = '#ff00ff';
-                let health = 1;
-                let scoreVal = 10;
-                let width = 28;
-                let height = 24;
-
-                if (typeRand > 0.8 && waveNum > 1) {
-                    type = 'shooter';
-                    color = '#facc15'; // yellow
-                    scoreVal = 30;
-                    height = 24;
-                } else if (typeRand > 0.9 && waveNum > 2) {
-                    type = 'heavy';
-                    color = '#ef4444'; // red
-                    health = 3;
-                    scoreVal = 50;
-                    width = 32;
-                    height = 24;
-                } else if (waveNum > 3 && r === 0 && Math.random() > 0.7) {
-                    type = 'kamikaze';
-                    color = '#00ff9d'; // green
-                    scoreVal = 40;
-                    width = 24;
-                    height = 24;
-                }
-
-                enemiesRef.current.push({
-                    x: 40 + c * 50,
-                    y: 40 + r * 45,
-                    width,
-                    height,
-                    active: true,
-                    type,
-                    color,
-                    health,
-                    score: scoreVal,
-                    dx: speed,
-                    dy: 0
-                });
-            }
-        }
-    };
-
-    const spawnParticles = (x: number, y: number, color: string, count: number) => {
-        for (let i = 0; i < count; i++) {
-            particlesRef.current.push({
-                x, y,
-                dx: (Math.random() - 0.5) * 5,
-                dy: (Math.random() - 0.5) * 5,
-                life: 30,
-                maxLife: 30,
-                color,
-                size: Math.random() * 3 + 1
-            });
-        }
-    };
-
-    const handlePlayerDeath = () => {
-        playExplosion();
-        spawnParticles(playerRef.current.x, playerRef.current.y, '#00f3ff', 50);
-        
-        if (lives > 1) {
-            setLives(l => l - 1);
-            // Respawn invulnerability/reset position could be added here
-            playerRef.current.x = CANVAS_WIDTH / 2;
-            bulletsRef.current = []; // Clear bullets for fairness
-        } else {
-            setLives(0);
-            setGameOver(true);
-            setIsPlaying(false);
-            playGameOver();
-            updateHighScore('invaders', score);
-            const coins = Math.floor(score / 50);
-            if (coins > 0) {
-                addCoins(coins);
-                setEarnedCoins(coins);
-            }
-            if (onReportProgress) onReportProgress('score', score);
-        }
-    };
-
-    const update = () => {
-        if (!isPlaying || gameOver || showTutorial || inMenu) return;
-
-        const now = Date.now();
-        const player = playerRef.current;
-
-        // Player Movement (Follow Touch/Mouse X)
-        if (touchXRef.current !== null) {
-            const dx = touchXRef.current - player.x;
-            player.x += dx * 0.15; // Smooth follow
-            
-            // Auto Fire
-            if (now - lastShotTimeRef.current > 250) {
-                bulletsRef.current.push({
-                    x: player.x,
-                    y: player.y - 10,
-                    width: 4,
-                    height: 12,
-                    active: true,
-                    dy: -BULLET_SPEED,
-                    color: '#00f3ff',
-                    isEnemy: false
-                });
-                playLaserShoot();
-                lastShotTimeRef.current = now;
-            }
-        }
-
-        // Clamp Player
-        player.x = Math.max(player.width/2, Math.min(CANVAS_WIDTH - player.width/2, player.x));
-
-        // Enemy Logic
-        let hitEdge = false;
-        enemiesRef.current.forEach(e => {
-            if (!e.active) return;
-            e.x += e.dx;
-            e.y += e.dy;
-
-            if (e.x <= e.width/2 || e.x >= CANVAS_WIDTH - e.width/2) {
-                hitEdge = true;
-            }
-
-            // Kamikaze Logic
-            if (e.type === 'kamikaze') {
-                e.y += 1; // Always move down fast
-                // Track player
-                if (e.x < player.x) e.x += 0.5;
-                else e.x -= 0.5;
-            }
-
-            // Shooting Logic
-            if (e.type === 'shooter' || e.type === 'heavy') {
-                if (Math.random() < 0.005 && now - lastEnemyShotTimeRef.current > 100) { // Random fire
-                    bulletsRef.current.push({
-                        x: e.x,
-                        y: e.y + 15,
-                        width: 4,
-                        height: 10,
-                        active: true,
-                        dy: ENEMY_BULLET_SPEED,
-                        color: e.color,
-                        isEnemy: true
-                    });
-                    lastEnemyShotTimeRef.current = now; // Shared timer prevents spam but allows barrage
-                }
-            }
-
-            // Collision with Player
-            if (Math.abs(e.x - player.x) < (e.width + player.width)/2 && 
-                Math.abs(e.y - player.y) < (e.height + player.height)/2) {
-                e.active = false;
-                handlePlayerDeath();
-            }
-
-            // Bottom out
-            if (e.y > CANVAS_HEIGHT) {
-                e.active = false; // Enemy escaped, maybe lose points?
-            }
-        });
-
-        if (hitEdge) {
-            enemiesRef.current.forEach(e => {
-                e.dx *= -1;
-                if (e.type !== 'kamikaze') e.y += 20; // Move down row
-            });
-        }
-
-        // Bullets Logic
-        bulletsRef.current.forEach(b => {
-            if (!b.active) return;
-            b.y += b.dy;
-
-            // Out of bounds
-            if (b.y < 0 || b.y > CANVAS_HEIGHT) {
-                b.active = false;
-                return;
-            }
-
-            if (b.isEnemy) {
-                // Check Player Hit
-                if (Math.abs(b.x - player.x) < (b.width + player.width)/2 && 
-                    Math.abs(b.y - player.y) < (b.height + player.height)/2) {
-                    b.active = false;
-                    handlePlayerDeath();
-                }
-            } else {
-                // Check Enemy Hit
-                enemiesRef.current.forEach(e => {
-                    if (!e.active) return;
-                    if (Math.abs(b.x - e.x) < (b.width + e.width)/2 && 
-                        Math.abs(b.y - e.y) < (b.height + e.height)/2) {
-                        b.active = false;
-                        e.health--;
-                        spawnParticles(b.x, b.y, '#fff', 5);
-                        if (e.health <= 0) {
-                            e.active = false;
-                            setScore(s => s + e.score);
-                            playExplosion();
-                            spawnParticles(e.x, e.y, e.color, 20);
-                        }
-                    }
-                });
-            }
-        });
-
-        // Cleanup
-        bulletsRef.current = bulletsRef.current.filter(b => b.active);
-        enemiesRef.current = enemiesRef.current.filter(e => e.active);
-
-        // Check Wave Clear
-        if (enemiesRef.current.length === 0) {
-            playVictory();
-            setWave(w => w + 1);
-            startWave(wave + 1);
-            if (onReportProgress) onReportProgress('action', 1); // Action = Wave Cleared
-        }
-
-        // Particles
-        particlesRef.current.forEach(p => {
-            p.x += p.dx;
-            p.y += p.dy;
-            p.life--;
-        });
-        particlesRef.current = particlesRef.current.filter(p => p.life > 0);
-    };
-
-    // Helper: Draw Sprite from Matrix
-    const drawSprite = (ctx: CanvasRenderingContext2D, entity: Entity, spriteMatrix: number[][], color: string) => {
-        const rows = spriteMatrix.length;
-        const cols = spriteMatrix[0].length;
-        const pixelW = entity.width / cols;
-        const pixelH = entity.height / rows;
-
-        ctx.fillStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 10;
-
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                if (spriteMatrix[r][c] === 1) {
-                    ctx.fillRect(
-                        Math.floor(entity.x - entity.width / 2 + c * pixelW),
-                        Math.floor(entity.y - entity.height / 2 + r * pixelH),
-                        Math.ceil(pixelW),
-                        Math.ceil(pixelH)
-                    );
-                }
-            }
-        }
-        ctx.shadowBlur = 0; // Reset
-    };
-
-    const draw = (ctx: CanvasRenderingContext2D) => {
-        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-        // Player
-        drawSprite(ctx, playerRef.current, SPRITES.PLAYER, playerRef.current.color);
-
-        // Enemies
-        enemiesRef.current.forEach(e => {
-            let sprite = SPRITES.ENEMY_BASIC;
-            if (e.type === 'shooter') sprite = SPRITES.ENEMY_SHOOTER;
-            else if (e.type === 'heavy') sprite = SPRITES.ENEMY_HEAVY;
-            else if (e.type === 'kamikaze') sprite = SPRITES.ENEMY_KAMIKAZE;
-            
-            drawSprite(ctx, e, sprite, e.color);
-        });
-
-        // Bullets (Keep simple for visibility/performance)
-        bulletsRef.current.forEach(b => {
-            ctx.fillStyle = b.color;
-            ctx.shadowColor = b.color;
-            ctx.shadowBlur = 10;
-            ctx.fillRect(b.x - b.width/2, b.y - b.height/2, b.width, b.height);
-            ctx.shadowBlur = 0;
-        });
-
-        // Particles
-        particlesRef.current.forEach(part => {
-            ctx.fillStyle = part.color;
-            ctx.globalAlpha = part.life / part.maxLife;
-            ctx.beginPath();
-            ctx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1;
-        });
-    };
-
-    const loop = () => {
-        update();
-        if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            if (ctx) draw(ctx);
-        }
-        animationFrameRef.current = requestAnimationFrame(loop);
-    };
-
-    useEffect(() => {
-        animationFrameRef.current = requestAnimationFrame(loop);
-        return () => cancelAnimationFrame(animationFrameRef.current);
-    }, [isPlaying, gameOver, wave, showTutorial, inMenu]);
-
-    // Input Handling
-    const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-        if (showTutorial || inMenu) return;
-        resumeAudio();
-        if (!isPlaying && !gameOver) setIsPlaying(true);
-        isTouchingRef.current = true;
-        updateTouchPos(e);
-    };
-
-    const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-        if (!isTouchingRef.current || showTutorial || inMenu) return;
-        updateTouchPos(e);
-    };
-
-    const handleTouchEnd = () => {
-        isTouchingRef.current = false;
-        touchXRef.current = null; // Stop moving
-    };
-
-    const updateTouchPos = (e: React.TouchEvent | React.MouseEvent) => {
-        if (!canvasRef.current) return;
-        const rect = canvasRef.current.getBoundingClientRect();
-        let clientX;
-        // @ts-ignore
-        if (e.touches && e.touches.length > 0) clientX = e.touches[0].clientX;
-        // @ts-ignore
-        else clientX = (e as React.MouseEvent).clientX;
-        
-        const relativeX = clientX - rect.left;
-        const scaleX = CANVAS_WIDTH / rect.width;
-        touchXRef.current = relativeX * scaleX;
-    };
-
-    if (inMenu) {
-        return (
-            <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
-                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-rose-900/40 via-[#050510] to-black pointer-events-none"></div>
-                <div className="fixed inset-0 bg-[linear-gradient(rgba(244,63,94,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(244,63,94,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
-
-                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
-                    <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Rocket size={56} className="text-rose-400 drop-shadow-[0_0_25px_rgba(244,63,94,0.8)] animate-pulse hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-rose-300 via-pink-300 to-red-300 drop-shadow-[0_0_30px_rgba(244,63,94,0.6)] tracking-tighter w-full">
-                                NEON<br className="md:hidden"/> INVADERS
-                            </h1>
-                            <Rocket size={56} className="text-rose-400 drop-shadow-[0_0_25px_rgba(244,63,94,0.8)] animate-pulse hidden md:block" />
-                        </div>
-                    </div>
-
-                    <div className="w-full max-w-sm md:max-w-xl flex-shrink-0">
-                         <button onClick={startGame} className="group relative w-full h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-rose-500/50 hover:shadow-[0_0_50px_rgba(244,63,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
-                            <div className="absolute inset-0 bg-gradient-to-br from-rose-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <div className="relative z-10">
-                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-rose-500/20 flex items-center justify-center border border-rose-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(244,63,94,0.3)]"><Play size={32} className="text-rose-400" /></div>
-                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-rose-300 transition-colors">JOUER</h2>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défendez la terre contre les envahisseurs néon.</p>
-                            </div>
-                            <div className="relative z-10 flex items-center gap-2 text-rose-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">COMMENCER <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
-                        </button>
-                    </div>
-
-                    <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    const logic = useInvadersLogic(audio, addCoins, updateHighScore, onReportProgress);
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans touch-none select-none p-4" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-            {/* Ambient Light */}
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-rose-500/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+        <div className="h-full w-full flex flex-col items-center bg-black/20 p-4 font-sans text-white relative touch-none select-none">
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-rose-500/20 blur-[120px] rounded-full pointer-events-none -z-10" />
             
-            {/* TUTORIAL OVERLAY */}
-            {showTutorial && <TutorialOverlay gameId="invaders" onClose={() => setShowTutorial(false)} />}
-
-            {/* Header */}
-            <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
-                <button onClick={() => setInMenu(true)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-600 drop-shadow-[0_0_10px_rgba(244,63,94,0.5)] pr-2 pb-1">NEON INVADERS</h1>
+            <div className="w-full max-w-lg flex items-center justify-between mb-4 z-10">
+                <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-600 drop-shadow-[0_0_10px_rgba(244,63,94,0.5)] pr-2 pb-1 uppercase">Neon Invaders</h1>
                 <div className="flex gap-2">
                     <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-rose-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
-                    <button onClick={resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
                 </div>
             </div>
 
-            {/* Stats */}
-            <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10">
-                <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-xl font-mono font-bold text-white">{score}</span></div>
-                <div className="text-rose-400 font-bold tracking-widest text-sm">VAGUE {wave}</div>
-                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest">RECORD</span><span className="text-xl font-mono font-bold text-yellow-400">{Math.max(score, highScore)}</span></div>
+            <div className="w-full max-w-lg flex justify-between items-center mb-2 z-10 px-2">
+                <div className="flex flex-col"><span className="text-[10px] text-gray-500 font-bold tracking-widest">SCORE</span><span className="text-xl font-mono font-bold text-white">{logic.score}</span></div>
+                <div className="text-rose-400 font-bold tracking-widest text-sm uppercase">Vague {logic.wave}</div>
+                <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Record</span><span className="text-xl font-mono font-bold text-yellow-400">{Math.max(logic.score, highScores.invaders || 0)}</span></div>
             </div>
-            
-            {/* Game Canvas */}
-            <div 
-                className="relative w-full max-w-md aspect-[2/3] bg-black/80 border-2 border-rose-500/30 rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.2)] overflow-hidden backdrop-blur-md z-10 cursor-crosshair"
-                onMouseDown={handleTouchStart}
-                onMouseMove={handleTouchMove}
-                onMouseUp={handleTouchEnd}
-                onMouseLeave={handleTouchEnd}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-            >
-                <canvas 
-                    ref={canvasRef} 
-                    width={CANVAS_WIDTH} 
-                    height={CANVAS_HEIGHT} 
-                    className="w-full h-full"
-                />
 
-                {!isPlaying && !gameOver && !showTutorial && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-20 pointer-events-none">
-                        <p className="text-rose-400 font-bold tracking-widest animate-pulse mb-2">GLISSEZ POUR TIRER</p>
-                    </div>
-                )}
+            <div className="relative w-full max-w-md aspect-[2/3] bg-black/80 border-2 border-rose-500/30 rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.2)] overflow-hidden backdrop-blur-md z-10">
+                <InvadersRenderer {...logic} onUpdate={logic.updatePhysics} />
 
-                {gameOver && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-30 animate-in zoom-in fade-in">
-                        <h2 className="text-5xl font-black text-red-500 italic mb-2 drop-shadow-[0_0_10px_red]">DÉTRUIT !</h2>
-                        <div className="text-center mb-6">
-                            <p className="text-gray-400 text-xs tracking-widest">SCORE FINAL</p>
-                            <p className="text-4xl font-mono text-white">{score}</p>
-                        </div>
-                        {earnedCoins > 0 && (
-                            <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
-                                <Coins className="text-yellow-400" size={20} />
-                                <span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span>
-                            </div>
-                        )}
-                        <button onClick={resetGame} className="px-8 py-3 bg-rose-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2 pointer-events-auto">
-                            <RefreshCw size={20} /> REJOUER
+                {logic.gameState === 'MENU' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30">
+                        <button onClick={logic.resetGame} className="group relative h-40 w-64 rounded-[32px] border border-rose-500/50 bg-gray-900/60 p-6 flex flex-col justify-center items-center gap-4 transition-all hover:scale-105 shadow-[0_0_30px_rgba(244,63,94,0.2)]">
+                            <Rocket size={40} className="text-rose-400 animate-pulse" />
+                            <span className="text-xl font-black italic tracking-widest">START GAME</span>
                         </button>
                     </div>
                 )}
+
+                {logic.gameState === 'GAMEOVER' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-40 animate-in zoom-in duration-300">
+                        <h2 className="text-5xl font-black text-red-500 italic mb-4 drop-shadow-[0_0_15px_red]">PERDU</h2>
+                        {logic.earnedCoins > 0 && (
+                            <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{logic.earnedCoins} PIÈCES</span></div>
+                        )}
+                        <button onClick={logic.resetGame} className="px-8 py-3 bg-rose-500 text-black font-black tracking-widest rounded-full hover:bg-white transition-colors shadow-lg flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
+                    </div>
+                )}
             </div>
-            
-            {/* Lives Indicator */}
+
             <div className="flex gap-2 mt-4 z-10">
                 {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className={`w-8 h-2 rounded-full ${i < lives ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-gray-800'}`} />
+                    <div key={i} className={`w-8 h-2 rounded-full transition-colors ${i < logic.lives ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-gray-800'}`} />
                 ))}
             </div>
+
+            {showTutorial && <TutorialOverlay gameId="invaders" onClose={() => setShowTutorial(false)} />}
         </div>
     );
 };
