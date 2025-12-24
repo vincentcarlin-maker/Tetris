@@ -1,6 +1,11 @@
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon } from 'lucide-react';
-import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
+// Fix: Import MAPS from maps.ts
+import { MAPS } from '../maps';
+// Fix: Import only constants from constants.ts
+import { ARENA_DIFFICULTY_SETTINGS } from '../constants';
+// Fix: Import Difficulty from types.ts
+import { Difficulty } from '../types';
 import { Avatar, useCurrency } from '../../../hooks/useCurrency';
 import { QuickLocker } from '../../common/QuickLocker';
 import { useGlobal } from '../../../context/GlobalContext';

@@ -1,12 +1,15 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useCurrency } from '../../../hooks/useCurrency';
 import { useHighScores } from '../../../hooks/useHighScores';
+// Fix: Import only constants from constants.ts
 import { 
-    CANVAS_WIDTH, CANVAS_HEIGHT, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, MAPS, COLORS, BOT_NAMES, 
-    MATCH_DURATION, BULLET_SPEED, RESPAWN_TIME, ARENA_DIFFICULTY_SETTINGS,
-    Character, Bullet, PowerUp, Particle, KillEvent, Difficulty 
+    CANVAS_WIDTH, CANVAS_HEIGHT, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, COLORS, BOT_NAMES, 
+    MATCH_DURATION, BULLET_SPEED, RESPAWN_TIME, ARENA_DIFFICULTY_SETTINGS
 } from '../constants';
+// Fix: Import MAPS from maps.ts
+import { MAPS } from '../maps';
+// Fix: Import types from types.ts
+import { Character, Bullet, PowerUp, Particle, KillEvent, Difficulty } from '../types';
 
 export const useArenaLogic = (
     mp: any, 
@@ -77,7 +80,8 @@ export const useArenaLogic = (
             y = 250 + Math.random() * (CANVAS_HEIGHT - 500);
             safe = true;
             for (const obs of obstacles) {
-                if (x > obs.x - 60 && x < obs.x + obs.w + 60 && y > obs.y - 60 && y < obs.y + obs.h + 60) safe = false;
+                // Rayon de sécurité augmenté pour les plus gros chars
+                if (x > obs.x - 85 && x < obs.x + obs.w + 85 && y > obs.y - 85 && y < obs.y + obs.h + 85) safe = false;
             }
         } while (!safe);
 
@@ -86,7 +90,7 @@ export const useArenaLogic = (
         const diffS = ARENA_DIFFICULTY_SETTINGS[difficultyRef.current];
 
         return {
-            id, name, x, y, radius: 22,
+            id, name, x, y, radius: 32, // Radius augmenté pour être plus gros
             color: isPlayer ? skin.primaryColor : COLORS.enemy,
             skin: isPlayer ? skin : undefined,
             accessory: isPlayer ? acc : undefined,
@@ -159,7 +163,7 @@ export const useArenaLogic = (
         angles.forEach(angle => {
             bulletsRef.current.push({
                 id: `b_${char.id}_${now}_${Math.random()}`,
-                x: char.x + Math.cos(angle) * 38, y: char.y + Math.sin(angle) * 38,
+                x: char.x + Math.cos(angle) * 45, y: char.y + Math.sin(angle) * 45,
                 vx: Math.cos(angle) * BULLET_SPEED, vy: Math.sin(angle) * BULLET_SPEED,
                 radius: 5, color: char.color, ownerId: char.id, damage: 20, life: 1500
             });

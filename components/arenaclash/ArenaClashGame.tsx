@@ -1,10 +1,10 @@
-
 import React, { useEffect } from 'react';
 import { useArenaLogic } from './hooks/useArenaLogic';
 import { ArenaRenderer } from './components/ArenaRenderer';
 import { ArenaUI } from './components/ArenaUI';
 import { useCurrency } from '../../hooks/useCurrency';
-import { MAPS } from './constants';
+// Fix: Import MAPS from maps.ts instead of constants.ts
+import { MAPS } from './maps';
 
 interface ArenaClashGameProps {
     onBack: () => void;

@@ -1,6 +1,8 @@
-
 import React from 'react';
-import { VIEWPORT_WIDTH, VIEWPORT_HEIGHT, Character, Bullet, PowerUp, Particle } from '../constants';
+// Fix: Import only constants from constants.ts
+import { VIEWPORT_WIDTH, VIEWPORT_HEIGHT } from '../constants';
+// Fix: Import types from types.ts
+import { Character, Bullet, PowerUp, Particle } from '../types';
 import { useArenaRenderLoop } from '../hooks/useArenaRenderLoop';
 
 interface ArenaRendererProps {
