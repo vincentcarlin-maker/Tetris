@@ -33,7 +33,12 @@ export const useTetrisLogic = (
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.tetris || 0;
 
-    // Effect to handle score update when lines are cleared
+    // Références pour éviter les stale closures dans les callbacks de contrôle
+    const stateRef = useRef({ gameOver, isPaused, inMenu, player, board, score, level });
+    useEffect(() => {
+        stateRef.current = { gameOver, isPaused, inMenu, player, board, score, level };
+    }, [gameOver, isPaused, inMenu, player, board, score, level]);
+
     useEffect(() => {
         if (rowsCleared > 0) {
             playClear();
@@ -48,70 +53,76 @@ export const useTetrisLogic = (
         }
     }, [rowsCleared, level, playClear, onReportProgress]);
 
-    // Update earned coins based on score
     useEffect(() => {
         setEarnedCoins(Math.floor(score / 50));
     }, [score]);
 
     const startGame = useCallback((startLevel: number = 0) => {
-        setInMenu(false);
         setBoard(createBoard());
-        const initialSpeed = Math.max(100, 1000 / (startLevel + 1) + 200);
-        
-        setDropTime(initialSpeed);
         resetPlayer();
-        setGameOver(false);
-        setIsPaused(false);
         setScore(0);
         setRows(0);
         setLevel(startLevel);
         setEarnedCoins(0);
-        playClear(); 
+        setGameOver(false);
+        setIsPaused(false);
+        setInMenu(false);
         
+        const initialSpeed = Math.max(100, 1000 / (startLevel + 1) + 200);
+        setDropTime(initialSpeed);
+        
+        playClear(); 
         if (onReportProgress) onReportProgress('play', 1);
     }, [setBoard, resetPlayer, playClear, onReportProgress]);
 
     const drop = useCallback(() => {
+        const { gameOver: go, isPaused: ip, inMenu: im, player: p, board: b } = stateRef.current;
+        if (go || ip || im) return;
+
         if (rows > (level + 1) * 10) {
             setLevel(prev => prev + 1);
             setDropTime(prev => (prev ? prev * 0.9 : null));
         }
 
-        if (!checkCollision(player, board, { x: 0, y: 1 })) {
+        if (!checkCollision(p, b, { x: 0, y: 1 })) {
             updatePlayerPos({ x: 0, y: 1, collided: false });
         } else {
-            if (player.pos.y < 1) {
+            if (p.pos.y < 1) {
                 setGameOver(true);
                 setDropTime(null);
                 playGameOver();
                 updateHighScore('tetris', score);
-                if (earnedCoins > 0) addCoins(earnedCoins);
+                if (Math.floor(score / 50) > 0) addCoins(Math.floor(score / 50));
             } else {
                 playLand();
             }
             updatePlayerPos({ x: 0, y: 0, collided: true });
         }
-    }, [board, level, player, updatePlayerPos, rows, playGameOver, playLand, score, addCoins, updateHighScore, earnedCoins]);
+    }, [level, updatePlayerPos, rows, playGameOver, playLand, score, addCoins, updateHighScore]);
     
     useGameLoop(drop, isPaused || gameOver || inMenu ? null : dropTime);
 
     const hardDrop = useCallback(() => {
-        if (gameOver || isPaused || inMenu) return;
-        let newY = player.pos.y;
-        while (!checkCollision(player, board, { x: 0, y: newY - player.pos.y + 1 })) {
+        const { gameOver: go, isPaused: ip, inMenu: im, player: p, board: b } = stateRef.current;
+        if (go || ip || im) return;
+        
+        let newY = p.pos.y;
+        while (!checkCollision(p, b, { x: 0, y: newY - p.pos.y + 1 })) {
             newY++;
         }
-        updatePlayerPos({ x: 0, y: newY - player.pos.y, collided: true });
+        updatePlayerPos({ x: 0, y: newY - p.pos.y, collided: true });
         playLand();
-    }, [gameOver, isPaused, inMenu, player.pos.y, board, updatePlayerPos, playLand]);
+    }, [updatePlayerPos, playLand]);
 
     const movePlayer = useCallback((dir: -1 | 1) => {
-        if (gameOver || isPaused || inMenu) return;
-        if (!checkCollision(player, board, { x: dir, y: 0 })) {
+        const { gameOver: go, isPaused: ip, inMenu: im, player: p, board: b } = stateRef.current;
+        if (go || ip || im) return;
+        
+        if (!checkCollision(p, b, { x: dir, y: 0 })) {
             updatePlayerPos({ x: dir, y: 0, collided: false });
             playMove();
         }
-    }, [gameOver, isPaused, inMenu, player, board, updatePlayerPos, playMove]);
+    }, [updatePlayerPos, playMove]);
 
     // Ghost piece calculation
     useEffect(() => {

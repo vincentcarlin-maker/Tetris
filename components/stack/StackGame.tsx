@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Home, RefreshCw, Trophy, Coins, HelpCircle, Layers, Play, ArrowRight } from 'lucide-react';
 import { useStackLogic } from './hooks/useStackLogic';
@@ -18,8 +17,16 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
     const { highScores, updateHighScore } = useHighScores();
     const logic = useStackLogic(audio, addCoins, updateHighScore, onReportProgress);
 
-    const handleAction = () => {
+    const handleAction = (e: React.PointerEvent) => {
+        // Empêche la propagation si on clique sur un bouton de l'interface
+        if ((e.target as HTMLElement).closest('button')) {
+            return;
+        }
+
+        e.preventDefault();
+        
         if (showTutorial) return;
+        
         if (logic.phase === 'IDLE') {
             logic.setPhase('PLAYING');
             audio.resumeAudio();
@@ -39,27 +46,39 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                             <h1 className="text-6xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(99,102,241,0.6)]">NEON STACK</h1>
                         </div>
                     </div>
-                    <button onClick={logic.resetGame} className="group relative w-full max-w-sm h-60 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-105 hover:border-indigo-500/50 shadow-2xl p-8 flex flex-col justify-between text-left">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); logic.resetGame(); }} 
+                        className="group relative w-full max-w-sm h-60 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-105 hover:border-indigo-500/50 shadow-2xl p-8 flex flex-col justify-between text-left"
+                    >
                         <div className="relative z-10">
                             <Play size={40} className="text-indigo-400 mb-4" />
                             <h2 className="text-4xl font-black text-white italic">START</h2>
                         </div>
                         <div className="relative z-10 flex items-center gap-2 text-indigo-400 font-bold uppercase tracking-widest group-hover:text-white transition-colors">Défier la gravité <ArrowRight size={20} /></div>
                     </button>
-                    <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg transition-all"><Home size={14}/> Retour arcade</button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onBack(); }} 
+                        className="mt-12 text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg transition-all"
+                    >
+                        <Home size={14}/> Retour arcade
+                    </button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="h-full w-full flex flex-col items-center bg-black/20 p-4 select-none touch-none overflow-hidden" onMouseDown={handleAction} onTouchStart={(e) => { e.preventDefault(); handleAction(); }}>
-            <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 shrink-0 pointer-events-none">
-                <button onClick={() => logic.setPhase('MENU')} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 pointer-events-auto active:scale-95 transition-transform shadow-lg"><Home size={20} /></button>
+        <div 
+            className="h-full w-full flex flex-col items-center bg-black/20 p-4 select-none touch-none overflow-hidden" 
+            onPointerDown={handleAction}
+            style={{ touchAction: 'none' }}
+        >
+            <div className="w-full max-w-lg flex items-center justify-between z-20 mb-4 shrink-0">
+                <button onClick={(e) => { e.stopPropagation(); logic.setPhase('MENU'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)] uppercase tracking-tighter">Neon Stack</h1>
                 </div>
-                <div className="flex gap-2 pointer-events-auto">
+                <div className="flex gap-2">
                     <button onClick={(e) => { e.stopPropagation(); setShowTutorial(true); }} className="p-2 bg-gray-800 rounded-lg text-indigo-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
                     <button onClick={(e) => { e.stopPropagation(); logic.resetGame(); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
                 </div>
@@ -76,7 +95,9 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                 
                 {logic.phase === 'IDLE' && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-30 pointer-events-none">
-                        <p className="text-indigo-400 font-black tracking-[0.5em] animate-pulse text-lg uppercase">Prêt ? Tap pour poser</p>
+                        <p className="text-indigo-400 font-black tracking-[0.5em] animate-pulse text-lg uppercase text-center px-4">
+                            PRÊT ?<br/>TAP POUR POSER
+                        </p>
                     </div>
                 )}
 
@@ -90,7 +111,12 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                                 <span className="text-yellow-100 font-bold text-xl">+{logic.earnedCoins} PIÈCES</span>
                             </div>
                         )}
-                        <button onClick={(e) => { e.stopPropagation(); logic.resetGame(); }} className="px-10 py-4 bg-indigo-600 text-white font-black tracking-[0.2em] rounded-2xl hover:bg-white hover:text-indigo-600 transition-all shadow-xl active:scale-95 uppercase text-sm">Réessayer</button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); logic.resetGame(); }} 
+                            className="px-10 py-4 bg-indigo-600 text-white font-black tracking-[0.2em] rounded-2xl hover:bg-white hover:text-indigo-600 transition-all shadow-xl active:scale-95 uppercase text-sm"
+                        >
+                            Réessayer
+                        </button>
                     </div>
                 )}
             </div>

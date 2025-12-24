@@ -43,6 +43,12 @@ export const useStackLogic = (audio: any, addCoins: any, updateHighScore: any, o
     const placeBlock = () => {
         const current = currentBlockRef.current;
         const top = stackRef.current[stackRef.current.length - 1];
+        
+        // SÉCURITÉ : Si le bloc est encore trop loin de la pile (position de spawn), 
+        // on ignore le clic pour éviter le Game Over accidentel au démarrage.
+        const distFromCenter = current.axis === 'x' ? Math.abs(current.x) : Math.abs(current.z);
+        if (distFromCenter > MOVEMENT_RANGE - 20) return;
+
         const delta = current.axis === 'x' ? current.x - top.x : current.z - top.z;
         const absDelta = Math.abs(delta);
         const size = current.axis === 'x' ? limitRef.current.width : limitRef.current.depth;

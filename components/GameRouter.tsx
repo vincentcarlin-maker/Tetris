@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useGlobal } from '../context/GlobalContext';
 import { MainMenu } from './MainMenu';
@@ -23,7 +24,7 @@ import { LumenOrderGame } from './lumen/LumenOrderGame';
 import { SlitherGame } from './slither/SlitherGame';
 import { Shop } from './shop/Shop';
 import { AdminDashboard } from './AdminDashboard';
-import { SocialOverlay } from './SocialOverlay';
+import { SocialOverlay } from './social/SocialOverlay';
 import { SettingsMenu } from './settings/SettingsMenu';
 import { ContactOverlay } from './ContactOverlay';
 import { Construction } from 'lucide-react';
@@ -34,13 +35,15 @@ export const GameRouter: React.FC = () => {
         audio, currency, mp, highScores, daily, supabase, 
         friendRequests, setFriendRequests, unreadMessages, setUnreadMessages,
         activeSocialTab, setActiveSocialTab, disabledGames, featureFlags,
-        handleGameEvent, handleLogout, recordTransaction
+        handleGameEvent, handleLogout, recordTransaction, setGlobalAlert,
+        guestPlayedGames, registerGuestPlay
     } = useGlobal();
 
     const handleBackToMenu = () => setCurrentView('menu');
     
     const addCoinsWithLog = (amount: number, gameId: string) => {
-        if (amount > 0) {
+        // Un visiteur ne gagne pas de pièces (ou elles sont perdues)
+        if (amount > 0 && isAuthenticated) {
             currency.addCoins(amount);
             audio.playCoin();
             recordTransaction('EARN', amount, `Gain de jeu: ${gameId}`, gameId);
@@ -49,8 +52,33 @@ export const GameRouter: React.FC = () => {
     };
 
     const handleSelectGame = (game: string) => {
-        if (!isAuthenticated) { setShowLoginModal(true); return; }
-        setCurrentView(game as any);
+        if (isAuthenticated) {
+            setCurrentView(game as any);
+            return;
+        }
+
+        // Logique d'essai pour les non-inscrits
+        if (guestPlayedGames.includes(game)) {
+            setGlobalAlert({ 
+                message: "Partie d'essai terminée ! Inscrivez-vous pour continuer à jouer.", 
+                type: 'warning' 
+            });
+            setShowLoginModal(true);
+        } else {
+            registerGuestPlay(game);
+            setCurrentView(game as any);
+            
+            // Affichage temporaire du message d'essai
+            setGlobalAlert({ 
+                message: "MODE ESSAI : Profitez d'une partie gratuite !", 
+                type: 'info' 
+            });
+
+            // Auto-effacement après 1.5 seconde (visible un instant)
+            setTimeout(() => {
+                setGlobalAlert(null);
+            }, 1500);
+        }
     };
 
     if (featureFlags.maintenance_mode && currency.username !== 'Vincent' && !currency.adminModeActive) {
@@ -87,7 +115,7 @@ export const GameRouter: React.FC = () => {
         snake: <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'snake')} onReportProgress={(m, v) => handleGameEvent('snake', m, v)} />,
         invaders: <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'invaders')} onReportProgress={(m, v) => handleGameEvent('invaders', m, v)} />,
         airhockey: <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'airhockey')} mp={mp} onReportProgress={(m, v) => handleGameEvent('airhockey', m, v)} />,
-        mastermind: <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'mastermind')} mp={mp} onReportProgress={(m, v) => handleGameEvent('mastermind', m, v)} />,
+        mastermind: <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'mastermind')} onReportProgress={(m, v) => handleGameEvent('mastermind', m, v)} />,
         uno: <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'uno')} mp={mp} onReportProgress={(m, v) => handleGameEvent('uno', m, v)} />,
         watersort: <WaterSortGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'watersort')} onReportProgress={(m, v) => handleGameEvent('watersort', m, v)} />,
         checkers: <CheckersGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'checkers')} mp={mp} onReportProgress={(m, v) => handleGameEvent('checkers', m, v)} />,

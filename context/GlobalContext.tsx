@@ -43,6 +43,8 @@ interface GlobalContextType {
     highScores: ReturnType<typeof useHighScores>;
     daily: ReturnType<typeof useDailySystem>;
     supabase: ReturnType<typeof useSupabase>;
+    guestPlayedGames: string[];
+    registerGuestPlay: (gameId: string) => void;
 }
 
 const GlobalContext = createContext<GlobalContextType | null>(null);
@@ -66,12 +68,30 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [globalEvents, setGlobalEvents] = useState<any[]>([]);
     const [eventProgress, setEventProgress] = useState<Record<string, number>>({});
 
+    // Suivi des essais invités
+    const [guestPlayedGames, setGuestPlayedGames] = useState<string[]>(() => {
+        try {
+            return JSON.parse(localStorage.getItem('neon_guest_trials') || '[]');
+        } catch {
+            return [];
+        }
+    });
+
     const audio = useGameAudio();
     const currency = useCurrency();
     const highScoresHook = useHighScores(); 
     const daily = useDailySystem(currency.addCoins);
     const mp = useMultiplayer(); 
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
+
+    const registerGuestPlay = useCallback((gameId: string) => {
+        setGuestPlayedGames(prev => {
+            if (prev.includes(gameId)) return prev;
+            const next = [...prev, gameId];
+            localStorage.setItem('neon_guest_trials', JSON.stringify(next));
+            return next;
+        });
+    }, []);
 
     const syncDataWithCloud = useCallback(async () => {
         if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon') return;
@@ -116,7 +136,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         if (cloudPass === storedPass || storedUser === 'Vincent') {
                             handleLogin(storedUser, cloudData);
                         } else {
-                            // Password mismatch, force logout
                             handleLogout();
                         }
                     }
@@ -131,7 +150,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         const timer = setTimeout(() => {
             syncDataWithCloud();
-        }, 3000); // Debounce de 3 secondes
+        }, 3000); 
 
         return () => clearTimeout(timer);
     }, [
@@ -183,7 +202,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setCurrentView('menu'); 
             localStorage.removeItem('neon-username'); 
             localStorage.removeItem('neon_current_password');
-            window.location.reload(); // Force clean state
+            window.location.reload(); 
         });
     };
 
@@ -194,7 +213,8 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             friendRequests, setFriendRequests, disabledGames, featureFlags, globalEvents, eventProgress,
             updateEventProgress: () => {}, handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
-            audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook
+            audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,
+            guestPlayedGames, registerGuestPlay
         }}>
             {children}
         </GlobalContext.Provider>

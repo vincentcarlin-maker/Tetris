@@ -202,7 +202,10 @@ export const TutorialOverlay: React.FC<{ gameId: string, onClose: () => void }> 
     if (!data) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+        <div 
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in" 
+            onPointerDown={(e) => e.stopPropagation()}
+        >
             <div className="w-full max-w-xs text-center">
                 <h2 className={`text-2xl font-black text-white italic mb-6 flex items-center justify-center gap-2`}><HelpCircle className={data.titleColor}/> COMMENT JOUER ?</h2>
                 
@@ -219,7 +222,7 @@ export const TutorialOverlay: React.FC<{ gameId: string, onClose: () => void }> 
                 </div>
 
                 <button 
-                    onClick={onClose}
+                    onPointerDown={(e) => { e.stopPropagation(); onClose(); }}
                     className={`mt-6 w-full py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg active:scale-95`}
                 >
                     J'AI COMPRIS !
