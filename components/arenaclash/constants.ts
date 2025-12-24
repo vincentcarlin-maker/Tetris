@@ -51,7 +51,7 @@ export interface Obstacle {
     y: number;
     w: number;
     h: number;
-    type: 'building' | 'tree' | 'pond' | 'rock' | 'crate' | 'pylon' | 'ruin' | 'tent' | 'bush' | 'trunk' | 'cactus' | 'bone' | 'obelisk';
+    type: 'building' | 'tree' | 'pond' | 'rock' | 'crate' | 'pylon' | 'ruin' | 'tent' | 'bush' | 'trunk' | 'cactus' | 'bone' | 'obelisk' | 'palm';
     subType?: string; 
 }
 
@@ -135,35 +135,36 @@ export const MAPS: MapConfig[] = [
     {
         id: 'solar_dust',
         name: 'SOLAR DUST',
-        colors: { bg: '#1a0c00', grid: 'rgba(249, 115, 22, 0.05)', wall: '#2a1500', wallBorder: '#f97316' },
+        colors: { bg: '#2b1a0a', grid: 'rgba(249, 115, 22, 0.08)', wall: '#3d2610', wallBorder: '#f97316' },
         zones: [
-            { x: 1200, y: 1200, radius: 150, type: 'HEAL', label: 'OASIS' },
-            { x: 600, y: 600, radius: 200, type: 'SLOW', label: 'SABLES MOUVANTS' },
-            { x: 1800, y: 1800, radius: 200, type: 'SLOW', label: 'SABLES MOUVANTS' },
-            { x: 1200, y: 500, radius: 150, type: 'DANGER', label: 'TEMPÊTE SOLAIRE' },
+            { x: 1200, y: 1200, radius: 220, type: 'HEAL', label: 'OASIS SACRÉ' },
+            { x: 600, y: 600, radius: 180, type: 'SLOW', label: 'DUNES PROFONDES' },
+            { x: 1800, y: 1800, radius: 180, type: 'SLOW', label: 'SABLE MOUVANT' },
+            { x: 1200, y: 400, radius: 150, type: 'DANGER', label: 'TEMPÊTE SOLAIRE' },
         ],
         obstacles: [
-            // Cactus (Petits obstacles circulaires)
-            { x: 300, y: 400, w: 40, h: 40, type: 'cactus' },
-            { x: 350, y: 420, w: 35, h: 35, type: 'cactus' },
-            { x: 1500, y: 900, w: 45, h: 45, type: 'cactus' },
-            { x: 2000, y: 300, w: 40, h: 40, type: 'cactus' },
+            // Oasis centrale décorative
+            { x: 1100, y: 1100, w: 200, h: 200, type: 'pond', subType: 'OASIS' },
+            { x: 1050, y: 1050, w: 60, h: 60, type: 'palm' },
+            { x: 1300, y: 1050, w: 60, h: 60, type: 'palm' },
+            { x: 1050, y: 1300, w: 60, h: 60, type: 'palm' },
+            { x: 1300, y: 1300, w: 60, h: 60, type: 'palm' },
+
+            // Ruines antiques (relief)
+            { x: 400, y: 400, w: 150, h: 60, type: 'obelisk', subType: 'RUIN' },
+            { x: 400, y: 460, w: 60, h: 150, type: 'obelisk', subType: 'RUIN' },
+            { x: 1800, y: 400, w: 120, h: 120, type: 'building', subType: 'TEMPLE' },
+            { x: 400, y: 1800, w: 200, h: 200, type: 'building', subType: 'OUTPOST' },
+            { x: 1800, y: 1800, w: 100, h: 40, type: 'obelisk' },
             
-            // Ruines & Obélisques
-            { x: 1000, y: 800, w: 60, h: 250, type: 'obelisk' },
-            { x: 1400, y: 800, w: 60, h: 250, type: 'obelisk' },
-            { x: 1000, y: 1100, w: 460, h: 40, type: 'ruin', subType: 'TEMPLE' },
-            
-            // Rochers Désertiques (Largeur > Hauteur pour simuler strates)
-            { x: 500, y: 1500, w: 200, h: 100, type: 'rock' },
-            { x: 1800, y: 1200, w: 150, h: 80, type: 'rock' },
-            
-            // Ossements (Visuel uniquement, pas de collision si radius petit)
-            { x: 800, y: 400, w: 20, h: 20, type: 'bone' },
-            { x: 1600, y: 2000, w: 20, h: 20, type: 'bone' },
-            
-            // Oasis (Eau au centre)
-            { x: 1100, y: 1100, w: 200, h: 200, type: 'pond', subType: 'OASIS' }
+            // Cactus & Roches
+            { x: 300, y: 1000, w: 40, h: 40, type: 'cactus' },
+            { x: 800, y: 200, w: 50, h: 50, type: 'cactus' },
+            { x: 2000, y: 1000, w: 45, h: 45, type: 'cactus' },
+            { x: 1000, y: 2000, w: 120, h: 80, type: 'rock' },
+            { x: 1600, y: 1400, w: 100, h: 100, type: 'rock' },
+            { x: 200, y: 200, w: 20, h: 20, type: 'bone' },
+            { x: 2200, y: 2200, w: 20, h: 20, type: 'bone' },
         ]
     }
 ];
