@@ -1,3 +1,4 @@
+
 import { TankSkin, TankAccessory } from '../../constants/types';
 
 export const CANVAS_WIDTH = 2400;
@@ -143,21 +144,16 @@ export const MAPS: MapConfig[] = [
             { x: 1200, y: 400, radius: 150, type: 'DANGER', label: 'TEMPÊTE SOLAIRE' },
         ],
         obstacles: [
-            // Oasis centrale décorative
             { x: 1100, y: 1100, w: 200, h: 200, type: 'pond', subType: 'OASIS' },
             { x: 1050, y: 1050, w: 60, h: 60, type: 'palm' },
             { x: 1300, y: 1050, w: 60, h: 60, type: 'palm' },
             { x: 1050, y: 1300, w: 60, h: 60, type: 'palm' },
             { x: 1300, y: 1300, w: 60, h: 60, type: 'palm' },
-
-            // Ruines antiques (relief)
             { x: 400, y: 400, w: 150, h: 60, type: 'obelisk', subType: 'RUIN' },
             { x: 400, y: 460, w: 60, h: 150, type: 'obelisk', subType: 'RUIN' },
             { x: 1800, y: 400, w: 120, h: 120, type: 'building', subType: 'TEMPLE' },
             { x: 400, y: 1800, w: 200, h: 200, type: 'building', subType: 'OUTPOST' },
             { x: 1800, y: 1800, w: 100, h: 40, type: 'obelisk' },
-            
-            // Cactus & Roches
             { x: 300, y: 1000, w: 40, h: 40, type: 'cactus' },
             { x: 800, y: 200, w: 50, h: 50, type: 'cactus' },
             { x: 2000, y: 1000, w: 45, h: 45, type: 'cactus' },
@@ -206,7 +202,7 @@ export interface Bullet extends Entity {
 }
 
 export interface PowerUp extends Entity {
-    type: 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
+    type: 'HEALTH' | 'SHIELD' | 'RAPID' | 'BOOST' | 'TRIPLE' | 'EMP' | 'BOMB';
 }
 
 export interface Particle {
