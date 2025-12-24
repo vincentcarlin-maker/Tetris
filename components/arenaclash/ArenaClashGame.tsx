@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { useArenaLogic } from './hooks/useArenaLogic';
 import { ArenaRenderer } from './components/ArenaRenderer';
 import { ArenaUI } from './components/ArenaUI';
 import { useCurrency } from '../../hooks/useCurrency';
-// Fix: Import MAPS from maps.ts instead of constants.ts
 import { MAPS } from './maps';
+import { TutorialOverlay } from '../Tutorials';
 
 interface ArenaClashGameProps {
     onBack: () => void;
@@ -17,11 +18,21 @@ interface ArenaClashGameProps {
 export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const { username, currentAvatarId, avatarsCatalog } = useCurrency();
     const logic = useArenaLogic(mp, audio, addCoins, onReportProgress);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     // Initialisation & Sync Social
     useEffect(() => {
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Arena Clash');
     }, [username, currentAvatarId, mp]);
+
+    // Tutoriel automatique au premier lancement
+    useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_arenaclash_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_arenaclash_tutorial_seen', 'true');
+        }
+    }, []);
 
     // Gérer la connexion MP si on passe en mode ONLINE
     useEffect(() => {
@@ -36,6 +47,8 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
         <div id="arena-container" className="h-full w-full flex flex-col items-center bg-transparent font-sans touch-none overflow-hidden select-none relative" style={{ touchAction: 'none' }}>
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/20 blur-[150px] rounded-full pointer-events-none -z-10" />
             
+            {showTutorial && <TutorialOverlay gameId="arenaclash" onClose={() => setShowTutorial(false)} />}
+
             <div className="flex-1 w-full max-w-4xl relative min-h-0 flex flex-col">
                  <div className="flex-1 relative flex items-center justify-center overflow-hidden">
                     <ArenaRenderer 
@@ -50,7 +63,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         recoilRef={logic.recoilRef}
                         onUpdate={logic.update}
                         gameState={logic.gameState}
-                        showTutorial={false}
+                        showTutorial={showTutorial}
                     />
                 </div>
             </div>
@@ -69,7 +82,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 isHost={logic.isHost}
                 hasOpponent={!!mp.gameOpponent}
                 onBack={onBack}
-                onToggleTutorial={() => {}} 
+                onToggleTutorial={() => setShowTutorial(prev => !prev)} 
                 onSetGameMode={logic.setGameMode}
                 onStartGame={logic.startGame}
                 onChangeMap={(delta) => logic.setSelectedMapIndex((prev: number) => (prev + delta + MAPS.length) % MAPS.length)}

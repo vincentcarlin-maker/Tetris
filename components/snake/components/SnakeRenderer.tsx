@@ -1,6 +1,6 @@
-
 import React, { useRef, useEffect } from 'react';
 import { Position, FoodItem, Teleporter, Particle } from '../types';
+import { GRID_SIZE, FOOD_TYPES } from '../constants';
 
 interface SnakeRendererProps {
     snake: Position[];
@@ -17,31 +17,144 @@ export const SnakeRenderer: React.FC<SnakeRendererProps> = ({
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        const ctx = canvasRef.current?.getContext('2d');
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        let animId: number;
+
         const render = () => {
-            ctx.clearRect(0, 0, 400, 400);
+            const width = canvas.width;
+            const height = canvas.height;
+            const cellSize = width / GRID_SIZE;
+
+            ctx.clearRect(0, 0, width, height);
             
-            // Draw Snake
-            snake.forEach((s, i) => {
-                ctx.fillStyle = i === 0 ? '#fff' : '#00f3ff';
-                ctx.fillRect(s.x * 20, s.y * 20, 18, 18);
+            // Draw Grid Background
+            ctx.strokeStyle = 'rgba(34, 197, 94, 0.05)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<=GRID_SIZE; i++) {
+                ctx.beginPath(); ctx.moveTo(i * cellSize, 0); ctx.lineTo(i * cellSize, height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i * cellSize); ctx.lineTo(width, i * cellSize); ctx.stroke();
+            }
+
+            // Draw Teleporters
+            teleporters.forEach(tp => {
+                ctx.save();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = tp.color;
+                ctx.strokeStyle = tp.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(tp.x * cellSize + cellSize/2, tp.y * cellSize + cellSize/2, cellSize/2 - 2, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 0.2;
+                ctx.fillStyle = tp.color;
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // Draw Obstacles
+            ctx.fillStyle = '#475569';
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = '#000';
+            obstacles.forEach(o => {
+                ctx.fillRect(o.x * cellSize + 2, o.y * cellSize + 2, cellSize - 4, cellSize - 4);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(o.x * cellSize + 2, o.y * cellSize + 2, cellSize - 4, cellSize - 4);
+            });
+
+            // Draw Bombs
+            bombs.forEach(b => {
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(b.x * cellSize + cellSize/2, b.y * cellSize + cellSize/2, cellSize/3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Fuse spark
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(b.x * cellSize + cellSize/2 + 5, b.y * cellSize + cellSize/2 - 5, 2, 0, Math.PI * 2);
+                ctx.fill();
             });
 
             // Draw Food
-            ctx.fillStyle = '#ef4444';
+            const foodType = FOOD_TYPES[food.type];
+            ctx.save();
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = foodType.glow;
+            ctx.fillStyle = foodType.color;
             ctx.beginPath();
-            ctx.arc(food.x * 20 + 10, food.y * 20 + 10, 8, 0, Math.PI * 2);
+            ctx.arc(food.x * cellSize + cellSize/2, food.y * cellSize + cellSize/2, cellSize/2.5, 0, Math.PI * 2);
             ctx.fill();
+            // Highlight
+            ctx.fillStyle = '#fff';
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            ctx.arc(food.x * cellSize + cellSize/2 - 2, food.y * cellSize + cellSize/2 - 2, cellSize/8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
 
-            requestAnimationFrame(render);
+            // Draw Snake
+            snake.forEach((s, i) => {
+                const isHead = i === 0;
+                ctx.save();
+                ctx.shadowBlur = isHead ? 20 : 10;
+                ctx.shadowColor = '#00f3ff';
+                ctx.fillStyle = isHead ? '#fff' : '#00f3ff';
+                
+                const padding = 1;
+                ctx.beginPath();
+                ctx.roundRect(s.x * cellSize + padding, s.y * cellSize + padding, cellSize - padding*2, cellSize - padding*2, isHead ? 6 : 4);
+                ctx.fill();
+                
+                if (isHead) {
+                    // Eyes
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(s.x * cellSize + cellSize/3, s.y * cellSize + cellSize/3, 2, 0, Math.PI * 2);
+                    ctx.arc(s.x * cellSize + 2*cellSize/3, s.y * cellSize + cellSize/3, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            });
+
+            // Draw Particles
+            particlesRef.current.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.03;
+                if (p.life > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+            particlesRef.current = particlesRef.current.filter(p => p.life > 0);
+
+            animId = requestAnimationFrame(render);
         };
-        const id = requestAnimationFrame(render);
-        return () => cancelAnimationFrame(id);
-    }, [snake, food]);
+
+        animId = requestAnimationFrame(render);
+        return () => cancelAnimationFrame(animId);
+    }, [snake, food, obstacles, teleporters, bombs, particlesRef]);
 
     return (
-        <canvas ref={canvasRef} width={400} height={400} className="bg-black/80 border-2 border-green-500/30 rounded-xl" />
+        <div className="relative p-2 bg-gray-900 rounded-2xl border-4 border-gray-800 shadow-2xl">
+            <canvas 
+                ref={canvasRef} 
+                width={400} 
+                height={400} 
+                className="w-full max-w-[400px] aspect-square rounded-lg"
+            />
+        </div>
     );
 };

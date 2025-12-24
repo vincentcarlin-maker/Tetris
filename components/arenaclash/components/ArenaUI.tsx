@@ -1,5 +1,6 @@
+
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon } from 'lucide-react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon, HelpCircle } from 'lucide-react';
 // Fix: Import MAPS from maps.ts
 import { MAPS } from '../maps';
 // Fix: Import only constants from constants.ts
@@ -259,7 +260,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </button>
                     </div>
 
-                    <button onClick={onBack} className="mt-12 text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest"><Home size={14} /> Retour arcade</button>
+                    <div className="mt-6 flex flex-col items-center gap-4">
+                        <button onClick={onToggleTutorial} className="text-gray-400 hover:text-white text-xs font-bold transition-all flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-xl border border-white/10 uppercase">
+                            <HelpCircle size={16} /> Aide & Contrôles
+                        </button>
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest"><Home size={14} /> Retour arcade</button>
+                    </div>
                 </div>
 
                 {lockerTab === 'TANKS' && (
@@ -562,6 +568,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
                         <div className="flex items-center gap-3 pointer-events-auto">
                             <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 shadow-2xl transition-all cursor-pointer active:scale-90"><Home size={24} /></button>
+                            <button onClick={onToggleTutorial} className="p-3 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><HelpCircle size={24} /></button>
                         </div>
                         <div className="flex flex-col items-center">
                             <div className={`text-2xl md:text-4xl font-black font-mono drop-shadow-[0_0_15px_rgba(0,0,0,1)] px-4 md:px-6 py-1.5 md:py-2 bg-black/40 rounded-2xl md:rounded-3xl border border-white/10 backdrop-blur-md ${timeLeft < 10 ? 'text-red-500 animate-pulse border-red-500' : 'text-white'}`}>

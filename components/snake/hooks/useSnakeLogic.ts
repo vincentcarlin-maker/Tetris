@@ -1,110 +1,205 @@
-
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Direction, Position, GameMode, FoodItem, Teleporter, Particle } from '../types';
+import { Direction, Position, FoodItem, Teleporter, Particle } from '../types';
+import { GRID_SIZE, INITIAL_SPEED, MIN_SPEED, FOOD_TYPES } from '../constants';
+import { useGameLoop } from '../../../hooks/useGameLoop';
 
-const GRID_SIZE = 20;
-const INITIAL_SPEED_CLASSIC = 150;
-const INITIAL_SPEED_NEON = 180;
-const MIN_SPEED = 50;
-
-export const useSnakeLogic = (audio: any, addCoins: any, onReportProgress?: any) => {
-    const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }]);
+export const useSnakeLogic = (audio: any, addCoins: (amount: number) => void, onReportProgress?: (metric: string, value: number) => void) => {
+    const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }]);
     const [food, setFood] = useState<FoodItem>({ x: 15, y: 10, type: 'NORMAL' });
     const [obstacles, setObstacles] = useState<Position[]>([]);
     const [teleporters, setTeleporters] = useState<Teleporter[]>([]);
     const [bombs, setBombs] = useState<Position[]>([]);
     const [score, setScore] = useState(0);
-    const [speed, setSpeed] = useState(INITIAL_SPEED_CLASSIC);
-    const [activeEffect, setActiveEffect] = useState<'NONE' | 'SLOW' | 'INVINCIBLE'>('NONE');
-    const [effectTimer, setEffectTimer] = useState(0);
+    const [speed, setSpeed] = useState(INITIAL_SPEED);
     const [gameOver, setGameOver] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
+    const [earnedCoins, setEarnedCoins] = useState(0);
     
-    const directionRef = useRef<Direction>('RIGHT');
-    const nextDirectionRef = useRef<Direction>('RIGHT');
+    const directionRef = useRef<Direction>('UP');
+    const nextDirectionRef = useRef<Direction>('UP');
     const particlesRef = useRef<Particle[]>([]);
-    const gameLoopRef = useRef<any>(null);
 
-    const spawnParticles = (x: number, y: number, color: string, count: number = 12) => {
+    const spawnParticles = useCallback((x: number, y: number, color: string, count: number = 12) => {
         for (let i = 0; i < count; i++) {
             particlesRef.current.push({
-                x: x * 100/GRID_SIZE + (50/GRID_SIZE), 
-                y: y * 100/GRID_SIZE + (50/GRID_SIZE),
-                vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
-                life: 1.0, color, size: Math.random() * 2 + 2
+                x: x * 20 + 10, 
+                y: y * 20 + 10,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                life: 1.0,
+                color,
+                size: Math.random() * 3 + 2
             });
         }
-    };
-
-    const isPositionSafe = (x: number, y: number, s: Position[], obs: Position[], tp: Teleporter[], b: Position[]) => {
-        if (s.some(seg => seg.x === x && seg.y === y)) return false;
-        if (obs.some(o => o.x === x && o.y === y)) return false;
-        if (tp.some(t => t.x === x && t.y === y)) return false;
-        if (b.some(bomb => bomb.x === x && bomb.y === y)) return false;
-        return true;
-    };
-
-    const generateLevel = useCallback((s: Position[]) => {
-        const newObs: Position[] = [];
-        const newTp: Teleporter[] = [];
-        const newBombs: Position[] = [];
-        for (let i = 0; i < 8; i++) {
-            const p = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) };
-            if (isPositionSafe(p.x, p.y, s, newObs, [], [])) newObs.push(p);
-        }
-        setObstacles(newObs);
-        setTeleporters([
-            { x: 2, y: 2, id: 1, targetId: 2, color: '#00f3ff' },
-            { x: 17, y: 17, id: 2, targetId: 1, color: '#ff00ff' }
-        ]);
-        setBombs([{ x: 10, y: 5 }, { x: 5, y: 15 }]);
     }, []);
 
+    const getRandomEmptyPos = useCallback((currentSnake: Position[], currentObs: Position[], currentTp: Teleporter[], currentBombs: Position[]): Position => {
+        let pos: Position;
+        let attempts = 0;
+        while (attempts < 100) {
+            pos = {
+                x: Math.floor(Math.random() * GRID_SIZE),
+                y: Math.floor(Math.random() * GRID_SIZE)
+            };
+            const onSnake = currentSnake.some(s => s.x === pos.x && s.y === pos.y);
+            const onObs = currentObs.some(o => o.x === pos.x && o.y === pos.y);
+            const onTp = currentTp.some(t => t.x === pos.x && t.y === pos.y);
+            const onBomb = currentBombs.some(b => b.x === pos.x && b.y === pos.y);
+            if (!onSnake && !onObs && !onTp && !onBomb) return pos;
+            attempts++;
+        }
+        return { x: 5, y: 5 }; // Fallback
+    }, []);
+
+    const spawnFood = useCallback((currentSnake: Position[]) => {
+        const pos = getRandomEmptyPos(currentSnake, obstacles, teleporters, bombs);
+        const rand = Math.random();
+        let type: keyof typeof FOOD_TYPES = 'NORMAL';
+        
+        if (rand > 0.9) type = 'CHERRY';
+        else if (rand > 0.8) type = 'STRAWBERRY';
+        else if (rand > 0.7) type = 'BANANA';
+
+        setFood({ ...pos, type });
+    }, [obstacles, teleporters, bombs, getRandomEmptyPos]);
+
+    const resetGame = useCallback(() => {
+        const initialSnake = [{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }];
+        setSnake(initialSnake);
+        directionRef.current = 'UP';
+        nextDirectionRef.current = 'UP';
+        setScore(0);
+        setSpeed(INITIAL_SPEED);
+        setGameOver(false);
+        setEarnedCoins(0);
+        
+        const newObs: Position[] = [];
+        for (let i = 0; i < 6; i++) {
+            newObs.push(getRandomEmptyPos(initialSnake, newObs, [], []));
+        }
+        setObstacles(newObs);
+        
+        const tp1 = getRandomEmptyPos(initialSnake, newObs, [], []);
+        const tp2 = getRandomEmptyPos(initialSnake, newObs, [tp1 as any], []);
+        setTeleporters([
+            { ...tp1, id: 1, targetId: 2, color: '#00f3ff' },
+            { ...tp2, id: 2, targetId: 1, color: '#ff00ff' }
+        ]);
+
+        const newBombs: Position[] = [];
+        for (let i = 0; i < 2; i++) {
+            newBombs.push(getRandomEmptyPos(initialSnake, newObs, [], newBombs));
+        }
+        setBombs(newBombs);
+
+        spawnFood(initialSnake);
+        setIsPlaying(false);
+        if (onReportProgress) onReportProgress('play', 1);
+    }, [getRandomEmptyPos, spawnFood, onReportProgress]);
+
     const moveSnake = useCallback(() => {
-        if (gameOver || !isPlaying || isPaused) return;
+        if (!isPlaying || gameOver) return;
 
-        setSnake(prev => {
-            directionRef.current = nextDirectionRef.current;
-            const head = prev[0];
-            const newHead = { ...head };
+        directionRef.current = nextDirectionRef.current;
+        const head = snake[0];
+        let newHead = { ...head };
 
-            if (directionRef.current === 'UP') newHead.y -= 1;
-            if (directionRef.current === 'DOWN') newHead.y += 1;
-            if (directionRef.current === 'LEFT') newHead.x -= 1;
-            if (directionRef.current === 'RIGHT') newHead.x += 1;
+        if (directionRef.current === 'UP') newHead.y -= 1;
+        else if (directionRef.current === 'DOWN') newHead.y += 1;
+        else if (directionRef.current === 'LEFT') newHead.x -= 1;
+        else if (directionRef.current === 'RIGHT') newHead.x += 1;
 
-            // Teleport logic
-            const portal = teleporters.find(t => t.x === newHead.x && t.y === newHead.y);
-            if (portal) {
-                const target = teleporters.find(t => t.id === portal.targetId);
-                if (target) { newHead.x = target.x; newHead.y = target.y; spawnParticles(portal.x, portal.y, portal.color); }
+        // Wall wrap
+        if (newHead.x < 0) newHead.x = GRID_SIZE - 1;
+        if (newHead.x >= GRID_SIZE) newHead.x = 0;
+        if (newHead.y < 0) newHead.y = GRID_SIZE - 1;
+        if (newHead.y >= GRID_SIZE) newHead.y = 0;
+
+        // Portal
+        const portal = teleporters.find(t => t.x === newHead.x && t.y === newHead.y);
+        if (portal) {
+            const target = teleporters.find(t => t.id === portal.targetId);
+            if (target) {
+                newHead = { x: target.x, y: target.y };
+                audio?.playMove?.();
+                spawnParticles(portal.x, portal.y, portal.color);
+                // Step forward to avoid re-triggering
+                if (directionRef.current === 'UP') newHead.y -= 1;
+                else if (directionRef.current === 'DOWN') newHead.y += 1;
+                else if (directionRef.current === 'LEFT') newHead.x -= 1;
+                else if (directionRef.current === 'RIGHT') newHead.x += 1;
             }
+        }
 
-            // Wall/Self Collision
-            if (newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE || 
-                prev.some(s => s.x === newHead.x && s.y === newHead.y)) {
-                if (activeEffect !== 'INVINCIBLE') { setGameOver(true); audio.playGameOver(); return prev; }
+        // Collision Check
+        const hitSelf = snake.some(s => s.x === newHead.x && s.y === newHead.y);
+        const hitObs = obstacles.some(o => o.x === newHead.x && o.y === newHead.y);
+        const hitBomb = bombs.some(b => b.x === newHead.x && b.y === newHead.y);
+
+        if (hitSelf || hitObs || hitBomb) {
+            setGameOver(true);
+            setIsPlaying(false);
+            audio?.playGameOver?.();
+            spawnParticles(newHead.x, newHead.y, '#ffffff', 30);
+            if (onReportProgress) onReportProgress('score', score);
+            const coins = Math.floor(score / 50);
+            if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
+            return;
+        }
+
+        const newSnake = [newHead, ...snake];
+
+        // Check Food
+        if (newHead.x === food.x && newHead.y === food.y) {
+            const foodType = FOOD_TYPES[food.type];
+            setScore(s => s + foodType.points);
+            audio?.playCoin?.();
+            spawnParticles(food.x, food.y, foodType.color);
+            
+            if (food.type === 'STRAWBERRY') setSpeed(prev => Math.max(MIN_SPEED, prev - 20));
+            if (food.type === 'BANANA') setSpeed(prev => prev + 30);
+            
+            spawnFood(newSnake);
+            if (onReportProgress) onReportProgress('action', 1);
+        } else {
+            newSnake.pop();
+        }
+
+        setSnake(newSnake);
+    }, [isPlaying, gameOver, snake, food, obstacles, teleporters, bombs, score, audio, spawnFood, spawnParticles, addCoins, onReportProgress]);
+
+    useGameLoop(moveSnake, isPlaying && !gameOver ? speed : null);
+
+    const setNextDirection = useCallback((dir: Direction) => {
+        // Anti-demi-tour
+        if (dir === 'UP' && directionRef.current === 'DOWN') return;
+        if (dir === 'DOWN' && directionRef.current === 'UP') return;
+        if (dir === 'LEFT' && directionRef.current === 'RIGHT') return;
+        if (dir === 'RIGHT' && directionRef.current === 'LEFT') return;
+        nextDirectionRef.current = dir;
+        audio?.resumeAudio?.();
+    }, [audio]);
+
+    // Keyboard controls
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (gameOver) return;
+            const key = e.key.toLowerCase();
+            if (key === 'arrowup' || key === 'w' || key === 'z') setNextDirection('UP');
+            else if (key === 'arrowdown' || key === 's') setNextDirection('DOWN');
+            else if (key === 'arrowleft' || key === 'a' || key === 'q') setNextDirection('LEFT');
+            else if (key === 'arrowright' || key === 'd') setNextDirection('RIGHT');
+            
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 's', 'a', 'd', 'z', 'q'].includes(key)) {
+                if (!isPlaying && !gameOver) setIsPlaying(true);
             }
-
-            const newSnake = [newHead, ...prev];
-            if (newHead.x === food.x && newHead.y === food.y) {
-                audio.playCoin();
-                setScore(s => s + 10);
-                // logic to spawn new food...
-                newSnake.pop(); // simplified for now
-            } else {
-                newSnake.pop();
-            }
-            return newSnake;
-        });
-
-        gameLoopRef.current = setTimeout(moveSnake, activeEffect === 'SLOW' ? speed * 1.5 : speed);
-    }, [isPlaying, isPaused, gameOver, speed, activeEffect, teleporters, food, audio]);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [setNextDirection, isPlaying, gameOver]);
 
     return {
-        snake, food, obstacles, teleporters, bombs, score, gameOver, isPlaying, isPaused,
-        activeEffect, particlesRef, setNextDirection: (d: Direction) => { nextDirectionRef.current = d; },
-        setIsPlaying, setGameState: setGameOver, reset: () => setSnake([{x:10, y:10}])
+        snake, food, obstacles, teleporters, bombs, score, gameOver, isPlaying, 
+        earnedCoins, particlesRef, setNextDirection, setIsPlaying, resetGame
     };
 };
