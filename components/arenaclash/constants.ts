@@ -44,7 +44,7 @@ export interface Obstacle {
     y: number;
     w: number;
     h: number;
-    type?: 'building' | 'tree' | 'pond' | 'rock' | 'bridge';
+    type?: 'building' | 'tree' | 'pond' | 'rock' | 'bridge' | 'ice';
 }
 
 export interface MapConfig {
@@ -112,7 +112,6 @@ export const MAPS: MapConfig[] = [
             accent: '#facc15' 
         },
         obstacles: [
-            // Dunes et roches néon
             { x: 100, y: 100, w: 300, h: 80, type: 'rock' },
             { x: 100, y: 180, w: 80, h: 400, type: 'rock' },
             { x: 600, y: 400, w: 500, h: 120, type: 'rock' },
@@ -126,6 +125,30 @@ export const MAPS: MapConfig[] = [
             { x: 300, y: 1700, w: 1200, h: 100, type: 'rock' },
             { x: 1800, y: 1700, w: 400, h: 500, type: 'rock' },
             { x: 200, y: 2000, w: 1000, h: 150, type: 'rock' },
+        ]
+    },
+    {
+        id: 'arctic',
+        name: 'ARCTIC NEON',
+        colors: { 
+            bg: '#05101a', 
+            grid: 'rgba(0, 243, 255, 0.04)', 
+            wall: '#0f2030', 
+            wallBorder: '#00f3ff',
+            accent: '#ffffff' 
+        },
+        obstacles: [
+            { x: 200, y: 200, w: 400, h: 300, type: 'ice' },
+            { x: 1000, y: 100, w: 150, h: 500, type: 'ice' },
+            { x: 1800, y: 200, w: 300, h: 400, type: 'ice' },
+            { x: 400, y: 800, w: 500, h: 150, type: 'ice' },
+            { x: 1300, y: 900, w: 800, h: 100, type: 'ice' },
+            { x: 100, y: 1300, w: 600, h: 250, type: 'ice' },
+            { x: 1000, y: 1400, w: 400, h: 600, type: 'ice' },
+            { x: 1600, y: 1300, w: 500, h: 300, type: 'ice' },
+            { x: 400, y: 1800, w: 300, h: 400, type: 'ice' },
+            { x: 1800, y: 1800, w: 400, h: 400, type: 'ice' },
+            { x: 1200, y: 2100, w: 300, h: 200, type: 'ice' },
         ]
     }
 ];

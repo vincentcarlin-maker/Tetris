@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X, User, Coins } from 'lucide-react';
 import { ShopItem } from '../types';
@@ -44,9 +45,45 @@ const renderPreview = (item: ShopItem, category: string) => {
     }
     if (category === 'TANK_ACCESSORIES') {
         if (item.id === 'ta_none') return <X className="text-gray-500 opacity-30" size={32} />;
+        
+        const layout = item.layout || 'vertical';
+        const colors = item.colors;
+
         return (
-            <div className="flex border border-white/20 w-14 h-9 rounded-sm overflow-hidden shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform">
-                {item.colors.map((c: string, idx: number) => <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>)}
+            <div className="flex border border-white/20 w-14 h-9 rounded-sm overflow-hidden shadow-lg transform -rotate-6 group-hover:rotate-0 transition-transform relative bg-gray-900">
+                {layout === 'japan' ? (
+                    <div className="w-full h-full bg-white relative flex items-center justify-center">
+                        <div className="w-5 h-5 rounded-full bg-[#BC002D]"></div>
+                    </div>
+                ) : layout === 'brazil' ? (
+                    <div className="w-full h-full bg-[#009739] relative flex items-center justify-center">
+                        <div className="w-10 h-7 bg-[#FEDD00] rotate-45 transform scale-[0.8] absolute"></div>
+                        <div className="w-3.5 h-3.5 bg-[#012169] rounded-full absolute z-10"></div>
+                    </div>
+                ) : layout === 'usa' ? (
+                    <div className="w-full h-full bg-white relative flex flex-col">
+                        {Array.from({length: 7}).map((_, i) => (
+                            <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-[#B22234]' : 'bg-white'}`}></div>
+                        ))}
+                        <div className="absolute top-0 left-0 w-[45%] h-[55%] bg-[#3C3B6E] flex flex-wrap p-0.5 gap-0.5">
+                            {Array.from({length: 4}).map((_, i) => (
+                                <div key={i} className="w-1 h-1 bg-white rounded-full opacity-80"></div>
+                            ))}
+                        </div>
+                    </div>
+                ) : layout === 'pirate' ? (
+                    <div className="w-full h-full bg-black relative flex items-center justify-center">
+                        <div className="w-4 h-4 rounded-full bg-white opacity-90 relative mb-1">
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-2 bg-white rounded-sm"></div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className={`flex w-full h-full ${layout === 'vertical' ? 'flex-row' : 'flex-col'}`}>
+                        {colors.map((c: string, idx: number) => (
+                            <div key={idx} className="flex-1 h-full w-full" style={{ backgroundColor: c }}></div>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     }

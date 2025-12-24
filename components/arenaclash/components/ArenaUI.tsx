@@ -71,7 +71,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     };
 
     const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
-        // On ne permet pas de bouger le joystick visuellement si on est mort
         if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') return; 
         
         const rect = zone.getBoundingClientRect();
@@ -92,7 +91,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         }
     };
 
-    // S'assurer que tout est reset quand on change d'état (mort/fin)
     useEffect(() => {
         if (gameState === 'RESPAWNING' || gameState === 'GAMEOVER') {
             activeTouches.current.move = null;
@@ -104,14 +102,10 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
     useEffect(() => {
         const handleTouch = (e: TouchEvent) => {
-            // NOTE: On ne bloque plus la fonction entière ici par le gameState
-            // On gère chaque type d'événement spécifiquement
-            
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 
                 if (e.type === 'touchstart') {
-                    // On ne peut pas commencer un mouvement si mort
                     if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') continue;
 
                     if (leftZoneRef.current && activeTouches.current.move === null) {
@@ -131,7 +125,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 }
                 
                 if (e.type === 'touchmove') {
-                    // On ne peut pas bouger le joystick si mort
                     if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') continue;
 
                     if (t.identifier === activeTouches.current.move && leftZoneRef.current) {
@@ -143,7 +136,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 }
                 
                 if (e.type === 'touchend' || e.type === 'touchcancel') {
-                    // TRÈS IMPORTANT: On autorise toujours le reset, même en respawning
                     if (t.identifier === activeTouches.current.move) { 
                         activeTouches.current.move = null; 
                         resetStick('move'); 
@@ -167,7 +159,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
             document.removeEventListener('touchend', handleTouch); 
             document.removeEventListener('touchcancel', handleTouch);
         };
-    }, [gameState]); // Re-bind quand l'état change pour capter la bonne valeur de closure
+    }, [gameState]);
 
     const MiniLeaderboard = () => (
         <div className="flex flex-col w-40 bg-black/20 backdrop-blur-sm p-3 rounded-2xl border border-white/10 pointer-events-none">
@@ -279,11 +271,33 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(acc) => (
                             <div className="flex flex-col items-center gap-1">
-                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
-                                    {acc.colors.map((c: string, idx: number) => (
-                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
-                                    ))}
-                                </div>
+                                {acc.layout === 'japan' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-white relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-4 h-4 rounded-full bg-[#BC002D]"></div>
+                                    </div>
+                                ) : acc.layout === 'brazil' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-[#009739] relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-8 h-6 bg-[#FEDD00] rotate-45 transform scale-[0.8] absolute"></div>
+                                        <div className="w-3 h-3 bg-[#012169] rounded-full absolute z-10"></div>
+                                    </div>
+                                ) : acc.layout === 'usa' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-white relative overflow-hidden flex flex-col">
+                                        {Array.from({length: 7}).map((_, i) => (
+                                            <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-[#B22234]' : 'bg-white'}`}></div>
+                                        ))}
+                                        <div className="absolute top-0 left-0 w-[45%] h-[55%] bg-[#3C3B6E]"></div>
+                                    </div>
+                                ) : acc.layout === 'pirate' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-black relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                                    </div>
+                                ) : (
+                                    <div className={`flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg ${acc.layout === 'vertical' ? 'flex-row' : 'flex-col'}`}>
+                                        {acc.colors.map((c: string, idx: number) => (
+                                            <div key={idx} className="flex-1 h-full w-full" style={{ backgroundColor: c }}></div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     />
@@ -312,7 +326,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 <div className="bg-gradient-to-br from-gray-900 to-black border border-orange-500/30 rounded-[32px] p-8 shadow-2xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                                     <h3 className="text-sm font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest"><Wifi size={18} className="text-orange-400"/> Émission</h3>
-                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 uppercase cursor-pointer">
+                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 uppercase tracking-widest cursor-pointer">
                                         <Play size={20} fill="currentColor"/> Créer Salon
                                     </button>
                                 </div>
@@ -395,11 +409,33 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(acc) => (
                             <div className="flex flex-col items-center gap-1">
-                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
-                                    {acc.colors.map((c: string, idx: number) => (
-                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
-                                    ))}
-                                </div>
+                                {acc.layout === 'japan' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-white relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-4 h-4 rounded-full bg-[#BC002D]"></div>
+                                    </div>
+                                ) : acc.layout === 'brazil' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-[#009739] relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-8 h-6 bg-[#FEDD00] rotate-45 transform scale-[0.8] absolute"></div>
+                                        <div className="w-3 h-3 bg-[#012169] rounded-full absolute z-10"></div>
+                                    </div>
+                                ) : acc.layout === 'usa' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-white relative overflow-hidden flex flex-col">
+                                        {Array.from({length: 7}).map((_, i) => (
+                                            <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-[#B22234]' : 'bg-white'}`}></div>
+                                        ))}
+                                        <div className="absolute top-0 left-0 w-[45%] h-[55%] bg-[#3C3B6E]"></div>
+                                    </div>
+                                ) : acc.layout === 'pirate' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-black relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                                    </div>
+                                ) : (
+                                    <div className={`flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg ${acc.layout === 'vertical' ? 'flex-row' : 'flex-col'}`}>
+                                        {acc.colors.map((c: string, idx: number) => (
+                                            <div key={idx} className="flex-1 h-full w-full" style={{ backgroundColor: c }}></div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     />
@@ -464,11 +500,33 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(acc) => (
                             <div className="flex flex-col items-center gap-1">
-                                <div className="flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg">
-                                    {acc.colors.map((c: string, idx: number) => (
-                                        <div key={idx} className="flex-1 h-full" style={{ backgroundColor: c }}></div>
-                                    ))}
-                                </div>
+                                {acc.layout === 'japan' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-white relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-4 h-4 rounded-full bg-[#BC002D]"></div>
+                                    </div>
+                                ) : acc.layout === 'brazil' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-[#009739] relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-8 h-6 bg-[#FEDD00] rotate-45 transform scale-[0.8] absolute"></div>
+                                        <div className="w-3 h-3 bg-[#012169] rounded-full absolute z-10"></div>
+                                    </div>
+                                ) : acc.layout === 'usa' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-white relative overflow-hidden flex flex-col">
+                                        {Array.from({length: 7}).map((_, i) => (
+                                            <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-[#B22234]' : 'bg-white'}`}></div>
+                                        ))}
+                                        <div className="absolute top-0 left-0 w-[45%] h-[55%] bg-[#3C3B6E]"></div>
+                                    </div>
+                                ) : acc.layout === 'pirate' ? (
+                                    <div className="w-12 h-8 border border-white/20 rounded-sm bg-black relative flex items-center justify-center overflow-hidden">
+                                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                                    </div>
+                                ) : (
+                                    <div className={`flex border border-white/20 w-12 h-8 rounded-sm overflow-hidden shadow-lg ${acc.layout === 'vertical' ? 'flex-row' : 'flex-col'}`}>
+                                        {acc.colors.map((c: string, idx: number) => (
+                                            <div key={idx} className="flex-1 h-full w-full" style={{ backgroundColor: c }}></div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     />
@@ -479,7 +537,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
     return (
         <div id="arena-ui-container" className="absolute inset-0 flex flex-col items-center overflow-hidden pointer-events-none">
-            {/* HUD EN JEU */}
             {(gameState === 'PLAYING' || gameState === 'RESPAWNING') && (
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
@@ -494,7 +551,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         <div className="pointer-events-none"><MiniLeaderboard /></div>
                     </div>
 
-                    {/* OVERLAY DE RESPAWN */}
                     {gameState === 'RESPAWNING' && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
                              <div className="p-8 rounded-[40px] border-2 border-red-500/50 bg-gray-900/80 flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
@@ -528,7 +584,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </>
             )}
 
-            {/* ÉCRAN DE FIN DE PARTIE */}
             {gameState === 'GAMEOVER' && (
                 <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-8 pointer-events-auto animate-in zoom-in fade-in duration-300">
                     <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_30px_rgba(234,179,8,0.6)] animate-bounce" />

@@ -27,49 +27,130 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
     const drawFlag = (ctx: CanvasRenderingContext2D, char: Character) => {
         const acc = char.accessory;
-        if (!acc || acc.id === 'ta_none' || !acc.colors || acc.colors.length === 0) return;
+        if (!acc || acc.id === 'ta_none') return;
 
         ctx.save();
         const radius = char.radius;
         const poleX = -radius * 0.8;
         const poleY = -radius * 0.8;
         
-        ctx.strokeStyle = '#666';
+        // Mât du drapeau
+        ctx.strokeStyle = '#888';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(poleX, poleY);
-        ctx.lineTo(poleX, poleY - 25);
+        ctx.lineTo(poleX, poleY - 28);
         ctx.stroke();
 
+        // Paramètres d'animation
         const time = Date.now() / 200;
-        const flagWidth = 18;
-        const flagHeight = 12;
-        const segments = 6;
-        const segW = flagWidth / segments;
+        const flagW = 20;
+        const flagH = 14;
+        const segments = 10;
+        const segW = flagW / segments;
 
-        ctx.translate(poleX, poleY - 25);
+        ctx.translate(poleX, poleY - 28);
 
-        acc.colors.forEach((color, cIdx) => {
-            ctx.fillStyle = color;
-            const hPart = flagHeight / acc.colors.length;
-            const yOff = cIdx * hPart;
-
+        // On dessine le drapeau segment par segment pour l'effet de vague
+        for (let i = 0; i < segments; i++) {
+            const x = i * segW;
+            const wave = Math.sin(time + i * 0.6) * 2.5;
+            const nextWave = Math.sin(time + (i + 1) * 0.6) * 2.5;
+            
+            ctx.save();
+            // Création d'un clip pour ce segment
             ctx.beginPath();
-            ctx.moveTo(0, yOff);
-
-            for (let i = 0; i <= segments; i++) {
-                const x = i * segW;
-                const wave = Math.sin(time + i * 0.8) * 3;
-                ctx.lineTo(x, yOff + wave);
-            }
-            for (let i = segments; i >= 0; i--) {
-                const x = i * segW;
-                const wave = Math.sin(time + i * 0.8) * 3;
-                ctx.lineTo(x, yOff + hPart + wave);
-            }
+            ctx.moveTo(x, wave);
+            ctx.lineTo(x + segW, nextWave);
+            ctx.lineTo(x + segW, nextWave + flagH);
+            ctx.lineTo(x, wave + flagH);
             ctx.closePath();
-            ctx.fill();
-        });
+            ctx.clip();
+
+            // Dessin selon le layout
+            const layout = acc.layout || 'vertical';
+            const colors = acc.colors;
+
+            switch(layout) {
+                case 'vertical':
+                    colors.forEach((color, cIdx) => {
+                        ctx.fillStyle = color;
+                        const wPart = flagW / colors.length;
+                        ctx.fillRect(cIdx * wPart, -10, wPart, 40);
+                    });
+                    break;
+                case 'horizontal':
+                    colors.forEach((color, cIdx) => {
+                        ctx.fillStyle = color;
+                        const hPart = flagH / colors.length;
+                        ctx.fillRect(-5, cIdx * hPart + wave, flagW + 10, hPart);
+                    });
+                    break;
+                case 'japan':
+                    ctx.fillStyle = colors[0]; // Fond blanc
+                    ctx.fillRect(-5, -10, flagW + 10, 40);
+                    ctx.fillStyle = colors[1]; // Disque rouge
+                    ctx.beginPath();
+                    ctx.arc(flagW/2, flagH/2 + wave, flagH/3, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                case 'usa':
+                    // Bandes rouges et blanches
+                    for(let s=0; s<7; s++) {
+                        ctx.fillStyle = (s % 2 === 0) ? colors[2] : colors[1];
+                        ctx.fillRect(-5, s * (flagH/7) + wave, flagW + 10, flagH/7);
+                    }
+                    // Canton bleu
+                    ctx.fillStyle = colors[0];
+                    ctx.fillRect(0, wave, flagW * 0.45, flagH * 0.55);
+                    // Points pour étoiles (simplifié)
+                    ctx.fillStyle = 'white';
+                    for(let row=0; row<3; row++) {
+                        for(let col=0; col<3; col++) {
+                            ctx.beginPath();
+                            ctx.arc(2 + col*4, wave + 2 + row*2.5, 0.5, 0, Math.PI*2);
+                            ctx.fill();
+                        }
+                    }
+                    break;
+                case 'brazil':
+                    ctx.fillStyle = colors[0]; // Fond vert
+                    ctx.fillRect(-5, -10, flagW + 10, 40);
+                    // Losange jaune
+                    ctx.fillStyle = colors[1];
+                    ctx.beginPath();
+                    ctx.moveTo(2, flagH/2 + wave);
+                    ctx.lineTo(flagW/2, 2 + wave);
+                    ctx.lineTo(flagW - 2, flagH/2 + wave);
+                    ctx.lineTo(flagW/2, flagH - 2 + wave);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Cercle bleu
+                    ctx.fillStyle = colors[2];
+                    ctx.beginPath();
+                    ctx.arc(flagW/2, flagH/2 + wave, flagH/5, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                case 'pirate':
+                    ctx.fillStyle = 'black';
+                    ctx.fillRect(-5, -10, flagW + 10, 40);
+                    ctx.fillStyle = 'white';
+                    // Crâne simplifié
+                    ctx.beginPath();
+                    ctx.arc(flagW/2, flagH/2 - 1 + wave, 3, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.fillRect(flagW/2 - 1.5, flagH/2 + 1 + wave, 3, 2);
+                    // Os croisés (X)
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'white';
+                    ctx.beginPath();
+                    ctx.moveTo(flagW/2 - 5, flagH/2 - 3 + wave); ctx.lineTo(flagW/2 + 5, flagH/2 + 3 + wave);
+                    ctx.moveTo(flagW/2 + 5, flagH/2 - 3 + wave); ctx.lineTo(flagW/2 - 5, flagH/2 + 3 + wave);
+                    ctx.stroke();
+                    break;
+            }
+            ctx.restore();
+        }
 
         ctx.restore();
     };
@@ -180,6 +261,37 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.fill();
             ctx.shadowBlur = 0;
 
+        } else if (map.id === 'arctic' && obs.type === 'ice') {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 243, 255, 0.1)';
+            ctx.strokeStyle = map.colors.wallBorder;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = map.colors.wallBorder;
+            ctx.shadowBlur = 15;
+            
+            // Crystal shape
+            ctx.beginPath();
+            ctx.moveTo(obs.x + obs.w / 2, obs.y);
+            ctx.lineTo(obs.x + obs.w, obs.y + obs.h / 4);
+            ctx.lineTo(obs.x + obs.w, obs.y + (obs.h * 3) / 4);
+            ctx.lineTo(obs.x + obs.w / 2, obs.y + obs.h);
+            ctx.lineTo(obs.x, obs.y + (obs.h * 3) / 4);
+            ctx.lineTo(obs.x, obs.y + obs.h / 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Internal facets
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(obs.x + obs.w / 2, obs.y);
+            ctx.lineTo(obs.x + obs.w / 2, obs.y + obs.h);
+            ctx.moveTo(obs.x, obs.y + obs.h / 2);
+            ctx.lineTo(obs.x + obs.w, obs.y + obs.h / 2);
+            ctx.stroke();
+            
+            ctx.restore();
+
         } else if (map.id === 'forest' && obs.type === 'pond') {
             ctx.save();
             const cx = obs.x + obs.w / 2;
@@ -258,11 +370,9 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.shadowBlur = 0;
 
             if (map.id === 'city') {
-                // --- TOIT DES IMMEUBLES DÉTAILLÉ ---
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.strokeRect(obs.x + 8, obs.y + 8, obs.w - 16, obs.h - 16);
                 
-                // Helipad pour les grands immeubles
                 if (obs.w > 180 && obs.h > 180) {
                     const cx = obs.x + obs.w / 2;
                     const cy = obs.y + obs.h / 2;
@@ -277,7 +387,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                     ctx.fillText('H', cx, cy + 4);
                 }
 
-                // Détails techniques (Clim, conduits)
                 const seed = (obs.x + obs.y) % 1000;
                 ctx.fillStyle = '#1a1a2a';
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
@@ -296,10 +405,8 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                 ctx.shadowBlur = 12;
                 ctx.strokeRect(obs.x + 2, obs.y + 2, obs.w - 4, obs.h - 4);
             } else if (map.id === 'desert') {
-                 // --- ROCHES DU DÉSERT STRATIFIÉES ---
                  ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                  ctx.lineWidth = 1;
-                 // Dessiner des strates horizontales sur les rochers
                  for(let i=10; i < obs.h; i += 15) {
                      ctx.beginPath();
                      ctx.moveTo(obs.x + 2, obs.y + i);
@@ -313,7 +420,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                  ctx.shadowBlur = 15;
                  ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
                  
-                 // Débris de sable à la base
                  ctx.fillStyle = 'rgba(249, 115, 22, 0.3)';
                  ctx.fillRect(obs.x - 5, obs.y + obs.h - 10, obs.w + 10, 15);
             } else {
@@ -351,17 +457,33 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                      life: 120, maxLife: 120, color: 'rgba(0, 255, 157, 0.25)', size: 2.5
                  });
             }
+        } else if (map.id === 'arctic') {
+            // Falling Snow effect
+            if (Date.now() % 10 < 5) {
+                 const x = Math.random() * CANVAS_WIDTH;
+                 const y = cameraRef.current.y - 100;
+                 particlesRef.current.push({
+                     x, y, vx: (Math.random() - 0.5) * 2, vy: 4 + Math.random() * 3,
+                     life: 150, maxLife: 150, color: '#ffffff', size: Math.random() * 3 + 1
+                 });
+            }
+            // Brume arctique au sol
+            ctx.save();
+            const fogGrad = ctx.createLinearGradient(0, cameraRef.current.y + VIEWPORT_HEIGHT, 0, cameraRef.current.y);
+            fogGrad.addColorStop(0, 'rgba(0, 243, 255, 0.15)');
+            fogGrad.addColorStop(0.3, 'transparent');
+            ctx.fillStyle = fogGrad;
+            ctx.fillRect(cameraRef.current.x, cameraRef.current.y, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+            ctx.restore();
         } else if (map.id === 'city') {
             const roadWidth = 140;
             const hAvenues = [100, 450, 750, 1350, 1700, 2300];
             const vAvenues = [100, 550, 900, 1450, 1800, 2300];
             
-            // Asphalte
             ctx.fillStyle = '#05050f';
             hAvenues.forEach(y => ctx.fillRect(0, y - roadWidth/2, CANVAS_WIDTH, roadWidth));
             vAvenues.forEach(x => ctx.fillRect(x - roadWidth/2, 0, roadWidth, CANVAS_HEIGHT));
             
-            // Marquage central
             ctx.strokeStyle = '#00f3ff';
             ctx.lineWidth = 2;
             ctx.shadowColor = '#00f3ff';
@@ -372,7 +494,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.setLineDash([]);
             ctx.shadowBlur = 0;
 
-            // --- PASSAGES PIÉTONS NÉON ---
             ctx.save();
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
             ctx.lineWidth = 4;
@@ -391,21 +512,18 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                             ctx.strokeRect(stripeX, stripeY, w, h);
                         }
                     };
-                    // Haut / Bas de l'intersection
                     drawCrosswalk(x, y - offset, true);
                     drawCrosswalk(x, y + offset, true);
-                    // Gauche / Droite de l'intersection
                     drawCrosswalk(x - offset, y, false);
                     drawCrosswalk(x + offset, y, false);
                 });
             });
             ctx.restore();
 
-            // --- LAMPADAIRES NÉON JAUNES ---
             ctx.save();
             const drawLamp = (lx: number, ly: number) => {
                 const halo = ctx.createRadialGradient(lx, ly, 0, lx, ly, 60);
-                halo.addColorStop(0, 'rgba(250, 204, 21, 0.2)'); // Jaune translucide
+                halo.addColorStop(0, 'rgba(250, 204, 21, 0.2)');
                 halo.addColorStop(1, 'transparent');
                 ctx.fillStyle = halo;
                 ctx.beginPath(); ctx.arc(lx, ly, 60, 0, Math.PI * 2); ctx.fill();
@@ -414,7 +532,7 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.lineWidth = 1; ctx.stroke();
                 const glowY = ly - 10;
-                ctx.fillStyle = '#facc15'; // Jaune néon
+                ctx.fillStyle = '#facc15';
                 ctx.shadowColor = '#facc15';
                 ctx.shadowBlur = 15;
                 ctx.beginPath(); ctx.arc(lx, glowY, 4, 0, Math.PI * 2); ctx.fill();
@@ -448,8 +566,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
 
         } else if (map.id === 'desert') {
             const cam = cameraRef.current;
-            
-            // --- DUNES DE SABLE (ARRIÈRE-PLAN) ---
             ctx.save();
             ctx.strokeStyle = 'rgba(250, 204, 21, 0.1)';
             ctx.lineWidth = 2;
@@ -464,7 +580,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             }
             ctx.restore();
 
-            // --- SOLEIL BINAIRE MASSIF ---
             ctx.save();
             const sunX = CANVAS_WIDTH / 2;
             const sunY = -200;
@@ -475,7 +590,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.fillStyle = sunGrad;
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
             
-            // Cercles de soleil
             ctx.fillStyle = '#facc15';
             ctx.shadowBlur = 100;
             ctx.shadowColor = '#facc15';
@@ -485,7 +599,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
             ctx.beginPath(); ctx.arc(sunX + 250, 300, 100, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
 
-            // --- TEMPÊTE DE SABLE (PARTICULES) ---
             if (Date.now() % 10 < 4) {
                  for(let i=0; i<5; i++) {
                     const side = Math.random() > 0.5 ? 'right' : 'top';
@@ -509,7 +622,6 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                  }
             }
 
-            // --- CACTUS NÉON (DÉCORATION ALÉATOIRE) ---
             ctx.save();
             const drawCactus = (cx: number, cy: number) => {
                 ctx.strokeStyle = '#00ff9d';
@@ -517,24 +629,15 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = ({
                 ctx.lineCap = 'round';
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = '#00ff9d';
-                
-                // Tronc
                 ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 40); ctx.stroke();
-                // Bras 1
                 ctx.beginPath(); ctx.moveTo(cx, cy - 25); ctx.quadraticCurveTo(cx - 15, cy - 25, cx - 15, cy - 45); ctx.stroke();
-                // Bras 2
                 ctx.beginPath(); ctx.moveTo(cx, cy - 15); ctx.quadraticCurveTo(cx + 15, cy - 15, cx + 15, cy - 35); ctx.stroke();
             };
 
-            // On en dessine quelques-uns à des positions fixes basées sur un seed
-            const cactusPos = [
-                {x: 400, y: 1100}, {x: 2000, y: 300}, {x: 800, y: 2000}, 
-                {x: 1500, y: 1400}, {x: 2100, y: 1800}
-            ];
+            const cactusPos = [{x: 400, y: 1100}, {x: 2000, y: 300}, {x: 800, y: 2000}, {x: 1500, y: 1400}, {x: 2100, y: 1800}];
             cactusPos.forEach(p => drawCactus(p.x, p.y));
             ctx.restore();
 
-            // Brume de chaleur
             ctx.save();
             const hazeIntensity = 0.12 + Math.sin(time * 0.5) * 0.04;
             ctx.fillStyle = `rgba(250, 204, 21, ${hazeIntensity})`;

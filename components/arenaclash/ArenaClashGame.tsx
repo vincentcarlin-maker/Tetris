@@ -4,6 +4,7 @@ import { useArenaLogic } from './hooks/useArenaLogic';
 import { ArenaRenderer } from './components/ArenaRenderer';
 import { ArenaUI } from './components/ArenaUI';
 import { useCurrency } from '../../hooks/useCurrency';
+import { MAPS } from './constants';
 
 interface ArenaClashGameProps {
     onBack: () => void;
@@ -71,7 +72,7 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 onToggleTutorial={() => {}} 
                 onSetGameMode={logic.setGameMode}
                 onStartGame={logic.startGame}
-                onChangeMap={(delta) => logic.setSelectedMapIndex((prev: number) => (prev + delta + 3) % 3)}
+                onChangeMap={(delta) => logic.setSelectedMapIndex((prev: number) => (prev + delta + MAPS.length) % MAPS.length)}
                 onCancelHosting={mp.cancelHosting}
                 onLeaveGame={() => { mp.leaveGame(); onBack(); }} 
                 onRematch={() => logic.startGame('ONLINE')}
