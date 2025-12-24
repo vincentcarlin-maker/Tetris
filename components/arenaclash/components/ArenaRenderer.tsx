@@ -16,6 +16,7 @@ interface ArenaRendererProps {
     onUpdate: (dt: number) => void;
     gameState: string;
     showTutorial: boolean;
+    aiBgUrl?: string | null;
 }
 
 /**

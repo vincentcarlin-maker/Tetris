@@ -6,20 +6,31 @@ import { drawTank, drawBullet, drawPowerUp, drawParticle, drawObstacle, drawMapD
 export const useArenaRenderLoop = (props: any) => {
     const { 
         playerRef, botsRef, bulletsRef, powerUpsRef, particlesRef, cameraRef, 
-        selectedMapIndex, recoilRef, onUpdate, gameState 
+        selectedMapIndex, recoilRef, onUpdate, gameState, aiBgUrl
     } = props;
     
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const lastTimeRef = useRef<number>(0);
     const requestRef = useRef<number>(0);
+    const aiImageRef = useRef<HTMLImageElement | null>(null);
     
     const onUpdateRef = useRef(onUpdate);
     useEffect(() => {
         onUpdateRef.current = onUpdate;
     }, [onUpdate]);
 
+    // Chargement de l'image IA quand elle change
     useEffect(() => {
-        // Reset lastTime au montage du hook
+        if (aiBgUrl) {
+            const img = new Image();
+            img.src = aiBgUrl;
+            img.onload = () => { aiImageRef.current = img; };
+        } else {
+            aiImageRef.current = null;
+        }
+    }, [aiBgUrl]);
+
+    useEffect(() => {
         lastTimeRef.current = 0;
 
         const render = (time: number) => {
@@ -29,15 +40,13 @@ export const useArenaRenderLoop = (props: any) => {
                 return;
             }
             
-            const dt = Math.min(time - lastTimeRef.current, 100); // Cap à 100ms
+            const dt = Math.min(time - lastTimeRef.current, 100);
             lastTimeRef.current = time;
 
-            // Toujours appeler onUpdate, la fonction gère elle-même ses états internes
             if (onUpdateRef.current) {
                 onUpdateRef.current(dt);
             }
 
-            // Rendu
             const canvas = canvasRef.current;
             const ctx = canvas?.getContext('2d', { alpha: false });
             if (!ctx) {
@@ -49,17 +58,16 @@ export const useArenaRenderLoop = (props: any) => {
             const cam = cameraRef.current;
             const now = Date.now();
 
-            // Nettoyage Viewport
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
 
             ctx.save();
             ctx.translate(-cam.x, -cam.y);
 
-            // Fond World
+            // Fond
             ctx.fillStyle = map.colors.bg;
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-            drawMapDecor(ctx, map);
+            drawMapDecor(ctx, map, aiImageRef.current);
 
             // Objets
             powerUpsRef.current.forEach((pw: any) => drawPowerUp(ctx, pw, now));

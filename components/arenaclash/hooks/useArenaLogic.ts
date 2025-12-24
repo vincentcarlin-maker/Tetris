@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useCurrency } from '../../../hooks/useCurrency';
 import { useHighScores } from '../../../hooks/useHighScores';
@@ -7,6 +8,7 @@ import {
     MATCH_DURATION, BULLET_SPEED, RESPAWN_TIME, ARENA_DIFFICULTY_SETTINGS,
     Character, Bullet, PowerUp, Particle, KillEvent, Difficulty 
 } from '../constants';
+import { generateCityBackground } from '../services/genaiService';
 
 export const useArenaLogic = (
     mp: any, 
@@ -28,6 +30,10 @@ export const useArenaLogic = (
     const [selectedMapIndex, setSelectedMapIndex] = useState(0);
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
     const [score, setScore] = useState(0);
+    
+    // IA Background state
+    const [aiBgUrl, setAiBgUrl] = useState<string | null>(null);
+    const [isGeneratingMap, setIsGeneratingMap] = useState(false);
 
     const playerRef = useRef<Character | null>(null);
     const botsRef = useRef<Character[]>([]);
@@ -106,6 +112,14 @@ export const useArenaLogic = (
         if (char.id === (mp.peerId || 'player')) playLaserShoot();
     };
 
+    const generateAIMap = async () => {
+        if (isGeneratingMap) return;
+        setIsGeneratingMap(true);
+        const url = await generateCityBackground();
+        if (url) setAiBgUrl(url);
+        setIsGeneratingMap(false);
+    };
+
     const startGame = useCallback((modeOverride?: 'SOLO' | 'ONLINE', diffOverride?: Difficulty) => {
         if (diffOverride) { setDifficulty(diffOverride); difficultyRef.current = diffOverride; }
         playerRef.current = spawnCharacter(mp.peerId || 'player', username, true);
@@ -120,7 +134,12 @@ export const useArenaLogic = (
         setGameState('PLAYING'); gameStateRef.current = 'PLAYING';
         audio.resumeAudio();
         if (onReportProgress) onReportProgress('play', 1);
-    }, [spawnCharacter, gameMode, username, mp, audio, onReportProgress]);
+        
+        // Auto-génération de la map néon si c'est la map City
+        if (selectedMapIndexRef.current === 0 && !aiBgUrl) {
+            generateAIMap();
+        }
+    }, [spawnCharacter, gameMode, username, mp, audio, onReportProgress, aiBgUrl]);
 
     const update = useCallback((dt: number) => {
         const currentGS = gameStateRef.current;
@@ -162,7 +181,6 @@ export const useArenaLogic = (
                 return;
             }
 
-            // Gestion des zones spéciales
             map.zones.forEach(zone => {
                 const dist = Math.hypot(char.x - zone.x, char.y - zone.y);
                 if (dist < zone.radius) {
@@ -174,7 +192,6 @@ export const useArenaLogic = (
             if (recoilRef.current[char.id] > 0) recoilRef.current[char.id] *= 0.85;
 
             if (char.id === player.id) {
-                // LOGIQUE JOUEUR
                 let dx = 0, dy = 0;
                 if (controlsRef.current.move.active) { dx = controlsRef.current.move.x; dy = controlsRef.current.move.y; }
                 else {
@@ -196,11 +213,9 @@ export const useArenaLogic = (
                     handleShoot(char);
                 } else if (mouseRef.current.down) { handleShoot(char); }
             } else {
-                // LOGIQUE IA AVANCÉE (Les bots s'attaquent entre eux)
                 let closestDist = Infinity;
                 let targetEntity = null;
 
-                // Trouver la cible la plus proche qui n'est pas soi-même et qui n'est pas morte
                 allChars.forEach(potentialTarget => {
                     if (potentialTarget.id === char.id || potentialTarget.isDead) return;
                     const dist = Math.hypot(potentialTarget.x - char.x, potentialTarget.y - char.y);
@@ -212,17 +227,12 @@ export const useArenaLogic = (
 
                 if (targetEntity && closestDist < 900) {
                     char.angle = Math.atan2(targetEntity.y - char.y, targetEntity.x - char.x);
-                    
-                    // Se déplacer vers la cible si elle est assez loin
                     if (closestDist > 240) {
                         char.x += Math.cos(char.angle) * char.speed * 0.7 * speedFactor;
                         char.y += Math.sin(char.angle) * char.speed * 0.7 * speedFactor;
                     }
-                    
-                    // Tirer si la cible est à portée
                     handleShoot(char);
                 } else {
-                    // Si pas de cible, patrouiller ou bouger lentement vers le centre
                     const angleToCenter = Math.atan2(CANVAS_HEIGHT/2 - char.y, CANVAS_WIDTH/2 - char.x);
                     char.angle = angleToCenter;
                     char.x += Math.cos(char.angle) * char.speed * 0.3 * speedFactor;
@@ -230,7 +240,6 @@ export const useArenaLogic = (
                 }
             }
 
-            // Collisions Obstacles
             map.obstacles.forEach(obs => {
                 if (obs.type === 'pond') return;
                 const closestX = Math.max(obs.x, Math.min(char.x, obs.x + obs.w));
@@ -247,13 +256,11 @@ export const useArenaLogic = (
             char.y = Math.max(char.radius, Math.min(CANVAS_HEIGHT - char.radius, char.y));
         });
 
-        // Mise à jour des balles
         for (let i = bulletsRef.current.length - 1; i >= 0; i--) {
             const b = bulletsRef.current[i];
             b.x += b.vx * speedFactor; b.y += b.vy * speedFactor; b.life -= dt;
             let hit = false;
             
-            // Collision murs
             for (const obs of map.obstacles) {
                 if (obs.type === 'pond') continue;
                 if (b.x > obs.x && b.x < obs.x + obs.w && b.y > obs.y && b.y < obs.y + obs.h) { 
@@ -262,18 +269,15 @@ export const useArenaLogic = (
                 }
             }
 
-            // Collision personnages
             if (!hit) {
                 for (const target of allChars) {
                     if (target.id !== b.ownerId && !target.isDead && Math.hypot(b.x - target.x, b.y - target.y) < target.radius + b.radius) {
                         hit = true; 
                         target.hp -= b.damage;
-                        
                         if (target.hp <= 0) {
                             target.isDead = true; 
                             target.respawnTimer = RESPAWN_TIME; 
                             playExplosion();
-                            
                             const killer = allChars.find(c => c.id === b.ownerId);
                             if (killer) { 
                                 killer.score++; 
@@ -305,6 +309,6 @@ export const useArenaLogic = (
         score, timeLeft, killFeed, leaderboard, earnedCoins, playerRef, botsRef, bulletsRef,
         powerUpsRef, particlesRef, cameraRef, recoilRef,
         startGame, update, keysRef, mouseRef, controlsRef, selectedMapIndex, setSelectedMapIndex,
-        onlineStep, setOnlineStep, isHost: mp.isHost
+        onlineStep, setOnlineStep, isHost: mp.isHost, aiBgUrl, generateAIMap, isGeneratingMap
     };
 };
