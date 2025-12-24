@@ -1,11 +1,11 @@
-
 import React from 'react';
 import { 
     HelpCircle, ArrowLeft, ArrowRight, RotateCw, ChevronDown, Keyboard, 
     MousePointer2, Target, Shield, Hash, Brain, Palette, Search, BrainCircuit,
     LayoutGrid, Zap, CheckCircle, Crosshair, Anchor, Ghost, Skull, MoveHorizontal,
     MousePointerClick, Layers, Megaphone, ArrowDown, Check, ArrowUp, Crown,
-    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross, Grid3X3, AlertTriangle, Eye, MousePointer
+    Coins, Magnet, FastForward, Scissors, Trophy, Car, LockOpen, Cross, Grid3X3, AlertTriangle, Eye, MousePointer,
+    Heart, Sparkles, ZapOff, Bomb, Apple, Pizza, Timer
 } from 'lucide-react';
 
 interface Step {
@@ -14,6 +14,16 @@ interface Step {
     title: string;
     desc: string;
 }
+
+// FIX: Moved TeleporterIcon declaration before it's used in the DATA constant to resolve 'used before declaration' error
+const TeleporterIcon = ({ size, className }: any) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="12" cy="12" r="10" />
+        <path d="m12 8-4 4 4 4" />
+        <path d="m16 12-4-4" />
+        <path d="m16 12-4 4" />
+    </svg>
+);
 
 const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
     tetris: {
@@ -36,9 +46,10 @@ const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
     arenaclash: {
         titleColor: "text-red-500",
         steps: [
-            { icon: MoveHorizontal, color: "text-cyan-400", title: "BOUGER", desc: "WASD, Flèches ou Joystick gauche." },
-            { icon: Crosshair, color: "text-red-500", title: "VISER & TIRER", desc: "Souris ou Tap droite." },
-            { icon: Skull, color: "text-purple-400", title: "SURVIVRE", desc: "Détruisez les vagues d'ennemis." }
+            { icon: MoveHorizontal, color: "text-cyan-400", title: "PILOTAGE", desc: "Joystick gauche pour bouger le châssis." },
+            { icon: Crosshair, color: "text-red-500", title: "VISÉE & TIR", desc: "Joystick droit pour viser et tirer automatiquement." },
+            { icon: Sparkles, color: "text-yellow-400", title: "POWER-UPS", desc: "H: Soin, S: Bouclier, R: Tir Rapide, V: Vitesse, 3: Triple Tir, E: IEM, B: Bombe, $: Pièces." },
+            { icon: Skull, color: "text-purple-400", title: "SURVIE", desc: "Éliminez les bots pour monter au classement." }
         ]
     },
     airhockey: {
@@ -92,98 +103,99 @@ const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
     pacman: {
         titleColor: "text-yellow-400",
         steps: [
-            { icon: MousePointer2, color: "text-yellow-400", title: "GLISSER", desc: "Dirigez Pacman." },
-            { icon: Zap, color: "text-cyan-400", title: "SUPER PAC", desc: "Mangez les gros points." },
-            { icon: Ghost, color: "text-pink-400", title: "FANTÔMES", desc: "Évitez-les ou mangez-les (bleus)." }
+            { icon: MousePointer2, color: "text-yellow-400", title: "GLISSER", desc: "Dirigez Pacman dans le labyrinthe." },
+            { icon: Pizza, color: "text-yellow-400", title: "POINTS", desc: "Mangez tous les points pour gagner le niveau." },
+            { icon: Sparkles, color: "text-cyan-400", title: "SUPER PAC", desc: "Les gros points vous rendent invincible et font fuir les fantômes." },
+            { icon: Ghost, color: "text-pink-400", title: "FANTÔMES", desc: "Évitez-les ! S'ils sont bleus, vous pouvez les manger." }
         ]
     },
     snake: {
         titleColor: "text-green-400",
         steps: [
-            { icon: MousePointer2, color: "text-green-400", title: "DIRIGER", desc: "Changez de direction." },
-            { icon: Zap, color: "text-yellow-400", title: "MANGER", desc: "Grandissez avec les pommes." },
-            { icon: Skull, color: "text-red-400", title: "SURVIVRE", desc: "Évitez les murs et la queue." }
+            { icon: MousePointer2, color: "text-green-400", title: "DIRIGER", desc: "Utilisez le D-Pad pour changer de direction." },
+            { icon: Apple, color: "text-red-500", title: "FRUITS", desc: "Pomme: Classique. Fraise: Turbo. Banane: Ralentit. Cerise: Score ++." },
+            { icon: TeleporterIcon, color: "text-cyan-400", title: "TÉLÉPORTEURS", desc: "Entrez dans un portail néon pour ressortir par l'autre." },
+            { icon: Skull, color: "text-red-400", title: "SURVIVRE", desc: "Évitez les murs, les bombes et votre propre queue." }
         ]
     },
     invaders: {
         titleColor: "text-rose-400",
         steps: [
-            { icon: MousePointer2, color: "text-rose-400", title: "GLISSER", desc: "Déplacez le vaisseau." },
-            { icon: Zap, color: "text-cyan-400", title: "TIRER", desc: "Le tir est automatique." },
-            { icon: Skull, color: "text-red-500", title: "SURVIVRE", desc: "Esquivez les tirs ennemis." }
+            { icon: MoveHorizontal, color: "text-rose-400", title: "DÉPLACER", desc: "Glissez pour déplacer votre vaisseau." },
+            { icon: Zap, color: "text-cyan-400", title: "TIRER", desc: "Le tir est automatique et constant." },
+            { icon: Skull, color: "text-red-500", title: "SURVIVRE", desc: "Esquivez les tirs ennemis et ne les laissez pas descendre !" }
         ]
     },
     breaker: {
         titleColor: "text-fuchsia-500",
         steps: [
-            { icon: MoveHorizontal, color: "text-fuchsia-500", title: "DÉPLACER", desc: "Bougez la raquette." },
-            { icon: MousePointerClick, color: "text-cyan-400", title: "LANCER", desc: "Touchez pour lancer." },
-            { icon: Zap, color: "text-yellow-400", title: "BONUS", desc: "Attrapez les pouvoirs." }
+            { icon: MoveHorizontal, color: "text-fuchsia-500", title: "RAQUETTE", desc: "Bougez la barre pour renvoyer la balle." },
+            { icon: Sparkles, color: "text-yellow-400", title: "BONUS", desc: "+: Agrandir, -: Rétrécir, MB: Multi-balles, F/S: Vitesse, ♥: Vie, L: Lasers." },
+            { icon: MousePointerClick, color: "text-cyan-400", title: "LANCER", desc: "Touchez pour lancer la balle au début." }
         ]
     },
     uno: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: Layers, color: "text-cyan-400", title: "ASSOCIER", desc: "Même couleur ou valeur." },
-            { icon: Zap, color: "text-yellow-400", title: "ACTION", desc: "+2, Inverse, Joker..." },
-            { icon: Megaphone, color: "text-red-400", title: "UNO", desc: "Criez UNO à 2 cartes !" }
+            { icon: Layers, color: "text-cyan-400", title: "ASSOCIER", desc: "Même couleur ou même valeur." },
+            { icon: Zap, color: "text-yellow-400", title: "CARTES ACTION", desc: "+2, Inverse, Passe-tour, Joker et +4." },
+            { icon: Megaphone, color: "text-red-400", title: "UNO", desc: "Criez UNO dès qu'il vous reste 2 cartes !" }
         ]
     },
     watersort: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "SÉLECTIONNER", desc: "Touchez un tube." },
-            { icon: ArrowDown, color: "text-yellow-400", title: "VERSER", desc: "Dans un tube valide." },
-            { icon: Check, color: "text-green-400", title: "TRIER", desc: "Regroupez les couleurs." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "SÉLECTIONNER", desc: "Touchez un tube pour prendre la couleur du haut." },
+            { icon: ArrowDown, color: "text-yellow-400", title: "VERSER", desc: "Touchez un autre tube pour verser (si couleur identique)." },
+            { icon: Check, color: "text-green-400", title: "OBJECTIF", desc: "Regroupez chaque couleur dans son propre tube." }
         ]
     },
     checkers: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "DÉPLACER", desc: "Touchez un pion pour le sélectionner, puis une case vide en diagonale." },
-            { icon: ArrowUp, color: "text-yellow-400", title: "CAPTURER", desc: "Sautez par-dessus les pions adverses pour les capturer (obligatoire !)." },
-            { icon: Crown, color: "text-green-400", title: "DAME", desc: "Atteignez le bord opposé pour transformer votre pion en Dame (recule et avance)." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "DÉPLACER", desc: "Touchez un pion puis une case vide en diagonale." },
+            { icon: ArrowUp, color: "text-yellow-400", title: "CAPTURER", desc: "Sautez par-dessus l'adversaire. La capture est obligatoire !" },
+            { icon: Crown, color: "text-green-400", title: "DAME", desc: "Atteignez le bord opposé pour bouger librement en diagonale." }
         ]
     },
     runner: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "SAUTER", desc: "Cliquez ou appuyez pour sauter par-dessus les obstacles." },
-            { icon: Coins, color: "text-yellow-400", title: "COLLECTER", desc: "Ramassez les pièces et les coffres pour augmenter votre score." },
-            { icon: FastForward, color: "text-orange-400", title: "BONUS", desc: "Aimant (pièces), Bouclier (vie), Boost (vitesse + invulnérable)." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "SAUTER", desc: "Appuyez pour sauter au-dessus des obstacles." },
+            { icon: Sparkles, color: "text-yellow-400", title: "POWER-UPS", desc: "M: Aimant, S: Bouclier (une erreur permise), B: Boost (vitesse + invincible)." },
+            { icon: Coins, color: "text-yellow-400", title: "COLLECTER", desc: "Ramassez les pièces et les coffres pour le score." }
         ]
     },
     stack: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "POSER", desc: "Le bloc se déplace. Appuyez au bon moment pour le poser sur la tour." },
-            { icon: Scissors, color: "text-red-400", title: "PRÉCISION", desc: "Tout ce qui dépasse du bord est coupé ! La tour devient plus fine." },
-            { icon: Zap, color: "text-yellow-400", title: "COMBO", desc: "Alignez parfaitement pour agrandir la base et gagner des points bonus." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "POSER", desc: "Appuyez pour poser le bloc sur la pile." },
+            { icon: Scissors, color: "text-red-400", title: "PRÉCISION", desc: "Tout ce qui dépasse du bord est coupé ! Soyez précis." },
+            { icon: Zap, color: "text-yellow-400", title: "COMBO", desc: "Alignez parfaitement pour agrandir la base." }
         ]
     },
     game2048: {
         titleColor: "text-cyan-400",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "GLISSER", desc: "Haut, Bas, Gauche, Droite." },
-            { icon: Layers, color: "text-yellow-400", title: "FUSIONNER", desc: "2+2=4, 4+4=8..." },
-            { icon: Trophy, color: "text-purple-400", title: "OBJECTIF", desc: "Atteindre 2048 !" }
+            { icon: MousePointer2, color: "text-cyan-400", title: "GLISSER", desc: "Haut, Bas, Gauche, Droite pour déplacer les tuiles." },
+            { icon: Layers, color: "text-yellow-400", title: "FUSIONNER", desc: "Les chiffres identiques fusionnent (2+2=4, 4+4=8)." },
+            { icon: Trophy, color: "text-purple-400", title: "OBJECTIF", desc: "Atteindre la tuile 2048 !" }
         ]
     },
     rush: {
         titleColor: "text-red-500",
         steps: [
-            { icon: MousePointer2, color: "text-cyan-400", title: "DÉPLACER", desc: "Glissez les véhicules pour libérer le passage." },
-            { icon: Car, color: "text-red-500", title: "OBJECTIF", desc: "La voiture ROUGE doit sortir à droite." },
-            { icon: LockOpen, color: "text-yellow-400", title: "CONTRAINTE", desc: "Les véhicules ne bougent que dans leur axe (Horizontal ou Vertical)." }
+            { icon: MousePointer2, color: "text-cyan-400", title: "DÉPLACER", desc: "Faites glisser les voitures pour libérer la voie." },
+            { icon: Car, color: "text-red-500", title: "OBJECTIF", desc: "La voiture ROUGE doit sortir par la droite." },
+            { icon: LockOpen, color: "text-yellow-400", title: "CONTRÔLE", desc: "Elles ne bougent que dans leur axe respectif." }
         ]
     },
     skyjo: {
         titleColor: "text-purple-400",
         steps: [
-            { icon: Trophy, color: "text-purple-400", title: "OBJECTIF", desc: "Avoir le moins de points possible." },
-            { icon: MousePointer2, color: "text-cyan-400", title: "JOUER", desc: "Piochez ou prenez la défausse pour échanger avec une carte de votre grille." },
-            { icon: Layers, color: "text-green-400", title: "COMBO", desc: "3 cartes identiques en colonne s'annulent (0 pts)." },
-            { icon: AlertTriangle, color: "text-red-500", title: "DANGER", desc: "Si vous finissez 1er sans le score le plus bas, vos points doublent !" }
+            { icon: Trophy, color: "text-purple-400", title: "OBJECTIF", desc: "Avoir le moins de points possible à la fin." },
+            { icon: MousePointer2, color: "text-cyan-400", title: "JOUER", desc: "Échangez une carte du deck ou de la défausse avec votre grille." },
+            { icon: Layers, color: "text-green-400", title: "COMBO", desc: "Trois cartes identiques en colonne s'annulent (0 pts)." }
         ]
     },
     lumen: {
@@ -191,8 +203,7 @@ const DATA: Record<string, { titleColor: string, steps: Step[] }> = {
         steps: [
             { icon: Eye, color: "text-cyan-400", title: "OBSERVER", desc: "Regardez la séquence de formes lumineuses." },
             { icon: Brain, color: "text-purple-400", title: "MÉMORISER", desc: "Retenez l'ordre exact d'apparition." },
-            { icon: MousePointerClick, color: "text-yellow-400", title: "RÉPÉTER", desc: "Reproduisez la séquence sans erreur." },
-            { icon: Zap, color: "text-red-500", title: "DANGER", desc: "Une seule erreur et c'est la fin." }
+            { icon: MousePointerClick, color: "text-yellow-400", title: "RÉPÉTER", desc: "Reproduisez la séquence sans erreur." }
         ]
     }
 };
