@@ -1,4 +1,3 @@
-
 import { TankSkin, TankAccessory } from '../../constants/types';
 
 export const CANVAS_WIDTH = 2400;
@@ -11,18 +10,18 @@ export const MATCH_DURATION = 120;
 export const RESPAWN_TIME = 3000;
 
 export const COLORS = {
-    player: '#00d9ff',   // Cyan
-    enemy: '#ff2df5',    // Pink
-    bullet: '#ffff00',   // Yellow
-    powerup: {
-        HEALTH: '#ef4444',
-        SHIELD: '#3b82f6',
-        TRIPLE: '#eab308',
-        BOOST: '#d946ef'
+    player: '#00d9ff',
+    enemy: '#ff2df5',
+    bullet: '#ffff00',
+    zones: {
+        HEAL: '#22c55e',
+        DANGER: '#ef4444',
+        BOOST: '#facc15',
+        SLOW: '#f97316'
     }
 };
 
-export const BOT_NAMES = ["Neo", "Glitch", "Viper", "Ghost", "Cyborg", "Pixel", "Byte", "Kilo", "Mega", "Tera", "Apex", "Zero", "Rogue", "Titan", "Volt"];
+export const BOT_NAMES = ["Neo", "Glitch", "Viper", "Ghost", "Cyborg", "Pixel", "Byte", "Kilo", "Mega", "Tera"];
 
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
@@ -39,12 +38,21 @@ export const ARENA_DIFFICULTY_SETTINGS: Record<Difficulty, {
     HARD: { botSpeed: 5.2, botHp: 150, botShield: 50, botWeaponDelay: 300, coinMult: 2.5, color: 'text-red-500 border-red-500' }
 };
 
+export interface SpecialZone {
+    x: number;
+    y: number;
+    radius: number;
+    type: 'HEAL' | 'DANGER' | 'BOOST' | 'SLOW';
+    label: string;
+}
+
 export interface Obstacle {
     x: number;
     y: number;
     w: number;
     h: number;
-    type?: 'building' | 'tree' | 'pond' | 'rock' | 'bridge' | 'ice';
+    type: 'building' | 'tree' | 'pond' | 'rock' | 'crate' | 'pylon';
+    subType?: string; // e.g., 'A', 'B', 'DOCK'
 }
 
 export interface MapConfig {
@@ -58,121 +66,42 @@ export interface MapConfig {
         accent?: string;
     };
     obstacles: Obstacle[];
+    zones: SpecialZone[];
 }
 
 export const MAPS: MapConfig[] = [
     {
         id: 'city',
-        name: 'MÉGAPOPOLE NÉON',
+        name: 'MÉGAPOPOLE NÉON 2.0',
         colors: { bg: '#050508', grid: 'rgba(0, 217, 255, 0.05)', wall: '#0a0a1a', wallBorder: '#00f3ff' },
+        zones: [
+            { x: 1200, y: 1200, radius: 150, type: 'HEAL', label: 'MED-CENTER' },
+            { x: 400, y: 400, radius: 100, type: 'BOOST', label: 'OVERCHARGE' },
+            { x: 2000, y: 2000, radius: 100, type: 'BOOST', label: 'OVERCHARGE' },
+            { x: 1200, y: 400, radius: 120, type: 'DANGER', label: 'VOLTAGE AREA' },
+            { x: 1200, y: 2000, radius: 120, type: 'DANGER', label: 'VOLTAGE AREA' },
+        ],
         obstacles: [
-            // Block 1 (Top Left)
-            { x: 100, y: 100, w: 300, h: 300, type: 'building' },
-            { x: 450, y: 100, w: 150, h: 300, type: 'building' },
-            { x: 100, y: 450, w: 500, h: 200, type: 'building' },
-            
-            // Block 2 (Top Mid)
-            { x: 800, y: 100, w: 400, h: 400, type: 'building' },
-            { x: 1250, y: 100, w: 300, h: 150, type: 'building' },
-            { x: 1250, y: 300, w: 300, h: 200, type: 'building' },
-
-            // Block 3 (Top Right)
-            { x: 1750, y: 100, w: 200, h: 550, type: 'building' },
-            { x: 2000, y: 100, w: 300, h: 250, type: 'building' },
-            { x: 2000, y: 400, w: 300, h: 250, type: 'building' },
-
-            // Central Plaza Area (more open)
-            { x: 1100, y: 1100, w: 200, h: 200, type: 'building' },
-
-            // Block 4 (Mid Left)
-            { x: 100, y: 800, w: 350, h: 450, type: 'building' },
-            { x: 500, y: 800, w: 200, h: 200, type: 'building' },
-            { x: 500, y: 1050, w: 200, h: 200, type: 'building' },
-
-            // Block 5 (Bottom Left)
-            { x: 100, y: 1400, w: 600, h: 150, type: 'building' },
-            { x: 100, y: 1600, w: 250, h: 400, type: 'building' },
-            { x: 400, y: 1600, w: 300, h: 700, type: 'building' },
-
-            // Block 6 (Bottom Mid)
-            { x: 850, y: 1500, w: 400, h: 300, type: 'building' },
-            { x: 1300, y: 1500, w: 200, h: 800, type: 'building' },
-            { x: 850, y: 1850, w: 400, h: 450, type: 'building' },
-
-            // Block 7 (Bottom Right)
-            { x: 1650, y: 850, w: 400, h: 400, type: 'building' },
-            { x: 2100, y: 850, w: 200, h: 800, type: 'building' },
-            { x: 1650, y: 1300, w: 400, h: 600, type: 'building' },
-            { x: 1650, y: 2000, w: 650, h: 300, type: 'building' },
-        ]
-    },
-    {
-        id: 'forest',
-        name: 'CYBER FOREST',
-        colors: { bg: '#020502', grid: 'rgba(34, 197, 94, 0.05)', wall: '#051405', wallBorder: '#22c55e', accent: '#0088ff' },
-        obstacles: [
-            { x: 0, y: 1100, w: 2400, h: 180, type: 'pond' }, 
-            { x: 500, y: 0, w: 150, h: 1100, type: 'pond' },  
-            { x: 1600, y: 1280, w: 150, h: 1120, type: 'pond' }, 
-            { x: 200, y: 200, w: 120, h: 120, type: 'tree' }, { x: 350, y: 350, w: 100, h: 100, type: 'tree' },
-            { x: 800, y: 200, w: 140, h: 140, type: 'tree' }, { x: 1000, y: 400, w: 110, h: 110, type: 'tree' },
-            { x: 1300, y: 250, w: 130, h: 130, type: 'tree' }, { x: 1800, y: 300, w: 150, h: 150, type: 'tree' },
-            { x: 2100, y: 500, w: 120, h: 120, type: 'tree' }, { x: 2000, y: 100, w: 90, h: 90, type: 'tree' },
-            { x: 200, y: 1500, w: 130, h: 130, type: 'tree' }, { x: 400, y: 1700, w: 110, h: 110, type: 'tree' },
-            { x: 800, y: 1500, w: 140, h: 140, type: 'tree' }, { x: 1100, y: 1800, w: 160, h: 160, type: 'tree' },
-            { x: 1400, y: 2100, w: 130, h: 130, type: 'tree' }, { x: 1900, y: 150, w: 120, h: 120, type: 'tree' },
-            { x: 2100, y: 1800, w: 150, h: 150, type: 'tree' }, { x: 100, y: 2100, w: 100, h: 100, type: 'tree' },
-            { x: 700, y: 2000, w: 115, h: 115, type: 'tree' }, { x: 1600, y: 800, w: 140, h: 140, type: 'tree' }
-        ]
-    },
-    {
-        id: 'desert',
-        name: 'SOLAR DUST',
-        colors: { 
-            bg: '#1a0c00', 
-            grid: 'rgba(255, 165, 0, 0.05)', 
-            wall: '#2a1400', 
-            wallBorder: '#f97316',
-            accent: '#facc15' 
-        },
-        obstacles: [
-            { x: 100, y: 100, w: 300, h: 80, type: 'rock' },
-            { x: 100, y: 180, w: 80, h: 400, type: 'rock' },
-            { x: 600, y: 400, w: 500, h: 120, type: 'rock' },
-            { x: 1200, y: 100, w: 200, h: 600, type: 'rock' },
-            { x: 1600, y: 400, w: 600, h: 100, type: 'rock' },
-            { x: 200, y: 800, w: 800, h: 150, type: 'rock' },
-            { x: 1200, y: 900, w: 900, h: 150, type: 'rock' },
-            { x: 100, y: 1100, w: 400, h: 400, type: 'rock' },
-            { x: 700, y: 1200, w: 300, h: 300, type: 'rock' },
-            { x: 1400, y: 1300, w: 600, h: 200, type: 'rock' },
-            { x: 300, y: 1700, w: 1200, h: 100, type: 'rock' },
-            { x: 1800, y: 1700, w: 400, h: 500, type: 'rock' },
-            { x: 200, y: 2000, w: 1000, h: 150, type: 'rock' },
-        ]
-    },
-    {
-        id: 'arctic',
-        name: 'ARCTIC NEON',
-        colors: { 
-            bg: '#05101a', 
-            grid: 'rgba(0, 243, 255, 0.04)', 
-            wall: '#0f2030', 
-            wallBorder: '#00f3ff',
-            accent: '#ffffff' 
-        },
-        obstacles: [
-            { x: 200, y: 200, w: 400, h: 300, type: 'ice' },
-            { x: 1000, y: 100, w: 150, h: 500, type: 'ice' },
-            { x: 1800, y: 200, w: 300, h: 400, type: 'ice' },
-            { x: 400, y: 800, w: 500, h: 150, type: 'ice' },
-            { x: 1300, y: 900, w: 800, h: 100, type: 'ice' },
-            { x: 100, y: 1300, w: 600, h: 250, type: 'ice' },
-            { x: 1000, y: 1400, w: 400, h: 600, type: 'ice' },
-            { x: 1600, y: 1300, w: 500, h: 300, type: 'ice' },
-            { x: 400, y: 1800, w: 300, h: 400, type: 'ice' },
-            { x: 1800, y: 1800, w: 400, h: 400, type: 'ice' },
-            { x: 1200, y: 2100, w: 300, h: 200, type: 'ice' },
+            { x: 100, y: 100, w: 300, h: 300, type: 'building', subType: 'A1' },
+            { x: 450, y: 100, w: 150, h: 300, type: 'building', subType: 'DOCK' },
+            { x: 100, y: 450, w: 500, h: 200, type: 'building', subType: 'A2' },
+            { x: 800, y: 100, w: 400, h: 400, type: 'building', subType: 'B1' },
+            { x: 1250, y: 100, w: 300, h: 150, type: 'building', subType: 'B2' },
+            { x: 1750, y: 100, w: 200, h: 550, type: 'building', subType: 'C1' },
+            { x: 2000, y: 100, w: 300, h: 250, type: 'building', subType: 'C2' },
+            { x: 100, y: 800, w: 350, h: 450, type: 'building', subType: 'D1' },
+            { x: 500, y: 800, w: 200, h: 200, type: 'building', subType: 'TECH' },
+            { x: 100, y: 1400, w: 600, h: 150, type: 'building', subType: 'LAB' },
+            { x: 850, y: 1500, w: 400, h: 300, type: 'building', subType: 'STORAGE' },
+            { x: 1300, y: 1500, w: 200, h: 800, type: 'building', subType: 'HQ' },
+            { x: 1650, y: 850, w: 400, h: 400, type: 'building', subType: 'CORE' },
+            { x: 1650, y: 1300, w: 400, h: 600, type: 'building', subType: 'HACK-HUB' },
+            { x: 1650, y: 2000, w: 650, h: 300, type: 'building', subType: 'EXIT' },
+            // Mobilier Urbain (Obstacles petits pour couverture)
+            { x: 700, y: 700, w: 40, h: 40, type: 'crate' },
+            { x: 750, y: 700, w: 40, h: 40, type: 'crate' },
+            { x: 1400, y: 1000, w: 20, h: 20, type: 'pylon' },
+            { x: 1000, y: 1400, w: 20, h: 20, type: 'pylon' },
         ]
     }
 ];
@@ -184,8 +113,6 @@ export interface Entity {
     radius: number;
     color: string;
 }
-
-export type PowerUpType = 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
 
 export interface Character extends Entity {
     name: string;
@@ -201,7 +128,7 @@ export interface Character extends Entity {
     respawnTimer: number;
     score: number;
     shield: number;
-    powerups: { type: PowerUpType, expiry: number }[];
+    powerups: { type: string, expiry: number }[];
     targetId?: string | null;
     skin?: TankSkin;
     accessory?: TankAccessory;
@@ -216,7 +143,7 @@ export interface Bullet extends Entity {
 }
 
 export interface PowerUp extends Entity {
-    type: PowerUpType;
+    type: 'HEALTH' | 'SHIELD' | 'TRIPLE' | 'BOOST';
 }
 
 export interface Particle {
