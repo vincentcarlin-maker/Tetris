@@ -128,10 +128,22 @@ export const useArenaLogic = (
     };
 
     const spawnPowerUp = useCallback(() => {
-        const types: PowerUp['type'][] = ['HEALTH', 'SHIELD', 'RAPID', 'BOOST', 'TRIPLE', 'EMP', 'BOMB'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        const x = 200 + Math.random() * (CANVAS_WIDTH - 400);
-        const y = 200 + Math.random() * (CANVAS_HEIGHT - 400);
+        const types: PowerUp['type'][] = ['HEALTH', 'SHIELD', 'RAPID', 'BOOST', 'TRIPLE', 'EMP', 'BOMB', 'COIN'];
+        // Pondération : COIN plus fréquent
+        const pool = [...types, 'COIN', 'COIN', 'HEALTH', 'SHIELD'];
+        const type = pool[Math.floor(Math.random() * pool.length)] as PowerUp['type'];
+        
+        const obstacles = MAPS[selectedMapIndexRef.current].obstacles;
+        let x, y, safe;
+        do {
+            x = 100 + Math.random() * (CANVAS_WIDTH - 200);
+            y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
+            safe = true;
+            for (const obs of obstacles) {
+                if (x > obs.x - 30 && x < obs.x + obs.w + 30 && y > obs.y - 30 && y < obs.y + obs.h + 30) safe = false;
+            }
+        } while (!safe);
+
         powerUpsRef.current.push({ id: `pw_${Date.now()}_${Math.random()}`, x, y, radius: 18, type, color: '#fff' });
     }, []);
 
@@ -162,9 +174,7 @@ export const useArenaLogic = (
         playExplosion();
         shakeRef.current = 40;
         spawnExplosion(player.x, player.y, '#ff4400');
-        // Nettoyage des balles adverses
         bulletsRef.current = bulletsRef.current.filter(b => b.ownerId === player.id);
-        // Dégâts aux bots proches
         botsRef.current.forEach(bot => {
             if (bot.isDead) return;
             const d = Math.hypot(bot.x - player.x, bot.y - player.y);
@@ -210,11 +220,15 @@ export const useArenaLogic = (
             if (timeLeftRef.current <= 0) {
                  setGameState('GAMEOVER'); gameStateRef.current = 'GAMEOVER'; 
                  playVictory(); updateHighScore('arenaclash', player.score);
-                 const coins = Math.floor(player.score * 10); addCoins(coins); setEarnedCoins(coins);
+                 const coins = Math.floor(player.score * 10) + earnedCoins; 
+                 addCoins(Math.floor(player.score * 10)); setEarnedCoins(coins);
                  return;
             }
-            // Spawn PowerUps plus fréquent (toutes les 7 secondes)
-            if (now - lastPowerUpSpawnRef.current > 7000) { spawnPowerUp(); lastPowerUpSpawnRef.current = now; }
+            // SPAWN ULTRA FRÉQUENT : Toutes les 3 secondes
+            if (now - lastPowerUpSpawnRef.current > 3000 && powerUpsRef.current.length < 15) { 
+                spawnPowerUp(); 
+                lastPowerUpSpawnRef.current = now; 
+            }
         }
 
         if (shakeRef.current > 0) { shakeRef.current *= Math.pow(0.9, speedFactor); if (shakeRef.current < 0.5) shakeRef.current = 0; }
@@ -258,39 +272,25 @@ export const useArenaLogic = (
                 if (controlsRef.current.aim.active) { char.angle = Math.atan2(controlsRef.current.aim.y, controlsRef.current.aim.x); handleShoot(char); }
                 else if (mouseRef.current.down) handleShoot(char);
             } else if (!isEmpActive) {
-                // LOGIQUE FFA : Cibler l'entité la plus proche (joueur ou autre bot)
                 let closestDist = Infinity;
                 let target = null;
-
                 allChars.forEach(potentialTarget => {
                     if (potentialTarget.id === char.id || potentialTarget.isDead) return;
                     const d = Math.hypot(potentialTarget.x - char.x, potentialTarget.y - char.y);
-                    if (d < closestDist) {
-                        closestDist = d;
-                        target = potentialTarget;
-                    }
+                    if (d < closestDist) { closestDist = d; target = potentialTarget; }
                 });
-
                 if (target && closestDist < 1000) {
                     char.angle = Math.atan2(target.y - char.y, target.x - char.x);
-                    // S'approcher si trop loin, s'éloigner si trop près
-                    if (closestDist > 300) {
-                        char.x += Math.cos(char.angle) * char.speed * 0.7 * speedFactor;
-                        char.y += Math.sin(char.angle) * char.speed * 0.7 * speedFactor;
-                    } else if (closestDist < 150) {
-                        char.x -= Math.cos(char.angle) * char.speed * 0.5 * speedFactor;
-                        char.y -= Math.sin(char.angle) * char.speed * 0.5 * speedFactor;
-                    }
+                    if (closestDist > 300) { char.x += Math.cos(char.angle) * char.speed * 0.7 * speedFactor; char.y += Math.sin(char.angle) * char.speed * 0.7 * speedFactor; } 
+                    else if (closestDist < 150) { char.x -= Math.cos(char.angle) * char.speed * 0.5 * speedFactor; char.y -= Math.sin(char.angle) * char.speed * 0.5 * speedFactor; }
                     handleShoot(char);
                 } else {
-                    // Patrouille aléatoire si pas de cible
                     char.angle += (Math.random() - 0.5) * 0.1;
                     char.x += Math.cos(char.angle) * char.speed * 0.4 * speedFactor;
                     char.y += Math.sin(char.angle) * char.speed * 0.4 * speedFactor;
                 }
             }
 
-            // Collisions obstacles
             map.obstacles.forEach(obs => {
                 if (obs.type === 'pond') return;
                 const cX = Math.max(obs.x, Math.min(char.x, obs.x + obs.w)), cY = Math.max(obs.y, Math.min(char.y, obs.y + obs.h));
@@ -303,7 +303,6 @@ export const useArenaLogic = (
             char.y = Math.max(char.radius, Math.min(CANVAS_HEIGHT - char.radius, char.y));
         });
 
-        // PowerUps Collection (Tous les tanks peuvent ramasser !)
         for (let i = powerUpsRef.current.length - 1; i >= 0; i--) {
             const pw = powerUpsRef.current[i];
             allChars.forEach(char => {
@@ -312,6 +311,9 @@ export const useArenaLogic = (
                     else if (pw.type === 'SHIELD') char.shield = Math.min(100, char.shield + 50);
                     else if (pw.type === 'EMP' && char.id === player.id) empActiveUntilRef.current = now + 5000;
                     else if (pw.type === 'BOMB' && char.id === player.id) useBomb(player);
+                    else if (pw.type === 'COIN' && char.id === player.id) {
+                         const bonus = 10; addCoins(bonus); setEarnedCoins(prev => prev + bonus);
+                    }
                     else char.powerups.push({ type: pw.type, expiry: now + 10000 });
                     
                     if (char.id === player.id) playCoin?.(); 
@@ -321,7 +323,6 @@ export const useArenaLogic = (
             });
         }
 
-        // Bullets
         for (let i = bulletsRef.current.length - 1; i >= 0; i--) {
             const b = bulletsRef.current[i]; b.x += b.vx * speedFactor; b.y += b.vy * speedFactor; b.life -= dt;
             let hit = false;
@@ -332,13 +333,8 @@ export const useArenaLogic = (
                         hit = true; 
                         if (target.shield > 0) { target.shield -= b.damage; if (target.shield < 0) { target.hp += target.shield; target.shield = 0; } } 
                         else target.hp -= b.damage;
-
                         if (target.hp <= 0) {
-                            target.isDead = true; 
-                            target.respawnTimer = RESPAWN_TIME; 
-                            playExplosion(); 
-                            spawnExplosion(target.x, target.y, target.color);
-                            
+                            target.isDead = true; target.respawnTimer = RESPAWN_TIME; playExplosion(); spawnExplosion(target.x, target.y, target.color);
                             const killer = allChars.find(c => c.id === b.ownerId); 
                             if (killer) { 
                                 killer.score++; 
@@ -362,7 +358,7 @@ export const useArenaLogic = (
 
         if (frameRef.current++ % 60 === 0) setLeaderboard(allChars.map(c => ({ name: c.name, score: c.score, isMe: c.id === player.id })).sort((a,b) => b.score - a.score));
         setTimeLeft(timeLeftRef.current);
-    }, [addCoins, mp, updateHighScore, spawnCharacter, playVictory, playExplosion, spawnPowerUp, onReportProgress]);
+    }, [addCoins, mp, updateHighScore, spawnCharacter, playVictory, playExplosion, spawnPowerUp, onReportProgress, earnedCoins]);
 
     return {
         gameState, setGameState, gameMode, setGameMode, difficulty, setDifficulty,

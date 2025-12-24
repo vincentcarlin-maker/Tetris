@@ -1,4 +1,3 @@
-
 import { TankSkin, TankAccessory } from '../../constants/types';
 
 export const CANVAS_WIDTH = 2400;
@@ -52,8 +51,8 @@ export interface Obstacle {
     y: number;
     w: number;
     h: number;
-    type: 'building' | 'tree' | 'pond' | 'rock' | 'crate' | 'pylon' | 'ruin' | 'tent' | 'bush' | 'trunk' | 'cactus' | 'bone' | 'obelisk' | 'palm';
-    subType?: string; 
+    type: 'building' | 'tree' | 'pond' | 'rock' | 'crate' | 'pylon' | 'ruin' | 'tent' | 'bush' | 'trunk' | 'cactus' | 'bone' | 'obelisk' | 'palm' | 'bench' | 'barrier' | 'trash_bin';
+    subType?: 'HELIPAD' | 'HVAC' | 'OFFICE' | 'HQ' | 'LAB' | 'ROOF_DETAIL' | 'WALL' | 'RIVER' | 'OASIS' | 'RUIN' | 'TEMPLE' | 'OUTPOST'; 
 }
 
 export interface MapConfig {
@@ -83,25 +82,40 @@ export const MAPS: MapConfig[] = [
             { x: 1200, y: 2000, radius: 120, type: 'DANGER', label: 'VOLTAGE AREA' },
         ],
         obstacles: [
-            { x: 100, y: 100, w: 300, h: 300, type: 'building', subType: 'A1' },
-            { x: 450, y: 100, w: 150, h: 300, type: 'building', subType: 'DOCK' },
-            { x: 100, y: 450, w: 500, h: 200, type: 'building', subType: 'A2' },
-            { x: 800, y: 100, w: 400, h: 400, type: 'building', subType: 'B1' },
-            { x: 1250, y: 100, w: 300, h: 150, type: 'building', subType: 'B2' },
-            { x: 1750, y: 100, w: 200, h: 550, type: 'building', subType: 'C1' },
-            { x: 2000, y: 100, w: 300, h: 250, type: 'building', subType: 'C2' },
-            { x: 100, y: 800, w: 350, h: 450, type: 'building', subType: 'D1' },
-            { x: 500, y: 800, w: 200, h: 200, type: 'building', subType: 'TECH' },
-            { x: 100, y: 1400, w: 600, h: 150, type: 'building', subType: 'LAB' },
-            { x: 850, y: 1500, w: 400, h: 300, type: 'building', subType: 'STORAGE' },
-            { x: 1300, y: 1500, w: 200, h: 800, type: 'building', subType: 'HQ' },
-            { x: 1650, y: 850, w: 400, h: 400, type: 'building', subType: 'CORE' },
-            { x: 1650, y: 1300, w: 400, h: 600, type: 'building', subType: 'HACK-HUB' },
-            { x: 1650, y: 2000, w: 650, h: 300, type: 'building', subType: 'EXIT' },
-            { x: 700, y: 700, w: 40, h: 40, type: 'crate' },
-            { x: 750, y: 700, w: 40, h: 40, type: 'crate' },
-            { x: 1400, y: 1000, w: 20, h: 20, type: 'pylon' },
-            { x: 1000, y: 1400, w: 20, h: 20, type: 'pylon' },
+            // --- QUARTIER NORD-OUEST ---
+            { x: 100, y: 100, w: 400, h: 400, type: 'building', subType: 'HELIPAD' },
+            { x: 520, y: 100, w: 150, h: 250, type: 'building', subType: 'HVAC' },
+            { x: 520, y: 380, w: 150, h: 30, type: 'bench' },
+            { x: 100, y: 550, w: 400, h: 15, type: 'barrier' },
+            { x: 550, y: 550, w: 15, h: 15, type: 'pylon' },
+
+            // --- QUARTIER NORD-EST ---
+            { x: 1700, y: 100, w: 300, h: 500, type: 'building', subType: 'HVAC' },
+            { x: 2100, y: 100, w: 200, h: 200, type: 'building', subType: 'OFFICE' },
+            { x: 1700, y: 650, w: 400, h: 15, type: 'barrier' },
+            { x: 2150, y: 350, w: 20, h: 20, type: 'trash_bin' },
+            { x: 1650, y: 100, w: 15, h: 15, type: 'pylon' },
+
+            // --- CENTRE HQ ---
+            { x: 950, y: 950, w: 500, h: 500, type: 'building', subType: 'HQ' },
+            { x: 900, y: 1100, w: 20, h: 20, type: 'trash_bin' },
+            { x: 1480, y: 1100, w: 20, h: 20, type: 'pylon' },
+            { x: 1100, y: 880, w: 100, h: 30, type: 'bench' },
+            { x: 1300, y: 880, w: 100, h: 30, type: 'bench' },
+
+            // --- ZONE INDUSTRIELLE SUD-OUEST ---
+            { x: 100, y: 1700, w: 450, h: 300, type: 'building', subType: 'HVAC' },
+            { x: 600, y: 1700, w: 100, h: 500, type: 'building', subType: 'ROOF_DETAIL' },
+            { x: 100, y: 1600, w: 150, h: 40, type: 'crate' },
+            { x: 260, y: 1600, w: 40, h: 40, type: 'crate' },
+            { x: 100, y: 2050, w: 450, h: 15, type: 'barrier' },
+
+            // --- QUARTIER RÉSIDENTIEL SUD-EST ---
+            { x: 1700, y: 1700, w: 300, h: 300, type: 'building', subType: 'OFFICE' },
+            { x: 2100, y: 1700, w: 200, h: 600, type: 'building', subType: 'HVAC' },
+            { x: 1700, y: 2100, w: 300, h: 200, type: 'building', subType: 'ROOF_DETAIL' },
+            { x: 1600, y: 1700, w: 15, h: 200, type: 'barrier' },
+            { x: 1850, y: 1600, w: 15, h: 15, type: 'pylon' },
         ]
     },
     {
@@ -112,8 +126,6 @@ export const MAPS: MapConfig[] = [
             { x: 1200, y: 1200, radius: 180, type: 'HEAL', label: 'SOURCE SACRÉE' },
             { x: 500, y: 500, radius: 120, type: 'SLOW', label: 'MARÉCAGE' },
             { x: 1900, y: 1900, radius: 120, type: 'SLOW', label: 'SABLES MOUVANTS' },
-            { x: 400, y: 1800, radius: 100, type: 'DANGER', label: 'RONCES TOXIQUES' },
-            { x: 2000, y: 600, radius: 100, type: 'DANGER', label: 'NID DE FRELONS' },
         ],
         obstacles: [
             { x: 300, y: 200, w: 80, h: 80, type: 'tree' },
@@ -121,16 +133,11 @@ export const MAPS: MapConfig[] = [
             { x: 900, y: 300, w: 70, h: 70, type: 'tree' },
             { x: 1500, y: 400, w: 120, h: 120, type: 'tree' },
             { x: 2000, y: 1200, w: 90, h: 90, type: 'tree' },
-            { x: 1800, y: 2100, w: 110, h: 110, type: 'tree' },
-            { x: 600, y: 1600, w: 85, h: 85, type: 'tree' },
             { x: 1000, y: 1000, w: 150, h: 60, type: 'ruin', subType: 'WALL' },
             { x: 1200, y: 800, w: 60, h: 150, type: 'ruin', subType: 'WALL' },
             { x: 700, y: 400, w: 100, h: 100, type: 'rock' },
             { x: 1400, y: 1800, w: 120, h: 80, type: 'rock' },
-            { x: 1100, y: 1100, w: 50, h: 50, type: 'tent' },
-            { x: 1250, y: 1100, w: 30, h: 30, type: 'crate' },
             { x: 0, y: 1200, w: 2400, h: 120, type: 'pond', subType: 'RIVER' },
-            { x: 1200, y: 1150, w: 200, h: 40, type: 'trunk' },
         ]
     },
     {
@@ -140,27 +147,18 @@ export const MAPS: MapConfig[] = [
         zones: [
             { x: 1200, y: 1200, radius: 220, type: 'HEAL', label: 'OASIS SACRÉ' },
             { x: 600, y: 600, radius: 180, type: 'SLOW', label: 'DUNES PROFONDES' },
-            { x: 1800, y: 1800, radius: 180, type: 'SLOW', label: 'SABLE MOUVANT' },
-            { x: 1200, y: 400, radius: 150, type: 'DANGER', label: 'TEMPÊTE SOLAIRE' },
         ],
         obstacles: [
             { x: 1100, y: 1100, w: 200, h: 200, type: 'pond', subType: 'OASIS' },
             { x: 1050, y: 1050, w: 60, h: 60, type: 'palm' },
             { x: 1300, y: 1050, w: 60, h: 60, type: 'palm' },
             { x: 1050, y: 1300, w: 60, h: 60, type: 'palm' },
-            { x: 1300, y: 1300, w: 60, h: 60, type: 'palm' },
             { x: 400, y: 400, w: 150, h: 60, type: 'obelisk', subType: 'RUIN' },
-            { x: 400, y: 460, w: 60, h: 150, type: 'obelisk', subType: 'RUIN' },
             { x: 1800, y: 400, w: 120, h: 120, type: 'building', subType: 'TEMPLE' },
             { x: 400, y: 1800, w: 200, h: 200, type: 'building', subType: 'OUTPOST' },
-            { x: 1800, y: 1800, w: 100, h: 40, type: 'obelisk' },
             { x: 300, y: 1000, w: 40, h: 40, type: 'cactus' },
             { x: 800, y: 200, w: 50, h: 50, type: 'cactus' },
-            { x: 2000, y: 1000, w: 45, h: 45, type: 'cactus' },
             { x: 1000, y: 2000, w: 120, h: 80, type: 'rock' },
-            { x: 1600, y: 1400, w: 100, h: 100, type: 'rock' },
-            { x: 200, y: 200, w: 20, h: 20, type: 'bone' },
-            { x: 2200, y: 2200, w: 20, h: 20, type: 'bone' },
         ]
     }
 ];
@@ -202,7 +200,7 @@ export interface Bullet extends Entity {
 }
 
 export interface PowerUp extends Entity {
-    type: 'HEALTH' | 'SHIELD' | 'RAPID' | 'BOOST' | 'TRIPLE' | 'EMP' | 'BOMB';
+    type: 'HEALTH' | 'SHIELD' | 'RAPID' | 'BOOST' | 'TRIPLE' | 'EMP' | 'BOMB' | 'COIN';
 }
 
 export interface Particle {
