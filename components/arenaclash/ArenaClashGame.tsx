@@ -18,10 +18,12 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
     const { username, currentAvatarId, avatarsCatalog } = useCurrency();
     const logic = useArenaLogic(mp, audio, addCoins, onReportProgress);
 
+    // Initialisation & Sync Social
     useEffect(() => {
         mp.updateSelfInfo(username, currentAvatarId, undefined, 'Arena Clash');
     }, [username, currentAvatarId, mp]);
 
+    // Gérer la connexion MP si on passe en mode ONLINE
     useEffect(() => {
         if (logic.gameMode === 'ONLINE') {
             mp.connect();
@@ -49,7 +51,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                         onUpdate={logic.update}
                         gameState={logic.gameState}
                         showTutorial={false}
-                        aiBgUrl={logic.aiBgUrl}
                     />
                 </div>
             </div>
@@ -80,8 +81,6 @@ export const ArenaClashGame: React.FC<ArenaClashGameProps> = ({ onBack, audio, a
                 controlsRef={logic.controlsRef}
                 mp={mp}
                 avatarsCatalog={avatarsCatalog}
-                onGenerateAIMap={logic.generateAIMap}
-                isGeneratingMap={logic.isGeneratingMap}
             />
         </div>
     );

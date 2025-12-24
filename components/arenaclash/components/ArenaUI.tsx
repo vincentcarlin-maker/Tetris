@@ -1,6 +1,5 @@
-
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon, Sparkles } from 'lucide-react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar, useCurrency } from '../../../hooks/useCurrency';
 import { QuickLocker } from '../../common/QuickLocker';
@@ -32,8 +31,6 @@ interface ArenaUIProps {
     controlsRef: React.MutableRefObject<any>;
     mp: any;
     avatarsCatalog: Avatar[];
-    onGenerateAIMap?: () => void;
-    isGeneratingMap?: boolean;
 }
 
 export const ArenaUI: React.FC<ArenaUIProps> = ({
@@ -41,7 +38,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     selectedMapIndex, onlineStep, isHost, hasOpponent,
     onBack, onToggleTutorial, onSetGameMode, onStartGame, onChangeMap,
     onCancelHosting, onLeaveGame, onRematch, onReturnToMenu, onSetGameState, controlsRef,
-    mp, avatarsCatalog, onGenerateAIMap, isGeneratingMap
+    mp, avatarsCatalog
 }) => {
     const { 
         currentTankId, selectTank, ownedTanks, tanksCatalog,
@@ -63,6 +60,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         return index !== -1 ? index + 1 : null;
     }, [leaderboard]);
 
+    // Fix: Define the missing MiniLeaderboard internal component to display top scores
     const MiniLeaderboard = () => (
         <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-2 min-w-[120px] flex flex-col gap-1 shadow-2xl animate-in slide-in-from-right-4 pointer-events-auto">
             <div className="flex items-center gap-1.5 px-1 border-b border-white/5 pb-1 mb-1">
@@ -215,26 +213,13 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-3 mb-8 w-full max-w-xs animate-in fade-in duration-700 delay-200">
-                        <div className="flex items-center gap-4 bg-gray-900/80 p-2 rounded-2xl border border-white/10 backdrop-blur-md w-full shadow-2xl">
-                            <button onClick={() => onChangeMap(-1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 transition-colors"><ChevronLeft/></button>
-                            <div className="text-center w-full">
-                                <p className="text-[10px] text-gray-500 font-black tracking-widest mb-1 uppercase">Secteur</p>
-                                <p className="text-white font-black italic text-lg truncate uppercase" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
-                            </div>
-                            <button onClick={() => onChangeMap(1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 transition-colors"><ChevronRight/></button>
+                    <div className="flex items-center gap-4 mb-8 bg-gray-900/80 p-2 rounded-2xl border border-white/10 backdrop-blur-md w-full max-w-xs shadow-2xl animate-in fade-in duration-700 delay-200">
+                        <button onClick={() => onChangeMap(-1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 transition-colors"><ChevronLeft/></button>
+                        <div className="text-center w-full">
+                            <p className="text-[10px] text-gray-500 font-black tracking-widest mb-1 uppercase">Secteur</p>
+                            <p className="text-white font-black italic text-lg truncate uppercase" style={{ color: MAPS[selectedMapIndex].colors.wallBorder }}>{MAPS[selectedMapIndex].name}</p>
                         </div>
-                        
-                        {selectedMapIndex === 0 && (
-                            <button 
-                                onClick={onGenerateAIMap} 
-                                disabled={isGeneratingMap}
-                                className="w-full py-3 bg-purple-600/20 border border-purple-500/40 text-purple-300 rounded-xl font-bold text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-purple-600/40 transition-all disabled:opacity-50"
-                            >
-                                {isGeneratingMap ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
-                                {isGeneratingMap ? "GÉNÉRATION SECTEUR IA..." : "RÉGÉNÉRER SECTEUR PAR IA"}
-                            </button>
-                        )}
+                        <button onClick={() => onChangeMap(1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 transition-colors"><ChevronRight/></button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-sm:gap-4 max-w-sm md:max-w-3xl flex-shrink-0">
