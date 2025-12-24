@@ -1,5 +1,4 @@
-
-import React, { useRef, useEffect, useMemo, useState } from 'react';
+import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon } from 'lucide-react';
 import { MAPS, ARENA_DIFFICULTY_SETTINGS, Difficulty } from '../constants';
 import { Avatar, useCurrency } from '../../../hooks/useCurrency';
@@ -53,14 +52,34 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
     const rightZoneRef = useRef<HTMLDivElement>(null);
     const leftKnobRef = useRef<HTMLDivElement>(null);
     const rightKnobRef = useRef<HTMLDivElement>(null);
-    const activeTouches = useRef<{ move: number | null, aim: number | null }>({ move: null, aim: null });
+
+    const activeTouches = useRef<{ move: any, aim: any }>({ move: null, aim: null });
 
     const myRank = useMemo(() => {
         const index = leaderboard.findIndex(p => p.isMe);
         return index !== -1 ? index + 1 : null;
     }, [leaderboard]);
 
-    const resetStick = (type: 'move' | 'aim') => {
+    // Fix: Define the missing MiniLeaderboard internal component to display top scores
+    const MiniLeaderboard = () => (
+        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-2 min-w-[120px] flex flex-col gap-1 shadow-2xl animate-in slide-in-from-right-4 pointer-events-auto">
+            <div className="flex items-center gap-1.5 px-1 border-b border-white/5 pb-1 mb-1">
+                <Trophy size={10} className="text-yellow-400" />
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Classement</span>
+            </div>
+            {leaderboard.slice(0, 3).map((p, i) => (
+                <div key={i} className={`flex justify-between items-center gap-4 px-1 ${p.isMe ? 'text-cyan-400' : 'text-white/70'}`}>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[8px] font-mono text-gray-500">{i + 1}</span>
+                        <span className="text-[10px] font-black truncate uppercase italic">{p.name}</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold">{p.score}</span>
+                </div>
+            ))}
+        </div>
+    );
+
+    const resetStick = useCallback((type: 'move' | 'aim') => {
         const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
         if (knob) knob.style.transform = `translate(0px, 0px)`;
         if (type === 'move') {
@@ -68,118 +87,114 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         } else {
             controlsRef.current.aim = { x: 0, y: 0, active: false };
         }
-    };
+    }, [controlsRef]);
 
-    const updateStick = (type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
-        if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') return; 
-        
+    const updateStick = useCallback((type: 'move' | 'aim', clientX: number, clientY: number, zone: HTMLDivElement) => {
         const rect = zone.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         const maxDist = rect.width / 2 - 20; 
-        let dx = clientX - centerX;
-        let dy = clientY - centerY;
+        
+        const dx = clientX - centerX;
+        const dy = clientY - centerY;
         const dist = Math.sqrt(dx*dx + dy*dy);
         const knob = type === 'move' ? leftKnobRef.current : rightKnobRef.current;
         
         if (dist > 0 && knob) {
             const ratio = Math.min(dist, maxDist) / dist;
             knob.style.transform = `translate(${dx * ratio}px, ${dy * ratio}px)`;
+            
             const magnitude = Math.min(dist / maxDist, 1.0);
-            if (type === 'move') controlsRef.current.move = { x: (dx/dist)*magnitude, y: (dy/dist)*magnitude, active: true };
-            else controlsRef.current.aim = { x: (dx/dist)*magnitude, y: (dy/dist)*magnitude, active: true };
+            if (type === 'move') {
+                controlsRef.current.move = { x: (dx/dist)*magnitude, y: (dy/dist)*magnitude, active: true };
+            } else {
+                controlsRef.current.aim = { x: (dx/dist)*magnitude, y: (dy/dist)*magnitude, active: true };
+            }
         }
-    };
+    }, [controlsRef]);
 
     useEffect(() => {
-        if (gameState === 'RESPAWNING' || gameState === 'GAMEOVER') {
-            activeTouches.current.move = null;
-            activeTouches.current.aim = null;
-            resetStick('move');
-            resetStick('aim');
-        }
-    }, [gameState]);
+        const handleDown = (e: any) => {
+            const isTouch = e.type === 'touchstart';
+            const touches = isTouch ? e.changedTouches : [e];
+            
+            for (let i = 0; i < touches.length; i++) {
+                const t = touches[i];
+                const id = isTouch ? t.identifier : 'mouse';
 
-    useEffect(() => {
-        const handleTouch = (e: TouchEvent) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const t = e.changedTouches[i];
-                
-                if (e.type === 'touchstart') {
-                    if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') continue;
-
-                    if (leftZoneRef.current && activeTouches.current.move === null) {
-                        const rect = leftZoneRef.current.getBoundingClientRect();
-                        if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                            activeTouches.current.move = t.identifier; 
-                            updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
-                        }
-                    }
-                    if (rightZoneRef.current && activeTouches.current.aim === null) {
-                        const rect = rightZoneRef.current.getBoundingClientRect();
-                        if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                            activeTouches.current.aim = t.identifier; 
-                            updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
-                        }
-                    }
-                }
-                
-                if (e.type === 'touchmove') {
-                    if (gameState === 'GAMEOVER' || gameState === 'RESPAWNING') continue;
-
-                    if (t.identifier === activeTouches.current.move && leftZoneRef.current) {
+                if (leftZoneRef.current && activeTouches.current.move === null) {
+                    const rect = leftZoneRef.current.getBoundingClientRect();
+                    if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
+                        if (isTouch) e.preventDefault();
+                        activeTouches.current.move = id; 
                         updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
                     }
-                    if (t.identifier === activeTouches.current.aim && rightZoneRef.current) {
-                        updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
-                    }
                 }
-                
-                if (e.type === 'touchend' || e.type === 'touchcancel') {
-                    if (t.identifier === activeTouches.current.move) { 
-                        activeTouches.current.move = null; 
-                        resetStick('move'); 
-                    }
-                    if (t.identifier === activeTouches.current.aim) { 
-                        activeTouches.current.aim = null; 
-                        resetStick('aim'); 
+                if (rightZoneRef.current && activeTouches.current.aim === null) {
+                    const rect = rightZoneRef.current.getBoundingClientRect();
+                    if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
+                        if (isTouch) e.preventDefault();
+                        activeTouches.current.aim = id; 
+                        updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
                     }
                 }
             }
         };
 
-        document.addEventListener('touchstart', handleTouch, { passive: false });
-        document.addEventListener('touchmove', handleTouch, { passive: false });
-        document.addEventListener('touchend', handleTouch);
-        document.addEventListener('touchcancel', handleTouch);
+        const handleMove = (e: any) => {
+            const isTouch = e.type === 'touchmove';
+            const touches = isTouch ? e.changedTouches : [e];
+            
+            for (let i = 0; i < touches.length; i++) {
+                const t = touches[i];
+                const id = isTouch ? t.identifier : 'mouse';
+
+                if (id === activeTouches.current.move && leftZoneRef.current) {
+                    if (isTouch) e.preventDefault();
+                    updateStick('move', t.clientX, t.clientY, leftZoneRef.current);
+                }
+                if (id === activeTouches.current.aim && rightZoneRef.current) {
+                    if (isTouch) e.preventDefault();
+                    updateStick('aim', t.clientX, t.clientY, rightZoneRef.current);
+                }
+            }
+        };
+
+        const handleUp = (e: any) => {
+            const isTouch = e.type.includes('touch');
+            const touches = isTouch ? e.changedTouches : [e];
+            
+            for (let i = 0; i < touches.length; i++) {
+                const t = touches[i];
+                const id = isTouch ? t.identifier : 'mouse';
+
+                if (id === activeTouches.current.move) { 
+                    activeTouches.current.move = null; 
+                    resetStick('move'); 
+                }
+                if (id === activeTouches.current.aim) { 
+                    activeTouches.current.aim = null; 
+                    resetStick('aim'); 
+                }
+            }
+        };
+
+        window.addEventListener('touchstart', handleDown, { passive: false });
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('touchend', handleUp);
+        window.addEventListener('mousedown', handleDown);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
 
         return () => { 
-            document.removeEventListener('touchstart', handleTouch); 
-            document.removeEventListener('touchmove', handleTouch); 
-            document.removeEventListener('touchend', handleTouch); 
-            document.removeEventListener('touchcancel', handleTouch);
+            window.removeEventListener('touchstart', handleDown); 
+            window.removeEventListener('touchmove', handleMove); 
+            window.removeEventListener('touchend', handleUp);
+            window.removeEventListener('mousedown', handleDown);
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
         };
-    }, [gameState]);
-
-    const MiniLeaderboard = () => (
-        <div className="flex flex-col w-40 bg-black/20 backdrop-blur-sm p-3 rounded-2xl border border-white/10 pointer-events-none">
-            <div className="flex items-center gap-1.5 mb-2 border-b border-white/10 pb-1">
-                <Trophy size={12} className="text-yellow-400/80"/>
-                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Top 3</span>
-            </div>
-            <div className="space-y-1">
-                {leaderboard.length > 0 ? leaderboard.slice(0, 3).map((p, i) => (
-                    <div key={i} className={`flex justify-between items-center px-1.5 py-0.5 rounded ${p.isMe ? 'bg-cyan-500/20' : ''}`}>
-                        <div className="flex items-center gap-1 truncate max-w-[80px]">
-                            <span className={`text-[9px] font-mono ${p.isMe ? 'text-white' : 'text-gray-500'}`}>{i+1}.</span>
-                            <span className={`text-[10px] truncate ${p.isMe ? 'text-cyan-400 font-black' : 'text-gray-300 font-bold'}`}>{p.name.toUpperCase()}</span>
-                        </div>
-                        <span className={`font-mono text-[10px] ${p.isMe ? 'text-cyan-400' : 'text-white/60'}`}>{p.score}</span>
-                    </div>
-                )) : <div className="text-[9px] text-gray-600 italic">Sync...</div>}
-            </div>
-        </div>
-    );
+    }, [updateStick, resetStick]);
 
     if (gameState === 'MENU') {
         return (
@@ -207,8 +222,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         <button onClick={() => onChangeMap(1)} className="p-3 hover:bg-white/10 rounded-xl text-gray-400 transition-colors"><ChevronRight/></button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
-                        <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-sm:gap-4 max-w-sm md:max-w-3xl flex-shrink-0">
+                        <button onClick={() => { onSetGameMode('SOLO'); onSetGameState('DIFFICULTY'); }} className="group relative h-48 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)]"><User size={32} className="text-red-400" /></div>
@@ -217,7 +232,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         </button>
 
-                        <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-48 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(249,115,22,0.3)]"><Globe size={32} className="text-orange-400" /></div>
@@ -326,7 +341,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 <div className="bg-gradient-to-br from-gray-900 to-black border border-orange-500/30 rounded-[32px] p-8 shadow-2xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                                     <h3 className="text-sm font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest"><Wifi size={18} className="text-orange-400"/> Émission</h3>
-                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 uppercase tracking-widest cursor-pointer">
+                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl uppercase tracking-widest cursor-pointer active:scale-95">
                                         <Play size={20} fill="currentColor"/> Créer Salon
                                     </button>
                                 </div>
@@ -362,7 +377,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                                             <span className="text-[10px] text-gray-500 font-mono tracking-widest">EN ATTENTE...</span>
                                                         </div>
                                                     </div>
-                                                    <button onClick={() => mp.joinRoom(player.id)} className="px-6 py-3 bg-white text-black font-black text-xs rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-xl active:scale-95 uppercase tracking-widest cursor-pointer">
+                                                    <button onClick={() => mp.joinRoom(player.id)} className="px-6 py-3 bg-white text-black font-black text-xs rounded-lg hover:bg-orange-500 hover:text-white transition-all shadow-xl uppercase tracking-widest cursor-pointer active:scale-95">
                                                         Rejoindre
                                                     </button>
                                                 </div>
@@ -371,7 +386,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                     ) : (
                                         <div className="flex-1 flex flex-col items-center justify-center text-gray-600 gap-6 opacity-30">
                                             <div className="relative bg-gray-800 p-6 rounded-full border border-gray-700"><Search size={40} /></div>
-                                            <p className="text-xs font-black tracking-[0.3em] text-center leading-loose">SCAN DES FRÉQUENCES...<br/>AUCUN COMBAT DÉTECTÉ</p>
+                                            <p className="text-xs font-black tracking-[0.3em] text-center leading-loose">SCAN DES FRÉQUENCES...<br/>AUCUN COMBAT DÉTECTÉE</p>
                                         </div>
                                     )}
                                 </div>
@@ -541,7 +556,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 <>
                     <div className="absolute top-0 left-0 w-full flex justify-between items-start p-4 md:p-6 z-20 pointer-events-none">
                         <div className="flex items-center gap-3 pointer-events-auto">
-                            <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 active:scale-90 shadow-2xl transition-all cursor-pointer"><Home size={24} /></button>
+                            <button onClick={onBack} className="p-3 bg-gray-900/90 rounded-2xl text-gray-400 hover:text-white border border-white/10 shadow-2xl transition-all cursor-pointer active:scale-90"><Home size={24} /></button>
                         </div>
                         <div className="flex flex-col items-center">
                             <div className={`text-2xl md:text-4xl font-black font-mono drop-shadow-[0_0_15px_rgba(0,0,0,1)] px-4 md:px-6 py-1.5 md:py-2 bg-black/40 rounded-2xl md:rounded-3xl border border-white/10 backdrop-blur-md ${timeLeft < 10 ? 'text-red-500 animate-pulse border-red-500' : 'text-white'}`}>
@@ -578,8 +593,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         ))}
                     </div>
                     <div className="absolute bottom-0 w-full h-56 grid grid-cols-2 gap-4 md:gap-8 shrink-0 z-40 p-4 md:p-8 pointer-events-auto">
-                        <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner"><div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75"><Activity size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-cyan-500 font-black tracking-[0.3em] uppercase">Mouvement</span></div>
-                        <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner"><div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75"><Crosshair size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase">Viseur</span></div>
+                        <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner touch-none"><div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75 pointer-events-none"><Activity size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-cyan-500 font-black tracking-[0.3em] uppercase">Mouvement</span></div>
+                        <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner touch-none"><div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75 pointer-events-none"><Crosshair size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase">Viseur</span></div>
                     </div>
                 </>
             )}
@@ -615,14 +630,14 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     <div className="flex flex-col gap-4 w-full max-w-[280px]">
                         <button 
                             onClick={onRematch}
-                            className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-cyan-400 transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 text-sm uppercase"
+                            className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-cyan-400 transition-all shadow-xl flex items-center justify-center gap-2 text-sm uppercase active:scale-95"
                         >
                             <RefreshCw size={20} /> Recommencer
                         </button>
                         
                         <button 
                             onClick={onBack}
-                            className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 active:scale-95 text-sm uppercase"
+                            className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 text-sm uppercase active:scale-95"
                         >
                             <Home size={20} /> Retour Menu
                         </button>

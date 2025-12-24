@@ -31,6 +31,21 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
     useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+    // Helper pour dessiner un rectangle arrondi compatible
+    const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+    };
+
     const drawAccessory = (ctx: CanvasRenderingContext2D, worm: Worm, head: Point, radius: number) => {
         const acc = worm.accessory;
         if (!acc || acc.id === 'sa_none') return;
@@ -48,23 +63,18 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         const id = acc.id;
 
         if (id === 'sa_cyber_visor') {
-            // Visière futuriste placée devant les yeux
             ctx.globalAlpha = 0.8;
-            ctx.beginPath();
-            // Positionnée sur l'avant de la tête (x positif)
-            ctx.roundRect(radius * 0.3, -radius * 0.8, radius * 0.4, radius * 1.6, radius * 0.1);
+            drawRoundedRect(ctx, radius * 0.3, -radius * 0.8, radius * 0.4, radius * 1.6, radius * 0.1);
             ctx.fill();
             ctx.strokeStyle = '#fff';
             ctx.stroke();
             
-            // Effet de scanline brillant
             ctx.fillStyle = '#fff';
             ctx.globalAlpha = 0.4 + Math.sin(Date.now() / 150) * 0.4;
             ctx.fillRect(radius * 0.45, -radius * 0.7, 2, radius * 1.4);
         }
         else if (id === 'sa_royal_crown') {
-            // Couronne posée sur le dessus
-            ctx.translate(-radius * 0.2, 0); // Légèrement centrée
+            ctx.translate(-radius * 0.2, 0); 
             ctx.beginPath();
             const w = radius * 1.2;
             const h = radius * 1.0;
@@ -79,28 +89,22 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.fill();
             ctx.strokeStyle = '#fff';
             ctx.stroke();
-            // Gemme centrale
             ctx.fillStyle = '#fff';
             ctx.beginPath();
             ctx.arc(0, -h * 0.5, radius * 0.15, 0, Math.PI * 2);
             ctx.fill();
         }
         else if (id === 'sa_dj_phones') {
-            // Casque audio sur les "oreilles"
             ctx.beginPath();
-            // Arceau
             ctx.arc(0, 0, radius * 1.1, Math.PI, 0);
             ctx.stroke();
-            // Écouteurs
             [-1, 1].forEach(side => {
                 ctx.save();
                 ctx.translate(0, side * radius * 0.9);
-                ctx.beginPath();
-                ctx.roundRect(-radius * 0.4, -radius * 0.3, radius * 0.8, radius * 0.6, radius * 0.2);
+                drawRoundedRect(ctx, -radius * 0.4, -radius * 0.3, radius * 0.8, radius * 0.6, radius * 0.2);
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
                 ctx.stroke();
-                // Effet de pulsation LED
                 ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 200) * 0.5;
                 ctx.beginPath();
                 ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
@@ -110,7 +114,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             });
         }
         else if (id === 'sa_oni_mask') {
-            // Masque facial couvrant l'avant
             ctx.beginPath();
             ctx.arc(radius * 0.4, 0, radius * 0.9, -Math.PI/2, Math.PI/2);
             ctx.lineTo(radius * 0.2, radius * 0.9);
@@ -119,7 +122,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.fill();
             ctx.strokeStyle = '#fff';
             ctx.stroke();
-            // Cornes
             [-1, 1].forEach(side => {
                 ctx.beginPath();
                 ctx.moveTo(radius * 0.5, side * radius * 0.5);
@@ -128,13 +130,11 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             });
         }
         else if (id === 'sa_energy_halo') {
-            // Halo flottant au dessus
             const pulse = Math.sin(Date.now() / 300) * 5;
             ctx.beginPath();
             ctx.ellipse(0, 0, radius * 1.4 + pulse, radius * 1.4 + pulse, 0, 0, Math.PI * 2);
             ctx.lineWidth = 4;
             ctx.stroke();
-            // Particules de halo
             for(let i=0; i<4; i++) {
                 const a = (Date.now() / 500 + i * Math.PI / 2) % (Math.PI * 2);
                 ctx.fillStyle = '#fff';
@@ -144,15 +144,12 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             }
         }
         else if (id === 'sa_samurai_blades') {
-            // Katanas dans le dos (derrière la tête)
             ctx.translate(-radius * 0.5, 0);
             [-1, 1].forEach(side => {
                 ctx.save();
                 ctx.rotate(side * Math.PI / 4);
-                // Fourreau/Poignée
                 ctx.fillStyle = '#333';
                 ctx.fillRect(-radius * 0.2, side * radius * 0.2, radius * 0.4, side * radius * 0.6);
-                // Lame
                 ctx.strokeStyle = acc.color;
                 ctx.lineWidth = 3;
                 ctx.beginPath();
@@ -163,31 +160,26 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             });
         }
         else if (id === 'sa_void_eye') {
-            // Monocle / Oeil tech
-            ctx.translate(radius * 0.6, radius * 0.6); // Sur l'un des yeux
+            ctx.translate(radius * 0.6, radius * 0.6); 
             ctx.beginPath();
             ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
             ctx.globalAlpha = 0.3;
             ctx.fill();
             ctx.globalAlpha = 1;
             ctx.stroke();
-            // Cercle intérieur animé
             ctx.beginPath();
             ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
             ctx.stroke();
-            // Viseur
             ctx.beginPath();
             ctx.moveTo(-radius * 0.6, 0); ctx.lineTo(radius * 0.6, 0);
             ctx.moveTo(0, -radius * 0.6); ctx.lineTo(0, radius * 0.6);
             ctx.stroke();
         }
         else if (id === 'sa_hacker_tag') {
-            // Badge flottant sur le côté
             ctx.translate(-radius, -radius * 1.2);
             ctx.rotate(-Math.PI / 12);
             ctx.fillStyle = 'rgba(0,0,0,0.8)';
-            ctx.beginPath();
-            ctx.roundRect(0, 0, radius * 1.5, radius * 0.8, 4);
+            drawRoundedRect(ctx, 0, 0, radius * 1.5, radius * 0.8, 4);
             ctx.fill();
             ctx.stroke();
             ctx.fillStyle = acc.color;
@@ -209,13 +201,12 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
         const radius = worm.radius;
 
         ctx.save();
-        // Dessiner le corps de l'arrière vers l'avant
         for (let i = segs.length - 1; i >= 0; i--) {
             const seg = segs[i]; 
             const isHead = i === 0;
             
             let segmentColor = primary;
-            let currentRadius = isHead ? radius : radius * 0.95; // Tête légèrement plus large
+            let currentRadius = isHead ? radius : radius * 0.95;
             let currentGlow = glow;
 
             if (pattern === 'rainbow') {
@@ -267,11 +258,9 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             }
         }
 
-        // Yeux et Accessoires (toujours sur la tête, index 0)
         const head = segs[0]; 
         const eyeOffset = radius * 0.6;
         
-        // Dessin des yeux orientés vers l'angle du serpent
         [-0.6, 0.6].forEach(eyeAngle => {
             const ex = head.x + Math.cos(worm.angle + eyeAngle) * eyeOffset;
             const ey = head.y + Math.sin(worm.angle + eyeAngle) * eyeOffset;
@@ -282,7 +271,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
             ctx.arc(ex, ey, eyeSize, 0, Math.PI * 2); 
             ctx.fill();
             
-            // Pupille orientée vers le mouvement
             ctx.fillStyle = '#000'; 
             ctx.beginPath(); 
             ctx.arc(ex + Math.cos(worm.angle) * (eyeSize*0.3), ey + Math.sin(worm.angle) * (eyeSize*0.3), eyeSize*0.5, 0, Math.PI * 2); 
@@ -291,7 +279,6 @@ export const SlitherRenderer: React.FC<SlitherRendererProps> = ({
 
         drawAccessory(ctx, worm, head, radius);
         
-        // Nom du joueur
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; 
         ctx.font = `bold ${Math.max(14, radius * 1.0)}px Rajdhani`; 
         ctx.textAlign = 'center';

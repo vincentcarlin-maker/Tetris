@@ -22,7 +22,7 @@ interface ArenaRendererProps {
  * ArenaRenderer : Orchestre le rendu graphique du jeu Arena Clash.
  * Utilise Canvas API pour des performances optimales.
  */
-export const ArenaRenderer: React.FC<ArenaRendererProps> = (props) => {
+const ArenaRendererComponent: React.FC<ArenaRendererProps> = (props) => {
     const { canvasRef } = useArenaRenderLoop(props);
     const { gameState, showTutorial, mouseRef } = props;
 
@@ -40,3 +40,5 @@ export const ArenaRenderer: React.FC<ArenaRendererProps> = (props) => {
         />
     );
 };
+
+export const ArenaRenderer = React.memo(ArenaRendererComponent);

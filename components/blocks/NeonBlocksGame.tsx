@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Layers, Star, Trash2 } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, HelpCircle, Layers, Star, Trash2 } from 'lucide-react';
 import { useHighScores } from '../../hooks/useHighScores';
+import { TutorialOverlay } from '../Tutorials';
 
 interface NeonBlocksGameProps {
     onBack: () => void;
@@ -18,7 +19,8 @@ interface Piece {
     color: string;
 }
 
-const PIECES: Omit<Piece, 'id'>[] = [
+// Définitions de formes néon variées
+const PIECES_TEMPLATES: Omit<Piece, 'id'>[] = [
     { shape: [[1]], color: 'bg-cyan-500 shadow-[0_0_10px_#00f3ff]' },
     { shape: [[1, 1]], color: 'bg-blue-600 shadow-[0_0_10px_#2563eb]' },
     { shape: [[1], [1]], color: 'bg-blue-600 shadow-[0_0_10px_#2563eb]' },
@@ -28,8 +30,9 @@ const PIECES: Omit<Piece, 'id'>[] = [
     { shape: [[1], [1], [1], [1]], color: 'bg-pink-600 shadow-[0_0_10px_#db2777]' },
     { shape: [[1, 1], [1, 1]], color: 'bg-yellow-500 shadow-[0_0_10px_#eab308]' },
     { shape: [[1, 1, 1], [0, 1, 0]], color: 'bg-red-600 shadow-[0_0_10px_#dc2626]' },
-    { shape: [[1, 0], [1, 1], [0, 1]], color: 'bg-green-600 shadow-[0_0_10px_#16a34a]' },
+    { shape: [[1, 1], [1, 0]], color: 'bg-green-600 shadow-[0_0_10px_#16a34a]' },
     { shape: [[1, 1, 1], [1, 0, 0], [1, 0, 0]], color: 'bg-orange-600 shadow-[0_0_10px_#ea580c]' },
+    { shape: [[1, 1], [0, 1], [0, 1]], color: 'bg-indigo-600 shadow-[0_0_10px_#4f46e5]' },
 ];
 
 export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
@@ -41,14 +44,14 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
     const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
     const [hoverCoords, setHoverCoords] = useState<{ r: number, c: number } | null>(null);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     const gridRef = useRef<HTMLDivElement>(null);
-    const { playMove, playLand, playVictory, playGameOver, playCoin, resumeAudio } = audio;
-
+    const { playMove, playLand, playVictory, playGameOver, resumeAudio } = audio;
     const { highScores, updateHighScore } = useHighScores();
 
     const generateRandomPiece = (): Piece => {
-        const template = PIECES[Math.floor(Math.random() * PIECES.length)];
+        const template = PIECES_TEMPLATES[Math.floor(Math.random() * PIECES_TEMPLATES.length)];
         return { ...template, id: Math.random().toString(36).substr(2, 9) };
     };
 
@@ -62,6 +65,11 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
     }, [onReportProgress]);
 
     useEffect(() => {
+        const hasSeen = localStorage.getItem('neon_blocks_tutorial_seen');
+        if (!hasSeen) {
+            setShowTutorial(true);
+            localStorage.setItem('neon_blocks_tutorial_seen', 'true');
+        }
         initGame();
     }, [initGame]);
 
@@ -76,9 +84,10 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
     };
 
     const checkGameOver = (pieces: Piece[], currentGrid: (string | null)[][]) => {
+        if (pieces.length === 0) return false;
         for (const piece of pieces) {
-            for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
+            for (let r = 0; r <= GRID_SIZE - piece.shape.length; r++) {
+                for (let c = 0; c <= GRID_SIZE - piece.shape[0].length; c++) {
                     if (canPlacePiece(piece.shape, r, c, currentGrid)) return false;
                 }
             }
@@ -98,26 +107,23 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
                 });
             });
 
-            // Check lines
-            let linesCleared = 0;
-            const rowsToClear = new Set<number>();
-            const colsToClear = new Set<number>();
+            // Détection de lignes/colonnes complètes
+            const rowsToClear = [];
+            const colsToClear = [];
 
             for (let i = 0; i < GRID_SIZE; i++) {
-                if (newGrid[i].every(cell => cell !== null)) rowsToClear.add(i);
-                if (newGrid.every(row => row[i] !== null)) colsToClear.add(i);
+                if (newGrid[i].every(cell => cell !== null)) rowsToClear.push(i);
+                let colFull = true;
+                for (let j = 0; j < GRID_SIZE; j++) if (newGrid[j][i] === null) { colFull = false; break; }
+                if (colFull) colsToClear.push(i);
             }
 
-            rowsToClear.forEach(rowIndex => {
-                for (let i = 0; i < GRID_SIZE; i++) newGrid[rowIndex][i] = null;
-                linesCleared++;
-            });
-            colsToClear.forEach(colIndex => {
-                for (let i = 0; i < GRID_SIZE; i++) newGrid[i][colIndex] = null;
-                linesCleared++;
-            });
+            rowsToClear.forEach(ri => { for(let i=0; i<GRID_SIZE; i++) newGrid[ri][i] = null; });
+            colsToClear.forEach(ci => { for(let i=0; i<GRID_SIZE; i++) newGrid[i][ci] = null; });
 
-            const points = (piece.shape.flat().filter(s => s === 1).length * 10) + (linesCleared * 100);
+            const cellsCount = piece.shape.flat().filter(v => v === 1).length;
+            const linesCleared = rowsToClear.length + colsToClear.length;
+            const points = (cellsCount * 10) + (linesCleared * 100 * (linesCleared > 1 ? linesCleared : 1));
             
             setScore(s => {
                 const ns = s + points;
@@ -126,37 +132,27 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
             });
             
             setGrid(newGrid);
-            playLand();
+            if (linesCleared > 0) playVictory(); else playLand();
 
             const newPieces = [...availablePieces];
             newPieces.splice(index, 1);
             
-            if (newPieces.length === 0) {
-                const refreshedPieces = [generateRandomPiece(), generateRandomPiece(), generateRandomPiece()];
-                setAvailablePieces(refreshedPieces);
-                if (checkGameOver(refreshedPieces, newGrid)) endGame();
-            } else {
-                setAvailablePieces(newPieces);
-                if (checkGameOver(newPieces, newGrid)) endGame();
+            const nextAvailable = newPieces.length === 0 ? [generateRandomPiece(), generateRandomPiece(), generateRandomPiece()] : newPieces;
+            setAvailablePieces(nextAvailable);
+            
+            if (checkGameOver(nextAvailable, newGrid)) {
+                setIsGameOver(true);
+                playGameOver();
+                updateHighScore('neonblocks', score + points);
+                const coins = Math.floor((score + points) / 50);
+                if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
             }
+        } else {
+            audio.playWallHit?.();
         }
         
         setDraggedPiece(null);
         setHoverCoords(null);
-    };
-
-    const endGame = () => {
-        setIsGameOver(true);
-        playGameOver();
-        
-        updateHighScore('neonblocks', score);
-        if (onReportProgress) onReportProgress('score', score);
-
-        const coins = Math.floor(score / 50);
-        if (coins > 0) {
-            addCoins(coins);
-            setEarnedCoins(coins);
-        }
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
@@ -169,9 +165,10 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
             const rect = gridEl.getBoundingClientRect();
             const cellW = rect.width / GRID_SIZE;
             const cellH = rect.height / GRID_SIZE;
-            const r = Math.floor((touch.clientY - rect.top) / cellH);
-            const c = Math.floor((touch.clientX - rect.left) / cellW);
-            if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+            // On ajuste les coordonnées pour que le curseur soit au milieu de la pièce
+            const r = Math.floor((touch.clientY - rect.top - (draggedPiece.piece.shape.length * cellH / 2)) / cellH);
+            const c = Math.floor((touch.clientX - rect.left - (draggedPiece.piece.shape[0].length * cellW / 2)) / cellW);
+            if (r >= 0 && r <= GRID_SIZE - draggedPiece.piece.shape.length && c >= 0 && c <= GRID_SIZE - draggedPiece.piece.shape[0].length) {
                 setHoverCoords({ r, c });
             } else {
                 setHoverCoords(null);
@@ -186,19 +183,14 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
         setDragPos({ x: touch.clientX, y: touch.clientY });
     };
 
-    const handleTouchEnd = () => {
-        if (hoverCoords) handleActionEnd(hoverCoords.r, hoverCoords.c);
-        else setDraggedPiece(null);
-    };
-
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 p-4 font-sans text-white relative touch-none select-none">
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-600/20 blur-[120px] rounded-full pointer-events-none -z-10" />
+            {showTutorial && <TutorialOverlay gameId="rush" onClose={() => setShowTutorial(false)} />}
             
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-6 shrink-0">
                 <button onClick={onBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
-                    <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(0,243,255,0.4)]">NEON BLOCKS</h1>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(0,243,255,0.4)]">NEON BLOCKS</h1>
                 </div>
                 <button onClick={initGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
             </div>
@@ -208,6 +200,7 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
                 <div className="flex flex-col items-end"><span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Record</span><span className="text-2xl font-mono font-bold text-cyan-400">{highScores.neonblocks || 0}</span></div>
             </div>
 
+            {/* Grille de Jeu */}
             <div ref={gridRef} className="relative w-full max-w-md aspect-square bg-gray-900/60 border-4 border-gray-800 rounded-xl shadow-2xl p-1 grid grid-cols-10 gap-1 backdrop-blur-md z-10">
                 {grid.map((row, r) => row.map((cell, c) => {
                     const isHovered = draggedPiece && hoverCoords && 
@@ -221,16 +214,17 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
                 }))}
             </div>
 
-            <div className="flex justify-around items-center w-full max-w-md mt-10 h-32 bg-black/40 rounded-2xl border border-white/10 p-2 z-10">
+            {/* Zone des pièces disponibles */}
+            <div className="flex justify-around items-center w-full max-w-md mt-8 h-32 bg-black/40 rounded-2xl border border-white/10 p-2 z-10">
                 {availablePieces.map((piece, idx) => (
                     <div 
                         key={piece.id}
                         onTouchStart={(e) => handleTouchStart(piece, idx, e)}
                         onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
+                        onTouchEnd={() => handleActionEnd(hoverCoords?.r || -1, hoverCoords?.c || -1)}
                         className={`cursor-grab active:cursor-grabbing transition-opacity ${draggedPiece?.piece.id === piece.id ? 'opacity-20' : 'opacity-100'}`}
                     >
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col gap-0.5 scale-75 sm:scale-100">
                             {piece.shape.map((row, r) => (
                                 <div key={r} className="flex gap-0.5">
                                     {row.map((cell, c) => (
@@ -243,10 +237,11 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
                 ))}
             </div>
 
+            {/* Curseur de drag visuel */}
             {draggedPiece && (
                 <div 
                     className="fixed pointer-events-none z-[100] scale-150 opacity-80"
-                    style={{ left: dragPos.x - 40, top: dragPos.y - 40 }}
+                    style={{ left: dragPos.x - (draggedPiece.piece.shape[0].length * 16), top: dragPos.y - (draggedPiece.piece.shape.length * 16) }}
                 >
                     <div className="flex flex-col gap-1">
                         {draggedPiece.piece.shape.map((row, r) => (
@@ -261,18 +256,20 @@ export const NeonBlocksGame: React.FC<NeonBlocksGameProps> = ({ onBack, audio, a
             )}
 
             {isGameOver && (
-                <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in zoom-in">
-                    <Trash2 size={80} className="text-red-500 mb-6 drop-shadow-[0_0_20px_red]" />
-                    <h2 className="text-5xl font-black italic text-white mb-2">PLUS D'ESPACE</h2>
-                    <p className="text-2xl font-mono text-cyan-400 mb-8">{score}</p>
+                <div className="absolute inset-0 z-[150] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in zoom-in text-center p-6">
+                    <Trash2 size={80} className="text-red-500 mb-6 drop-shadow-[0_0_20px_red] animate-pulse" />
+                    <h2 className="text-5xl font-black italic text-white mb-2 uppercase">Plus d'espace</h2>
+                    <div className="flex flex-col mb-8"><span className="text-gray-400 text-xs font-bold tracking-widest mb-1">SCORE FINAL</span><span className="text-4xl font-mono font-black text-cyan-400">{score}</span></div>
                     {earnedCoins > 0 && (
-                        <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse">
+                        <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border-2 border-yellow-500 animate-pulse">
                             <Coins className="text-yellow-400" size={24} />
                             <span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span>
                         </div>
                     )}
-                    <button onClick={initGame} className="px-10 py-4 bg-cyan-500 text-black font-black tracking-widest text-lg rounded-xl hover:bg-white transition-all shadow-lg active:scale-95">REJOUER</button>
-                    <button onClick={onBack} className="mt-4 text-gray-500 hover:text-white transition-colors">Retour Menu</button>
+                    <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                        <button onClick={initGame} className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-cyan-400 transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"><RefreshCw size={20} /> REJOUER</button>
+                        <button onClick={onBack} className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl active:scale-95 transition-all">RETOUR ARCADE</button>
+                    </div>
                 </div>
             )}
         </div>

@@ -64,19 +64,46 @@ export const MAPS: MapConfig[] = [
     {
         id: 'city',
         name: 'MÉGAPOPOLE NÉON',
-        colors: { bg: '#020208', grid: 'rgba(0, 217, 255, 0.03)', wall: '#0a0a1a', wallBorder: '#00f3ff' },
+        colors: { bg: '#050508', grid: 'rgba(0, 217, 255, 0.05)', wall: '#0a0a1a', wallBorder: '#00f3ff' },
         obstacles: [
-            { x: 150, y: 150, w: 350, h: 250, type: 'building' }, { x: 600, y: 150, w: 200, h: 250, type: 'building' },
-            { x: 150, y: 500, w: 650, h: 150, type: 'building' },
-            { x: 1000, y: 150, w: 400, h: 250, type: 'building' }, { x: 1500, y: 150, w: 300, h: 250, type: 'building' }, { x: 1900, y: 150, w: 350, h: 250, type: 'building' },
-            { x: 1000, y: 500, w: 1250, h: 150, type: 'building' },
-            { x: 150, y: 850, w: 400, h: 400, type: 'building' }, { x: 750, y: 850, w: 300, h: 300, type: 'building' },
-            { x: 1250, y: 850, w: 400, h: 700, type: 'building' }, { x: 1850, y: 850, w: 400, h: 300, type: 'building' },
-            { x: 150, y: 1450, w: 650, h: 200, type: 'building' },
-            { x: 150, y: 1750, w: 300, h: 500, type: 'building' }, { x: 550, y: 1750, w: 250, h: 500, type: 'building' },
-            { x: 1000, y: 1750, w: 500, h: 500, type: 'building' }, { x: 1600, y: 1750, w: 650, h: 250, type: 'building' },
-            { x: 1600, y: 2100, w: 650, h: 150, type: 'building' },
-            { x: 1100, y: 1100, w: 100, h: 100, type: 'building' },
+            // Block 1 (Top Left)
+            { x: 100, y: 100, w: 300, h: 300, type: 'building' },
+            { x: 450, y: 100, w: 150, h: 300, type: 'building' },
+            { x: 100, y: 450, w: 500, h: 200, type: 'building' },
+            
+            // Block 2 (Top Mid)
+            { x: 800, y: 100, w: 400, h: 400, type: 'building' },
+            { x: 1250, y: 100, w: 300, h: 150, type: 'building' },
+            { x: 1250, y: 300, w: 300, h: 200, type: 'building' },
+
+            // Block 3 (Top Right)
+            { x: 1750, y: 100, w: 200, h: 550, type: 'building' },
+            { x: 2000, y: 100, w: 300, h: 250, type: 'building' },
+            { x: 2000, y: 400, w: 300, h: 250, type: 'building' },
+
+            // Central Plaza Area (more open)
+            { x: 1100, y: 1100, w: 200, h: 200, type: 'building' },
+
+            // Block 4 (Mid Left)
+            { x: 100, y: 800, w: 350, h: 450, type: 'building' },
+            { x: 500, y: 800, w: 200, h: 200, type: 'building' },
+            { x: 500, y: 1050, w: 200, h: 200, type: 'building' },
+
+            // Block 5 (Bottom Left)
+            { x: 100, y: 1400, w: 600, h: 150, type: 'building' },
+            { x: 100, y: 1600, w: 250, h: 400, type: 'building' },
+            { x: 400, y: 1600, w: 300, h: 700, type: 'building' },
+
+            // Block 6 (Bottom Mid)
+            { x: 850, y: 1500, w: 400, h: 300, type: 'building' },
+            { x: 1300, y: 1500, w: 200, h: 800, type: 'building' },
+            { x: 850, y: 1850, w: 400, h: 450, type: 'building' },
+
+            // Block 7 (Bottom Right)
+            { x: 1650, y: 850, w: 400, h: 400, type: 'building' },
+            { x: 2100, y: 850, w: 200, h: 800, type: 'building' },
+            { x: 1650, y: 1300, w: 400, h: 600, type: 'building' },
+            { x: 1650, y: 2000, w: 650, h: 300, type: 'building' },
         ]
     },
     {
@@ -87,9 +114,6 @@ export const MAPS: MapConfig[] = [
             { x: 0, y: 1100, w: 2400, h: 180, type: 'pond' }, 
             { x: 500, y: 0, w: 150, h: 1100, type: 'pond' },  
             { x: 1600, y: 1280, w: 150, h: 1120, type: 'pond' }, 
-            { x: 450, y: 1080, w: 250, h: 220, type: 'bridge' }, 
-            { x: 1550, y: 1080, w: 250, h: 220, type: 'bridge' }, 
-            { x: 1550, y: 1600, w: 250, h: 120, type: 'bridge' }, 
             { x: 200, y: 200, w: 120, h: 120, type: 'tree' }, { x: 350, y: 350, w: 100, h: 100, type: 'tree' },
             { x: 800, y: 200, w: 140, h: 140, type: 'tree' }, { x: 1000, y: 400, w: 110, h: 110, type: 'tree' },
             { x: 1300, y: 250, w: 130, h: 130, type: 'tree' }, { x: 1800, y: 300, w: 150, h: 150, type: 'tree' },

@@ -9,6 +9,7 @@ import {
     BASE_SPEED, MAX_SPEED, BOOST_SPEED_MULTIPLIER, BIOME_SWITCH_DISTANCE, 
     BIOMES, SKINS 
 } from '../constants';
+import { useHighScores } from '../../../hooks/useHighScores';
 
 export const useRunnerLogic = (
     audio: any,
@@ -61,6 +62,8 @@ export const useRunnerLogic = (
 
     const addCoinsRef = useRef(addCoins);
     const onReportProgressRef = useRef(onReportProgress);
+
+    const { updateHighScore } = useHighScores();
 
     useEffect(() => { addCoinsRef.current = addCoins; }, [addCoins]);
     useEffect(() => { onReportProgressRef.current = onReportProgress; }, [onReportProgress]);
@@ -173,7 +176,6 @@ export const useRunnerLogic = (
 
         // Shake Update
         if (shakeRef.current > 0) {
-            setShake(shakeRef.current); // Sync to React State for UI if needed, mainly ref used for renderer
             shakeRef.current *= 0.9;
             if (shakeRef.current < 0.5) shakeRef.current = 0;
         }
@@ -359,7 +361,7 @@ export const useRunnerLogic = (
                     audio.playGameOver();
                     shakeRef.current = 30; 
                     spawnParticles(p.x + p.width/2, p.y + p.height/2, p.color, 40, 'spark');
-                    
+                    updateHighScore('runner', Math.floor(distanceRef.current));
                     if (onReportProgressRef.current) onReportProgressRef.current('score', Math.floor(distanceRef.current));
                 }
             }
@@ -445,7 +447,7 @@ export const useRunnerLogic = (
             }
         });
 
-    }, [isPlaying, gameOver, audio]);
+    }, [isPlaying, gameOver, audio, updateHighScore]);
 
     const resetGame = useCallback(() => {
         const skin = SKINS.find(s => s.id === currentSkinId) || SKINS[0];
@@ -504,7 +506,7 @@ export const useRunnerLogic = (
         currentSkinId,
         setCurrentSkinId,
         activePowerUps,
-        shakeRef, // for renderer to use shake amount
+        shakeRef, 
 
         // Refs (for renderer)
         playerRef,
