@@ -51,8 +51,8 @@ export interface Obstacle {
     y: number;
     w: number;
     h: number;
-    type: 'building' | 'tree' | 'pond' | 'rock' | 'crate' | 'pylon';
-    subType?: string; // e.g., 'A', 'B', 'DOCK'
+    type: 'building' | 'tree' | 'pond' | 'rock' | 'crate' | 'pylon' | 'ruin' | 'tent' | 'bush' | 'trunk' | 'cactus' | 'bone' | 'obelisk';
+    subType?: string; 
 }
 
 export interface MapConfig {
@@ -97,11 +97,73 @@ export const MAPS: MapConfig[] = [
             { x: 1650, y: 850, w: 400, h: 400, type: 'building', subType: 'CORE' },
             { x: 1650, y: 1300, w: 400, h: 600, type: 'building', subType: 'HACK-HUB' },
             { x: 1650, y: 2000, w: 650, h: 300, type: 'building', subType: 'EXIT' },
-            // Mobilier Urbain (Obstacles petits pour couverture)
             { x: 700, y: 700, w: 40, h: 40, type: 'crate' },
             { x: 750, y: 700, w: 40, h: 40, type: 'crate' },
             { x: 1400, y: 1000, w: 20, h: 20, type: 'pylon' },
             { x: 1000, y: 1400, w: 20, h: 20, type: 'pylon' },
+        ]
+    },
+    {
+        id: 'forest',
+        name: 'FORÊT ÉMERAUDE',
+        colors: { bg: '#020a05', grid: 'rgba(34, 197, 94, 0.05)', wall: '#051a08', wallBorder: '#22c55e' },
+        zones: [
+            { x: 1200, y: 1200, radius: 180, type: 'HEAL', label: 'SOURCE SACRÉE' },
+            { x: 500, y: 500, radius: 120, type: 'SLOW', label: 'MARÉCAGE' },
+            { x: 1900, y: 1900, radius: 120, type: 'SLOW', label: 'SABLES MOUVANTS' },
+            { x: 400, y: 1800, radius: 100, type: 'DANGER', label: 'RONCES TOXIQUES' },
+            { x: 2000, y: 600, radius: 100, type: 'DANGER', label: 'NID DE FRELONS' },
+        ],
+        obstacles: [
+            { x: 300, y: 200, w: 80, h: 80, type: 'tree' },
+            { x: 450, y: 800, w: 100, h: 100, type: 'tree' },
+            { x: 900, y: 300, w: 70, h: 70, type: 'tree' },
+            { x: 1500, y: 400, w: 120, h: 120, type: 'tree' },
+            { x: 2000, y: 1200, w: 90, h: 90, type: 'tree' },
+            { x: 1800, y: 2100, w: 110, h: 110, type: 'tree' },
+            { x: 600, y: 1600, w: 85, h: 85, type: 'tree' },
+            { x: 1000, y: 1000, w: 150, h: 60, type: 'ruin', subType: 'WALL' },
+            { x: 1200, y: 800, w: 60, h: 150, type: 'ruin', subType: 'WALL' },
+            { x: 700, y: 400, w: 100, h: 100, type: 'rock' },
+            { x: 1400, y: 1800, w: 120, h: 80, type: 'rock' },
+            { x: 1100, y: 1100, w: 50, h: 50, type: 'tent' },
+            { x: 1250, y: 1100, w: 30, h: 30, type: 'crate' },
+            { x: 0, y: 1200, w: 2400, h: 120, type: 'pond', subType: 'RIVER' },
+            { x: 1200, y: 1150, w: 200, h: 40, type: 'trunk' },
+        ]
+    },
+    {
+        id: 'solar_dust',
+        name: 'SOLAR DUST',
+        colors: { bg: '#1a0c00', grid: 'rgba(249, 115, 22, 0.05)', wall: '#2a1500', wallBorder: '#f97316' },
+        zones: [
+            { x: 1200, y: 1200, radius: 150, type: 'HEAL', label: 'OASIS' },
+            { x: 600, y: 600, radius: 200, type: 'SLOW', label: 'SABLES MOUVANTS' },
+            { x: 1800, y: 1800, radius: 200, type: 'SLOW', label: 'SABLES MOUVANTS' },
+            { x: 1200, y: 500, radius: 150, type: 'DANGER', label: 'TEMPÊTE SOLAIRE' },
+        ],
+        obstacles: [
+            // Cactus (Petits obstacles circulaires)
+            { x: 300, y: 400, w: 40, h: 40, type: 'cactus' },
+            { x: 350, y: 420, w: 35, h: 35, type: 'cactus' },
+            { x: 1500, y: 900, w: 45, h: 45, type: 'cactus' },
+            { x: 2000, y: 300, w: 40, h: 40, type: 'cactus' },
+            
+            // Ruines & Obélisques
+            { x: 1000, y: 800, w: 60, h: 250, type: 'obelisk' },
+            { x: 1400, y: 800, w: 60, h: 250, type: 'obelisk' },
+            { x: 1000, y: 1100, w: 460, h: 40, type: 'ruin', subType: 'TEMPLE' },
+            
+            // Rochers Désertiques (Largeur > Hauteur pour simuler strates)
+            { x: 500, y: 1500, w: 200, h: 100, type: 'rock' },
+            { x: 1800, y: 1200, w: 150, h: 80, type: 'rock' },
+            
+            // Ossements (Visuel uniquement, pas de collision si radius petit)
+            { x: 800, y: 400, w: 20, h: 20, type: 'bone' },
+            { x: 1600, y: 2000, w: 20, h: 20, type: 'bone' },
+            
+            // Oasis (Eau au centre)
+            { x: 1100, y: 1100, w: 200, h: 200, type: 'pond', subType: 'OASIS' }
         ]
     }
 ];
