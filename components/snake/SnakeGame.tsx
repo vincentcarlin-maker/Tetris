@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, RefreshCw, HelpCircle, Trophy, Coins } from 'lucide-react';
 import { useSnakeLogic } from './hooks/useSnakeLogic';
@@ -19,17 +20,14 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
     const { highScores } = useHighScores();
     const containerRef = useRef<HTMLDivElement>(null);
     
-    // Refs pour le contrôle par glissement (swipe)
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
 
-    // Auto-focus pour le clavier
     useEffect(() => {
         if (logic.isPlaying) {
             containerRef.current?.focus();
         }
     }, [logic.isPlaying]);
 
-    // Handlers pour le swipe
     const handleTouchStart = (e: React.TouchEvent) => {
         const touch = e.touches[0];
         touchStartRef.current = { x: touch.clientX, y: touch.clientY };
@@ -42,25 +40,20 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
         const dx = touch.clientX - touchStartRef.current.x;
         const dy = touch.clientY - touchStartRef.current.y;
 
-        const threshold = 30; // Sensibilité du swipe en pixels
+        const threshold = 30;
 
         if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-            // Déterminer la direction dominante
             if (Math.abs(dx) > Math.abs(dy)) {
-                // Horizontal
                 logic.setNextDirection(dx > 0 ? 'RIGHT' : 'LEFT');
             } else {
-                // Vertical
                 logic.setNextDirection(dy > 0 ? 'DOWN' : 'UP');
             }
 
-            // Lancer le jeu si ce n'est pas déjà fait
             if (!logic.isPlaying) {
                 audio?.resumeAudio?.();
                 logic.setIsPlaying(true);
             }
 
-            // Réinitialiser le point de départ pour permettre des virages successifs fluides
             touchStartRef.current = { x: touch.clientX, y: touch.clientY };
         }
     };
@@ -107,8 +100,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, o
 
             <div className="relative shrink-0">
                 <SnakeRenderer 
-                    snake={logic.snake} food={logic.food} obstacles={logic.obstacles} 
-                    teleporters={logic.teleporters} bombs={logic.bombs} particlesRef={logic.particlesRef} 
+                    snake={logic.snake} food={logic.food} particlesRef={logic.particlesRef} 
                 />
                 
                 {!logic.isPlaying && !logic.gameOver && (

@@ -1,18 +1,16 @@
+
 import React, { useRef, useEffect } from 'react';
-import { Position, FoodItem, Teleporter, Particle } from '../types';
+import { Position, FoodItem, Particle } from '../types';
 import { GRID_SIZE, FOOD_TYPES } from '../constants';
 
 interface SnakeRendererProps {
     snake: Position[];
     food: FoodItem;
-    obstacles: Position[];
-    teleporters: Teleporter[];
-    bombs: Position[];
     particlesRef: React.MutableRefObject<Particle[]>;
 }
 
 export const SnakeRenderer: React.FC<SnakeRendererProps> = ({ 
-    snake, food, obstacles, teleporters, bombs, particlesRef 
+    snake, food, particlesRef 
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -39,59 +37,40 @@ export const SnakeRenderer: React.FC<SnakeRendererProps> = ({
                 ctx.beginPath(); ctx.moveTo(0, i * cellSize); ctx.lineTo(width, i * cellSize); ctx.stroke();
             }
 
-            // Draw Teleporters
-            teleporters.forEach(tp => {
-                ctx.save();
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = tp.color;
-                ctx.strokeStyle = tp.color;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(tp.x * cellSize + cellSize/2, tp.y * cellSize + cellSize/2, cellSize/2 - 2, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.globalAlpha = 0.2;
-                ctx.fillStyle = tp.color;
-                ctx.fill();
-                ctx.restore();
-            });
-
-            // Draw Obstacles
-            ctx.fillStyle = '#475569';
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = '#000';
-            obstacles.forEach(o => {
-                ctx.fillRect(o.x * cellSize + 2, o.y * cellSize + 2, cellSize - 4, cellSize - 4);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(o.x * cellSize + 2, o.y * cellSize + 2, cellSize - 4, cellSize - 4);
-            });
-
-            // Draw Bombs
-            bombs.forEach(b => {
-                ctx.fillStyle = '#000';
-                ctx.beginPath();
-                ctx.arc(b.x * cellSize + cellSize/2, b.y * cellSize + cellSize/2, cellSize/3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#ef4444';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                // Fuse spark
-                ctx.fillStyle = '#facc15';
-                ctx.beginPath();
-                ctx.arc(b.x * cellSize + cellSize/2 + 5, b.y * cellSize + cellSize/2 - 5, 2, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
             // Draw Food
             const foodType = FOOD_TYPES[food.type];
             ctx.save();
+            
+            // Draw Leaf (The green leaf on top)
+            if (food.type === 'NORMAL' || food.type === 'CHERRY' || food.type === 'STRAWBERRY') {
+                ctx.fillStyle = '#16a34a'; 
+                ctx.beginPath();
+                ctx.ellipse(
+                    food.x * cellSize + cellSize/2 + 3, 
+                    food.y * cellSize + cellSize/2 - 8, 
+                    cellSize/10, 
+                    cellSize/18, 
+                    -Math.PI/4, 
+                    0, 
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                ctx.strokeStyle = '#3f6212';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(food.x * cellSize + cellSize/2, food.y * cellSize + cellSize/2 - 4);
+                ctx.lineTo(food.x * cellSize + cellSize/2 + 1, food.y * cellSize + cellSize/2 - 8);
+                ctx.stroke();
+            }
+
             ctx.shadowBlur = 20;
             ctx.shadowColor = foodType.glow;
             ctx.fillStyle = foodType.color;
             ctx.beginPath();
             ctx.arc(food.x * cellSize + cellSize/2, food.y * cellSize + cellSize/2, cellSize/2.5, 0, Math.PI * 2);
             ctx.fill();
-            // Highlight
+            
             ctx.fillStyle = '#fff';
             ctx.globalAlpha = 0.3;
             ctx.beginPath();
@@ -113,7 +92,6 @@ export const SnakeRenderer: React.FC<SnakeRendererProps> = ({
                 ctx.fill();
                 
                 if (isHead) {
-                    // Eyes
                     ctx.fillStyle = '#000';
                     ctx.beginPath();
                     ctx.arc(s.x * cellSize + cellSize/3, s.y * cellSize + cellSize/3, 2, 0, Math.PI * 2);
@@ -124,7 +102,7 @@ export const SnakeRenderer: React.FC<SnakeRendererProps> = ({
             });
 
             // Draw Particles
-            particlesRef.current.forEach((p, i) => {
+            particlesRef.current.forEach((p) => {
                 p.x += p.vx;
                 p.y += p.vy;
                 p.life -= 0.03;
@@ -145,7 +123,7 @@ export const SnakeRenderer: React.FC<SnakeRendererProps> = ({
 
         animId = requestAnimationFrame(render);
         return () => cancelAnimationFrame(animId);
-    }, [snake, food, obstacles, teleporters, bombs, particlesRef]);
+    }, [snake, food, particlesRef]);
 
     return (
         <div className="relative p-2 bg-gray-900 rounded-2xl border-4 border-gray-800 shadow-2xl">
