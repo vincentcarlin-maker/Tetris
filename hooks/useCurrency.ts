@@ -176,6 +176,16 @@ export const useCurrency = () => {
         currentSlitherAccessoryId, selectSlitherAccessory: (id: string) => { setCurrentSlitherAccessoryId(id); localStorage.setItem('neon-slither-accessory', id); },
         buySlitherAccessory: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedSlitherAccessories(p => [...p, id]); localStorage.setItem('neon-owned-slither-accessories', JSON.stringify([...ownedSlitherAccessories, id])); } },
         slitherAccessoriesCatalog: SLITHER_ACCESSORIES_CATALOG,
+        buyBadge: (id: string, cost: number) => { 
+            if (coins >= cost && !inventory.includes(id)) { 
+                addCoins(-cost); 
+                setInventory(p => {
+                    const next = [...p, id];
+                    localStorage.setItem('neon-inventory', JSON.stringify(next));
+                    return next;
+                });
+            } 
+        },
         badgesCatalog: BADGES_CATALOG,
         playerRank: { title: "VAGABOND", color: "text-gray-400" }, 
         inventoryCount: inventory.length,

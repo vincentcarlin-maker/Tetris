@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Type, User, Palette, Map, Pipette, Glasses, Crosshair, Flag, Disc } from 'lucide-react';
+import { Type, User, Palette, Map, Pipette, Glasses, Crosshair, Flag, Disc, Award } from 'lucide-react';
 import { useGlobal } from '../../../context/GlobalContext';
 import { ShopCategory, ShopItem } from '../types';
 import { ItemCard } from './ItemCard';
@@ -32,6 +33,10 @@ export const ItemGroups: React.FC<ItemGroupsProps> = ({ group }) => {
                     <SectionHeader title="Avatars Néon" icon={User} color="text-cyan-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {currency.avatarsCatalog.map((item: ShopItem) => <ItemCard key={item.id} item={item} category="AVATARS" isOwned={currency.ownedAvatars.includes(item.id)} isSelected={currency.currentAvatarId === item.id} onBuy={() => handleBuyItem(item, 'Avatar', currency.buyAvatar)} onSelect={() => currency.selectAvatar(item.id)} colorClass="cyan" coins={coins}/>)}
+                    </div>
+                    <SectionHeader title="Badges de Succès" icon={Award} color="text-green-400" />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {currency.badgesCatalog.map((item: ShopItem) => <ItemCard key={item.id} item={item} category="BADGES" isOwned={currency.inventory.includes(item.id)} isSelected={false} onBuy={() => handleBuyItem(item, 'Badge', currency.buyBadge)} onSelect={() => {}} colorClass="green" coins={coins}/>)}
                     </div>
                     <SectionHeader title="Cadres de Profil" icon={Palette} color="text-pink-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -19,6 +19,10 @@ const renderPreview = (item: ShopItem, category: string) => {
     if (category === 'WALLPAPERS') return <div className="w-20 h-12 rounded-lg border border-white/20 overflow-hidden" style={{ background: item.cssValue, backgroundSize: item.bgSize }}></div>;
     if (category === 'AVATARS') return <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${item.bgGradient} flex items-center justify-center shadow-lg`}><item.icon size={28} className={item.color} /></div>;
     if (category === 'FRAMES') return <div className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center bg-gray-800 ${item.cssClass}`}><User size={20} className="text-gray-500" /></div>;
+    if (category === 'BADGES') {
+        const BadgeIcon = item.icon;
+        return <div className={`w-14 h-14 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center ${item.color} shadow-lg shadow-black/50`}><BadgeIcon size={28} /></div>;
+    }
     if (category === 'MALLETS') {
         const bgStyle: React.CSSProperties = { backgroundColor: item.colors[0], boxShadow: `0 0 15px ${item.colors[0]}` };
         if (item.type === 'gradient' || item.type === 'complex') bgStyle.background = `linear-gradient(135deg, ${item.colors.join(', ')})`;

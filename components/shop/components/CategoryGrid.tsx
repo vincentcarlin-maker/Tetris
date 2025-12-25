@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { User, Sparkles, Crosshair, Map, Disc } from 'lucide-react';
 import { ShopCategory, CategoryConfig } from '../types';
@@ -7,7 +8,7 @@ interface CategoryGridProps {
 }
 
 const CATEGORIES: CategoryConfig[] = [
-    { id: 'PLAYER', label: 'Identité', description: 'AVATARS • CADRES • TITRES', icon: User, color: 'cyan', bg: 'from-cyan-600/40 via-blue-900/40' },
+    { id: 'PLAYER', label: 'Identité', description: 'AVATARS • CADRES • TITRES • BADGES', icon: User, color: 'cyan', bg: 'from-cyan-600/40 via-blue-900/40' },
     { id: 'ARENA', label: 'Arena Clash', description: 'PERSONNALISATION CHARS', icon: Crosshair, color: 'red', bg: 'from-red-600/40 via-orange-900/40' },
     { id: 'SLITHER', label: 'Cyber Serpent', description: 'SKINS • ACCESSOIRES', icon: Sparkles, color: 'indigo', bg: 'from-indigo-600/40 via-purple-900/40' },
     { id: 'AMBIANCE', label: 'Atmosphère', description: 'FONDS D\'ÉCRAN', icon: Map, color: 'pink', bg: 'from-pink-600/40 via-rose-900/40' },
