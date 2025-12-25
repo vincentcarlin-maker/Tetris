@@ -37,6 +37,7 @@ export const useMastermindLogic = (
 
     const handleDataRef = useRef<(data: any) => void>(null);
 
+    // --- MULTIPLAYER LIFECYCLE ---
     useEffect(() => {
         if (gameMode === 'ONLINE') {
             setOnlineStep('connecting');
@@ -51,21 +52,32 @@ export const useMastermindLogic = (
     useEffect(() => {
         if (!mp) return;
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
+        
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
             else setOnlineStep('lobby');
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-        } else if (mp.mode === 'connecting') {
-            setOnlineStep('connecting');
+
+            // INITIALISATION DES RÔLES
+            if (mp.isHost) {
+                if (phase === 'MENU' || phase === 'LOBBY') {
+                    setIsCodemaker(true);
+                    setPhase('CREATION');
+                }
+            } else {
+                setIsCodemaker(false);
+                if (phase === 'MENU' || phase === 'LOBBY') {
+                    setPhase('WAITING');
+                }
+            }
         }
-    }, [mp?.mode, mp?.players, mp?.peerId]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode]);
 
     useEffect(() => { mp?.updateSelfInfo(username, currentAvatarId, undefined, 'Mastermind'); }, [username, currentAvatarId, mp]);
 
-    const resetGame = () => {
-        setSecretCode([]);
+    const resetGame = useCallback(() => {
         setGuesses(Array(MAX_ATTEMPTS).fill(null));
         setFeedback(Array(MAX_ATTEMPTS).fill(null));
         setCurrentGuess([]);
@@ -74,15 +86,15 @@ export const useMastermindLogic = (
         setEarnedCoins(0);
         setResultMessage(null);
         setOpponentLeft(false);
-        setIsCodemaker(false);
-        setPhase('MENU');
-    };
+        // On ne reset pas isCodemaker ici pour garder le rôle en ligne
+    }, []);
 
     const startGame = (mode: GameMode) => {
         resetGame();
         setGameMode(mode);
         resumeAudio();
         if (mode === 'SOLO') {
+            setIsCodemaker(false);
             setSecretCode(generateSecretCode());
             setPhase('PLAYING');
             if (onReportProgress) onReportProgress('play', 1);
@@ -91,7 +103,7 @@ export const useMastermindLogic = (
         }
     };
 
-    const handleWin = (attempts: number) => {
+    const handleWin = useCallback((attempts: number) => {
         setPhase('GAMEOVER');
         if (gameMode === 'SOLO') {
             playVictory();
@@ -100,33 +112,61 @@ export const useMastermindLogic = (
             addCoins(coins); setEarnedCoins(coins); setResultMessage("CODE DÉCRYPTÉ !");
             if (onReportProgress) onReportProgress('win', 1);
         } else {
-            if (isCodemaker) { setResultMessage("IL A TROUVÉ VOTRE CODE !"); playGameOver(); }
-            else { setResultMessage("CODE DÉCRYPTÉ ! VICTOIRE !"); playVictory(); addCoins(50); setEarnedCoins(50); if (onReportProgress) onReportProgress('win', 1); }
+            if (isCodemaker) { 
+                setResultMessage("IL A TROUVÉ VOTRE CODE !"); 
+                playGameOver(); 
+            } else { 
+                setResultMessage("CODE DÉCRYPTÉ ! VICTOIRE !"); 
+                playVictory(); 
+                addCoins(50); 
+                setEarnedCoins(50); 
+                if (onReportProgress) onReportProgress('win', 1); 
+            }
         }
-    };
+    }, [gameMode, isCodemaker, bestScore, updateHighScore, addCoins, onReportProgress, playVictory, playGameOver]);
 
-    const handleLoss = () => {
+    const handleLoss = useCallback(() => {
         setPhase('GAMEOVER');
         if (gameMode === 'SOLO') { playGameOver(); setResultMessage("ÉCHEC... CODE NON TROUVÉ."); }
         else {
-            if (isCodemaker) { setResultMessage("VOTRE CODE EST RESTÉ SECRET !"); playVictory(); addCoins(50); setEarnedCoins(50); if (onReportProgress) onReportProgress('win', 1); }
-            else { setResultMessage("ÉCHEC... PLUS D'ESSAIS."); playGameOver(); }
+            if (isCodemaker) { 
+                setResultMessage("VOTRE CODE EST RESTÉ SECRET !"); 
+                playVictory(); 
+                addCoins(50); 
+                setEarnedCoins(50); 
+                if (onReportProgress) onReportProgress('win', 1); 
+            } else { 
+                setResultMessage("ÉCHEC... PLUS D'ESSAIS."); 
+                playGameOver(); 
+            }
         }
-    };
+    }, [gameMode, isCodemaker, playVictory, playGameOver, addCoins, onReportProgress]);
 
     useEffect(() => {
         handleDataRef.current = (data: any) => {
-            if (data.type === 'MASTERMIND_SET_CODE') { setSecretCode(data.code); setPhase('PLAYING'); playLand(); }
+            if (data.type === 'MASTERMIND_SET_CODE') { 
+                setSecretCode(data.code); 
+                setPhase('PLAYING'); 
+                playLand(); 
+            }
             if (data.type === 'MASTERMIND_GUESS_SYNC') {
                 const newGuesses = [...guesses]; newGuesses[data.rowIdx] = data.guess; setGuesses(newGuesses);
                 const newFeedback = [...feedback]; newFeedback[data.rowIdx] = data.fb; setFeedback(newFeedback);
-                setActiveRow(data.rowIdx + 1); playLand();
+                setActiveRow(data.rowIdx + 1); 
+                playLand();
+                
+                if (data.fb.exact === CODE_LENGTH) handleWin(data.rowIdx + 1);
+                else if (data.rowIdx >= MAX_ATTEMPTS - 1) handleLoss();
             }
-            if (data.type === 'MASTERMIND_GAME_OVER') { if (data.result === 'BREAKER_WON') handleWin(0); else handleLoss(); }
             if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
             if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
             if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setPhase('GAMEOVER'); setResultMessage("ADVERSAIRE PARTI."); }
-            if (data.type === 'REMATCH_START') { resetGame(); setGameMode('ONLINE'); setPhase(mp?.isHost ? 'CREATION' : 'WAITING'); setIsCodemaker(!!mp?.isHost); }
+            if (data.type === 'REMATCH_START') { 
+                resetGame(); 
+                setGameMode('ONLINE'); 
+                setPhase(mp?.isHost ? 'CREATION' : 'WAITING'); 
+                setIsCodemaker(!!mp?.isHost); 
+            }
         };
     });
 
@@ -145,7 +185,9 @@ export const useMastermindLogic = (
                 const fb = calculateFeedback(currentGuess, secretCode);
                 const newG = [...guesses]; newG[activeRow] = currentGuess; setGuesses(newG);
                 const newF = [...feedback]; newF[activeRow] = fb; setFeedback(newF);
+                
                 if (gameMode === 'ONLINE') mp?.sendData({ type: 'MASTERMIND_GUESS_SYNC', rowIdx: activeRow, guess: currentGuess, fb });
+                
                 if (fb.exact === CODE_LENGTH) handleWin(activeRow + 1);
                 else if (activeRow >= MAX_ATTEMPTS - 1) handleLoss();
                 else { playLand(); setActiveRow(r => r + 1); setCurrentGuess([]); }
@@ -153,7 +195,14 @@ export const useMastermindLogic = (
         },
         handleMakerColorSelect: (i: number) => { if (makerBuffer.length < CODE_LENGTH) { playMove(); setMakerBuffer(p => [...p, i]); } },
         handleMakerDelete: () => { if (makerBuffer.length > 0) { playPaddleHit(); setMakerBuffer(p => p.slice(0, -1)); } },
-        handleMakerSubmit: () => { if (makerBuffer.length === CODE_LENGTH) { setSecretCode(makerBuffer); setPhase('PLAYING'); playVictory(); if (mp?.sendData) mp.sendData({ type: 'MASTERMIND_SET_CODE', code: makerBuffer }); } },
+        handleMakerSubmit: () => { 
+            if (makerBuffer.length === CODE_LENGTH) { 
+                setSecretCode(makerBuffer); 
+                setPhase('PLAYING'); 
+                playVictory(); 
+                if (mp?.sendData) mp.sendData({ type: 'MASTERMIND_SET_CODE', code: makerBuffer }); 
+            } 
+        },
         sendChat: (t: string) => { const msg = { id: Date.now(), text: t, senderName: username, isMe: true, timestamp: Date.now() }; setChatHistory(p => [...p, msg]); mp?.sendData({ type: 'CHAT', text: t, senderName: username }); },
         sendReaction: (id: string) => { setActiveReaction({ id, isMe: true }); mp?.sendData({ type: 'REACTION', id }); setTimeout(() => setActiveReaction(null), 3000); }
     };

@@ -42,7 +42,6 @@ export const GameRouter: React.FC = () => {
     const handleBackToMenu = () => setCurrentView('menu');
     
     const addCoinsWithLog = (amount: number, gameId: string) => {
-        // Le flag economy_system doit être actif pour gagner des pièces
         if (amount > 0 && isAuthenticated && featureFlags.economy_system) {
             currency.addCoins(amount);
             audio.playCoin();
@@ -57,7 +56,6 @@ export const GameRouter: React.FC = () => {
             return;
         }
 
-        // Logique d'essai pour les non-inscrits
         if (guestPlayedGames.includes(game)) {
             setGlobalAlert({ 
                 message: "Partie d'essai terminée ! Inscrivez-vous pour continuer à jouer.", 
@@ -67,21 +65,16 @@ export const GameRouter: React.FC = () => {
         } else {
             registerGuestPlay(game);
             setCurrentView(game as any);
-            
-            // Affichage temporaire du message d'essai
             setGlobalAlert({ 
                 message: "MODE ESSAI : Profitez d'une partie gratuite !", 
                 type: 'info' 
             });
-
-            // Auto-effacement après 1.5 seconde (visible un instant)
             setTimeout(() => {
                 setGlobalAlert(null);
             }, 1500);
         }
     };
 
-    // --- LOGIQUE MAINTENANCE ---
     if (featureFlags.maintenance_mode && currency.username !== 'Vincent' && !currency.adminModeActive) {
         return (
             <div className="flex flex-col items-center justify-center h-screen w-screen bg-black/90 p-4 text-center">
@@ -95,7 +88,6 @@ export const GameRouter: React.FC = () => {
         );
     }
 
-    // --- LOGIQUE DÉSACTIVATION MODULES ---
     if (currentView === 'social' && !featureFlags.social_module && !currency.isSuperUser) {
         setCurrentView('menu');
         return null;
@@ -127,7 +119,7 @@ export const GameRouter: React.FC = () => {
         snake: <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'snake')} onReportProgress={(m, v) => handleGameEvent('snake', m, v)} />,
         invaders: <InvadersGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'invaders')} onReportProgress={(m, v) => handleGameEvent('invaders', m, v)} />,
         airhockey: <AirHockeyGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'airhockey')} mp={mp} onReportProgress={(m, v) => handleGameEvent('airhockey', m, v)} />,
-        mastermind: <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'mastermind')} onReportProgress={(m, v) => handleGameEvent('mastermind', m, v)} />,
+        mastermind: <MastermindGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'mastermind')} mp={mp} onReportProgress={(m, v) => handleGameEvent('mastermind', m, v)} />,
         uno: <UnoGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'uno')} mp={mp} onReportProgress={(m, v) => handleGameEvent('uno', m, v)} />,
         watersort: <WaterSortGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'watersort')} onReportProgress={(m, v) => handleGameEvent('watersort', m, v)} />,
         checkers: <CheckersGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'checkers')} mp={mp} onReportProgress={(m, v) => handleGameEvent('checkers', m, v)} />,

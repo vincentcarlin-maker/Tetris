@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGameAudio } from '../../../hooks/useGameAudio';
 import { useHighScores } from '../../../hooks/useHighScores';
@@ -404,7 +405,6 @@ export const usePacmanEngine = (
             if (g.dir === 'RIGHT') g.pos.x += speed;
 
             if (g.pos.x < -0.5) g.pos.x = COLS - 0.5;
-            // Fix typo: change p.pos.x to g.pos.x
             if (g.pos.x > COLS - 0.5) g.pos.x = -0.5;
         });
     };

@@ -24,7 +24,6 @@ interface MastermindGameProps {
 
 export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
     const [showTutorial, setShowTutorial] = useState(false);
-    // FIX: corrected double assignment and reference error for setChatInput
     const [chatInput, setChatInput] = useState('');
     const chatEndRef = React.useRef<HTMLDivElement>(null);
     const { avatarsCatalog } = useCurrency();
@@ -125,7 +124,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
         return <MastermindMenu onStart={logic.startGame} onBack={onBack} />;
     }
 
-    // ÉCRAN D'ATTENTE HÔTE
     if (logic.gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && (logic.phase === 'CREATION' || logic.onlineStep === 'game')) {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans p-4">
