@@ -27,7 +27,7 @@ import { AdminDashboard } from './AdminDashboard';
 import { SocialOverlay } from './social/SocialOverlay';
 import { SettingsMenu } from './settings/SettingsMenu';
 import { ContactOverlay } from './ContactOverlay';
-import { Construction } from 'lucide-react';
+import { Construction, ShieldAlert } from 'lucide-react';
 
 export const GameRouter: React.FC = () => {
     const { 
@@ -42,8 +42,8 @@ export const GameRouter: React.FC = () => {
     const handleBackToMenu = () => setCurrentView('menu');
     
     const addCoinsWithLog = (amount: number, gameId: string) => {
-        // Un visiteur ne gagne pas de pièces (ou elles sont perdues)
-        if (amount > 0 && isAuthenticated) {
+        // Le flag economy_system doit être actif pour gagner des pièces
+        if (amount > 0 && isAuthenticated && featureFlags.economy_system) {
             currency.addCoins(amount);
             audio.playCoin();
             recordTransaction('EARN', amount, `Gain de jeu: ${gameId}`, gameId);
@@ -81,17 +81,29 @@ export const GameRouter: React.FC = () => {
         }
     };
 
+    // --- LOGIQUE MAINTENANCE ---
     if (featureFlags.maintenance_mode && currency.username !== 'Vincent' && !currency.adminModeActive) {
         return (
             <div className="flex flex-col items-center justify-center h-screen w-screen bg-black/90 p-4 text-center">
-                <div className="p-6 rounded-2xl bg-gray-900 border-2 border-yellow-500/50 shadow-[0_0_50px_rgba(234,179,8,0.3)] max-w-md">
-                    <Construction size={64} className="mx-auto text-yellow-500 mb-6 animate-pulse"/>
-                    <h1 className="text-3xl font-black text-white mb-2">MAINTENANCE</h1>
-                    <p className="text-gray-400 mb-6">Le serveur est actuellement en cours de mise à jour.</p>
-                    <button onClick={handleLogout} className="px-6 py-2 bg-gray-800 text-gray-300 rounded-full text-sm font-bold border border-white/10">Déconnexion</button>
+                <div className="p-8 rounded-[40px] bg-gray-900 border-2 border-yellow-500/50 shadow-[0_0_60px_rgba(234,179,8,0.2)] max-w-md animate-in zoom-in duration-500">
+                    <Construction size={80} className="mx-auto text-yellow-500 mb-8 animate-pulse"/>
+                    <h1 className="text-3xl font-black text-white mb-2 uppercase italic tracking-tighter">Maintenance en cours</h1>
+                    <p className="text-gray-400 text-sm leading-relaxed mb-8 font-medium">La grille subit une défragmentation majeure. Nos ingénieurs néon travaillent à rétablir le signal.</p>
+                    <button onClick={handleLogout} className="w-full py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl text-xs font-black tracking-widest border border-white/10 uppercase transition-all">Quitter la session</button>
                 </div>
             </div>
         );
+    }
+
+    // --- LOGIQUE DÉSACTIVATION MODULES ---
+    if (currentView === 'social' && !featureFlags.social_module && !currency.isSuperUser) {
+        setCurrentView('menu');
+        return null;
+    }
+
+    if (currentView === 'shop' && !featureFlags.economy_system && !currency.isSuperUser) {
+        setCurrentView('menu');
+        return null;
     }
 
     if (currentView === 'menu') {

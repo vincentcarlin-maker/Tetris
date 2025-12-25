@@ -30,6 +30,7 @@ interface GlobalContextType {
     disabledGames: string[];
     setDisabledGames: React.Dispatch<React.SetStateAction<string[]>>;
     featureFlags: Record<string, boolean>;
+    setFeatureFlags: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
     globalEvents: any[];
     eventProgress: Record<string, number>;
     updateEventProgress: (gameId: string, metric: string, value: number) => void;
@@ -67,7 +68,22 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
-    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({});
+    
+    // Initialisation dynamique des flags
+    const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
+        try {
+            return JSON.parse(localStorage.getItem('neon_feature_flags') || JSON.stringify({
+                maintenance_mode: false,
+                social_module: true,
+                economy_system: true,
+                beta_games: true,
+                global_chat: true
+            }));
+        } catch {
+            return { maintenance_mode: false, social_module: true, economy_system: true, beta_games: true, global_chat: true };
+        }
+    });
+
     const [globalEvents, setGlobalEvents] = useState<any[]>([]);
     const [eventProgress, setEventProgress] = useState<Record<string, number>>({});
 
@@ -82,14 +98,20 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const mp = useMultiplayer(); 
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
-    // --- SYNC SYSTEM CONFIG (MAINTENANCE) ---
+    // --- SYNC SYSTEM CONFIG (MAINTENANCE & FLAGS) ---
     useEffect(() => {
         const loadSystemConfig = async () => {
             if (isSupabaseConfigured) {
                 const config = await DB.getSystemConfig();
-                if (config?.disabledGames) {
-                    setDisabledGames(config.disabledGames);
-                    localStorage.setItem('neon_disabled_games', JSON.stringify(config.disabledGames));
+                if (config) {
+                    if (config.disabledGames) {
+                        setDisabledGames(config.disabledGames);
+                        localStorage.setItem('neon_disabled_games', JSON.stringify(config.disabledGames));
+                    }
+                    if (config.featureFlags) {
+                        setFeatureFlags(config.featureFlags);
+                        localStorage.setItem('neon_feature_flags', JSON.stringify(config.featureFlags));
+                    }
                 }
             }
         };
@@ -98,9 +120,20 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Écouter les mises à jour globales via broadcast admin
         const handleAdminEvent = (e: any) => {
             const payload = e.detail;
+            // Mise à jour des jeux désactivés
             if (payload.type === 'game_config' && payload.data) {
-                setDisabledGames(payload.data);
-                localStorage.setItem('neon_disabled_games', JSON.stringify(payload.data));
+                if (payload.data.flags) {
+                    setFeatureFlags(payload.data.flags);
+                    localStorage.setItem('neon_feature_flags', JSON.stringify(payload.data.flags));
+                } else if (Array.isArray(payload.data)) {
+                    setDisabledGames(payload.data);
+                    localStorage.setItem('neon_disabled_games', JSON.stringify(payload.data));
+                }
+            }
+            // Alertes globales
+            if (payload.message && payload.type !== 'game_config') {
+                setGlobalAlert({ message: payload.message, type: payload.type === 'warning' ? 'warning' : 'info' });
+                setTimeout(() => setGlobalAlert(null), 5000);
             }
         };
 
@@ -234,7 +267,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         <GlobalContext.Provider value={{
             currentView, setCurrentView, isAuthenticated, setIsAuthenticated, showLoginModal, setShowLoginModal,
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
-            friendRequests, setFriendRequests, disabledGames, setDisabledGames, featureFlags, globalEvents, eventProgress,
+            friendRequests, setFriendRequests, disabledGames, setDisabledGames, featureFlags, setFeatureFlags, globalEvents, eventProgress,
             updateEventProgress: () => {}, handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,

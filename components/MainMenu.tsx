@@ -9,6 +9,7 @@ import { DailyQuest } from '../hooks/useDailySystem';
 import { DailyBonusModal } from './DailyBonusModal';
 import { OnlineUser } from '../hooks/useSupabase';
 import { InstallGuide } from './pwa/InstallGuide';
+import { useGlobal } from '../context/GlobalContext';
 
 // Import sub-components
 import { ArcadeLogo } from './main_menu/ArcadeLogo';
@@ -63,7 +64,7 @@ const FlyingCoin = React.memo(({ startX, startY, targetX, targetY, delay, onComp
     const [style, setStyle] = useState<React.CSSProperties>({ position: 'fixed', top: startY, left: startX, opacity: 1, transform: 'scale(0.5)', zIndex: 100, pointerEvents: 'none', transition: 'none' });
     useEffect(() => {
         const animTimeout = setTimeout(() => {
-             setStyle({ position: 'fixed', top: targetY, left: targetX, opacity: 0, transform: 'scale(0.8) rotate(360deg)', zIndex: 100, pointerEvents: 'none', transition: `top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease-in 0.5s, transform 0.8s linear` });
+             setStyle({ position: 'fixed', top: targetY, left: targetX, opacity: 0, transform: 'scale(0.8) rotate(360deg)', zIndex: 100, pointerEvents: 'none', transition: `top 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity: 0.3s ease-in 0.5s, transform 0.8s linear` });
         }, delay * 1000 + 50);
         const endTimeout = setTimeout(onComplete, 800 + delay * 1000 + 50);
         return () => { clearTimeout(animTimeout); clearTimeout(endTimeout); };
@@ -77,6 +78,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     activeEvent, eventProgress, highScores 
 }) => {
     const { username, t, language } = currency;
+    const { featureFlags } = useGlobal();
     const { streak, showDailyModal, todaysReward, claimDailyBonus, quests, claimQuestReward } = dailyData;
     
     const [showEventInfo, setShowEventInfo] = useState(false);
@@ -101,14 +103,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     };
 
     const handleDailyBonusClaim = () => {
-        spawnCoins(window.innerWidth / 2, window.innerHeight / 2, todaysReward);
+        if (featureFlags.economy_system) spawnCoins(window.innerWidth / 2, window.innerHeight / 2, todaysReward);
         claimDailyBonus();
     };
 
     const handleClaim = (q: DailyQuest, e: React.MouseEvent) => {
         e.stopPropagation();
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        spawnCoins(rect.left + rect.width / 2, rect.top + rect.height / 2, q.reward);
+        if (featureFlags.economy_system) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            spawnCoins(rect.left + rect.width / 2, rect.top + rect.height / 2, q.reward);
+        }
         audio.playCoin();
         claimQuestReward(q.id);
     };
@@ -183,13 +187,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     language={language} 
                  />
 
-                 <DailyQuestWidget 
-                    quests={quests} 
-                    isAuthenticated={isAuthenticated} 
-                    language={language} 
-                    onClaim={handleClaim} 
-                    onGameStart={handleGameStart} 
-                 />
+                 {featureFlags.economy_system && (
+                    <DailyQuestWidget 
+                        quests={quests} 
+                        isAuthenticated={isAuthenticated} 
+                        language={language} 
+                        onClaim={handleClaim} 
+                        onGameStart={handleGameStart} 
+                    />
+                 )}
 
                  <LeaderboardWidget 
                     highScores={highScores} 

@@ -13,7 +13,7 @@ interface GameGridProps {
 }
 
 export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames, username, adminModeActive, language }) => {
-    const { isAuthenticated, guestPlayedGames } = useGlobal();
+    const { isAuthenticated, guestPlayedGames, featureFlags } = useGlobal();
     const [activeCategory, setActiveCategory] = useState('ALL');
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
 
@@ -34,6 +34,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
         });
     }, [language]);
 
+    const isAdmin = username === 'Vincent' || adminModeActive;
+
     return (
         <div className="w-full">
             <div className="flex gap-2 w-full overflow-x-auto pb-2 no-scrollbar px-1 mb-2">
@@ -46,7 +48,16 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
 
             <div className="grid grid-cols-2 gap-3 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                 {GAMES_CONFIG
-                    .filter(g => { if (activeCategory === 'ALL') return true; if (activeCategory === 'ONLINE') return g.badges.online; return g.category === activeCategory; })
+                    .filter(g => { 
+                        // Filtre par catégorie
+                        if (activeCategory === 'ONLINE') if(!g.badges.online) return false;
+                        if (activeCategory !== 'ALL' && activeCategory !== 'ONLINE' && g.category !== activeCategory) return false;
+                        
+                        // Filtre par Feature Flag Beta
+                        if (!featureFlags.beta_games && g.beta && !isAdmin) return false;
+                        
+                        return true; 
+                    })
                     .sort((a, b) => {
                         const aDisabled = disabledGames.includes(a.id);
                         const bDisabled = disabledGames.includes(b.id);
@@ -55,7 +66,6 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                     })
                     .map((game) => {
                         const isGloballyDisabled = disabledGames.includes(game.id);
-                        const isAdmin = username === 'Vincent' || adminModeActive;
                         const isPlayable = !isGloballyDisabled || isAdmin;
                         
                         const hasTried = !isAuthenticated && guestPlayedGames.includes(game.id);
@@ -64,10 +74,17 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                         return (
                             <button key={game.id} onClick={() => onSelectGame(game.id)} disabled={!isPlayable} {...(isPlayable ? bindGlow(game.glow) : {})} className={`group relative flex flex-col items-center justify-between p-3 h-32 bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md ${!isPlayable ? 'border-red-900/50 cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}>
                                 
-                                {/* Admin Badge */}
+                                {/* Beta Badge */}
+                                {game.beta && (
+                                     <div className="absolute top-2 left-2 bg-purple-600/90 text-white text-[7px] px-1.5 py-0.5 rounded border border-purple-400 font-black tracking-widest z-30 shadow-[0_0_10px_purple]">
+                                        BETA
+                                     </div>
+                                )}
+
+                                {/* Admin Maintenance Overlay */}
                                 {isAdmin && isGloballyDisabled && (
-                                     <div className="absolute top-2 left-2 bg-red-600/90 text-white text-[8px] px-1.5 py-0.5 rounded border border-red-400 font-black tracking-widest z-30 shadow-[0_0_10px_red]">
-                                        MAINTENANCE
+                                     <div className="absolute top-2 right-2 bg-red-600/90 text-white text-[7px] px-1.5 py-0.5 rounded border border-red-400 font-black tracking-widest z-30 shadow-[0_0_10px_red]">
+                                        DEPRECATED
                                      </div>
                                 )}
 

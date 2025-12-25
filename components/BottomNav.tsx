@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Home, Users, ShoppingBag, MessageSquare, Settings } from 'lucide-react';
+import { useGlobal } from '../context/GlobalContext';
 
 interface BottomNavProps {
     currentView: string;
@@ -21,6 +22,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     showSocial,
     activeSocialTab
 }) => {
+    const { featureFlags } = useGlobal();
     const isMenu = currentView === 'menu';
     const isShop = currentView === 'shop';
     const isSettings = currentView === 'settings';
@@ -78,35 +80,45 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     glowColor="#00f3ff"
                     bgActiveClass="bg-neon-blue/10"
                 />
-                <NavButton 
-                    icon={MessageSquare} 
-                    label="Chat" 
-                    active={showSocial && (activeSocialTab === 'FRIENDS' || activeSocialTab === 'CHAT')} 
-                    onClick={() => onOpenSocial('FRIENDS')} 
-                    badge={unreadMessages}
-                    activeColor="text-neon-pink"
-                    glowColor="#ff00ff"
-                    bgActiveClass="bg-neon-pink/10"
-                />
-                <NavButton 
-                    icon={Users} 
-                    label="Social" 
-                    active={showSocial && (activeSocialTab === 'COMMUNITY' || activeSocialTab === 'REQUESTS')} 
-                    onClick={() => onOpenSocial('COMMUNITY')} 
-                    badge={pendingRequests}
-                    activeColor="text-neon-green"
-                    glowColor="#00ff9d"
-                    bgActiveClass="bg-neon-green/10"
-                />
-                <NavButton 
-                    icon={ShoppingBag} 
-                    label="Shop" 
-                    active={isShop && !showSocial} 
-                    onClick={() => onNavigate('shop')} 
-                    activeColor="text-neon-yellow"
-                    glowColor="#ffe600"
-                    bgActiveClass="bg-neon-yellow/10"
-                />
+                
+                {featureFlags.social_module && (
+                    <NavButton 
+                        icon={MessageSquare} 
+                        label="Chat" 
+                        active={showSocial && (activeSocialTab === 'FRIENDS' || activeSocialTab === 'CHAT')} 
+                        onClick={() => onOpenSocial('FRIENDS')} 
+                        badge={unreadMessages}
+                        activeColor="text-neon-pink"
+                        glowColor="#ff00ff"
+                        bgActiveClass="bg-neon-pink/10"
+                    />
+                )}
+                
+                {featureFlags.social_module && (
+                    <NavButton 
+                        icon={Users} 
+                        label="Social" 
+                        active={showSocial && (activeSocialTab === 'COMMUNITY' || activeSocialTab === 'REQUESTS')} 
+                        onClick={() => onOpenSocial('COMMUNITY')} 
+                        badge={pendingRequests}
+                        activeColor="text-neon-green"
+                        glowColor="#00ff9d"
+                        bgActiveClass="bg-neon-green/10"
+                    />
+                )}
+                
+                {featureFlags.economy_system && (
+                    <NavButton 
+                        icon={ShoppingBag} 
+                        label="Shop" 
+                        active={isShop && !showSocial} 
+                        onClick={() => onNavigate('shop')} 
+                        activeColor="text-neon-yellow"
+                        glowColor="#ffe600"
+                        bgActiveClass="bg-neon-yellow/10"
+                    />
+                )}
+                
                 <NavButton 
                     icon={Settings} 
                     label="Réglages" 
