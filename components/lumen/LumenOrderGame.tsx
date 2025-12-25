@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Eye, Brain, MousePointerClick, Zap, ArrowRight } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Eye, Brain, MousePointerClick, Zap, ArrowRight, Sparkles } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useHighScores } from '../../hooks/useHighScores';
 import { TutorialOverlay } from '../Tutorials';
@@ -33,6 +33,47 @@ const SHAPES: ShapeDef[] = [
 ];
 
 interface FlyingShape { id: number; shapeIndex: number; z: number; x: number; y: number; rotation: number; scale: number; alpha: number; }
+
+// Logo de marque spécifique pour Lumen Order
+const LumenBrandingLogo = () => (
+    <div className="flex items-center justify-center mb-8 relative h-32 w-full overflow-visible">
+        <div className="relative w-32 h-32 flex items-center justify-center">
+            {/* Effet de lueur pulsante en fond */}
+            <div className="absolute inset-0 bg-cyan-500/20 blur-3xl rounded-full animate-pulse"></div>
+            
+            {/* Carré Néon (Extérieur) */}
+            <div className="absolute w-24 h-24 border-2 border-purple-500 rounded-lg rotate-12 shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-[spin_10s_linear_infinite] opacity-60"></div>
+            
+            {/* Triangle Néon (Milieu) */}
+            <div className="absolute w-16 h-16 border-b-2 border-l-2 border-yellow-400 -rotate-12 shadow-[0_0_15px_rgba(250,204,21,0.5)] animate-[spin_7s_linear_infinite_reverse] opacity-80" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}></div>
+
+            {/* Cercle Central (Noyau) */}
+            <div className="relative z-10 w-12 h-12 bg-gray-950 border-2 border-cyan-400 rounded-full shadow-[0_0_20px_#00f3ff] flex items-center justify-center overflow-hidden group">
+                <div className="absolute inset-0 bg-cyan-400/10 animate-pulse"></div>
+                <Sparkles size={20} className="text-white animate-ping" />
+                
+                {/* Effet de scanline interne */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-white/40 blur-[1px] animate-[scan_1.5s_linear_infinite]"></div>
+            </div>
+
+            {/* Particules orbitales */}
+            <div className="absolute w-2 h-2 bg-pink-500 rounded-full blur-[1px] animate-[orbit_4s_linear_infinite] left-0 top-0"></div>
+            <div className="absolute w-1.5 h-1.5 bg-blue-400 rounded-full blur-[1px] animate-[orbit_3s_linear_infinite_reverse] right-0 bottom-0"></div>
+        </div>
+
+        <style>{`
+            @keyframes scan {
+                0% { transform: translateY(-10px); opacity: 0; }
+                50% { opacity: 1; }
+                100% { transform: translateY(50px); opacity: 0; }
+            }
+            @keyframes orbit {
+                from { transform: rotate(0deg) translateX(60px) rotate(0deg); }
+                to { transform: rotate(360deg) translateX(60px) rotate(-360deg); }
+            }
+        `}</style>
+    </div>
+);
 
 export const LumenOrderGame: React.FC<LumenOrderGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -261,32 +302,29 @@ export const LumenOrderGame: React.FC<LumenOrderGameProps> = ({ onBack, audio, a
                 
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Eye size={56} className="text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.8)] animate-pulse hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter w-full">
-                                LUMEN<br className="md:hidden"/> ORDER
-                            </h1>
-                            <Eye size={56} className="text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.8)] animate-pulse hidden md:block" />
-                        </div>
+                        <LumenBrandingLogo />
+                        <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter w-full uppercase mb-4">
+                            LUMEN<br className="md:hidden"/> ORDER
+                        </h1>
                         <div className="inline-block px-6 py-2 rounded-full border border-cyan-500/30 bg-cyan-900/20 backdrop-blur-sm">
                             <p className="text-cyan-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Mémoire • Vitesse • Lumière</p>
                         </div>
                     </div>
 
                     <div className="w-full max-w-sm md:max-w-xl flex-shrink-0">
-                         <button onClick={startGame} className="group relative w-full h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                         <button onClick={startGame} className="group relative w-full h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Play size={32} className="text-cyan-400" /></div>
-                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors">JOUER</h2>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors uppercase">Jouer</h2>
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Mémorisez la séquence et répétez-la sans erreur.</p>
                             </div>
-                            <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">COMMENCER <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
+                            <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">Commencer la mission <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                         </button>
                     </div>
 
                     <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest italic"><Home size={14} /> Retour arcade</button>
                     </div>
                 </div>
             </div>
@@ -298,30 +336,30 @@ export const LumenOrderGame: React.FC<LumenOrderGameProps> = ({ onBack, audio, a
             <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
             {showTutorial && <TutorialOverlay gameId="lumen" onClose={() => setShowTutorial(false)} />}
             <div className="absolute top-0 w-full max-w-2xl flex items-center justify-between z-20 p-4">
-                <button onClick={() => setPhase('MENU')} className="p-2 bg-gray-900/80 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                <button onClick={() => setPhase('MENU')} className="p-2 bg-gray-900/80 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><Home size={20} /></button>
                 <div className="flex flex-col items-center">
                     <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">LUMEN</h1>
                     <div className="flex gap-4 text-xs font-mono font-bold text-gray-400"><span>NIV {level}</span><span>SCORE {score}</span></div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-900/80 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
-                    <button onClick={startGame} className="p-2 bg-gray-900/80 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-900/80 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><HelpCircle size={20} /></button>
+                    <button onClick={startGame} className="p-2 bg-gray-900/80 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><RefreshCw size={20} /></button>
                 </div>
             </div>
             <div className="absolute top-24 pointer-events-none z-10">
-                {phase === 'DEMO' && <div className="text-cyan-400 font-black tracking-[0.5em] text-sm animate-pulse">OBSERVEZ</div>}
-                {phase === 'INPUT' && <div className="text-yellow-400 font-black tracking-[0.5em] text-sm animate-bounce">RÉPÉTEZ</div>}
-                {phase === 'SUCCESS' && <div className="text-green-400 font-black tracking-[0.5em] text-lg scale-125 transition-transform">SUCCÈS</div>}
+                {phase === 'DEMO' && <div className="text-cyan-400 font-black tracking-[0.5em] text-sm animate-pulse uppercase">Observez la séquence</div>}
+                {phase === 'INPUT' && <div className="text-yellow-400 font-black tracking-[0.5em] text-sm animate-bounce uppercase">À vous de jouer</div>}
+                {phase === 'SUCCESS' && <div className="text-green-400 font-black tracking-[0.5em] text-lg scale-125 transition-transform uppercase italic">Parfait !</div>}
             </div>
             <div className="mt-auto w-full max-w-2xl px-4 z-20">{renderButtons()}</div>
             {phase === 'GAMEOVER' && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md animate-in zoom-in fade-in">
                     <Zap size={64} className="text-red-500 mb-4 drop-shadow-[0_0_20px_red]" />
-                    <h2 className="text-5xl font-black text-red-500 italic mb-2">ÉCHEC</h2>
-                    <div className="text-center mb-6"><p className="text-gray-400 text-xs tracking-widest">SCORE FINAL</p><p className="text-4xl font-mono text-white">{score}</p></div>
+                    <h2 className="text-5xl font-black text-red-500 italic mb-2 uppercase">Échec</h2>
+                    <div className="text-center mb-6"><p className="text-gray-400 text-xs tracking-widest uppercase mb-1">Score Final</p><p className="text-4xl font-mono text-white">{score}</p></div>
                     {earnedCoins > 0 && (<div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>)}
-                    <button onClick={startGame} className="px-8 py-3 bg-white text-black font-black tracking-widest rounded-full hover:bg-gray-200 transition-colors shadow-lg active:scale-95 flex items-center gap-2"><RefreshCw size={20} /> REJOUER</button>
-                    <button onClick={() => setPhase('MENU')} className="mt-4 text-gray-500 hover:text-white underline text-xs">RETOUR</button>
+                    <button onClick={startGame} className="px-8 py-3 bg-white text-black font-black tracking-widest rounded-full hover:bg-gray-200 transition-colors shadow-lg active:scale-95 flex items-center gap-2 uppercase italic"><RefreshCw size={20} /> Recharger</button>
+                    <button onClick={() => setPhase('MENU')} className="mt-4 text-gray-500 hover:text-white underline text-xs font-bold uppercase tracking-widest">Retour</button>
                 </div>
             )}
         </div>

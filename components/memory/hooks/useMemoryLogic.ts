@@ -276,7 +276,8 @@ export const useMemoryLogic = (
         difficulty, setDifficulty,
         cards, flippedIndices, scores, moves, currentPlayer, isGameOver,
         earnedCoins, highScore, isProcessing,
-        onlineStep, isWaitingForDeck, opponentLeft, chatHistory, activeReaction,
+        // Added setOnlineStep to the return object to fix access error in MemoryGame.tsx
+        onlineStep, setOnlineStep, isWaitingForDeck, opponentLeft, chatHistory, activeReaction,
         startSoloGame, startOnlineGame, handleCardClick,
         sendChat, sendReaction,
         mp
