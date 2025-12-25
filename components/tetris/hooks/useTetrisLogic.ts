@@ -33,44 +33,57 @@ export const useTetrisLogic = (
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.tetris || 0;
 
+    // Références pour la logique de collision et de boucle
     const stateRef = useRef({ gameOver, isPaused, inMenu, player, board, score, level, rows });
     useEffect(() => {
         stateRef.current = { gameOver, isPaused, inMenu, player, board, score, level, rows };
     }, [gameOver, isPaused, inMenu, player, board, score, level, rows]);
 
-    // Gestion du gain de score et des niveaux
+    // GESTION DU SCORE ET DES NIVEAUX (Fix loop bug)
     useEffect(() => {
         if (rowsCleared > 0) {
             playClear();
-            const newPoints = LINE_POINTS[rowsCleared - 1] * (level + 1);
             
-            setScore(prev => {
-                const ns = prev + newPoints;
-                if (onReportProgress) onReportProgress('score', ns);
-                return ns;
-            });
-
-            setRows(prev => {
-                const newRows = prev + rowsCleared;
-                if (onReportProgress) onReportProgress('action', rowsCleared);
+            // On calcule tout dans une seule mise à jour de ROWS pour éviter les loops
+            setRows(prevRows => {
+                const newTotalRows = prevRows + rowsCleared;
+                const newLevel = Math.floor(newTotalRows / LINES_PER_LEVEL);
                 
-                // Calcul du nouveau niveau basé sur les lignes totales
-                const newLevel = Math.floor(newRows / LINES_PER_LEVEL);
-                if (newLevel > level) {
-                    setLevel(newLevel);
-                    setDropTime(prevTime => (prevTime ? prevTime * SPEED_INCREMENT : null));
-                }
-                return newRows;
+                // 1. Mise à jour du niveau seulement si nécessaire
+                setLevel(prevLevel => {
+                    if (newLevel > prevLevel) {
+                        setDropTime(prevTime => (prevTime ? prevTime * SPEED_INCREMENT : null));
+                        return newLevel;
+                    }
+                    return prevLevel;
+                });
+
+                // 2. Calcul du score basé sur le nouveau niveau
+                setScore(prevScore => {
+                    const newPoints = LINE_POINTS[rowsCleared - 1] * (newLevel + 1);
+                    return prevScore + newPoints;
+                });
+
+                return newTotalRows;
             });
         }
-    }, [rowsCleared, level, playClear, onReportProgress]);
+    }, [rowsCleared, playClear]); // On a retiré 'level' et 'onReportProgress' des dépendances
+
+    // Rapport de progression séparé pour éviter les effets de bord dans les calculs
+    useEffect(() => {
+        if (score > 0 && onReportProgress) onReportProgress('score', score);
+    }, [score, onReportProgress]);
+
+    useEffect(() => {
+        if (rows > 0 && onReportProgress) onReportProgress('action', rows);
+    }, [rows, onReportProgress]);
 
     // Calcul des pièces en temps réel (affichage seulement)
     useEffect(() => {
         setEarnedCoins(Math.floor(score / 250));
     }, [score]);
 
-    // distribution des pièces UNIQUE lors du Game Over
+    // Distribution des pièces UNIQUE lors du Game Over
     const hasAwardedCoins = useRef(false);
     useEffect(() => {
         if (gameOver && score > 0 && !hasAwardedCoins.current && !inMenu) {
