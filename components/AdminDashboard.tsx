@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, RefreshCcw, X, Shield, LogOut } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 import { OnlineUser } from '../hooks/useSupabase';
+import { useGlobal } from '../context/GlobalContext';
 
 // Import des sous-composants extraits
 import { AdminSidebar, SECTIONS } from './admin/AdminSidebar';
@@ -23,14 +25,10 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onlineUsers }) => {
+    const { disabledGames, setDisabledGames } = useGlobal();
     const [activeSection, setActiveSection] = useState('DASHBOARD');
     const [loading, setLoading] = useState(false);
     const [profiles, setProfiles] = useState<any[]>([]);
-    
-    // Config Persistence
-    const [disabledGames, setDisabledGames] = useState<string[]>(() => {
-        try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
-    });
 
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
         try {
@@ -54,7 +52,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
         setLoading(true);
         let data: any[] = [];
         if (isSupabaseConfigured) {
-            try { data = await DB.getFullAdminExport(); } catch (e) { console.error(e); }
+            try { 
+                data = await DB.getFullAdminExport(); 
+                const config = await DB.getSystemConfig();
+                if (config?.disabledGames) setDisabledGames(config.disabledGames);
+            } catch (e) { console.error(e); }
         }
         if (data.length === 0) {
             const usersDbStr = localStorage.getItem('neon_users_db');
@@ -123,10 +125,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
 
                     {activeSection === 'DASHBOARD' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} />}
                     {activeSection === 'USERS' && <UsersSection profiles={profiles} setProfiles={setProfiles} onlineUsers={onlineUsers} mp={mp} />}
-                    {activeSection === 'GAMES' && <GamesSection profiles={profiles} disabledGames={disabledGames} setDisabledGames={setDisabledGames} mp={mp} />}
+                    {activeSection === 'GAMES' && <GamesSection disabledGames={disabledGames} setDisabledGames={setDisabledGames} mp={mp} />}
                     {activeSection === 'EVENTS' && <EventsSection mp={mp} />}
                     {activeSection === 'NOTIFICATIONS' && <NotificationsSection mp={mp} />}
-                    {activeSection === 'ECONOMY' && <EconomySection profiles={profiles} setProfiles={setProfiles} mp={mp} />}
+                    {activeSection === 'ECONOMY' && <EconomySection profiles={profiles} />}
                     {activeSection === 'STATS' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} detailed />}
                     {activeSection === 'CONFIG' && <ConfigSection />}
                     {activeSection === 'FLAGS' && <FlagsSection featureFlags={featureFlags} setFeatureFlags={setFeatureFlags} mp={mp} />}

@@ -1,10 +1,10 @@
+
 import React, { useState } from 'react';
 import { Gamepad2, Settings, Edit2, Coins } from 'lucide-react';
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { GameConfigModal } from './game_config/GameConfigModal';
 
 interface GamesSectionProps {
-    profiles: any[];
     disabledGames: string[];
     setDisabledGames: React.Dispatch<React.SetStateAction<string[]>>;
     mp: any;
@@ -36,16 +36,24 @@ const GAMES_LIST = [
 export const GamesSection: React.FC<GamesSectionProps> = ({ disabledGames, setDisabledGames, mp }) => {
     const [selectedGame, setSelectedGame] = useState<any | null>(null);
 
-    const toggleGame = (gameId: string) => {
-        const newArr = disabledGames.includes(gameId) ? disabledGames.filter(id => id !== gameId) : [...disabledGames, gameId];
+    const toggleGame = async (gameId: string) => {
+        const isCurrentlyDisabled = disabledGames.includes(gameId);
+        const newArr = isCurrentlyDisabled ? disabledGames.filter(id => id !== gameId) : [...disabledGames, gameId];
+        
+        // Mise à jour de l'état global et local
         setDisabledGames(newArr);
         localStorage.setItem('neon_disabled_games', JSON.stringify(newArr));
-        mp.sendAdminBroadcast(disabledGames.includes(gameId) ? 'Jeu réactivé' : 'Jeu en maintenance', 'game_config', newArr);
-        if (isSupabaseConfigured) DB.saveSystemConfig({ disabledGames: newArr });
+        
+        // Notification immédiate de tous les clients via broadcast
+        mp.sendAdminBroadcast(newArr, 'game_config');
+        
+        // Sauvegarde persistante sur Supabase
+        if (isSupabaseConfigured) {
+            await DB.saveSystemConfig({ disabledGames: newArr });
+        }
     };
 
     const handleSaveConfig = (updatedGame: any) => {
-        // En conditions réelles, on mettrait à jour une DB ici
         console.log("Saving game config:", updatedGame);
         mp.sendAdminBroadcast(`${updatedGame.name} mis à jour (v${updatedGame.version})`, 'info');
         setSelectedGame(null);

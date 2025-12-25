@@ -6,7 +6,7 @@ import { useMultiplayer } from '../hooks/useMultiplayer';
 import { useDailySystem } from '../hooks/useDailySystem';
 import { useHighScores } from '../hooks/useHighScores';
 import { useSupabase } from '../hooks/useSupabase';
-import { DB, isSupabaseConfigured } from '../lib/supabaseClient';
+import { DB, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { FriendRequest } from '../components/social/types';
 
 export type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
@@ -28,6 +28,7 @@ interface GlobalContextType {
     friendRequests: FriendRequest[];
     setFriendRequests: React.Dispatch<React.SetStateAction<FriendRequest[]>>;
     disabledGames: string[];
+    setDisabledGames: React.Dispatch<React.SetStateAction<string[]>>;
     featureFlags: Record<string, boolean>;
     globalEvents: any[];
     eventProgress: Record<string, number>;
@@ -63,18 +64,15 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
-    const [disabledGames, setDisabledGames] = useState<string[]>([]);
+    const [disabledGames, setDisabledGames] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
+    });
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({});
     const [globalEvents, setGlobalEvents] = useState<any[]>([]);
     const [eventProgress, setEventProgress] = useState<Record<string, number>>({});
 
-    // Suivi des essais invités
     const [guestPlayedGames, setGuestPlayedGames] = useState<string[]>(() => {
-        try {
-            return JSON.parse(localStorage.getItem('neon_guest_trials') || '[]');
-        } catch {
-            return [];
-        }
+        try { return JSON.parse(localStorage.getItem('neon_guest_trials') || '[]'); } catch { return []; }
     });
 
     const audio = useGameAudio();
@@ -83,6 +81,32 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const daily = useDailySystem(currency.addCoins);
     const mp = useMultiplayer(); 
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
+
+    // --- SYNC SYSTEM CONFIG (MAINTENANCE) ---
+    useEffect(() => {
+        const loadSystemConfig = async () => {
+            if (isSupabaseConfigured) {
+                const config = await DB.getSystemConfig();
+                if (config?.disabledGames) {
+                    setDisabledGames(config.disabledGames);
+                    localStorage.setItem('neon_disabled_games', JSON.stringify(config.disabledGames));
+                }
+            }
+        };
+        loadSystemConfig();
+
+        // Écouter les mises à jour globales via broadcast admin
+        const handleAdminEvent = (e: any) => {
+            const payload = e.detail;
+            if (payload.type === 'game_config' && payload.data) {
+                setDisabledGames(payload.data);
+                localStorage.setItem('neon_disabled_games', JSON.stringify(payload.data));
+            }
+        };
+
+        window.addEventListener('neon_admin_event', handleAdminEvent);
+        return () => window.removeEventListener('neon_admin_event', handleAdminEvent);
+    }, []);
 
     const registerGuestPlay = useCallback((gameId: string) => {
         setGuestPlayedGames(prev => {
@@ -210,7 +234,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         <GlobalContext.Provider value={{
             currentView, setCurrentView, isAuthenticated, setIsAuthenticated, showLoginModal, setShowLoginModal,
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
-            friendRequests, setFriendRequests, disabledGames, featureFlags, globalEvents, eventProgress,
+            friendRequests, setFriendRequests, disabledGames, setDisabledGames, featureFlags, globalEvents, eventProgress,
             updateEventProgress: () => {}, handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,
