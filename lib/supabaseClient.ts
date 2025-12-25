@@ -106,7 +106,6 @@ export const DB = {
             const jsonLogs = sys?.data?.transaction_logs || [];
             
             // 3. Fusion Anti-Doublons stricte
-            // On crée une signature unique pour chaque transaction
             const signatures = new Set(allLogs.map(l => `${new Date(l.timestamp).getTime()}_${l.username}_${l.amount}`));
             
             jsonLogs.forEach((jLog: any) => {
@@ -252,29 +251,75 @@ export const DB = {
     },
 
     searchUsers: async (query: string) => {
-        if (!supabase) return [];
-        try {
-            // Rétablissement de l'appel RPC pour contourner les politiques de sécurité (RLS)
-            // qui bloquaient la recherche directe sur la table des profils.
-            const { data, error } = await supabase.rpc('search_users_by_name', {
-                p_username: query
-            });
+        let results: any[] = [];
+        const queryLower = query.toLowerCase();
 
-            if (error) {
-                console.error('Erreur lors de la recherche via RPC:', error);
-                return [];
-            }
-            
-            return (data || []).map((u: any) => ({
-                id: u.username,
-                name: u.username,
-                avatarId: u.data?.avatarId || 'av_bot',
-                frameId: u.data?.frameId
-            }));
-        } catch (e) {
-            console.error('Exception lors de la recherche de joueur:', e);
-            return [];
+        // 1. RECHERCHE LOCALE (Fallback immédiat)
+        const localUsersStr = localStorage.getItem('neon_users_db');
+        if (localUsersStr) {
+            try {
+                const localUsers = JSON.parse(localUsersStr);
+                Object.keys(localUsers).forEach(username => {
+                    if (username.toLowerCase().includes(queryLower)) {
+                        const userDataStr = localStorage.getItem('neon_data_' + username);
+                        const userData = userDataStr ? JSON.parse(userDataStr) : {};
+                        results.push({
+                            id: username,
+                            name: username,
+                            avatarId: userData.avatarId || 'av_bot',
+                            frameId: userData.frameId
+                        });
+                    }
+                });
+            } catch (e) {}
         }
+
+        // 2. RECHERCHE SUPABASE (Si configuré)
+        if (supabase) {
+            try {
+                // On tente le RPC
+                const { data, error } = await supabase.rpc('search_users_by_name', {
+                    p_username: query
+                });
+
+                if (error) {
+                    // Fallback sur une requête select standard si RPC indisponible
+                    const { data: selData } = await supabase
+                        .from('profiles')
+                        .select('username, data')
+                        .ilike('username', `%${query}%`)
+                        .limit(20);
+                    
+                    if (selData) {
+                        selData.forEach((u: any) => {
+                            if (!results.find(r => r.name === u.username)) {
+                                results.push({
+                                    id: u.username,
+                                    name: u.username,
+                                    avatarId: u.data?.avatarId || 'av_bot',
+                                    frameId: u.data?.frameId
+                                });
+                            }
+                        });
+                    }
+                } else if (data) {
+                    data.forEach((u: any) => {
+                        if (!results.find(r => r.name === u.username)) {
+                            results.push({
+                                id: u.username,
+                                name: u.username,
+                                avatarId: u.data?.avatarId || 'av_bot',
+                                frameId: u.data?.frameId
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Exception lors de la recherche cloud:', e);
+            }
+        }
+
+        return results;
     },
 
     getUserByEmail: async (email: string) => {
