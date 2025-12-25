@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useSlitherLogic } from './hooks/useSlitherLogic';
 import { SlitherRenderer } from './components/SlitherRenderer';
@@ -96,12 +95,8 @@ export const SlitherGame: React.FC<SlitherGameProps> = ({ onBack, audio, addCoin
                 onBoostStart={() => { isBoostingRef.current = true; setIsBoosting(true); }}
                 onBoostEnd={() => { isBoostingRef.current = false; setIsBoosting(false); }}
                 onQuit={() => { 
-                    setTimeout(() => {
-                        if (window.confirm("Quitter la partie ?")) { 
-                             if (gameMode === 'ONLINE') mp.leaveGame();
-                             onBack(); 
-                        } 
-                    }, 10);
+                    if (gameMode === 'ONLINE') mp.leaveGame();
+                    onBack();
                 }}
             />
         </div>
