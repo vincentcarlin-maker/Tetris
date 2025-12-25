@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Inbox, CheckCircle, XCircle, Send, Trash2, Clock } from 'lucide-react';
+import { Inbox, CheckCircle, XCircle, Send, Trash2, Clock, RefreshCw } from 'lucide-react';
 import { FriendRequest } from './types';
 import { Avatar } from '../../hooks/useCurrency';
 
@@ -11,28 +11,39 @@ interface RequestsListProps {
     onAccept: (req: FriendRequest) => void;
     onDecline: (id: string) => void;
     onCancel: (id: string) => void;
+    onRefresh: () => void;
+    isRefreshing?: boolean;
 }
 
 export const RequestsList: React.FC<RequestsListProps> = ({ 
-    requests, sentRequests, avatarsCatalog, onAccept, onDecline, onCancel 
+    requests, sentRequests, avatarsCatalog, onAccept, onDecline, onCancel, onRefresh, isRefreshing 
 }) => {
     const [subTab, setSubTab] = useState<'RECEIVED' | 'SENT'>('RECEIVED');
 
     return (
         <div className="flex flex-col h-full animate-in fade-in">
             {/* Sous-navigation */}
-            <div className="flex gap-2 p-4 pt-2 border-b border-white/5 bg-gray-900/40 shrink-0">
+            <div className="flex items-center gap-2 p-4 pt-2 border-b border-white/5 bg-gray-900/40 shrink-0">
+                <div className="flex flex-1 gap-2">
+                    <button 
+                        onClick={() => setSubTab('RECEIVED')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-black tracking-widest transition-all ${subTab === 'RECEIVED' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30' : 'text-gray-500 hover:text-white'}`}
+                    >
+                        REÇUES ({requests.length})
+                    </button>
+                    <button 
+                        onClick={() => setSubTab('SENT')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-black tracking-widest transition-all ${subTab === 'SENT' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/30' : 'text-gray-500 hover:text-white'}`}
+                    >
+                        ENVOYÉES ({sentRequests.length})
+                    </button>
+                </div>
                 <button 
-                    onClick={() => setSubTab('RECEIVED')}
-                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-black tracking-widest transition-all ${subTab === 'RECEIVED' ? 'bg-pink-600/20 text-pink-400 border border-pink-500/30' : 'text-gray-500 hover:text-white'}`}
+                    onClick={onRefresh}
+                    disabled={isRefreshing}
+                    className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all disabled:opacity-50"
                 >
-                    REÇUES ({requests.length})
-                </button>
-                <button 
-                    onClick={() => setSubTab('SENT')}
-                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-black tracking-widest transition-all ${subTab === 'SENT' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/30' : 'text-gray-500 hover:text-white'}`}
-                >
-                    ENVOYÉES ({sentRequests.length})
+                    <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
                 </button>
             </div>
 
@@ -41,13 +52,13 @@ export const RequestsList: React.FC<RequestsListProps> = ({
                     requests.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-gray-600 opacity-40">
                             <Inbox size={48} className="mb-4" />
-                            <p className="text-[10px] font-black tracking-[0.2em] uppercase">Aucun signal entrant</p>
+                            <p className="text-[10px] font-black tracking-[0.2em] uppercase text-center">Aucun signal entrant<br/>Vos nouveaux amis apparaîtront ici</p>
                         </div>
                     ) : (
                         requests.map(req => {
                             const avatar = avatarsCatalog.find(a => a.id === req.avatarId) || avatarsCatalog[0];
                             return (
-                                <div key={req.id} className="flex items-center justify-between p-4 bg-gray-800/60 rounded-2xl border border-pink-500/10 shadow-lg group hover:border-pink-500/30 transition-all">
+                                <div key={req.id} className="flex items-center justify-between p-4 bg-gray-800/60 rounded-2xl border border-pink-500/10 shadow-lg group hover:border-pink-500/30 transition-all animate-in slide-in-from-left-4">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border border-white/10 shadow-inner`}><avatar.icon size={22} className={avatar.color}/></div>
                                         <div className="flex flex-col">
@@ -67,13 +78,13 @@ export const RequestsList: React.FC<RequestsListProps> = ({
                     sentRequests.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-gray-600 opacity-40">
                             <Send size={48} className="mb-4" />
-                            <p className="text-[10px] font-black tracking-[0.2em] uppercase">Aucune demande envoyée</p>
+                            <p className="text-[10px] font-black tracking-[0.2em] uppercase text-center">Aucune demande envoyée<br/>Cherchez des joueurs pour vous connecter</p>
                         </div>
                     ) : (
                         sentRequests.map(req => {
                             const avatar = avatarsCatalog.find(a => a.id === req.avatarId) || avatarsCatalog[0];
                             return (
-                                <div key={req.id} className="flex items-center justify-between p-4 bg-gray-800/40 rounded-2xl border border-cyan-500/10 shadow-lg group hover:border-cyan-500/30 transition-all">
+                                <div key={req.id} className="flex items-center justify-between p-4 bg-gray-800/40 rounded-2xl border border-cyan-500/10 shadow-lg group hover:border-cyan-500/30 transition-all animate-in slide-in-from-right-4">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${avatar.bgGradient} flex items-center justify-center border border-white/10`}><avatar.icon size={22} className={avatar.color}/></div>
                                         <div className="flex flex-col">

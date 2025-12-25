@@ -54,6 +54,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const [friendsSearchTerm, setFriendsSearchTerm] = useState('');
     const [isCommunitySearching, setIsCommunitySearching] = useState(false);
     const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
+    const [isRefreshingRequests, setIsRefreshingRequests] = useState(false);
 
     const stateRef = useRef({ friends, activeChatId, username, isConnectedToSupabase, onlineUsers });
 
@@ -67,8 +68,15 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     const refreshRequests = async () => {
         if (isConnectedToSupabase && username) {
-            DB.getPendingRequests(username).then(reqs => setFriendRequests(reqs));
-            DB.getSentRequests(username).then(reqs => setSentRequests(reqs));
+            setIsRefreshingRequests(true);
+            try {
+                const reqs = await DB.getPendingRequests(username);
+                setFriendRequests(reqs);
+                const sent = await DB.getSentRequests(username);
+                setSentRequests(sent);
+            } finally {
+                setIsRefreshingRequests(false);
+            }
         }
     };
 
@@ -221,8 +229,21 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const sendFriendRequest = async () => {
         if (!selectedPlayer) return;
         
-        let targetPeerId = selectedPlayer.id;
-        const liveUser = onlineUsers.find(u => u.name === selectedPlayer.name);
+        const targetPlayer = { ...selectedPlayer };
+
+        // 1. Optimistic Update : on l'ajoute direct à la liste "Envoyées"
+        const optimisticReq: FriendRequest = {
+            id: targetPlayer.name,
+            name: targetPlayer.name,
+            avatarId: targetPlayer.avatarId,
+            frameId: targetPlayer.frameId,
+            timestamp: Date.now()
+        };
+        setSentRequests(prev => [optimisticReq, ...prev]);
+
+        // 2. Peer-to-Peer Signal (Fast)
+        let targetPeerId = targetPlayer.id;
+        const liveUser = onlineUsers.find(u => u.name === targetPlayer.name);
         if (liveUser) targetPeerId = liveUser.id;
 
         if (mp.peerId && targetPeerId && (targetPeerId.startsWith('user_') || targetPeerId.startsWith('peer_'))) {
@@ -232,12 +253,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             });
         }
 
+        // 3. Database Sync (Persistent)
         if (isConnectedToSupabase) {
-            await DB.sendFriendRequestDB(username, selectedPlayer.name);
+            try {
+                await DB.sendFriendRequestDB(username, targetPlayer.name);
+            } catch (e) {
+                // Rollback optimistic si erreur critique
+                setSentRequests(prev => prev.filter(r => r.id !== targetPlayer.name));
+            }
             refreshRequests();
         }
 
-        alert(`Demande d'ami envoyée à ${selectedPlayer.name} !`);
+        alert(`Demande d'ami envoyée à ${targetPlayer.name} !`);
         setSelectedPlayer(null);
     };
 
@@ -274,6 +301,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const cancelSentRequest = async (targetId: string) => {
+        // Optimistic removal
+        setSentRequests(prev => prev.filter(r => r.id !== targetId));
         if (isConnectedToSupabase) {
             await DB.cancelFriendRequestDB(username, targetId);
             refreshRequests();
@@ -314,7 +343,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 ) : socialTab === 'COMMUNITY' ? (
                     <CommunityView myPeerId={mp.peerId} currentUsername={username} friends={friends} onlineUsers={onlineUsers} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onPlayerClick={handlePlayerClick} isSearching={isCommunitySearching} onSearch={async (query) => { if (!isSupabaseConfigured) return []; setIsCommunitySearching(true); const results = await DB.searchUsers(query); setIsCommunitySearching(false); return results; }}/>
                 ) : (
-                    <RequestsList requests={friendRequests} sentRequests={sentRequests} avatarsCatalog={avatarsCatalog} onAccept={acceptRequest} onDecline={declineRequest} onCancel={cancelSentRequest}/>
+                    <RequestsList requests={friendRequests} sentRequests={sentRequests} avatarsCatalog={avatarsCatalog} onAccept={acceptRequest} onDecline={declineRequest} onCancel={cancelSentRequest} onRefresh={refreshRequests} isRefreshing={isRefreshingRequests}/>
                 )}
             </div>
 
