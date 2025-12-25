@@ -1,12 +1,13 @@
+
 import React from 'react';
-import { LayoutGrid, Bell, Coins, Gamepad2, Users, BarChart2, Settings, Flag, Calendar, Database, LogOut } from 'lucide-react';
+import { LayoutGrid, Bell, Coins, Gamepad2, Users, BarChart2, Settings, Flag, Calendar, Database, LogOut, Terminal } from 'lucide-react';
 
 export const SECTIONS = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutGrid },
     { id: 'NOTIFICATIONS', label: 'Communication', icon: Bell },
     { id: 'ECONOMY', label: 'Économie', icon: Coins },
     { id: 'GAMES', label: 'Gestion Jeux', icon: Gamepad2 },
-    { id: 'USERS', label: 'Utilisateurs', icon: Users },
+    { id: 'USERS', label: 'Console Joueurs', icon: Terminal },
     { id: 'STATS', label: 'Statistiques', icon: BarChart2 },
     { id: 'CONFIG', label: 'Configuration', icon: Settings },
     { id: 'FLAGS', label: 'Feature Flags', icon: Flag },
