@@ -34,12 +34,58 @@ interface ChatMessage {
     timestamp: number;
 }
 
+// Logo de marque spécifique pour Neon Fleet
+const BattleshipBrandingLogo = () => (
+    <div className="relative h-40 w-full flex items-center justify-center mb-8 overflow-visible group">
+        {/* Radar Background */}
+        <div className="absolute w-36 h-36 rounded-full border-2 border-blue-500/20 bg-blue-900/5 shadow-[0_0_20px_rgba(59,130,246,0.1)]"></div>
+        <div className="absolute w-24 h-24 rounded-full border border-blue-500/30"></div>
+        <div className="absolute w-12 h-12 rounded-full border border-blue-500/40"></div>
+        
+        {/* Radar Lines */}
+        <div className="absolute w-36 h-[1px] bg-blue-500/20"></div>
+        <div className="absolute h-36 w-[1px] bg-blue-500/20"></div>
+
+        {/* Radar Sweep Effect */}
+        <div className="absolute w-36 h-36 rounded-full bg-gradient-to-tr from-transparent via-transparent to-blue-400/40 animate-[spin_4s_linear_infinite] origin-center z-10"></div>
+
+        {/* Ship Silhouette (Neon Style) */}
+        <div className="relative z-20 transform -translate-y-2 group-hover:scale-105 transition-transform duration-500">
+             {/* Coque */}
+             <div className="relative w-28 h-8 bg-gray-950 border-2 border-cyan-400 rounded-b-xl overflow-hidden shadow-[0_0_15px_#22d3ee]">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-white/10 to-blue-600/20"></div>
+                {/* Hublots */}
+                <div className="flex gap-4 justify-center items-center h-full opacity-60">
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]"></div>
+                </div>
+             </div>
+             {/* Superstructure */}
+             <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-14 h-6 bg-gray-950 border-2 border-cyan-400 rounded-t-lg shadow-lg">
+                <div className="absolute top-1 left-3 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]"></div>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-1 h-4 bg-gray-600 rounded-full"></div>
+             </div>
+             {/* Canons */}
+             <div className="absolute -top-2 left-4 w-5 h-3 bg-gray-800 border border-cyan-400 rounded-t-sm"></div>
+             <div className="absolute -top-1 left-2 w-6 h-1 bg-cyan-400 rounded-full"></div>
+        </div>
+
+        {/* Target Blinks (Enemy Detection) */}
+        <div className="absolute top-4 right-[35%] w-2 h-2 bg-red-600 rounded-full shadow-[0_0_12px_red] animate-ping z-30"></div>
+        <div className="absolute bottom-10 left-[30%] w-1.5 h-1.5 bg-red-600 rounded-full shadow-[0_0_8px_red] animate-pulse delay-700 z-30"></div>
+
+        {/* Outer UI Elements */}
+        <div className="absolute w-44 h-44 border border-blue-500/10 rounded-full animate-[pulse_3s_infinite]"></div>
+        <div className="absolute -top-4 -left-4 text-[10px] font-mono text-cyan-500/50 uppercase tracking-widest">Scanning...</div>
+    </div>
+);
+
 export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, addCoins, mp, onReportProgress }) => {
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
   const [showTutorial, setShowTutorial] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  // Fix: Added missing activeReaction state
   const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -57,7 +103,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   useEffect(() => {
     const unsubscribe = mp.subscribe((data: any) => {
         if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
-        // Fix: Added missing setActiveReaction call logic for incoming network reactions
         if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
     });
     return () => unsubscribe();
@@ -76,7 +121,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
   const sendReaction = (reactionId: string) => {
       if (logic.gameMode === 'ONLINE' && mp.mode === 'in_game') {
-          // Fix: Now uses the added setActiveReaction state to show own reaction
           setActiveReaction({ id: reactionId, isMe: true });
           mp.sendData({ type: 'REACTION', id: reactionId });
           setTimeout(() => setActiveReaction(null), 3000);
@@ -177,12 +221,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
             <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                 <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                    <div className="flex items-center justify-center gap-6 mb-4">
-                        <Ship size={56} className="text-blue-500 drop-shadow-[0_0_25px_rgba(59,130,246,0.8)] animate-pulse hidden md:block" />
-                        <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-300 drop-shadow-[0_0_30px_rgba(59,130,246,0.6)] tracking-tighter w-full">
-                            NEON<br className="md:hidden"/> BATAILLE
+                    <div className="flex flex-col items-center justify-center gap-2 mb-4">
+                        <BattleshipBrandingLogo />
+                        <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-300 drop-shadow-[0_0_30px_rgba(59,130,246,0.6)] tracking-tighter w-full uppercase">
+                            NEON<br className="md:hidden"/> FLEET
                         </h1>
-                        <Ship size={56} className="text-blue-500 drop-shadow-[0_0_25px_rgba(59,130,246,0.8)] animate-pulse hidden md:block" />
+                        <div className="inline-block px-6 py-2 rounded-full border border-blue-500/30 bg-blue-900/20 backdrop-blur-sm mt-4">
+                            <p className="text-blue-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase italic">Déployez • Scannez • Détruisez</p>
+                        </div>
                     </div>
                 </div>
 
@@ -191,10 +237,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                         <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="relative z-10">
                             <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Cpu size={32} className="text-cyan-400" /></div>
-                            <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors">SOLO</h2>
-                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Affrontez l'IA dans une bataille navale stratégique.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors uppercase">SOLO</h2>
+                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Affrontez l'IA du système dans un duel tactique de haute précision.</p>
                         </div>
-                        <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">COMMENCER <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
+                        <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">ACTIVER LE RADAR <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                     </button>
 
                     <button onClick={() => { logic.setGameMode('ONLINE'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
@@ -202,14 +248,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                         <div className="relative z-10">
                             <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]"><Globe size={32} className="text-blue-400" /></div>
                             <div className="flex items-center gap-3 mb-2"><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors uppercase">EN LIGNE</h2><span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span></div>
-                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez un autre amiral en temps réel.</p>
+                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez un autre amiral de la grille en temps réel.</p>
                         </div>
-                        <div className="relative z-10 flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
+                        <div className="relative z-10 flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">ENTRER DANS LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                     </button>
                 </div>
 
                 <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                    <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+                    <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest italic"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
                 </div>
             </div>
         </div>
@@ -291,7 +337,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
                     {REACTIONS.map(reaction => {
                         const Icon = reaction.icon;
-                        // Fix: Correctly call the local sendReaction function instead of accessing missing logic.sendReaction
                         return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
                     })}
                 </div>
@@ -300,7 +345,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-cyan-500 text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
                 </form>
                 
-                {/* Fix: Call renderReactionVisual if activeReaction is not null to show reactions on screen */}
                 {activeReaction && (
                     <div className={`absolute z-50 pointer-events-none ${activeReaction.isMe ? 'bottom-24 right-4' : 'top-24 left-4'}`}>
                         {renderReactionVisual(activeReaction.id, REACTIONS.find(r => r.id === activeReaction.id)?.color || '')}

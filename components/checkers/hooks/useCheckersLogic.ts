@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BoardState, Move, PlayerColor, Position, Difficulty } from '../types';
 import { createInitialBoard, getValidMoves, executeMove, getBestMove, BOARD_SIZE } from '../logic';
 
@@ -14,6 +14,10 @@ export const useCheckersLogic = (audio: any, addCoins: any, mp: any, onReportPro
     const [mustJumpPos, setMustJumpPos] = useState<Position | null>(null);
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [counts, setCounts] = useState({ white: 20, red: 20 });
+
+    // Online State
+    const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
+    const [opponentLeft, setOpponentLeft] = useState(false);
 
     const handleTurnEnd = useCallback((newBoard: BoardState, prevPlayer: PlayerColor, lastPiecePos?: Position) => {
         if (lastPiecePos) {
@@ -85,9 +89,23 @@ export const useCheckersLogic = (audio: any, addCoins: any, mp: any, onReportPro
         const unsub = mp.subscribe((data: any) => {
             if (data.type === 'CHECKERS_MOVE') performMove(data.move);
             if (data.type === 'REMATCH_START') resetGame();
+            if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setWinner(mp.amIP1 ? 'white' : 'red'); }
         });
         return unsub;
     }, [mp, performMove]);
+
+    // Online Lifecycle
+    useEffect(() => {
+        if (gameMode !== 'ONLINE') return;
+        const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
+        if (mp.mode === 'lobby') {
+            setOnlineStep(isHosting ? 'game' : 'lobby');
+            if (board.some(r => r.some(c => c !== null))) resetGame();
+        } else if (mp.mode === 'in_game') {
+            setOnlineStep('game');
+            setOpponentLeft(false);
+        }
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode]);
 
     const resetGame = () => {
         setBoard(createInitialBoard());
@@ -97,11 +115,13 @@ export const useCheckersLogic = (audio: any, addCoins: any, mp: any, onReportPro
         setWinner(null);
         setMustJumpPos(null);
         setCounts({ white: 20, red: 20 });
+        setOpponentLeft(false);
     };
 
     return {
         board, turn, selectedPos, availableMoves, winner, gameMode, setGameMode, 
         difficulty, setDifficulty, mustJumpPos, earnedCoins, counts,
+        onlineStep, setOnlineStep, opponentLeft,
         performMove, setSelectedPos, setAvailableMoves, resetGame
     };
 };
