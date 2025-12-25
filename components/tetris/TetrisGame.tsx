@@ -18,6 +18,20 @@ interface TetrisGameProps {
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
+// Nouveau composant de logo Tetris pour la page d'accueil
+const TetrisBrandingLogo = () => (
+    <div className="flex flex-col gap-1 drop-shadow-[0_0_15px_rgba(var(--neon-accent-rgb),0.5)]">
+        <div className="flex gap-1">
+            <div className="w-5 h-5 bg-cyan-500 rounded-sm border border-white/20 shadow-[0_0_8px_#00f3ff]"></div>
+            <div className="w-5 h-5 bg-purple-600 rounded-sm border border-white/20 shadow-[0_0_8px_#a855f7]"></div>
+            <div className="w-5 h-5 bg-pink-500 rounded-sm border border-white/20 shadow-[0_0_8px_#ff00ff]"></div>
+        </div>
+        <div className="flex gap-1 justify-center">
+            <div className="w-5 h-5 bg-yellow-400 rounded-sm border border-white/20 shadow-[0_0_8px_#facc15]"></div>
+        </div>
+    </div>
+);
+
 export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const logic = useTetrisLogic(audio, addCoins, onReportProgress);
     const { 
@@ -120,11 +134,13 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBack, audio, addCoins,
                 <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-900/40 via-[#050510] to-black" />
                 <div className="relative z-10 w-full max-w-lg px-6 flex flex-col items-center pt-20 pb-12">
                     <div className="mb-12 w-full text-center">
-                        <div className="flex items-center justify-center gap-4 mb-4">
-                            <Layers size={48} className="text-cyan-400 drop-shadow-[0_0_20px_#00f3ff] animate-pulse" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 drop-shadow-[0_0_30px_rgba(0,243,255,0.6)] tracking-tighter">NEON TETRIS</h1>
+                        <div className="flex flex-col items-center gap-6 mb-6">
+                            <TetrisBrandingLogo />
+                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 drop-shadow-[0_0_30px_rgba(0,243,255,0.6)] tracking-tighter px-4 pr-8">NEON TETRIS</h1>
                         </div>
-                        <p className="text-cyan-200 font-bold tracking-[0.3em] text-xs uppercase">Stack • Align • Glow</p>
+                        <div className="inline-block px-6 py-2 rounded-full border border-cyan-500/30 bg-cyan-900/20 backdrop-blur-sm">
+                            <p className="text-cyan-200 font-bold tracking-[0.3em] text-xs uppercase italic">Empilez • Alignez • Brillez</p>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-4 w-full">

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
     LayoutGrid, Globe, Gamepad2, Puzzle, Trophy, Hexagon, 
@@ -7,12 +6,13 @@ import {
 } from 'lucide-react';
 
 // --- CUSTOM ICONS ---
-export const CustomTetrisIcon = ({ size, className }: { size?: number | string, className?: string }) => 
+export const CustomTetrisIcon = ({ size = 24, className = "" }: { size?: number | string, className?: string }) => 
     React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className },
-        React.createElement("rect", { x: "2", y: "6", width: "6", height: "6", rx: "1.5" }),
-        React.createElement("rect", { x: "9", y: "6", width: "6", height: "6", rx: "1.5" }),
-        React.createElement("rect", { x: "16", y: "6", width: "6", height: "6", rx: "1.5" }),
-        React.createElement("rect", { x: "9", y: "13", width: "6", height: "6", rx: "1.5" })
+        // Bloc T
+        React.createElement("rect", { x: "2", y: "15", width: "6", height: "6", rx: "1", fill: "#00f3ff", fillOpacity: "0.2", stroke: "#00f3ff" }),
+        React.createElement("rect", { x: "9", y: "15", width: "6", height: "6", rx: "1", fill: "#9d00ff", fillOpacity: "0.2", stroke: "#9d00ff" }),
+        React.createElement("rect", { x: "16", y: "15", width: "6", height: "6", rx: "1", fill: "#ff00ff", fillOpacity: "0.2", stroke: "#ff00ff" }),
+        React.createElement("rect", { x: "9", y: "8", width: "6", height: "6", rx: "1", fill: "#9d00ff", fillOpacity: "0.2", stroke: "#9d00ff" })
     );
 
 export const CustomSnakeIcon = ({ size, className }: { size?: number | string, className?: string }) => 
