@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Trophy, Coins, HelpCircle, Loader2, Home, Play, Wifi, Search } from 'lucide-react';
+import { ArrowLeft, Trophy, Coins, HelpCircle, Loader2, Home, Play, Wifi, Search, X } from 'lucide-react';
 import { useCheckersLogic } from './hooks/useCheckersLogic';
 import { CheckersBoard } from './components/CheckersBoard';
 import { CheckersMenu } from './components/CheckersMenu';
@@ -128,6 +128,49 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         else onBack();
     };
 
+    // 1. ÉCRAN D'ATTENTE HÔTE EN LIGNE
+    if (logic.gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && logic.onlineStep === 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans p-4">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400 uppercase tracking-widest">Dames Live</h1>
+                    <div className="w-10"></div>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center z-20 text-center">
+                    <div className="relative mb-8">
+                        <div className="absolute inset-0 bg-teal-500/20 rounded-full blur-2xl animate-pulse"></div>
+                        <Loader2 size={80} className="text-teal-400 animate-spin" />
+                    </div>
+                    <h2 className="text-2xl font-black italic mb-2 tracking-widest uppercase">Ligne Tactique Ouverte</h2>
+                    <p className="text-gray-400 font-bold animate-pulse uppercase text-sm tracking-[0.2em] mb-12">En attente d'un adversaire sur la grille...</p>
+                    <button onClick={mp.cancelHosting} className="px-10 py-4 bg-gray-800 border-2 border-red-500/50 text-red-400 font-black rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-3">
+                        <X size={20} /> COUPER LA LIAISON
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // 2. LOBBY EN LIGNE (Liste des salons)
+    if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-300 pr-2 pb-1 uppercase tracking-widest">Dames Online</h1>
+                    <div className="w-10"></div>
+                </div>
+                {logic.onlineStep === 'connecting' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-cyan-400 animate-spin mb-4" /><p className="text-cyan-300 font-bold tracking-widest uppercase">Connexion satellite...</p></div>
+                ) : renderLobby()}
+            </div>
+        );
+    }
+
+    // 3. MENU DE DÉPART (Solo/Online)
     if (phase !== 'GAME') {
         return (
             <div className="h-full w-full flex flex-col items-center justify-center p-4">
@@ -152,23 +195,7 @@ export const CheckersGame: React.FC<CheckersGameProps> = ({ onBack, audio, addCo
         );
     }
 
-    // Vue Lobby pour le mode ONLINE
-    if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
-        return (
-            <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
-                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
-                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
-                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-300 pr-2 pb-1 uppercase tracking-widest">Dames Online</h1>
-                    <div className="w-10"></div>
-                </div>
-                {logic.onlineStep === 'connecting' ? (
-                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-cyan-400 animate-spin mb-4" /><p className="text-cyan-300 font-bold tracking-widest uppercase">Connexion satellite...</p></div>
-                ) : renderLobby()}
-            </div>
-        );
-    }
-
+    // 4. LE JEU LUI-MÊME
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 p-4 select-none touch-none overflow-y-auto">
             <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">

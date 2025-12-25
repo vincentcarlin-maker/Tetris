@@ -1,4 +1,3 @@
-
 export type ShipType = 'CARRIER' | 'BATTLESHIP' | 'CRUISER' | 'SUBMARINE' | 'DESTROYER';
 
 export interface Ship {
@@ -17,7 +16,7 @@ export type CellStatus = 0 | 1 | 2 | 3;
 export type Grid = CellStatus[][];
 
 export interface GameState {
-  phase: 'MENU' | 'SETUP' | 'PLAYING' | 'GAMEOVER';
+  phase: 'MENU' | 'LOBBY' | 'SETUP' | 'PLAYING' | 'GAMEOVER';
   playerGrid: Grid;
   cpuGrid: Grid; // Visuellement cachée (sauf hits/miss)
   playerShips: Ship[];

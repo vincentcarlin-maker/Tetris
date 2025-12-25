@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, RefreshCw, Trophy, Target, ShieldAlert, Coins, HelpCircle, ArrowLeft, Loader2, Cpu, Globe, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Play, Wifi, Search, Ship, ArrowRight } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Target, ShieldAlert, Coins, HelpCircle, ArrowLeft, Loader2, Cpu, Globe, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Play, Wifi, Search, Ship, ArrowRight, X } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency } from '../../hooks/useCurrency';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
@@ -34,50 +33,31 @@ interface ChatMessage {
     timestamp: number;
 }
 
-// Logo de marque spécifique pour Neon Fleet
 const BattleshipBrandingLogo = () => (
     <div className="relative h-40 w-full flex items-center justify-center mb-8 overflow-visible group">
-        {/* Radar Background */}
         <div className="absolute w-36 h-36 rounded-full border-2 border-blue-500/20 bg-blue-900/5 shadow-[0_0_20px_rgba(59,130,246,0.1)]"></div>
         <div className="absolute w-24 h-24 rounded-full border border-blue-500/30"></div>
         <div className="absolute w-12 h-12 rounded-full border border-blue-500/40"></div>
-        
-        {/* Radar Lines */}
         <div className="absolute w-36 h-[1px] bg-blue-500/20"></div>
         <div className="absolute h-36 w-[1px] bg-blue-500/20"></div>
-
-        {/* Radar Sweep Effect */}
         <div className="absolute w-36 h-36 rounded-full bg-gradient-to-tr from-transparent via-transparent to-blue-400/40 animate-[spin_4s_linear_infinite] origin-center z-10"></div>
-
-        {/* Ship Silhouette (Neon Style) */}
         <div className="relative z-20 transform -translate-y-2 group-hover:scale-105 transition-transform duration-500">
-             {/* Coque */}
              <div className="relative w-28 h-8 bg-gray-950 border-2 border-cyan-400 rounded-b-xl overflow-hidden shadow-[0_0_15px_#22d3ee]">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-white/10 to-blue-600/20"></div>
-                {/* Hublots */}
                 <div className="flex gap-4 justify-center items-center h-full opacity-60">
                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]"></div>
                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]"></div>
                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee]"></div>
                 </div>
              </div>
-             {/* Superstructure */}
              <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-14 h-6 bg-gray-950 border-2 border-cyan-400 rounded-t-lg shadow-lg">
                 <div className="absolute top-1 left-3 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_red]"></div>
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-1 h-4 bg-gray-600 rounded-full"></div>
              </div>
-             {/* Canons */}
              <div className="absolute -top-2 left-4 w-5 h-3 bg-gray-800 border border-cyan-400 rounded-t-sm"></div>
              <div className="absolute -top-1 left-2 w-6 h-1 bg-cyan-400 rounded-full"></div>
         </div>
-
-        {/* Target Blinks (Enemy Detection) */}
-        <div className="absolute top-4 right-[35%] w-2 h-2 bg-red-600 rounded-full shadow-[0_0_12px_red] animate-ping z-30"></div>
-        <div className="absolute bottom-10 left-[30%] w-1.5 h-1.5 bg-red-600 rounded-full shadow-[0_0_8px_red] animate-pulse delay-700 z-30"></div>
-
-        {/* Outer UI Elements */}
         <div className="absolute w-44 h-44 border border-blue-500/10 rounded-full animate-[pulse_3s_infinite]"></div>
-        <div className="absolute -top-4 -left-4 text-[10px] font-mono text-cyan-500/50 uppercase tracking-widest">Scanning...</div>
     </div>
 );
 
@@ -106,7 +86,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
         if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
     });
     return () => unsubscribe();
-  }, [mp.subscribe]);
+  }, [mp]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
@@ -140,7 +120,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
           if (logic.onlineStep === 'game') {
               mp.leaveGame();
               logic.setOnlineStep('lobby');
-              logic.setPhase('SETUP');
+              logic.setPhase('LOBBY');
           } else {
               mp.disconnect();
               logic.setGameMode('SOLO');
@@ -168,7 +148,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                      </button>
                 </div>
 
-                <div className="flex-1 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex flex-col min-h-0">
+                <div className="flex-1 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex flex-col min-0 shadow-2xl">
                     <div className="flex justify-between items-center mb-4 px-2">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Flottes en attente</span>
                         <span className="text-xs font-mono text-blue-400 bg-blue-900/20 px-2 py-0.5 rounded border border-blue-500/30">{hostingPlayers.length} ONLINE</span>
@@ -204,7 +184,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                                         <Search size={32} />
                                     </div>
                                 </div>
-                                <p className="text-xs font-bold tracking-widest text-center">SCAN DES FRÉQUENCES...<br/>AUCUNE FLOTTE DÉTECTÉE</p>
+                                <p className="text-xs font-bold tracking-widest text-center uppercase">SCAN DES FRÉQUENCES...<br/>AUCUNE FLOTTE DÉTECTÉE</p>
                             </div>
                         )}
                     </div>
@@ -213,181 +193,199 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
          );
     };
 
-  if (logic.phase === 'MENU') {
-      return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
-            <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-[#050510] to-black pointer-events-none"></div>
-            <div className="fixed inset-0 bg-[linear-gradient(rgba(59,130,246,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
+    // --- RENDER CONDITIONNEL ---
 
-            <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
-                <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                    <div className="flex flex-col items-center justify-center gap-2 mb-4">
-                        <BattleshipBrandingLogo />
-                        <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-300 drop-shadow-[0_0_30px_rgba(59,130,246,0.6)] tracking-tighter w-full uppercase">
-                            NEON<br className="md:hidden"/> FLEET
-                        </h1>
-                        <div className="inline-block px-6 py-2 rounded-full border border-blue-500/30 bg-blue-900/20 backdrop-blur-sm mt-4">
-                            <p className="text-blue-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase italic">Déployez • Scannez • Détruisez</p>
-                        </div>
-                    </div>
+    // 1. ÉCRAN D'ATTENTE HÔTE (Canal ouvert)
+    if (logic.gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && (logic.phase === 'LOBBY' || logic.onlineStep === 'game')) {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans p-4">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">NEON FLEET</h1>
+                    <div className="w-10"></div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
-                    <button onClick={() => { logic.setGameMode('SOLO'); logic.setPhase('SETUP'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.3)] text-left p-6 md:p-8 flex flex-col justify-between">
-                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div className="relative z-10">
-                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Cpu size={32} className="text-cyan-400" /></div>
-                            <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors uppercase">SOLO</h2>
-                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Affrontez l'IA du système dans un duel tactique de haute précision.</p>
-                        </div>
-                        <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">ACTIVER LE RADAR <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
-                    </button>
-
-                    <button onClick={() => { logic.setGameMode('ONLINE'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div className="relative z-10">
-                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]"><Globe size={32} className="text-blue-400" /></div>
-                            <div className="flex items-center gap-3 mb-2"><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors uppercase">EN LIGNE</h2><span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span></div>
-                            <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez un autre amiral de la grille en temps réel.</p>
-                        </div>
-                        <div className="relative z-10 flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">ENTRER DANS LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
+                <div className="flex-1 flex flex-col items-center justify-center z-20 text-center">
+                    <div className="relative mb-8">
+                        <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl animate-pulse"></div>
+                        <Loader2 size={80} className="text-blue-400 animate-spin" />
+                    </div>
+                    <h2 className="text-2xl font-black italic mb-2 tracking-widest uppercase">Poste de Commandement Prêt</h2>
+                    <p className="text-gray-400 font-bold animate-pulse uppercase text-sm tracking-[0.2em] mb-12">Scanne des fréquences à la recherche d'une flotte...</p>
+                    <button onClick={mp.cancelHosting} className="px-10 py-4 bg-gray-800 border-2 border-red-500/50 text-red-400 font-black rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-3">
+                        <X size={20} /> ANNULER LE SIGNAL
                     </button>
                 </div>
+            </div>
+        );
+    }
 
-                <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                    <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest italic"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+    // 2. LOBBY EN LIGNE (Liste des serveurs/joueurs)
+    if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 pr-2 pb-1 uppercase tracking-widest">BATAILLE</h1>
+                    <div className="w-10"></div>
                 </div>
+                {logic.onlineStep === 'connecting' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-blue-400 animate-spin mb-4" /><p className="text-blue-300 font-bold uppercase tracking-widest">Connexion satellite...</p></div>
+                ) : renderLobby()}
             </div>
-        </div>
-      );
-  }
+        );
+    }
 
-  if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
-      return (
-        <div className="h-full w-full flex flex-col items-center bg-black/20 text-white p-2">
-             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
-             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
-                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 pr-2 pb-1">BATAILLE</h1>
-                <div className="w-10"></div>
-            </div>
-            {logic.onlineStep === 'connecting' ? (
-                <div className="flex-1 flex flex-col items-center justify-center"><Loader2 size={48} className="text-blue-400 animate-spin mb-4" /><p className="text-blue-300 font-bold">CONNEXION...</p></div>
-            ) : renderLobby()}
-        </div>
-      );
-  }
+    // 3. MENU INITIAL (Solo/En Ligne)
+    if (logic.phase === 'MENU') {
+        return (
+            <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
+                <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/40 via-[#050510] to-black pointer-events-none"></div>
+                <div className="fixed inset-0 bg-[linear-gradient(rgba(59,130,246,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)] pointer-events-none"></div>
 
-  return (
-    <div className={`h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-2 select-none touch-none ${logic.shakeBoard ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
-        <style>{`@keyframes shake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-5px, 5px); } 75% { transform: translate(5px, -5px); } }`}</style>
-        
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
-        
-        {showTutorial && <TutorialOverlay gameId="battleship" onClose={() => setShowTutorial(false)} />}
-
-        {logic.notification && (
-            <div className={`fixed top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[90%] max-w-xs p-6 rounded-2xl border-2 backdrop-blur-md flex flex-col items-center text-center animate-in zoom-in slide-out-to-top-10 fade-out duration-200 ${logic.notification.type === 'HIT' || logic.notification.type === 'SUNK' ? 'bg-red-950/40 border-red-500 shadow-[0_0_20px_red]' : 'bg-blue-950/40 border-blue-500 shadow-[0_0_20px_#00f3ff]'}`}>
-                <span className="text-2xl font-black italic tracking-widest text-white drop-shadow-md leading-tight break-words uppercase">{logic.notification.text}</span>
-            </div>
-        )}
-
-        {/* Header */}
-        <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">
-            <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
-            <div className="flex flex-col items-center">
-                <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500 pr-2">NEON FLEET</h1>
-            </div>
-            <div className="flex gap-2">
-                <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
-                <button onClick={logic.resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
-            </div>
-        </div>
-
-        {logic.phase === 'SETUP' && (
-            <BattleshipSetup
-                grid={logic.setupGrid}
-                ships={logic.setupShips}
-                selectedShipType={logic.selectedShipType}
-                orientation={logic.orientation}
-                isReady={logic.isReady}
-                gameMode={logic.gameMode}
-                onCellClick={logic.handleSetupCellClick}
-                onSelectShip={logic.setSelectedShipType}
-                onToggleOrientation={logic.onToggleOrientation}
-                onRandomize={logic.randomizeSetup}
-                onStartBattle={logic.startBattle}
-            />
-        )}
-
-        {logic.phase === 'PLAYING' && (
-            <BattleshipPlay
-                playerGrid={logic.playerGrid}
-                cpuGrid={logic.cpuGrid}
-                playerShips={logic.playerShips}
-                cpuShips={logic.cpuShips}
-                turn={logic.turn}
-                onAttack={logic.handleAttack}
-                isNotificationActive={!!logic.notification}
-            />
-        )}
-
-        {logic.gameMode === 'ONLINE' && !logic.winner && !logic.opponentLeft && mp.gameOpponent && (
-            <div className="w-full max-w-lg z-30 px-2 pb-4 absolute bottom-0">
-                <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
-                    {REACTIONS.map(reaction => {
-                        const Icon = reaction.icon;
-                        return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
-                    })}
-                </div>
-                <form onSubmit={sendChat} className="flex gap-2">
-                    <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
-                    <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-cyan-500 text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
-                </form>
-                
-                {activeReaction && (
-                    <div className={`absolute z-50 pointer-events-none ${activeReaction.isMe ? 'bottom-24 right-4' : 'top-24 left-4'}`}>
-                        {renderReactionVisual(activeReaction.id, REACTIONS.find(r => r.id === activeReaction.id)?.color || '')}
+                <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
+                    <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
+                        <div className="flex flex-col items-center justify-center gap-2 mb-4">
+                            <BattleshipBrandingLogo />
+                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-300 drop-shadow-[0_0_30px_rgba(59,130,246,0.6)] tracking-tighter w-full uppercase">
+                                NEON<br className="md:hidden"/> FLEET
+                            </h1>
+                            <div className="inline-block px-6 py-2 rounded-full border border-blue-500/30 bg-blue-900/20 backdrop-blur-sm mt-4">
+                                <p className="text-blue-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase italic">Déployez • Scannez • Détruisez</p>
+                            </div>
+                        </div>
                     </div>
-                )}
-            </div>
-        )}
 
-        {logic.phase === 'GAMEOVER' && (
-            <div className="absolute inset-0 z-[110] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center animate-in zoom-in p-6 text-center">
-                {logic.winner === 'PLAYER' ? (
-                    <>
-                        <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
-                        <h2 className="text-5xl font-black italic text-white mb-2">VICTOIRE !</h2>
-                        <p className="text-green-400 font-bold mb-6">FLOTTE ENNEMIE DÉTRUITE</p>
-                        {logic.earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{logic.earnedCoins} PIÈCES</span></div>}
-                    </>
-                ) : (
-                    <>
-                        <ShieldAlert size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
-                        <h2 className="text-5xl font-black italic text-white mb-4">DÉFAITE...</h2>
-                        <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ</p>
-                    </>
-                )}
-                <div className="flex flex-col gap-4 w-full max-w-[280px]">
-                    <div className="flex gap-2 w-full">
-                        <button onClick={logic.resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"><RefreshCw size={18} /> REJOUER</button>
-                        {logic.gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); logic.setOnlineStep('lobby'); }} className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 text-sm">QUITTER</button>}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-sm md:max-w-3xl flex-shrink-0">
+                        <button onClick={() => { logic.setGameMode('SOLO'); logic.setPhase('SETUP'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 hover:shadow-[0_0_50px_rgba(34,211,238,0.3)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
+                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Cpu size={32} className="text-cyan-400" /></div>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors uppercase">SOLO</h2>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Affrontez l'IA du système dans un duel tactique de haute précision.</p>
+                            </div>
+                        </button>
+
+                        <button onClick={() => { logic.setGameMode('ONLINE'); logic.setPhase('LOBBY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="relative z-10">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]"><Globe size={32} className="text-blue-400" /></div>
+                                <div className="flex items-center gap-3 mb-2"><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors uppercase">EN LIGNE</h2><span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span></div>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez un autre amiral de la grille en temps réel.</p>
+                            </div>
+                        </button>
                     </div>
-                    <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>
+
+                    <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest italic"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+                    </div>
                 </div>
             </div>
-        )}
-        
-        {/* Waiting Online (Host) */}
-        {logic.gameMode === 'ONLINE' && mp.isHost && logic.onlineStep === 'game' && !mp.gameOpponent && (
-             <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
-                <Loader2 size={48} className="text-cyan-400 animate-spin mb-4" />
-                <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
-                <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold mt-4">ANNULER</button>
-            </div>
-        )}
+        );
+    }
 
-    </div>
-  );
+    // 4. JEU ACTIF (Setup ou Combat)
+    return (
+        <div className={`h-full w-full flex flex-col items-center bg-black/20 relative overflow-hidden text-white font-sans p-2 select-none touch-none ${logic.shakeBoard ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
+            <style>{`@keyframes shake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-5px, 5px); } 75% { transform: translate(5px, -5px); } }`}</style>
+            
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+            
+            {showTutorial && <TutorialOverlay gameId="battleship" onClose={() => setShowTutorial(false)} />}
+
+            {logic.notification && (
+                <div className={`fixed top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[90%] max-w-xs p-6 rounded-2xl border-2 backdrop-blur-md flex flex-col items-center text-center animate-in zoom-in slide-out-to-top-10 fade-out duration-200 ${logic.notification.type === 'HIT' || logic.notification.type === 'SUNK' ? 'bg-red-950/40 border-red-500 shadow-[0_0_20px_red]' : 'bg-blue-950/40 border-blue-500 shadow-[0_0_20px_#00f3ff]'}`}>
+                    <span className="text-2xl font-black italic tracking-widest text-white drop-shadow-md leading-tight break-words uppercase">{logic.notification.text}</span>
+                </div>
+            )}
+
+            {/* Header */}
+            <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
+                <div className="flex flex-col items-center">
+                    <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500 pr-2">NEON FLEET</h1>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowTutorial(true)} className="p-2 bg-gray-800 rounded-lg text-cyan-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><HelpCircle size={20} /></button>
+                    <button onClick={logic.resetGame} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
+                </div>
+            </div>
+
+            {logic.phase === 'SETUP' && (
+                <BattleshipSetup
+                    grid={logic.setupGrid}
+                    ships={logic.setupShips}
+                    selectedShipType={logic.selectedShipType}
+                    orientation={logic.orientation}
+                    isReady={logic.isReady}
+                    gameMode={logic.gameMode}
+                    onCellClick={logic.handleSetupCellClick}
+                    onSelectShip={logic.setSelectedShipType}
+                    onToggleOrientation={logic.onToggleOrientation}
+                    onRandomize={logic.randomizeSetup}
+                    onStartBattle={logic.startBattle}
+                />
+            )}
+
+            {logic.phase === 'PLAYING' && (
+                <BattleshipPlay
+                    playerGrid={logic.playerGrid}
+                    cpuGrid={logic.cpuGrid}
+                    playerShips={logic.playerShips}
+                    cpuShips={logic.cpuShips}
+                    turn={logic.turn}
+                    onAttack={logic.handleAttack}
+                    isNotificationActive={!!logic.notification}
+                />
+            )}
+
+            {logic.gameMode === 'ONLINE' && !logic.winner && !logic.opponentLeft && mp.gameOpponent && (
+                <div className="w-full max-w-lg z-30 px-2 pb-4 absolute bottom-0">
+                    <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
+                        {REACTIONS.map(reaction => {
+                            const Icon = reaction.icon;
+                            return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
+                        })}
+                    </div>
+                    <form onSubmit={sendChat} className="flex gap-2">
+                        <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
+                        <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-cyan-500 text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
+                    </form>
+                    
+                    {activeReaction && (
+                        <div className={`absolute z-50 pointer-events-none ${activeReaction.isMe ? 'bottom-24 right-4' : 'top-24 left-4'}`}>
+                            {renderReactionVisual(activeReaction.id, REACTIONS.find(r => r.id === activeReaction.id)?.color || '')}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {logic.phase === 'GAMEOVER' && (
+                <div className="absolute inset-0 z-[110] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center animate-in zoom-in p-6 text-center">
+                    {logic.winner === 'PLAYER' ? (
+                        <>
+                            <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold]" />
+                            <h2 className="text-5xl font-black italic text-white mb-2">VICTOIRE !</h2>
+                            <p className="text-green-400 font-bold mb-6">FLOTTE ENNEMIE DÉTRUITE</p>
+                            {logic.earnedCoins > 0 && <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-6 py-3 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={24} /><span className="text-yellow-100 font-bold text-xl">+{logic.earnedCoins} PIÈCES</span></div>}
+                        </>
+                    ) : (
+                        <>
+                            <ShieldAlert size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red]" />
+                            <h2 className="text-5xl font-black italic text-white mb-4">DÉFAITE...</h2>
+                            <p className="text-red-400 font-bold mb-6">VOTRE FLOTTE A COULÉ</p>
+                        </>
+                    )}
+                    <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                        <div className="flex gap-2 w-full">
+                            <button onClick={logic.resetGame} className="flex-1 px-4 py-3 bg-white text-black font-black tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"><RefreshCw size={18} /> REJOUER</button>
+                            {logic.gameMode === 'ONLINE' && <button onClick={() => { mp.leaveGame(); logic.setOnlineStep('lobby'); }} className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl hover:bg-gray-700 text-sm">QUITTER</button>}
+                        </div>
+                        <button onClick={handleLocalBack} className="w-full py-3 bg-gray-800 border border-white/10 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm"><Home size={18}/> RETOUR AU MENU</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };

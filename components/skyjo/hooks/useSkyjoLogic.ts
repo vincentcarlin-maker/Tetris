@@ -14,7 +14,7 @@ export const useSkyjoLogic = (
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void
 ) => {
     const { playMove, playLand, playVictory, playGameOver, playPaddleHit, resumeAudio } = audio;
-    const { updateHighScore } = useHighScores();
+    const { highScores, updateHighScore } = useHighScores();
     const { username, currentAvatarId } = useCurrency();
 
     // --- STATE ---
@@ -38,7 +38,8 @@ export const useSkyjoLogic = (
 
     // Online
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
-    const [isWaitingForHost, setIsWaitingForHost] = useState(false);
+    // Renamed isWaitingForHost to isWaitingForDeck to fix mismatch with SkyjoGame.tsx
+    const [isWaitingForDeck, setIsWaitingForDeck] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
@@ -88,7 +89,7 @@ export const useSkyjoLogic = (
             setDiscardPile([topCard]);
             if (onReportProgress) onReportProgress('play', 1);
         } else {
-            setPhase('LOBBY'); // Important: Passer en phase lobby pour afficher l'UI de connexion/lobby
+            setPhase('LOBBY'); 
             setOnlineStep('connecting');
             mp.connect();
         }
@@ -249,7 +250,6 @@ export const useSkyjoLogic = (
     useEffect(() => {
         if (gameMode === 'SOLO' && turn === 'CPU' && (phase === 'PLAYING' || phase === 'LAST_TURN')) {
             const timer = setTimeout(() => {
-                // ... (Logic AI identique à l'originale, simplifiée ici pour gain place)
                 let aiGrid = [...cpuGrid];
                 let aiDiscard = [...discardPile];
                 let aiDeck = [...deck];
@@ -302,7 +302,8 @@ export const useSkyjoLogic = (
                 setDeck(Array(20).fill(null) as any);
                 setSubTurnState('IDLE'); setFirstFinisher(null); setDoubledScore(null);
                 setupRevealedIndicesRef.current.clear();
-                setIsWaitingForHost(false); setOpponentLeft(false);
+                // Renamed to isWaitingForDeck
+                setIsWaitingForDeck(false); setOpponentLeft(false);
             }
             if (data.type === 'SKYJO_SETUP_REVEAL') {
                 const newGrid = cpuGrid.map((c, i) => i === data.index ? { ...c, isRevealed: true } : c);
@@ -337,20 +338,20 @@ export const useSkyjoLogic = (
     }, [mp]);
 
     useEffect(() => {
+        if (gameMode !== 'ONLINE') return;
+        
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby'); // Force le lobby ici
+            else setOnlineStep('lobby'); 
 
-            // Force phase LOBBY if not playing/setup
-            if (phase !== 'MENU' && phase !== 'SETUP' && phase !== 'PLAYING' && phase !== 'LAST_TURN' && phase !== 'ENDED') {
-                 if (phase !== 'LOBBY') setPhase('LOBBY');
+            if (phase !== 'MENU' && phase !== 'LOBBY') {
+                 setPhase('LOBBY');
             }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
             if (mp.isHost) {
-                // Host initiates game setup
                 if (phase === 'LOBBY' || phase === 'MENU') {
                      resetGame();
                      const newDeck = generateDeck();
@@ -360,28 +361,27 @@ export const useSkyjoLogic = (
                      topCard.isRevealed = true;
                      setDeck(newDeck);
                      setPlayerGrid(pHand);
-                     setCpuGrid(cHand); // Used to store opponent's hand logic for verification/display
+                     setCpuGrid(cHand); 
                      setDiscardPile([topCard]);
                      
-                     // Send INIT to opponent
                      setTimeout(() => {
                          mp.sendData({
                              type: 'SKYJO_INIT',
-                             hand: cHand, // Opponent gets this hand
-                             oppHand: pHand, // Opponent sees host hand as opponent
+                             hand: cHand, 
+                             oppHand: pHand, 
                              topCard: topCard,
                              startTurn: mp.peerId
                          });
+                         setPhase('SETUP'); // Transition immédiate une fois les données prêtes
                      }, 1000);
                 }
             } else {
-                if (phase === 'MENU') {
-                     setPhase('LOBBY');
-                }
-                if (!isWaitingForHost) setIsWaitingForHost(true);
+                if (phase === 'MENU') setPhase('LOBBY');
+                // Renamed isWaitingForHost to isWaitingForDeck to match component usage
+                if (!isWaitingForDeck) setIsWaitingForDeck(true);
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode]);
 
     const sendChat = (text: string) => {
         const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };
@@ -401,7 +401,7 @@ export const useSkyjoLogic = (
         deck, discardPile, playerGrid, cpuGrid,
         turn, subTurnState, currentDrawnCard,
         message, winner, earnedCoins, doubledScore,
-        onlineStep, setOnlineStep, isWaitingForHost, opponentLeft,
+        onlineStep, setOnlineStep, isWaitingForDeck, opponentLeft,
         chatHistory, activeReaction,
         startGame, resetGame,
         handleSetupReveal, handleDeckClick, handleDiscardPileClick, handleGridCardClick,

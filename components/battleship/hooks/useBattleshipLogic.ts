@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Grid, Ship, ShipType, CellStatus, GameState } from '../types';
 import { createEmptyGrid, generateRandomShips, checkHit, getCpuMove, SHIPS_CONFIG, isValidPlacement, placeShipOnGrid } from '../logic';
@@ -12,368 +11,173 @@ export const useBattleshipLogic = (
     mp: ReturnType<typeof useMultiplayer>,
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void
 ) => {
-    // --- STATE ---
-    const [phase, setPhase] = useState<'MENU' | 'SETUP' | 'PLAYING' | 'GAMEOVER'>('MENU');
+    const { username, currentAvatarId } = useCurrency();
+    const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, playSplash, resumeAudio } = audio;
+
+    const [phase, setPhase] = useState<'MENU' | 'LOBBY' | 'SETUP' | 'PLAYING' | 'GAMEOVER'>('MENU');
     const [turn, setTurn] = useState<'PLAYER' | 'CPU'>('PLAYER');
     const [gameMode, setGameMode] = useState<'SOLO' | 'ONLINE'>('SOLO');
-    
-    // Game Data
     const [playerGrid, setPlayerGrid] = useState<Grid>(createEmptyGrid());
-    const [cpuGrid, setCpuGrid] = useState<Grid>(createEmptyGrid()); // Visual grid for opponent
-    const [cpuRealGrid, setCpuRealGrid] = useState<Grid>(createEmptyGrid()); // Hidden logic grid
+    const [cpuGrid, setCpuGrid] = useState<Grid>(createEmptyGrid());
+    const [cpuRealGrid, setCpuRealGrid] = useState<Grid>(createEmptyGrid());
     const [playerShips, setPlayerShips] = useState<Ship[]>([]);
     const [cpuShips, setCpuShips] = useState<Ship[]>([]);
-    
-    // Setup State
     const [setupGrid, setSetupGrid] = useState<Grid>(createEmptyGrid());
     const [setupShips, setSetupShips] = useState<Ship[]>([]);
     const [selectedShipType, setSelectedShipType] = useState<ShipType | null>(null);
     const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
-    
-    // Online State
     const [onlineStep, setOnlineStep] = useState<'connecting' | 'lobby' | 'game'>('connecting');
     const [isReady, setIsReady] = useState(false);
     const [opponentReady, setOpponentReady] = useState(false);
     const [opponentLeft, setOpponentLeft] = useState(false);
-    
-    // Feedback
     const [notification, setNotification] = useState<{text: string, type: 'HIT'|'SUNK'|'MISS'} | null>(null);
-    const [shakeBoard, setShakeBoard] = useState(false);
     const [earnedCoins, setEarnedCoins] = useState(0);
     const [winner, setWinner] = useState<'PLAYER' | 'CPU' | null>(null);
+    const [shakeBoard, setShakeBoard] = useState(false);
 
-    // Refs
-    const handleDataRef = useRef<any>(null);
-    
-    const { username, currentAvatarId } = useCurrency();
-    const { playBlockHit, playWallHit, playVictory, playGameOver, playMove, playLaserShoot, playShipSink, playPaddleHit, playSplash } = audio;
+    const handleDataRef = useRef<(data: any) => void>(null);
 
-    // --- AUTOMATIC NOTIFICATION CLEARING ---
-    useEffect(() => {
-        if (notification) {
-            // Réduit à 1200ms pour ne pas gêner le gameplay rapide
-            const timer = setTimeout(() => {
-                setNotification(null);
-            }, 1200);
-            return () => clearTimeout(timer);
-        }
-    }, [notification]);
-
-    // --- INITIALIZATION ---
-    useEffect(() => {
-        // Tag user for lobby
-        mp.updateSelfInfo(username, currentAvatarId, undefined, 'Battleship');
-    }, [username, currentAvatarId, mp]);
-
-    // --- CONNECTION MANAGEMENT ---
     useEffect(() => {
         if (gameMode === 'ONLINE') {
-            setPhase('SETUP'); // Exit menu to allow Lobby UI to take over via condition check
             setOnlineStep('connecting');
-            mp.connect();
+            mp?.connect();
         } else {
-            if (mp.mode !== 'disconnected') mp.disconnect();
+            mp?.disconnect();
+            setOnlineStep('connecting');
+            setOpponentLeft(false);
         }
-    }, [gameMode, mp]);
+    }, [gameMode]);
 
-    // --- RESET ---
-    const resetGame = useCallback(() => {
-        setPhase('SETUP');
-        setTurn('PLAYER');
-        setWinner(null);
-        setPlayerGrid(createEmptyGrid());
-        setCpuGrid(createEmptyGrid());
-        setCpuRealGrid(createEmptyGrid());
-        setPlayerShips([]);
-        setCpuShips([]);
-        
-        setSetupGrid(createEmptyGrid());
-        setSetupShips([]);
-        setSelectedShipType(null);
-        
-        setEarnedCoins(0);
-        setNotification(null);
-        setIsReady(false);
-        setOpponentReady(false);
-        setOpponentLeft(false);
-        if (onReportProgress) onReportProgress('play', 1);
-    }, [onReportProgress]);
-
-    // --- SETUP LOGIC ---
-    const handleSetupCellClick = (r: number, c: number) => {
-        // 1. If ship selected from inventory, try place
-        if (selectedShipType) {
-            const config = SHIPS_CONFIG.find(s => s.type === selectedShipType);
-            if (!config) return;
-            
-            if (isValidPlacement(setupGrid, r, c, config.size, orientation)) {
-                const newShip: Ship = {
-                    id: `ship-${selectedShipType}`,
-                    type: selectedShipType,
-                    size: config.size,
-                    orientation,
-                    row: r, col: c, hits: 0, sunk: false
-                };
-                const newGrid = setupGrid.map(row => [...row]);
-                placeShipOnGrid(newGrid, newShip);
-                setSetupGrid(newGrid);
-                setSetupShips([...setupShips, newShip]);
-                setSelectedShipType(null); // Deselect
-                playMove();
-            } else {
-                playWallHit(); // Invalid placement
-            }
-            return;
-        }
-
-        // 2. If clicking existing ship, remove it (Pick up)
-        const clickedShip = setupShips.find(s => {
-            if (s.orientation === 'horizontal') return r === s.row && c >= s.col && c < s.col + s.size;
-            return c === s.col && r >= s.row && r < s.row + s.size;
-        });
-
-        if (clickedShip) {
-            // Remove from grid
-            const newGrid = createEmptyGrid();
-            const newShips = setupShips.filter(s => s.id !== clickedShip.id);
-            newShips.forEach(s => placeShipOnGrid(newGrid, s));
-            setSetupGrid(newGrid);
-            setSetupShips(newShips);
-            setSelectedShipType(clickedShip.type); // Put back in hand
-            playPaddleHit();
-        }
-    };
-
-    const randomizeSetup = () => {
-        const { grid, ships } = generateRandomShips();
-        setSetupGrid(grid);
-        setSetupShips(ships);
-        setSelectedShipType(null);
-        playMove();
-    };
-
-    const startBattle = () => {
-        if (setupShips.length < 5) return;
-        
-        setPlayerShips(setupShips);
-        setPlayerGrid(setupGrid);
-        
-        if (gameMode === 'SOLO') {
-            const { grid: cpuG, ships: cpuS } = generateRandomShips();
-            setCpuRealGrid(cpuG);
-            setCpuShips(cpuS); // Hidden, used for logic
-            setPhase('PLAYING');
-            playVictory();
-        } else {
-            setIsReady(true);
-            mp.sendData({ type: 'BATTLESHIP_READY' });
-        }
-    };
-
-    // --- GAMEPLAY LOGIC ---
-
-    const handleGameOver = useCallback((w: 'PLAYER' | 'CPU') => {
-        setWinner(w);
-        setPhase('GAMEOVER');
-        if (w === 'PLAYER') {
-            playVictory();
-            addCoins(100);
-            setEarnedCoins(100);
-            if (onReportProgress) onReportProgress('win', 1);
-        } else {
-            playGameOver();
-        }
-    }, [addCoins, playVictory, playGameOver, onReportProgress]);
-
-    const handleIncomingShot = useCallback((r: number, c: number) => {
-        const isHit = playerGrid[r][c] === 1;
-        const newGrid = playerGrid.map(row => [...row]);
-        newGrid[r][c] = isHit ? 3 : 2;
-        setPlayerGrid(newGrid);
-
-        let resultStatus: 'HIT'|'MISS'|'SUNK' = isHit ? 'HIT' : 'MISS';
-        let sunkShipDetails = null;
-
-        if (isHit) {
-            playBlockHit();
-            setShakeBoard(true); setTimeout(() => setShakeBoard(false), 500);
-            const newShips = playerShips.map(s => ({ ...s }));
-            const update = checkHit(r, c, newShips);
-            if (update.sunk) {
-                playShipSink();
-                resultStatus = 'SUNK';
-                const s = newShips.find(sh => sh.id === update.shipId);
-                if (s) sunkShipDetails = { type: s.type, size: s.size, orientation: s.orientation, row: s.row, col: s.col, sunk: true };
-                setNotification({ text: "ALERTE ! NAVIRE PERDU", type: 'SUNK' });
-            } else {
-                setNotification({ text: "IMPACT !", type: 'HIT' });
-            }
-            setPlayerShips(newShips);
-            if (newShips.every(s => s.sunk)) {
-                handleGameOver('CPU'); // I lost
-            }
-        } else {
-            playSplash();
-            setTurn('PLAYER'); // My turn now
-        }
-
-        if (gameMode === 'ONLINE') {
-            mp.sendData({ type: 'BATTLESHIP_RESULT', r, c, status: resultStatus, shipDetails: sunkShipDetails });
-        }
-    }, [playerGrid, playerShips, gameMode, mp, handleGameOver, playBlockHit, playShipSink, playSplash]);
-
-    const handleShotResult = (r: number, c: number, status: 'HIT'|'MISS'|'SUNK', shipDetails: any) => {
-        const newCpuGrid = cpuGrid.map(row => [...row]);
-        newCpuGrid[r][c] = (status === 'HIT' || status === 'SUNK') ? 3 : 2;
-        setCpuGrid(newCpuGrid);
-
-        if (status === 'HIT' || status === 'SUNK') {
-            playBlockHit();
-            if (status === 'SUNK') {
-                playShipSink();
-                setNotification({ text: "NAVIRE ENNEMI COULÉ !", type: 'SUNK' });
-                
-                if (gameMode === 'ONLINE') {
-                    if (shipDetails) setCpuShips(prev => [...prev, { ...shipDetails, id: `enemy-${Date.now()}` }]);
-                    
-                    const sunkCount = cpuShips.length + 1; 
-                    if (sunkCount >= 5) handleGameOver('PLAYER');
-                } else {
-                    if (onReportProgress) onReportProgress('action', 1);
-                }
-                
-                if (gameMode === 'ONLINE' && onReportProgress) onReportProgress('action', 1);
-
-            } else {
-                setNotification({ text: "TOUCHÉ !", type: 'HIT' });
-            }
-        } else {
-            playSplash();
-            setTurn('CPU');
-        }
-    };
-
-    const handleAttack = (r: number, c: number) => {
-        if (phase !== 'PLAYING' || turn !== 'PLAYER') return;
-        if (cpuGrid[r][c] !== 0) return;
-
-        playLaserShoot();
-
-        if (gameMode === 'ONLINE') {
-            mp.sendData({ type: 'BATTLESHIP_SHOT', r, c });
-        } else {
-            const isHit = cpuRealGrid[r][c] === 1;
-            let resultStatus: 'HIT'|'MISS'|'SUNK' = isHit ? 'HIT' : 'MISS';
-            let sunkShipDetails = null;
-
-            if (isHit) {
-                const newCpuShips = cpuShips.map(s => ({...s}));
-                const update = checkHit(r, c, newCpuShips);
-                if (update.sunk) {
-                    resultStatus = 'SUNK';
-                    const s = newCpuShips.find(sh => sh.id === update.shipId);
-                    if (s) sunkShipDetails = s;
-                }
-                setCpuShips(newCpuShips);
-                
-                if (newCpuShips.every(s => s.sunk)) {
-                    handleGameOver('PLAYER');
-                }
-            }
-            handleShotResult(r, c, resultStatus, sunkShipDetails);
-        }
-    };
-
-    // --- AI TURN ---
     useEffect(() => {
-        if (gameMode === 'SOLO' && phase === 'PLAYING' && turn === 'CPU') {
-            const timer = setTimeout(() => {
-                const move = getCpuMove(playerGrid);
-                handleIncomingShot(move.r, move.c);
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [turn, phase, gameMode, playerGrid, playerShips, handleIncomingShot]);
-
-    // --- MULTIPLAYER STATE SYNC ---
-    useEffect(() => {
-        if (gameMode !== 'ONLINE') return;
-
+        if (!mp) return;
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
             if (isHosting) setOnlineStep('game');
-            else setOnlineStep('lobby'); 
+            else setOnlineStep('lobby');
+            if (phase !== 'MENU' && phase !== 'LOBBY') setPhase('LOBBY');
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            if (phase === 'MENU') {
-                resetGame(); // Transitions to SETUP
-            }
+            setPhase('SETUP'); // Une fois le match trouvé, on place ses bateaux
+        } else if (mp.mode === 'connecting') {
+            setOnlineStep('connecting');
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode, phase, resetGame]);
+    }, [mp?.mode, mp?.players, mp?.peerId]);
 
-    // --- ONLINE EVENTS ---
-    useEffect(() => {
-        if (gameMode === 'ONLINE' && isReady && opponentReady && phase === 'SETUP') {
-            setPhase('PLAYING');
-            setTurn(mp.isHost ? 'PLAYER' : 'CPU');
-            playVictory();
+    useEffect(() => { mp?.updateSelfInfo(username, currentAvatarId, undefined, 'Battleship'); }, [username, currentAvatarId, mp]);
+
+    const triggerShake = useCallback(() => {
+        setShakeBoard(true);
+        setTimeout(() => setShakeBoard(false), 500);
+    }, []);
+
+    const resetGame = useCallback(() => {
+        setPhase('SETUP'); setTurn('PLAYER'); setWinner(null);
+        setPlayerGrid(createEmptyGrid()); setCpuGrid(createEmptyGrid()); setCpuRealGrid(createEmptyGrid());
+        setPlayerShips([]); setCpuShips([]); setSetupGrid(createEmptyGrid()); setSetupShips([]);
+        setSelectedShipType(null); setEarnedCoins(0); setNotification(null);
+        setIsReady(false); setOpponentReady(false); setOpponentLeft(false);
+        setShakeBoard(false);
+        if (onReportProgress) onReportProgress('play', 1);
+    }, [onReportProgress]);
+
+    const handleSetupCellClick = useCallback((r: number, c: number) => {
+        if (!selectedShipType || phase !== 'SETUP') return;
+        
+        const shipConfig = SHIPS_CONFIG.find(s => s.type === selectedShipType);
+        if (!shipConfig) return;
+
+        if (isValidPlacement(setupGrid, r, c, shipConfig.size, orientation)) {
+            const newShip: Ship = {
+                id: `ship-${Date.now()}`,
+                type: selectedShipType,
+                size: shipConfig.size,
+                hits: 0,
+                orientation,
+                row: r,
+                col: c,
+                sunk: false
+            };
+            
+            const newGrid = setupGrid.map(row => [...row]);
+            placeShipOnGrid(newGrid, newShip);
+            
+            setSetupGrid(newGrid);
+            setSetupShips(prev => [...prev, newShip]);
+            setSelectedShipType(null);
+            playMove();
+        } else {
+            playWallHit();
         }
-    }, [isReady, opponentReady, gameMode, phase, mp.isHost, playVictory]);
+    }, [selectedShipType, phase, setupGrid, orientation, playMove, playWallHit]);
+
+    const handleShotResult = (r: number, c: number, status: 'HIT'|'MISS'|'SUNK', shipDetails: any) => {
+        const newG = cpuGrid.map(row => [...row]);
+        newG[r][c] = (status === 'HIT' || status === 'SUNK') ? 3 : 2;
+        setCpuGrid(newG);
+        if (status === 'HIT' || status === 'SUNK') {
+            playBlockHit();
+            triggerShake();
+            if (status === 'SUNK') {
+                playShipSink(); setNotification({ text: "NAVIRE ENNEMI COULÉ !", type: 'SUNK' });
+                if (gameMode === 'ONLINE' && shipDetails) setCpuShips(p => [...p, { ...shipDetails, id: `enemy-${Date.now()}` }]);
+                const sunkCount = gameMode === 'ONLINE' ? cpuShips.length + 1 : cpuShips.filter(s => s.sunk).length;
+                if (sunkCount >= 5) { setWinner('PLAYER'); setPhase('GAMEOVER'); playVictory(); addCoins(100); setEarnedCoins(100); }
+            } else setNotification({ text: "TOUCHÉ !", type: 'HIT' });
+        } else { playSplash(); setTurn('CPU'); }
+    };
 
     useEffect(() => {
         handleDataRef.current = (data: any) => {
-            if (data.type === 'BATTLESHIP_READY') setOpponentReady(true);
+            if (data.type === 'BATTLESHIP_READY') {
+                setOpponentReady(true);
+                if (isReady) { setPhase('PLAYING'); setTurn(mp.isHost ? 'PLAYER' : 'CPU'); }
+            }
             if (data.type === 'BATTLESHIP_SHOT') {
-                const { r, c } = data;
-                handleIncomingShot(r, c);
+                const isHit = playerGrid[data.r][data.c] === 1;
+                const newG = playerGrid.map(row => [...row]); newG[data.r][data.c] = isHit ? 3 : 2; setPlayerGrid(newG);
+                let res: any = isHit ? 'HIT' : 'MISS'; let sDetails = null;
+                if (isHit) {
+                    triggerShake();
+                    const newS = playerShips.map(s => ({ ...s })); const update = checkHit(data.r, data.c, newS);
+                    if (update.sunk) { res = 'SUNK'; const s = newS.find(sh => sh.id === update.shipId); if (s) sDetails = s; }
+                    setPlayerShips(newS); if (newS.every(s => s.sunk)) { setWinner('CPU'); setPhase('GAMEOVER'); playGameOver(); }
+                } else setTurn('PLAYER');
+                mp?.sendData({ type: 'BATTLESHIP_RESULT', r: data.r, c: data.c, status: res, shipDetails: sDetails });
             }
-            if (data.type === 'BATTLESHIP_RESULT') {
-                const { r, c, status, shipDetails } = data;
-                handleShotResult(r, c, status, shipDetails);
-            }
-            if (data.type === 'LEAVE_GAME') { handleGameOver('PLAYER'); setOpponentLeft(true); }
+            if (data.type === 'BATTLESHIP_RESULT') handleShotResult(data.r, data.c, data.status, data.shipDetails);
+            if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setWinner('PLAYER'); setPhase('GAMEOVER'); }
             if (data.type === 'REMATCH_START') resetGame();
         };
     });
 
     useEffect(() => {
-        const unsubscribe = mp.subscribe((data: any) => {
-            if(handleDataRef.current) handleDataRef.current(data);
-        });
-        return () => unsubscribe();
+        if (isReady && opponentReady && phase === 'SETUP') {
+             setPhase('PLAYING');
+             setTurn(mp.isHost ? 'PLAYER' : 'CPU');
+        }
+    }, [isReady, opponentReady, phase, mp.isHost]);
+
+    useEffect(() => {
+        const unsubscribe = mp?.subscribe((data: any) => handleDataRef.current?.(data));
+        return () => unsubscribe && unsubscribe();
     }, [mp]);
 
     return {
-        // State
-        phase, setPhase,
-        turn,
-        gameMode, setGameMode,
-        playerGrid,
-        cpuGrid,
-        playerShips,
-        cpuShips,
-        setupGrid,
-        setupShips,
-        selectedShipType, setSelectedShipType,
-        orientation, setOrientation,
-        onlineStep, setOnlineStep,
-        isReady,
-        opponentReady,
-        opponentLeft,
-        notification,
+        phase, setPhase, turn, gameMode, setGameMode, playerGrid, cpuGrid, playerShips, cpuShips, setupGrid, setupShips, selectedShipType, setSelectedShipType, orientation, setOrientation, onlineStep, setOnlineStep, isReady, opponentReady, opponentLeft, notification, earnedCoins, winner,
         shakeBoard,
-        earnedCoins,
-        winner,
-
-        // Actions
-        resetGame,
+        resetGame, randomizeSetup: () => { const { grid, ships } = generateRandomShips(); setSetupGrid(grid); setSetupShips(ships); setSelectedShipType(null); playMove(); },
         handleSetupCellClick,
-        randomizeSetup,
-        startBattle,
-        handleAttack,
-        
-        // Utils
+        startBattle: () => { 
+            setPlayerShips(setupShips); setPlayerGrid(setupGrid); 
+            if (gameMode === 'SOLO') { 
+                const { grid, ships } = generateRandomShips(); 
+                setCpuRealGrid(grid); setCpuShips(ships); setPhase('PLAYING'); playVictory(); 
+            } else { 
+                setIsReady(true); mp?.sendData({ type: 'BATTLESHIP_READY' }); 
+            } 
+        },
+        handleAttack: (r: number, c: number) => { if (phase === 'PLAYING' && turn === 'PLAYER' && cpuGrid[r][c] === 0) { playLaserShoot(); if (gameMode === 'ONLINE') mp?.sendData({ type: 'BATTLESHIP_SHOT', r, c }); else { const isHit = cpuRealGrid[r][c] === 1; let res: any = isHit ? 'HIT' : 'MISS'; let sD = null; if (isHit) { const newS = cpuShips.map(s => ({...s})); const upd = checkHit(r, c, newS); if (upd.sunk) { res = 'SUNK'; sD = newS.find(sh => sh.id === upd.shipId); } setCpuShips(newS); if (newS.every(s => s.sunk)) { setWinner('PLAYER'); setPhase('GAMEOVER'); playVictory(); addCoins(100); setEarnedCoins(100); } } handleShotResult(r, c, res, sD); } } },
         onToggleOrientation: () => setOrientation(o => o === 'horizontal' ? 'vertical' : 'horizontal')
     };
 };

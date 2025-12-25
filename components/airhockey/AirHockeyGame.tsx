@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Users, Globe, Pause, Loader2, Wifi, Search, Palette } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Users, Globe, Pause, Loader2, Wifi, Search, Palette, X } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { TutorialOverlay } from '../Tutorials';
@@ -99,6 +99,31 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
              </div>
          );
     };
+
+    // ÉCRAN D'ATTENTE HÔTE
+    if (gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && onlineStep === 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans p-4">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">NEON HOCKEY</h1>
+                    <div className="w-10"></div>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center z-20 text-center">
+                    <div className="relative mb-8">
+                        <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-2xl animate-pulse"></div>
+                        <Loader2 size={80} className="text-cyan-400 animate-spin" />
+                    </div>
+                    <h2 className="text-2xl font-black italic mb-2 tracking-widest uppercase">Table Ouverte</h2>
+                    <p className="text-gray-400 font-bold animate-pulse uppercase text-sm tracking-[0.2em] mb-12">En attente d'un challenger...</p>
+                    <button onClick={mp.cancelHosting} className="px-10 py-4 bg-gray-800 border-2 border-red-500/50 text-red-400 font-black rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-3">
+                        <X size={20} /> ANNULER LA SESSION
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (gameMode === 'ONLINE' && onlineStep !== 'game') {
         return (

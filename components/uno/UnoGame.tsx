@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Home, RefreshCw, Trophy, Coins, ArrowLeft, HelpCircle, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Play, Wifi, Search } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, ArrowLeft, HelpCircle, Loader2, MessageSquare, Send, Smile, Frown, ThumbsUp, Heart, Hand, Play, Wifi, Search, X } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -81,7 +81,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         
         return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md gap-6 p-4">
-                 {/* Create Section */}
                  <div className="bg-gradient-to-br from-gray-900 to-black border border-yellow-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(234,179,8,0.15)] relative overflow-hidden group shrink-0">
                      <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                      <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Wifi size={16} className="text-yellow-400"/> HÉBERGER UNE PARTIE</h3>
@@ -90,7 +89,6 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                      </button>
                 </div>
 
-                {/* List Section */}
                 <div className="flex-1 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex flex-col min-h-0">
                     <div className="flex justify-between items-center mb-4 px-2">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Joueurs disponibles</span>
@@ -145,9 +143,32 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
         if (logic.phase === 'MENU') onBack();
     };
 
-    // --- MAIN RENDER ---
     if (logic.phase === 'MENU') {
         return <UnoMenu onInitGame={logic.initGame} onBack={onBack} />;
+    }
+
+    if (logic.gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && (logic.gameState === 'playing' || logic.onlineStep === 'game')) {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans p-4">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-900/20 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500">NEON UNO</h1>
+                    <div className="w-10"></div>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center z-20 text-center">
+                    <div className="relative mb-8">
+                        <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-2xl animate-pulse"></div>
+                        <Loader2 size={80} className="text-yellow-400 animate-spin" />
+                    </div>
+                    <h2 className="text-2xl font-black italic mb-2 tracking-widest uppercase">Table Distribuée</h2>
+                    <p className="text-gray-400 font-bold animate-pulse uppercase text-sm tracking-[0.2em] mb-12">En attente d'autres joueurs...</p>
+                    <button onClick={mp.cancelHosting} className="px-10 py-4 bg-gray-800 border-2 border-red-500/50 text-red-400 font-black rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-3">
+                        <X size={20} /> ANNULER LA PARTIE
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
@@ -168,17 +189,13 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
 
     return (
         <div ref={mainContainerRef} className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans touch-none select-none">
-            {/* TUTORIAL OVERLAY */}
             {logic.showTutorial && <TutorialOverlay gameId="uno" onClose={() => logic.setShowTutorial(false)} />}
-
             {logic.activeReaction && (() => {
                 const reaction = REACTIONS.find(r => r.id === logic.activeReaction?.id);
                 if (!reaction) return null;
                 const positionClass = logic.activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
                 return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${reaction.anim || 'animate-bounce'}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
             })()}
-
-            {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 p-4 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
                 <div className="flex flex-col items-center">
@@ -190,40 +207,7 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                     <button onClick={() => logic.startNewGame(logic.gameMode)} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><RefreshCw size={20} /></button>
                 </div>
             </div>
-
-            {logic.gameMode === 'ONLINE' && mp.isHost && logic.onlineStep === 'game' && !mp.gameOpponent && (
-                <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
-                    <Loader2 size={48} className="text-green-400 animate-spin mb-4" />
-                    <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE D'UN JOUEUR...</p>
-                    <button onClick={mp.cancelHosting} className="px-6 py-2 bg-red-600/80 text-white rounded-full text-sm font-bold mt-4">ANNULER</button>
-                </div>
-            )}
-
-            {/* Game Board Component */}
-            <UnoBoard
-                discardPileRef={discardPileRef}
-                cpuHandRef={cpuHandRef}
-                playerHand={logic.playerHand}
-                cpuHand={logic.cpuHand}
-                discardPile={logic.discardPile}
-                activeColor={logic.activeColor}
-                turn={logic.turn}
-                playDirection={logic.playDirection}
-                hasDrawnThisTurn={logic.hasDrawnThisTurn}
-                isAnimating={logic.isAnimating}
-                flyingCard={logic.flyingCard}
-                gameMode={logic.gameMode}
-                unoShout={logic.unoShout}
-                checkCompatibility={logic.checkCompatibility}
-                onDrawPileClick={logic.onDrawPileClick}
-                onPlayerCardClick={logic.onPlayerCardClick}
-                showContestButton={logic.showContestButton}
-                playerCalledUno={logic.playerCalledUno}
-                onUnoClick={logic.onUnoClick}
-                onContestClick={logic.onContestClick}
-            />
-
-            {/* ONLINE CHAT */}
+            <UnoBoard discardPileRef={discardPileRef} cpuHandRef={cpuHandRef} playerHand={logic.playerHand} cpuHand={logic.cpuHand} discardPile={logic.discardPile} activeColor={logic.activeColor} turn={logic.turn} playDirection={logic.playDirection} hasDrawnThisTurn={logic.hasDrawnThisTurn} isAnimating={logic.isAnimating} flyingCard={logic.flyingCard} gameMode={logic.gameMode} unoShout={logic.unoShout} checkCompatibility={logic.checkCompatibility} onDrawPileClick={logic.onDrawPileClick} onPlayerCardClick={logic.onPlayerCardClick} showContestButton={logic.showContestButton} playerCalledUno={logic.playerCalledUno} onUnoClick={logic.onUnoClick} onContestClick={logic.onContestClick} mp={mp} />
             {logic.gameMode === 'ONLINE' && !logic.winner && mp.gameOpponent && (
                 <div className="w-full max-w-lg z-30 px-2 pb-4 absolute bottom-0">
                     <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
@@ -239,19 +223,9 @@ export const UnoGame: React.FC<UnoGameProps> = ({ onBack, audio, addCoins, mp, o
                     <div ref={chatEndRef} />
                 </div>
             )}
-
             {logic.gameState === 'color_select' && <ColorSelector onColorSelect={logic.handleColorSelect} />}
-
             {(logic.gameState === 'gameover' || logic.opponentLeft) && (
-                <GameOver
-                    winner={logic.winner}
-                    score={logic.score}
-                    earnedCoins={logic.earnedCoins}
-                    gameMode={logic.gameMode}
-                    onRematch={logic.gameMode === 'ONLINE' ? () => mp.requestRematch() : () => logic.startNewGame(logic.gameMode)}
-                    onBackToMenu={logic.backToMenu}
-                    opponentLeft={logic.opponentLeft}
-                />
+                <GameOver winner={logic.winner} score={logic.score} earnedCoins={logic.earnedCoins} gameMode={logic.gameMode} onRematch={logic.gameMode === 'ONLINE' ? () => mp.requestRematch() : () => logic.startNewGame(logic.gameMode)} onBackToMenu={logic.backToMenu} opponentLeft={logic.opponentLeft} />
             )}
         </div>
     );

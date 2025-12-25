@@ -86,26 +86,36 @@ export const useCheckersLogic = (audio: any, addCoins: any, mp: any, onReportPro
 
     // Online Sync
     useEffect(() => {
-        const unsub = mp.subscribe((data: any) => {
+        const unsub = mp?.subscribe((data: any) => {
             if (data.type === 'CHECKERS_MOVE') performMove(data.move);
             if (data.type === 'REMATCH_START') resetGame();
             if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setWinner(mp.amIP1 ? 'white' : 'red'); }
         });
-        return unsub;
+        return () => unsub && unsub();
     }, [mp, performMove]);
 
     // Online Lifecycle
     useEffect(() => {
         if (gameMode !== 'ONLINE') return;
+        if (!mp) return;
+
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
         if (mp.mode === 'lobby') {
-            setOnlineStep(isHosting ? 'game' : 'lobby');
-            if (board.some(r => r.some(c => c !== null))) resetGame();
+            if (isHosting) setOnlineStep('game');
+            else setOnlineStep('lobby');
+            
+            if (board.some(r => r.some(c => c !== null))) {
+                // Si on revient au lobby alors qu'une partie était en cours (reset visuel)
+                setBoard(createInitialBoard());
+                setTurn('white');
+            }
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
+        } else if (mp.mode === 'connecting') {
+            setOnlineStep('connecting');
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode]);
+    }, [mp?.mode, mp?.isHost, mp?.players, mp?.peerId, gameMode]);
 
     const resetGame = () => {
         setBoard(createInitialBoard());

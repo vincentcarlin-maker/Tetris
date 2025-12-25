@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, RefreshCw, HelpCircle, ArrowLeft, Loader2, Play, Wifi, Search } from 'lucide-react';
+import { Home, RefreshCw, HelpCircle, ArrowLeft, Loader2, Play, Wifi, Search, X } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useMultiplayer } from '../../hooks/useMultiplayer';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -101,7 +101,32 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
         return <SkyjoMenu onStart={logic.startGame} onBack={onBack} />;
     }
 
-    // 2. ONLINE LOBBY
+    // ÉCRAN D'ATTENTE HÔTE (Simplifié pour inclure la phase LOBBY)
+    if (logic.gameMode === 'ONLINE' && mp.isHost && !mp.gameOpponent && logic.onlineStep === 'game') {
+        return (
+            <div className="h-full w-full flex flex-col items-center bg-black/90 relative overflow-y-auto text-white font-sans p-4">
+                <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
+                <div className="w-full max-w-lg flex items-center justify-between z-10 mb-4 shrink-0">
+                    <button onClick={() => { mp.disconnect(); logic.setPhase('MENU'); }} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><Home size={20} /></button>
+                    <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">CYBER SKY</h1>
+                    <div className="w-10"></div>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center z-20 text-center">
+                    <div className="relative mb-8">
+                        <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-2xl animate-pulse"></div>
+                        <Loader2 size={80} className="text-purple-400 animate-spin" />
+                    </div>
+                    <h2 className="text-2xl font-black italic mb-2 tracking-widest uppercase">Espace Aérien Réservé</h2>
+                    <p className="text-gray-400 font-bold animate-pulse uppercase text-sm tracking-[0.2em] mb-12">Attente d'une signature alliée ou ennemie...</p>
+                    <button onClick={mp.cancelHosting} className="px-10 py-4 bg-gray-800 border-2 border-red-500/50 text-red-400 font-black rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-3">
+                        <X size={20} /> QUITTER LE RADAR
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // 2. ONLINE LOBBY (Liste des serveurs)
     if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
@@ -125,7 +150,7 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
             
             {showTutorial && <TutorialOverlay gameId="skyjo" onClose={() => setShowTutorial(false)} />}
 
-            {logic.gameMode === 'ONLINE' && logic.isWaitingForHost && (
+            {logic.gameMode === 'ONLINE' && logic.isWaitingForDeck && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
                     <Loader2 size={48} className="text-purple-400 animate-spin mb-4" />
                     <p className="font-bold text-lg animate-pulse mb-2">EN ATTENTE DE L'HÔTE...</p>
@@ -147,14 +172,16 @@ export const SkyjoGame: React.FC<SkyjoGameProps> = ({ onBack, audio, addCoins, m
             </div>
 
             {/* BOARD */}
-            <SkyjoBoard 
-                {...logic}
-                mp={mp}
-                onDeckClick={logic.handleDeckClick}
-                onDiscardClick={logic.handleDiscardPileClick}
-                onGridCardClick={logic.handleGridCardClick}
-                onSetupReveal={logic.handleSetupReveal}
-            />
+            {logic.playerGrid.length > 0 && (
+                <SkyjoBoard 
+                    {...logic}
+                    mp={mp}
+                    onDeckClick={logic.handleDeckClick}
+                    onDiscardClick={logic.handleDiscardPileClick}
+                    onGridCardClick={logic.handleGridCardClick}
+                    onSetupReveal={logic.handleSetupReveal}
+                />
+            )}
 
             {/* GAME OVER */}
             {logic.phase === 'ENDED' && (
