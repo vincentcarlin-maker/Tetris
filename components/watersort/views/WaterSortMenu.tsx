@@ -1,11 +1,41 @@
 import React from 'react';
-import { Home, Play, Lock, Droplets, ArrowRight, ChevronLeft } from 'lucide-react';
+import { Home, Play, Lock, Droplets, ArrowRight, ChevronLeft, Sparkles } from 'lucide-react';
 
 interface WaterSortMenuProps {
     maxUnlockedLevel: number;
     onSelectLevel: (lvl: number) => void;
     onBack: () => void;
 }
+
+// Logo de marque spécifique pour Neon Mix
+const WaterSortBrandingLogo = () => (
+    <div className="flex items-center justify-center mb-8 relative h-28 w-full">
+        <div className="flex items-end gap-3 relative">
+            {/* Tube gauche (Rose) */}
+            <div className="w-8 h-20 border-2 border-pink-500/50 rounded-b-full rounded-t-sm bg-gray-900/80 overflow-hidden relative shadow-[0_0_15px_rgba(236,72,153,0.3)] transform -rotate-12 origin-bottom transition-transform group-hover:-rotate-[15deg]">
+                <div className="absolute bottom-0 left-0 w-full h-2/3 bg-pink-600 shadow-[0_0_10px_#db2777] animate-pulse"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent pointer-events-none"></div>
+            </div>
+            
+            {/* Tube central (Cyan - Principal) */}
+            <div className="w-10 h-24 border-2 border-cyan-400 rounded-b-full rounded-t-sm bg-gray-900/80 overflow-hidden relative shadow-[0_0_20px_rgba(34,211,238,0.4)] z-10 transform transition-transform hover:scale-105">
+                <div className="absolute bottom-0 left-0 w-full h-3/4 bg-cyan-400 shadow-[0_0_15px_#22d3ee] animate-pulse delay-75"></div>
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent pointer-events-none"></div>
+                <Sparkles size={12} className="absolute top-2 right-2 text-white/40 animate-pulse" />
+            </div>
+            
+            {/* Tube droit (Jaune) */}
+            <div className="w-8 h-20 border-2 border-yellow-500/50 rounded-b-full rounded-t-sm bg-gray-900/80 overflow-hidden relative shadow-[0_0_15px_rgba(234,179,8,0.3)] transform rotate-12 origin-bottom transition-transform group-hover:rotate-[15deg]">
+                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-yellow-500 shadow-[0_0_10px_#eab308] animate-pulse delay-150"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent pointer-events-none"></div>
+            </div>
+        </div>
+        
+        {/* Éclats de liquide en fond */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-cyan-500/10 blur-[60px] rounded-full pointer-events-none -z-10"></div>
+    </div>
+);
 
 export const WaterSortMenu: React.FC<WaterSortMenuProps> = ({ maxUnlockedLevel, onSelectLevel, onBack }) => {
     const gridItems = Array.from({ length: Math.max(maxUnlockedLevel + 9, 20) });
@@ -19,14 +49,11 @@ export const WaterSortMenu: React.FC<WaterSortMenuProps> = ({ maxUnlockedLevel, 
             <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                 
                 {/* Hero Title Section */}
-                <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                    <div className="flex items-center justify-center gap-6 mb-4">
-                        <Droplets size={56} className="text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.8)] animate-bounce hidden md:block" />
-                        <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter w-full uppercase">
-                            NEON<br className="md:hidden"/> MIX
-                        </h1>
-                        <Droplets size={56} className="text-cyan-400 drop-shadow-[0_0_25px_rgba(34,211,238,0.8)] animate-bounce hidden md:block" />
-                    </div>
+                <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4 group">
+                    <WaterSortBrandingLogo />
+                    <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.6)] tracking-tighter w-full uppercase mb-4">
+                        NEON<br className="md:hidden"/> MIX
+                    </h1>
                     <div className="inline-block px-6 py-2 rounded-full border border-cyan-500/30 bg-cyan-900/20 backdrop-blur-sm">
                         <p className="text-cyan-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Trier • Verser • Équilibrer</p>
                     </div>

@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
-import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon, HelpCircle } from 'lucide-react';
+import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon, HelpCircle, Target } from 'lucide-react';
 // Fix: Import MAPS from maps.ts
 import { MAPS } from '../maps';
 // Fix: Import only constants from constants.ts
@@ -39,6 +39,36 @@ interface ArenaUIProps {
     avatarsCatalog: Avatar[];
 }
 
+// Logo de marque spécifique pour Arena Clash
+const ArenaBrandingLogo = () => (
+    <div className="flex items-center justify-center mb-8 relative">
+        <div className="relative group">
+            {/* Éclats de combat en arrière-plan */}
+            <div className="absolute inset-0 bg-red-600/20 blur-3xl rounded-full animate-pulse"></div>
+            
+            <div className="relative z-10 w-28 h-28 flex items-center justify-center">
+                {/* Structure hexagonale de blindage */}
+                <div className="absolute inset-0 border-4 border-red-500 rounded-[30%] rotate-45 shadow-[0_0_20px_rgba(239,68,68,0.5)]"></div>
+                <div className="absolute inset-2 border-2 border-orange-400 rounded-[30%] -rotate-12 opacity-50"></div>
+                
+                {/* Viseur central */}
+                <div className="relative bg-gray-950 rounded-2xl p-5 border border-white/10 shadow-inner transform group-hover:scale-110 transition-transform duration-500">
+                    <Crosshair size={48} className="text-red-500 animate-[spin_10s_linear_infinite]" strokeWidth={2.5} />
+                    <Target size={20} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white animate-pulse" />
+                </div>
+
+                {/* Indicateurs tactiques aux coins */}
+                <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-ping"></div>
+                <div className="absolute bottom-0 left-0 w-3 h-3 bg-red-500 rounded-full animate-ping delay-700"></div>
+            </div>
+
+            {/* Lignes de scan HUD */}
+            <div className="absolute -left-16 top-1/2 -translate-y-1/2 w-12 h-[2px] bg-gradient-to-r from-transparent to-red-500/50"></div>
+            <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-12 h-[2px] bg-gradient-to-l from-transparent to-red-500/50"></div>
+        </div>
+    </div>
+);
+
 export const ArenaUI: React.FC<ArenaUIProps> = ({
     gameState, gameMode, score, timeLeft, respawnTimer, killFeed, leaderboard, earnedCoins,
     selectedMapIndex, onlineStep, isHost, hasOpponent,
@@ -66,7 +96,6 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
         return index !== -1 ? index + 1 : null;
     }, [leaderboard]);
 
-    // Fix: Define the missing MiniLeaderboard internal component to display top scores
     const MiniLeaderboard = () => (
         <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-2 min-w-[120px] flex flex-col gap-1 shadow-2xl animate-in slide-in-from-right-4 pointer-events-auto">
             <div className="flex items-center gap-1.5 px-1 border-b border-white/5 pb-1 mb-1">
@@ -210,12 +239,12 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
 
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     <div className="mb-8 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Crosshair size={56} className="text-red-400 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)] animate-pulse hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 drop-shadow-[0_0_30px_rgba(239,68,68,0.6)] tracking-tighter w-full uppercase">
-                                ARENA<br className="md:hidden"/> CLASH
-                            </h1>
-                            <Crosshair size={56} className="text-red-400 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)] animate-pulse hidden md:block" />
+                        <ArenaBrandingLogo />
+                        <h1 className="text-6xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 drop-shadow-[0_0_30px_rgba(239,68,68,0.6)] tracking-tighter w-full uppercase mb-4">
+                            ARENA<br className="md:hidden"/> CLASH
+                        </h1>
+                        <div className="inline-block px-6 py-2 rounded-full border border-red-500/30 bg-red-900/20 backdrop-blur-sm">
+                            <p className="text-red-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase italic">Verrouillez • Tirez • Dominez</p>
                         </div>
                     </div>
 
@@ -234,7 +263,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)]"><User size={32} className="text-red-400" /></div>
                                 <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-red-300 transition-colors uppercase">Solo</h2>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez les sentinelles de la grille.</p>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez les sentinelles de la grille dans une simulation de survie.</p>
                             </div>
                         </button>
 
@@ -246,25 +275,25 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                     <h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-orange-300 transition-colors uppercase">En Ligne</h2>
                                     <span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span>
                                 </div>
-                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Confrontation directe mondiale.</p>
+                                <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Confrontation directe mondiale en temps réel.</p>
                             </div>
                         </button>
                     </div>
 
                     <div className="mt-8 flex gap-4 w-full max-w-sm md:max-w-3xl">
-                        <button onClick={() => setLockerTab('TANKS')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
-                            <Palette size={18}/> BLINDAGES
+                        <button onClick={() => setLockerTab('TANKS')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase italic">
+                            <Palette size={18}/> Blindages
                         </button>
-                        <button onClick={() => setLockerTab('FLAGS')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
-                            <Globe size={18}/> DRAPEAUX
+                        <button onClick={() => setLockerTab('FLAGS')} className="flex-1 py-4 bg-gray-900/80 border border-white/10 rounded-[32px] flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase italic">
+                            <Globe size={18}/> Drapeaux
                         </button>
                     </div>
 
-                    <div className="mt-6 flex flex-col items-center gap-4">
-                        <button onClick={onToggleTutorial} className="text-gray-400 hover:text-white text-xs font-bold transition-all flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-xl border border-white/10 uppercase">
+                    <div className="mt-6 flex flex-col items-center gap-4 pb-safe">
+                        <button onClick={onToggleTutorial} className="text-gray-400 hover:text-white text-xs font-bold transition-all flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-xl border border-white/10 uppercase tracking-widest italic">
                             <HelpCircle size={16} /> Aide & Contrôles
                         </button>
-                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest"><Home size={14} /> Retour arcade</button>
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest italic"><Home size={14} /> Retour arcade</button>
                     </div>
                 </div>
 
@@ -339,7 +368,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/40 via-[#050510] to-black"></div>
                 <div className="relative z-10 w-full max-w-4xl flex flex-col h-full">
                     <div className="flex items-center justify-between mb-8 shrink-0">
-                        <button onClick={onReturnToMenu} className="p-3 bg-gray-900/80 rounded-xl text-gray-400 hover:text-white border border-white/10 transition-transform active:scale-95 cursor-pointer"><ChevronLeft size={20} /></button>
+                        <button onClick={onReturnToMenu} className="p-3 bg-gray-900/80 rounded-xl text-gray-400 hover:text-white border border-white/10 transition-transform active:scale-95 cursor-pointer shadow-lg"><ArrowLeft size={20} /></button>
                         <h1 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 uppercase tracking-tighter">Salles de Combat</h1>
                         <div className="w-12"></div>
                     </div>
@@ -351,17 +380,17 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             <div className="md:w-1/3 flex flex-col gap-6">
                                 <div className="bg-gradient-to-br from-gray-900 to-black border border-orange-500/30 rounded-[32px] p-8 shadow-2xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                                    <h3 className="text-sm font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest"><Wifi size={18} className="text-orange-400"/> Émission</h3>
-                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl uppercase tracking-widest cursor-pointer active:scale-95">
+                                    <h3 className="text-sm font-black text-white mb-6 flex items-center gap-2 uppercase tracking-widest italic"><Wifi size={18} className="text-orange-400"/> Émission</h3>
+                                    <button onClick={mp.createRoom} className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-[0.2em] rounded-2xl text-xs transition-all flex items-center justify-center gap-3 shadow-xl uppercase tracking-widest cursor-pointer active:scale-95 italic">
                                         <Play size={20} fill="currentColor"/> Créer Salon
                                     </button>
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    <button onClick={() => setLockerTab('TANKS')} className="py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
-                                        <Palette size={18}/> BLINDAGES
+                                    <button onClick={() => setLockerTab('TANKS')} className="py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase italic">
+                                        <Palette size={18}/> Blindages
                                     </button>
-                                    <button onClick={() => setLockerTab('FLAGS')} className="py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase">
-                                        <Globe size={18}/> DRAPEAUX
+                                    <button onClick={() => setLockerTab('FLAGS')} className="py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all uppercase italic">
+                                        <Globe size={18}/> Drapeaux
                                     </button>
                                 </div>
                             </div>
@@ -369,7 +398,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             <div className="flex-1 bg-black/40 backdrop-blur-md rounded-[40px] border border-white/10 p-8 flex flex-col min-h-0 shadow-2xl">
                                 <div className="flex justify-between items-center mb-6 px-2">
                                     <span className="text-xs font-black text-gray-400 uppercase tracking-[0.3em]">Canaux Détectés</span>
-                                    <span className="text-[10px] font-mono text-orange-400 bg-orange-950/30 px-3 py-1 rounded-full border border-orange-500/30">{hostingPlayers.length} LIVE</span>
+                                    <span className="text-[10px] font-mono text-orange-400 bg-orange-950/30 px-3 py-1 rounded-full border border-orange-500/30 font-black animate-pulse">{hostingPlayers.length} LIVE</span>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
@@ -385,10 +414,10 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="font-black text-lg text-white group-hover:text-orange-300 transition-colors italic uppercase">{player.name}</span>
-                                                            <span className="text-[10px] text-gray-500 font-mono tracking-widest">EN ATTENTE...</span>
+                                                            <span className="text-[10px] text-gray-500 font-mono tracking-widest font-black uppercase">En attente...</span>
                                                         </div>
                                                     </div>
-                                                    <button onClick={() => mp.joinRoom(player.id)} className="px-6 py-3 bg-white text-black font-black text-xs rounded-lg hover:bg-orange-500 hover:text-white transition-all shadow-xl uppercase tracking-widest cursor-pointer active:scale-95">
+                                                    <button onClick={() => mp.joinRoom(player.id)} className="px-6 py-3 bg-white text-black font-black text-xs rounded-lg hover:bg-orange-500 hover:text-white transition-all shadow-xl uppercase tracking-widest cursor-pointer active:scale-95 italic">
                                                         Rejoindre
                                                     </button>
                                                 </div>
@@ -396,8 +425,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                         })
                                     ) : (
                                         <div className="flex-1 flex flex-col items-center justify-center text-gray-600 gap-6 opacity-30">
-                                            <div className="relative bg-gray-800 p-6 rounded-full border border-gray-700"><Search size={40} /></div>
-                                            <p className="text-xs font-black tracking-[0.3em] text-center leading-loose">SCAN DES FRÉQUENCES...<br/>AUCUN COMBAT DÉTECTÉE</p>
+                                            <div className="relative bg-gray-800 p-6 rounded-full border border-gray-700 shadow-inner"><Search size={40} /></div>
+                                            <p className="text-xs font-black tracking-[0.3em] text-center leading-loose uppercase italic">Scan des fréquences...<br/>Aucun signal tactique détecté</p>
                                         </div>
                                     )}
                                 </div>
@@ -479,7 +508,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         const s = ARENA_DIFFICULTY_SETTINGS[d];
                         return (
                             <button key={d} onClick={() => onStartGame('SOLO', d)} className={`group cursor-pointer flex items-center justify-between px-8 py-6 border-2 rounded-3xl transition-all ${s.color} hover:bg-gray-800 hover:scale-105 active:scale-95 shadow-xl`}>
-                                <div className="flex items-center gap-4">{d==='EASY' && <Shield size={32}/>}{d==='MEDIUM' && <Zap size={32}/>}{d==='HARD' && <Skull size={32}/>}<span className="font-black text-xl uppercase tracking-wider">{d==='EASY'?'Novice':d==='MEDIUM'?'Vétéran':'Elite'}</span></div>
+                                <div className="flex items-center gap-4">{d==='EASY' && <Shield size={32}/>}{d==='MEDIUM' && <Zap size={32}/>}{d==='HARD' && <Skull size={32}/>}<span className="font-black text-xl uppercase tracking-wider italic">{d==='EASY'?'Novice':d==='MEDIUM'?'Vétéran':'Elite'}</span></div>
                                 <div className="text-[10px] font-black font-mono text-right opacity-60 group-hover:opacity-100">X{s.coinMult}</div>
                             </button>
                         );
@@ -487,15 +516,15 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                 </div>
                 
                 <div className="mt-8 flex gap-3 w-full max-w-sm">
-                    <button onClick={() => setLockerTab('TANKS')} className="flex-1 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase">
-                        <Palette size={18}/> BLINDAGES
+                    <button onClick={() => setLockerTab('TANKS')} className="flex-1 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase italic">
+                        <Palette size={18}/> Blindages
                     </button>
-                    <button onClick={() => setLockerTab('FLAGS')} className="flex-1 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase">
-                        <Globe size={18}/> DRAPEAUX
+                    <button onClick={() => setLockerTab('FLAGS')} className="flex-1 py-4 bg-gray-900 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-[0.3em] hover:bg-white hover:text-black transition-all uppercase italic">
+                        <Globe size={18}/> Drapeaux
                     </button>
                 </div>
 
-                <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer">Annuler</button>
+                <button onClick={onReturnToMenu} className="mt-12 text-gray-500 hover:text-white text-xs font-black tracking-[0.4em] uppercase cursor-pointer italic underline">Annuler</button>
                 
                 {lockerTab === 'TANKS' && (
                     <QuickLocker 
@@ -605,8 +634,8 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         ))}
                     </div>
                     <div className="absolute bottom-0 w-full h-56 grid grid-cols-2 gap-4 md:gap-8 shrink-0 z-40 p-4 md:p-8 pointer-events-auto">
-                        <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner touch-none"><div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75 pointer-events-none"><Activity size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-cyan-500 font-black tracking-[0.3em] uppercase">Mouvement</span></div>
-                        <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner touch-none"><div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75 pointer-events-none"><Crosshair size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase">Viseur</span></div>
+                        <div ref={leftZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner touch-none shadow-2xl"><div ref={leftKnobRef} className="w-16 h-16 bg-cyan-500/90 rounded-full shadow-[0_0_25px_#00f3ff] flex items-center justify-center transition-transform duration-75 pointer-events-none"><Activity size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-cyan-500 font-black tracking-[0.3em] uppercase italic">Pilotage</span></div>
+                        <div ref={rightZoneRef} className="relative bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center overflow-hidden shadow-inner touch-none shadow-2xl"><div ref={rightKnobRef} className="w-16 h-16 bg-red-600/90 rounded-full shadow-[0_0_25px_#ef4444] flex items-center justify-center transition-transform duration-75 pointer-events-none"><Crosshair size={24} className="text-white opacity-50"/></div><span className="absolute bottom-3 text-[8px] md:text-[9px] text-red-500 font-black tracking-[0.3em] uppercase italic">Artillerie</span></div>
                     </div>
                 </>
             )}
@@ -616,13 +645,13 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_30px_rgba(234,179,8,0.6)] animate-bounce" />
                     
                     <h2 className="text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-pink-500 mb-2 tracking-tighter uppercase">
-                        Partie Finie
+                        Mission Finie
                     </h2>
                     
-                    <div className="bg-gray-800/50 p-6 rounded-3xl border border-white/10 mb-8 w-full max-w-sm text-center backdrop-blur-xl">
+                    <div className="bg-gray-800/50 p-6 rounded-3xl border border-white/10 mb-8 w-full max-w-sm text-center backdrop-blur-xl shadow-2xl">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="text-center">
-                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Votre Score</p>
+                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Éliminations</p>
                                 <p className="text-4xl font-mono font-black text-white">{score}</p>
                             </div>
                             <div className="text-center border-l border-white/10">
@@ -642,14 +671,14 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                     <div className="flex flex-col gap-4 w-full max-w-[280px]">
                         <button 
                             onClick={onRematch}
-                            className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-cyan-400 transition-all shadow-xl flex items-center justify-center gap-2 text-sm uppercase active:scale-95"
+                            className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-cyan-400 transition-all shadow-xl flex items-center justify-center gap-2 text-sm uppercase active:scale-95 italic"
                         >
                             <RefreshCw size={20} /> Recommencer
                         </button>
                         
                         <button 
                             onClick={onBack}
-                            className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 text-sm uppercase active:scale-95"
+                            className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 text-sm uppercase active:scale-95 italic"
                         >
                             <Home size={20} /> Retour Menu
                         </button>

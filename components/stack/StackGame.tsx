@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Home, RefreshCw, Trophy, Coins, HelpCircle, Layers, Play, ArrowRight } from 'lucide-react';
 import { useStackLogic } from './hooks/useStackLogic';
@@ -11,6 +12,32 @@ interface StackGameProps {
     addCoins: (amount: number) => void;
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
+
+// Logo de marque spécifique pour Neon Stack
+const StackBrandingLogo = () => (
+    <div className="flex flex-col items-center justify-center mb-8 relative h-32 w-32">
+        {/* Effet de lueur de fond */}
+        <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full animate-pulse"></div>
+        
+        <div className="relative flex flex-col items-center">
+            {/* Bloc du haut (Rose) */}
+            <div className="w-16 h-8 bg-pink-500 border-2 border-pink-300 rounded-sm shadow-[0_0_15px_rgba(236,72,153,0.6)] transform skew-x-[-20deg] -rotate-[10deg] animate-in slide-in-from-right-10 duration-700 delay-300 z-30 flex items-center justify-center">
+                <div className="w-full h-full bg-gradient-to-br from-white/30 to-transparent opacity-50"></div>
+            </div>
+            
+            {/* Bloc du milieu (Violet) */}
+            <div className="w-20 h-8 bg-purple-600 border-2 border-purple-400 rounded-sm shadow-[0_0_15px_rgba(168,85,247,0.5)] transform skew-x-[20deg] rotate-[5deg] -mt-2 animate-in slide-in-from-left-10 duration-700 delay-150 z-20 overflow-hidden">
+                <div className="w-full h-full bg-[linear-gradient(45deg,rgba(255,255,255,0.1)_25%,transparent_25%)] bg-[size:4px_4px]"></div>
+            </div>
+
+            {/* Bloc de base (Indigo) */}
+            <div className="w-24 h-10 bg-indigo-700 border-2 border-indigo-400 rounded-sm shadow-[0_0_20px_rgba(99,102,241,0.4)] -mt-2 animate-in slide-in-from-bottom-10 duration-700 z-10 relative">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                <Layers size={14} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-300 opacity-50" />
+            </div>
+        </div>
+    </div>
+);
 
 export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const [showTutorial, setShowTutorial] = useState(false);
@@ -40,25 +67,35 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
             <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
                 <div className="fixed inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/40 via-[#050510] to-black pointer-events-none" />
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-center pt-20 pb-12">
-                    <div className="mb-12 text-center animate-in slide-in-from-top-10 duration-700">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Layers size={56} className="text-indigo-400 animate-pulse hidden md:block" />
-                            <h1 className="text-6xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(99,102,241,0.6)]">NEON STACK</h1>
+                    <div className="mb-8 md:mb-12 text-center animate-in slide-in-from-top-10 duration-700">
+                        <div className="flex flex-col items-center gap-2 mb-4">
+                            <StackBrandingLogo />
+                            {/* Correction : Ajout de pr-8 pour éviter que le texte italic soit coupé */}
+                            <h1 className="text-6xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 drop-shadow-[0_0_30px_rgba(99,102,241,0.6)] uppercase tracking-tighter pr-8">NEON STACK</h1>
+                        </div>
+                        <div className="inline-block px-6 py-2 rounded-full border border-indigo-500/30 bg-indigo-900/20 backdrop-blur-sm">
+                            <p className="text-indigo-200 font-bold tracking-[0.3em] text-xs uppercase italic">Équilibre • Précision • Infini</p>
                         </div>
                     </div>
+
                     <button 
                         onClick={(e) => { e.stopPropagation(); logic.resetGame(); }} 
-                        className="group relative w-full max-w-sm h-60 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-105 hover:border-indigo-500/50 shadow-2xl p-8 flex flex-col justify-between text-left"
+                        className="group relative w-full max-w-sm h-60 rounded-[40px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-indigo-500/50 shadow-2xl p-8 flex flex-col justify-between text-left"
                     >
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="relative z-10">
-                            <Play size={40} className="text-indigo-400 mb-4" />
-                            <h2 className="text-4xl font-black text-white italic">START</h2>
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(99,102,241,0.3)]">
+                                <Play size={40} className="text-indigo-400" fill="currentColor" />
+                            </div>
+                            <h2 className="text-4xl font-black text-white italic uppercase">Lancer</h2>
+                            <p className="text-gray-400 text-sm mt-1">Défiez la gravité et empilez les blocs.</p>
                         </div>
-                        <div className="relative z-10 flex items-center gap-2 text-indigo-400 font-bold uppercase tracking-widest group-hover:text-white transition-colors">Défier la gravité <ArrowRight size={20} /></div>
+                        <div className="relative z-10 flex items-center gap-2 text-indigo-400 font-bold uppercase tracking-widest group-hover:text-white transition-colors">Démarrer la pile <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" /></div>
                     </button>
+
                     <button 
                         onClick={(e) => { e.stopPropagation(); onBack(); }} 
-                        className="mt-12 text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg transition-all"
+                        className="mt-12 text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg transition-all italic"
                     >
                         <Home size={14}/> Retour arcade
                     </button>
@@ -113,7 +150,7 @@ export const StackGame: React.FC<StackGameProps> = ({ onBack, audio, addCoins, o
                         )}
                         <button 
                             onClick={(e) => { e.stopPropagation(); logic.resetGame(); }} 
-                            className="px-10 py-4 bg-indigo-600 text-white font-black tracking-[0.2em] rounded-2xl hover:bg-white hover:text-indigo-600 transition-all shadow-xl active:scale-95 uppercase text-sm"
+                            className="px-10 py-4 bg-indigo-600 text-white font-black tracking-[0.2em] rounded-2xl hover:bg-white hover:text-indigo-600 transition-all shadow-xl active:scale-95 uppercase text-sm italic"
                         >
                             Réessayer
                         </button>
