@@ -12,6 +12,77 @@ interface PacmanGameProps {
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
+// Logo de marque spécifique pour Neon Pacman - Version Améliorée
+const PacmanBrandingLogo = () => (
+    <div className="flex items-center justify-center mb-8 relative h-32 w-full overflow-hidden">
+        <div className="relative flex items-center gap-12">
+            
+            {/* Pacman Fidèle à l'original */}
+            <div className="relative w-20 h-20 animate-[move-pacman_5s_linear_infinite]">
+                {/* Corps Supérieur avec Œil */}
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-yellow-400 rounded-t-full animate-[chomp-upper_0.25s_infinite_linear] origin-bottom shadow-[0_0_20px_#facc15] z-20">
+                    {/* L'œil classique de Pacman */}
+                    <div className="absolute bottom-4 left-1/2 w-3 h-3 bg-black rounded-full shadow-inner transform -translate-x-1"></div>
+                </div>
+                
+                {/* Corps Inférieur */}
+                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-yellow-400 rounded-b-full animate-[chomp-lower_0.25s_infinite_linear] origin-top shadow-[0_0_20px_#facc15] z-10"></div>
+                
+                {/* Lueur interne */}
+                <div className="absolute inset-2 bg-yellow-300/20 rounded-full blur-md"></div>
+            </div>
+
+            {/* Fantôme Classique Néon */}
+            <div className="relative animate-[move-ghost_5s_linear_infinite] delay-100">
+                <div className="absolute inset-0 bg-red-600/30 blur-2xl rounded-full animate-pulse"></div>
+                <div className="relative p-2 bg-gray-950 border-2 border-red-500 rounded-t-full rounded-b-lg shadow-[0_0_15px_#ef4444]">
+                    <div className="flex gap-2 mb-2 px-1">
+                        {/* Yeux du fantôme */}
+                        <div className="w-3 h-4 bg-white rounded-full relative">
+                            <div className="absolute bottom-1 right-0.5 w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                        </div>
+                        <div className="w-3 h-4 bg-white rounded-full relative">
+                            <div className="absolute bottom-1 right-0.5 w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                        </div>
+                    </div>
+                    {/* Pieds ondulés du fantôme */}
+                    <div className="flex justify-between -mb-3 px-0.5">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Pastilles néon à manger */}
+            <div className="absolute left-[140%] top-1/2 -translate-y-1/2 flex gap-12 items-center">
+                <div className="w-2 h-2 bg-yellow-200 rounded-full shadow-[0_0_8px_#fff] opacity-40"></div>
+                <div className="w-2 h-2 bg-yellow-200 rounded-full shadow-[0_0_8px_#fff] opacity-60"></div>
+                <div className="w-4 h-4 bg-yellow-400 rounded-full shadow-[0_0_15px_#facc15] animate-pulse"></div>
+            </div>
+        </div>
+
+        <style>{`
+            @keyframes move-pacman {
+                0% { transform: translateX(-180px); }
+                100% { transform: translateX(250px); }
+            }
+            @keyframes move-ghost {
+                0% { transform: translateX(-120px); }
+                100% { transform: translateX(310px); }
+            }
+            @keyframes chomp-upper {
+                0%, 100% { transform: rotate(-35deg); }
+                50% { transform: rotate(0deg); }
+            }
+            @keyframes chomp-lower {
+                0%, 100% { transform: rotate(35deg); }
+                50% { transform: rotate(0deg); }
+            }
+        `}</style>
+    </div>
+);
+
 export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     
     const engine = usePacmanEngine(audio, addCoins, onReportProgress);
@@ -136,15 +207,12 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
                 
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Ghost size={56} className="text-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.8)] animate-bounce hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-300 to-red-300 drop-shadow-[0_0_30px_rgba(250,204,21,0.6)] tracking-tighter w-full uppercase">
-                                NEON<br className="md:hidden"/> PAC
-                            </h1>
-                            <Ghost size={56} className="text-yellow-400 drop-shadow-[0_0_25px_rgba(250,204,21,0.8)] animate-bounce hidden md:block" />
-                        </div>
+                        <PacmanBrandingLogo />
+                        <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-300 to-red-300 drop-shadow-[0_0_30px_rgba(250,204,21,0.6)] tracking-tighter w-full uppercase mb-4">
+                            NEON<br className="md:hidden"/> PAC
+                        </h1>
                         <div className="inline-block px-6 py-2 rounded-full border border-yellow-500/30 bg-yellow-900/20 backdrop-blur-sm">
-                            <p className="text-yellow-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase">Chassez • Évitez • Survivez</p>
+                            <p className="text-yellow-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase italic">Chassez • Évitez • Survivez</p>
                         </div>
                     </div>
 
@@ -301,7 +369,7 @@ export const PacmanGame: React.FC<PacmanGameProps> = ({ onBack, audio, addCoins,
                         <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 animate-in fade-in">
                             <h2 className="text-4xl font-black text-green-400 italic mb-2">NIVEAU {level} TERMINÉ !</h2>
                             <div className="flex gap-1 mb-4">{Array.from({length: 3}).map((_,i) => <Star key={i} className="text-yellow-400 animate-bounce" style={{animationDelay: `${i*0.2}s`}} fill="currentColor"/>)}</div>
-                            <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+50 PIÈCES</span></div>
+                            <div className="mb-4 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500"><Trophy className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold text-xl">+50 PIÈCES</span></div>
                             <p className="text-white animate-pulse text-xs tracking-widest">NIVEAU SUIVANT...</p>
                         </div>
                     )}
