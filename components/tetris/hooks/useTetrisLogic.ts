@@ -33,30 +33,53 @@ export const useTetrisLogic = (
     const { highScores, updateHighScore } = useHighScores();
     const highScore = highScores.tetris || 0;
 
-    // Références pour éviter les stale closures dans les callbacks de contrôle
-    const stateRef = useRef({ gameOver, isPaused, inMenu, player, board, score, level });
+    const stateRef = useRef({ gameOver, isPaused, inMenu, player, board, score, level, rows });
     useEffect(() => {
-        stateRef.current = { gameOver, isPaused, inMenu, player, board, score, level };
-    }, [gameOver, isPaused, inMenu, player, board, score, level]);
+        stateRef.current = { gameOver, isPaused, inMenu, player, board, score, level, rows };
+    }, [gameOver, isPaused, inMenu, player, board, score, level, rows]);
 
+    // Gestion du gain de score et des niveaux
     useEffect(() => {
         if (rowsCleared > 0) {
             playClear();
             const newPoints = LINE_POINTS[rowsCleared - 1] * (level + 1);
+            
             setScore(prev => {
                 const ns = prev + newPoints;
                 if (onReportProgress) onReportProgress('score', ns);
                 return ns;
             });
-            setRows(prev => prev + rowsCleared);
-            if (onReportProgress) onReportProgress('action', rowsCleared);
+
+            setRows(prev => {
+                const newRows = prev + rowsCleared;
+                if (onReportProgress) onReportProgress('action', rowsCleared);
+                
+                // Calcul du nouveau niveau basé sur les lignes totales
+                const newLevel = Math.floor(newRows / LINES_PER_LEVEL);
+                if (newLevel > level) {
+                    setLevel(newLevel);
+                    setDropTime(prevTime => (prevTime ? prevTime * SPEED_INCREMENT : null));
+                }
+                return newRows;
+            });
         }
     }, [rowsCleared, level, playClear, onReportProgress]);
 
+    // Calcul des pièces en temps réel (affichage seulement)
     useEffect(() => {
-        // Nouveau ratio : 1 pièce pour 250 points au lieu de 50
         setEarnedCoins(Math.floor(score / 250));
     }, [score]);
+
+    // distribution des pièces UNIQUE lors du Game Over
+    const hasAwardedCoins = useRef(false);
+    useEffect(() => {
+        if (gameOver && score > 0 && !hasAwardedCoins.current && !inMenu) {
+            hasAwardedCoins.current = true;
+            const coinsToAward = Math.floor(score / 250);
+            if (coinsToAward > 0) addCoins(coinsToAward);
+            updateHighScore('tetris', score);
+        }
+    }, [gameOver, score, addCoins, updateHighScore, inMenu]);
 
     const startGame = useCallback((startLevel: number = 0) => {
         setBoard(createBoard());
@@ -68,6 +91,7 @@ export const useTetrisLogic = (
         setGameOver(false);
         setIsPaused(false);
         setInMenu(false);
+        hasAwardedCoins.current = false;
         
         const initialSpeed = Math.max(120, 800 * Math.pow(SPEED_INCREMENT, startLevel));
         setDropTime(initialSpeed);
@@ -80,11 +104,6 @@ export const useTetrisLogic = (
         const { gameOver: go, isPaused: ip, inMenu: im, player: p, board: b } = stateRef.current;
         if (go || ip || im) return;
 
-        if (rows >= (level + 1) * LINES_PER_LEVEL) {
-            setLevel(prev => prev + 1);
-            setDropTime(prev => (prev ? prev * SPEED_INCREMENT : null));
-        }
-
         if (!checkCollision(p, b, { x: 0, y: 1 })) {
             updatePlayerPos({ x: 0, y: 1, collided: false });
         } else {
@@ -92,17 +111,12 @@ export const useTetrisLogic = (
                 setGameOver(true);
                 setDropTime(null);
                 playGameOver();
-                updateHighScore('tetris', score);
-                
-                // Nouveau ratio de gain final : 1 pièce / 250 points
-                const coinsToAward = Math.floor(score / 250);
-                if (coinsToAward > 0) addCoins(coinsToAward);
             } else {
                 playLand();
             }
             updatePlayerPos({ x: 0, y: 0, collided: true });
         }
-    }, [level, updatePlayerPos, rows, playGameOver, playLand, score, addCoins, updateHighScore]);
+    }, [updatePlayerPos, playGameOver, playLand]);
     
     useGameLoop(drop, isPaused || gameOver || inMenu ? null : dropTime);
 
