@@ -197,6 +197,31 @@ export const DB = {
         } catch (e) { return []; }
     },
 
+    getSentRequests: async (username: string) => {
+        if (!supabase) return [];
+        try {
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('sender_id', username)
+                .eq('text', 'CMD:FRIEND_REQUEST');
+            if (error || !data) return [];
+            
+            const requests = [];
+            for (const m of data) {
+                const profile = await DB.getUserProfile(m.receiver_id);
+                requests.push({
+                    id: m.receiver_id,
+                    name: m.receiver_id,
+                    avatarId: profile?.data?.avatarId || 'av_bot',
+                    frameId: profile?.data?.frameId,
+                    timestamp: new Date(m.created_at).getTime()
+                });
+            }
+            return requests;
+        } catch (e) { return []; }
+    },
+
     getMessages: async (user1: string, user2: string) => {
         if (!supabase) return [];
         try {
@@ -236,6 +261,18 @@ export const DB = {
 
     sendFriendRequestDB: async (sender_id: string, receiver_id: string) => {
         return await DB.sendMessage(sender_id, receiver_id, 'CMD:FRIEND_REQUEST');
+    },
+
+    cancelFriendRequestDB: async (sender_id: string, receiver_id: string) => {
+        if (!supabase) return;
+        try {
+            await supabase
+                .from('messages')
+                .delete()
+                .eq('sender_id', sender_id)
+                .eq('receiver_id', receiver_id)
+                .eq('text', 'CMD:FRIEND_REQUEST');
+        } catch (e) {}
     },
 
     acceptFriendRequestDB: async (username: string, requesterId: string) => {

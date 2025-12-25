@@ -53,6 +53,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     
     const [friendsSearchTerm, setFriendsSearchTerm] = useState('');
     const [isCommunitySearching, setIsCommunitySearching] = useState(false);
+    const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
 
     const stateRef = useRef({ friends, activeChatId, username, isConnectedToSupabase, onlineUsers });
 
@@ -64,17 +65,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
 
+    const refreshRequests = async () => {
+        if (isConnectedToSupabase && username) {
+            DB.getPendingRequests(username).then(reqs => setFriendRequests(reqs));
+            DB.getSentRequests(username).then(reqs => setSentRequests(reqs));
+        }
+    };
+
     useEffect(() => {
         const loadInitialData = async () => {
-            if (isSupabaseConfigured && username) {
+            if (isConnectedToSupabase && username) {
                 DB.getUnreadCount(username).then(count => setUnreadCount(count));
-                DB.getPendingRequests(username).then(reqs => {
-                    setFriendRequests(prev => {
-                        const existingIds = new Set(prev.map(r => r.id));
-                        const newReqs = reqs.filter((r: any) => !existingIds.has(r.id));
-                        return [...prev, ...newReqs];
-                    });
-                });
+                refreshRequests();
                 DB.getMessages(username, SUPPORT_ID).then(msgs => {
                     if (msgs && msgs.length > 0) {
                         const formatted = msgs.map((m: any) => ({
@@ -90,26 +92,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             }
         };
         loadInitialData();
-    }, [isSupabaseConfigured, username, setFriendRequests]);
+    }, [isConnectedToSupabase, username, setFriendRequests]);
 
     useEffect(() => {
-        if (!isSupabaseConfigured || !mp.peerId || !username) return;
+        if (!isConnectedToSupabase || !mp.peerId || !username) return;
         const channel = mp.supabase.channel(`msg_${username}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
                 const newMsg = payload.new;
                 if (newMsg.receiver_id !== username) return;
                 
                 if (newMsg.text === 'CMD:FRIEND_REQUEST') {
-                    DB.getUserProfile(newMsg.sender_id).then(profile => {
-                        if (profile) {
-                            const newReq = { id: profile.username, name: profile.username, avatarId: profile.data?.avatarId || 'av_bot', frameId: profile.data?.frameId, timestamp: Date.now() };
-                            setFriendRequests(prev => {
-                                if (prev.some(r => r.id === newReq.id)) return prev;
-                                playCoin();
-                                return [...prev, newReq];
-                            });
-                        }
-                    });
+                    refreshRequests();
+                    playCoin();
                     return;
                 }
                 
@@ -128,9 +122,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 } else {
                     DB.markMessagesAsRead(senderUsername, username);
                 }
-            }).subscribe();
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, () => {
+                refreshRequests();
+            })
+            .subscribe();
         return () => { mp.supabase.removeChannel(channel); };
-    }, [isSupabaseConfigured, mp.peerId, username, playCoin, setFriendRequests, onlineUsers]);
+    }, [isConnectedToSupabase, mp.peerId, username, playCoin, setFriendRequests, onlineUsers]);
 
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
@@ -139,6 +137,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 playVictory();
                 const newFriend: Friend = { id: sender.id, name: sender.name, avatarId: sender.avatarId, frameId: sender.frameId, status: 'online', lastSeen: Date.now() };
                 addFriend(newFriend);
+                refreshRequests();
             }
         });
         return () => unsubscribe();
@@ -153,7 +152,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         setUnreadCount(c => Math.max(0, c - unreadInChat));
 
         if (friend.id.startsWith('bot_')) return;
-        if (isSupabaseConfigured) {
+        if (isConnectedToSupabase) {
             setIsLoadingHistory(true);
             try {
                 const targetName = friend.id === SUPPORT_ID ? SUPPORT_ID : friend.name;
@@ -185,7 +184,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 setMessages(prev => ({ ...prev, [activeChatId]: [...(prev[activeChatId] || []), botMsg] }));
                 playCoin();
             }, 1000);
-        } else if (isSupabaseConfigured) {
+        } else if (isConnectedToSupabase) {
             const targetName = activeChatId === SUPPORT_ID ? SUPPORT_ID : (friends.find(f => f.id === activeChatId) || { name: activeChatId }).name;
             const formattedText = activeChatId === SUPPORT_ID ? `[SUPPORT][OBJ:Message Direct] ${text}` : text;
             
@@ -198,8 +197,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     const handlePlayerClick = async (player: any) => {
         playLand();
-        // Enrichissement systématique depuis la base de données pour avoir les stats et l'inventaire
-        if (isSupabaseConfigured && player.name) {
+        if (isConnectedToSupabase && player.name) {
             try {
                 const profile = await DB.getUserProfile(player.name);
                 if (profile && profile.data) {
@@ -234,8 +232,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             });
         }
 
-        if (isSupabaseConfigured) {
+        if (isConnectedToSupabase) {
             await DB.sendFriendRequestDB(username, selectedPlayer.name);
+            refreshRequests();
         }
 
         alert(`Demande d'ami envoyée à ${selectedPlayer.name} !`);
@@ -252,7 +251,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         const newFriend: Friend = { id: req.id, name: req.name, avatarId: req.avatarId, frameId: req.frameId, status: 'online', lastSeen: Date.now() };
         addFriend(newFriend);
         setFriendRequests(prev => prev.filter(r => r.id !== req.id));
-        if (isSupabaseConfigured) DB.acceptFriendRequestDB(username, req.name);
+        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
         if (mp.peerId) {
             const senderOnline = onlineUsers.find(u => u.name === req.name);
             if (senderOnline) {
@@ -263,13 +262,22 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             }
         }
         playVictory();
+        refreshRequests();
     };
 
     const declineRequest = (reqId: string) => {
         const req = friendRequests.find(r => r.id === reqId);
         if (!req) return;
         setFriendRequests(prev => prev.filter(r => r.id !== reqId));
-        if (isSupabaseConfigured) DB.acceptFriendRequestDB(username, req.name);
+        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
+        refreshRequests();
+    };
+
+    const cancelSentRequest = async (targetId: string) => {
+        if (isConnectedToSupabase) {
+            await DB.cancelFriendRequestDB(username, targetId);
+            refreshRequests();
+        }
     };
 
     const activeFriend = useMemo(() => {
@@ -304,9 +312,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 ) : socialTab === 'FRIENDS' ? (
                     <FriendsList friends={friends} messages={messages} currentUsername={username} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onOpenChat={openChat} searchTerm={friendsSearchTerm} onSearchChange={setFriendsSearchTerm}/>
                 ) : socialTab === 'COMMUNITY' ? (
-                    <CommunityView myPeerId={mp.peerId} currentUsername={username} friends={friends} onlineUsers={onlineUsers} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onPlayerClick={handlePlayerClick} isSearching={isCommunitySearching} onSearch={async (query) => { setIsCommunitySearching(true); const results = await DB.searchUsers(query); setIsCommunitySearching(false); return results; }}/>
+                    <CommunityView myPeerId={mp.peerId} currentUsername={username} friends={friends} onlineUsers={onlineUsers} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onPlayerClick={handlePlayerClick} isSearching={isCommunitySearching} onSearch={async (query) => { if (!isSupabaseConfigured) return []; setIsCommunitySearching(true); const results = await DB.searchUsers(query); setIsCommunitySearching(false); return results; }}/>
                 ) : (
-                    <RequestsList requests={friendRequests} avatarsCatalog={avatarsCatalog} onAccept={acceptRequest} onDecline={declineRequest}/>
+                    <RequestsList requests={friendRequests} sentRequests={sentRequests} avatarsCatalog={avatarsCatalog} onAccept={acceptRequest} onDecline={declineRequest} onCancel={cancelSentRequest}/>
                 )}
             </div>
 
