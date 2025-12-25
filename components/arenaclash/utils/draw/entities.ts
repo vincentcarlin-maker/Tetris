@@ -1,8 +1,106 @@
 import { Character, Bullet, PowerUp, Particle } from '../../types';
 
+/**
+ * Dessine l'accessoire (drapeau) sur le char.
+ */
+const drawTankAccessory = (ctx: CanvasRenderingContext2D, acc: any, bodySize: number) => {
+    const flagW = 22;
+    const flagH = 14;
+    // Positionnement à l'arrière gauche du châssis pour un look équilibré
+    const posX = -bodySize / 2 + 4;
+    const posY = -bodySize / 2 + 4;
+
+    ctx.save();
+    ctx.translate(posX, posY);
+
+    // Mât du drapeau (Effet métal poli)
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -8);
+    ctx.stroke();
+
+    ctx.translate(0, -8);
+    
+    // Animation d'ondulation pour un effet "vent"
+    const wave = Math.sin(Date.now() / 200) * 2;
+    
+    // Structure de base du drapeau
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+
+    const layout = acc.layout || 'vertical';
+    const colors = acc.colors || [];
+
+    // Logique de rendu selon la configuration du catalogue
+    if (acc.id === 'ta_flag_neon') {
+        const grad = ctx.createLinearGradient(0, 0, flagW, 0);
+        colors.forEach((c: string, i: number) => grad.addColorStop(i / (colors.length - 1), c));
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+    } else if (layout === 'japan') {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillStyle = '#BC002D';
+        ctx.beginPath();
+        ctx.arc(flagW / 2, -flagH / 2 + wave/2, flagH / 4, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (layout === 'usa') {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        for (let i = 0; i < 7; i++) {
+            ctx.fillStyle = i % 2 === 0 ? '#B22234' : '#fff';
+            ctx.fillRect(0, -flagH + (i * flagH / 7) + wave/2, flagW, flagH / 7);
+        }
+        ctx.fillStyle = '#3C3B6E';
+        ctx.fillRect(0, -flagH + wave/2, flagW * 0.45, flagH * 0.55);
+    } else if (layout === 'brazil') {
+        ctx.fillStyle = '#009739';
+        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillStyle = '#FEDD00';
+        ctx.beginPath();
+        ctx.moveTo(2, -flagH / 2 + wave/2);
+        ctx.lineTo(flagW / 2, -flagH + 2 + wave/2);
+        ctx.lineTo(flagW - 2, -flagH / 2 + wave/2);
+        ctx.lineTo(flagW / 2, -2 + wave/2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#012169';
+        ctx.beginPath();
+        ctx.arc(flagW / 2, -flagH / 2 + wave/2, flagH / 5, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (layout === 'pirate') {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(flagW / 2, -flagH / 2 + wave/2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(flagW / 2 - 3, -flagH / 2 + 2 + wave/2, 6, 2); // Simple base de crâne
+    } else {
+        const isVert = layout === 'vertical';
+        colors.forEach((c: string, i: number) => {
+            ctx.fillStyle = c;
+            if (isVert) {
+                ctx.fillRect((i * flagW) / colors.length, -flagH + wave/2, flagW / colors.length, flagH);
+            } else {
+                ctx.fillRect(0, -flagH + (i * flagH) / colors.length + wave/2, flagW, flagH / colors.length);
+            }
+        });
+    }
+    
+    // Bordure de finition pour détacher le drapeau du fond
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, -flagH + wave/2, flagW, flagH);
+
+    ctx.restore();
+};
+
 export const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil: number) => {
     if (!char) return;
-    const { x, y, angle, radius, skin, hp, maxHp, name, shield } = char;
+    const { x, y, angle, radius, skin, hp, maxHp, name, shield, accessory } = char;
     const primary = skin?.primaryColor || char.color;
     const glow = skin?.glowColor || primary;
     
@@ -10,7 +108,7 @@ export const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil:
     ctx.translate(x, y);
     ctx.rotate(angle);
     
-    // Corps (Plus carré et massif)
+    // Corps (Plus carré et massif style Arcade)
     const bodySize = radius * 1.8;
     ctx.shadowBlur = 15;
     ctx.shadowColor = glow;
@@ -22,7 +120,12 @@ export const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil:
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Canon (Style boutique : plus large)
+    // Rendu de l'accessoire (Drapeau) - Dessiné après le corps pour être au-dessus
+    if (accessory && accessory.id !== 'ta_none') {
+        drawTankAccessory(ctx, accessory, bodySize);
+    }
+
+    // Canon
     const barrelW = bodySize * 0.8, barrelH = bodySize * 0.28;
     ctx.fillStyle = '#1e293b';
     ctx.strokeStyle = primary;
@@ -32,7 +135,7 @@ export const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil:
     ctx.fill();
     ctx.stroke();
 
-    // Tourelle (Style boutique : plus petite et ronde au centre)
+    // Tourelle
     const turretRadius = bodySize * 0.35;
     ctx.shadowBlur = 10;
     ctx.shadowColor = glow;
@@ -44,7 +147,7 @@ export const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil:
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Bouclier
+    // Bouclier Énergétique
     if (shield > 0) {
         ctx.strokeStyle = '#3b82f6';
         ctx.lineWidth = 3;
@@ -56,7 +159,7 @@ export const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil:
     }
     ctx.restore();
 
-    // Infos (Nom & HP)
+    // Infos flottantes (Nom & Barre de HP)
     ctx.save();
     ctx.translate(x, y - radius - 40);
     ctx.fillStyle = '#fff';
