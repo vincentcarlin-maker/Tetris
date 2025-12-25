@@ -174,16 +174,20 @@ export const UsersSection: React.FC<UsersSectionProps> = ({ profiles, setProfile
 const UserConsoleModal = ({ user, onClose, onUpdate }: any) => {
     const [activeTab, setActiveTab] = useState<'ECONOMY' | 'INVENTORY' | 'PRIVILEGES' | 'DANGER'>('ECONOMY');
     const [coinInput, setCoinInput] = useState<string>('0');
-    const [isProcessing, setIsProcessing] = useState(false);
 
     const handleQuickCoins = (amount: number) => {
-        onUpdate(user.username, { coins: (user.data?.coins || 0) + amount }, `Ajustement admin : ${amount > 0 ? '+' : ''}${amount}`, amount);
+        const current = user.data?.coins || 0;
+        const newVal = Math.max(0, current + amount);
+        const effectiveDelta = newVal - current;
+        onUpdate(user.username, { coins: newVal }, `Ajustement admin : ${effectiveDelta > 0 ? '+' : ''}${effectiveDelta}`, effectiveDelta);
     };
 
     const handleSetExactCoins = () => {
-        const val = parseInt(coinInput);
+        let val = parseInt(coinInput);
         if (isNaN(val)) return;
-        const delta = val - (user.data?.coins || 0);
+        val = Math.max(0, val); // Protection anti-négatif
+        const current = user.data?.coins || 0;
+        const delta = val - current;
         onUpdate(user.username, { coins: val }, `Définition solde par admin : ${val}`, delta);
     };
 
@@ -200,7 +204,7 @@ const UserConsoleModal = ({ user, onClose, onUpdate }: any) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
+        <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={onClose}>
             <div className="bg-[#0c0c14] w-full max-w-2xl h-[80vh] rounded-[40px] border border-white/20 shadow-2xl overflow-hidden flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
                 
                 {/* Sidebar Navigation */}
@@ -280,6 +284,7 @@ const UserConsoleModal = ({ user, onClose, onUpdate }: any) => {
                                             onChange={e => setCoinInput(e.target.value)}
                                             className="flex-1 bg-gray-900 border border-white/10 rounded-2xl p-4 text-white font-mono font-bold text-xl outline-none focus:border-yellow-500 transition-all"
                                             placeholder="Nouveau solde..."
+                                            min="0"
                                         />
                                         <button 
                                             onClick={handleSetExactCoins}
