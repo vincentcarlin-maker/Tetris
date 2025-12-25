@@ -8,7 +8,7 @@ import { RunnerRenderer } from './components/RunnerRenderer';
 import { RunnerUI } from './components/RunnerUI';
 import { SKINS, BIOMES } from './constants';
 import { useCurrency } from '../../hooks/useCurrency';
-import { Activity, Play, ShoppingBag, Home, HelpCircle } from 'lucide-react';
+import { Activity, Play, ShoppingBag, Home, HelpCircle, Zap, FastForward, ArrowRight } from 'lucide-react';
 
 interface RunnerGameProps {
     onBack: () => void;
@@ -16,6 +16,33 @@ interface RunnerGameProps {
     addCoins: (amount: number) => void;
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
+
+// Logo de marque spécifique pour Neon Run
+const RunnerBrandingLogo = () => (
+    <div className="flex items-center justify-center gap-4 mb-6 relative">
+        <div className="relative group">
+            {/* Effet de traînée de vitesse derrière le logo */}
+            <div className="absolute -left-8 top-1/2 -translate-y-1/2 flex gap-1 opacity-50">
+                <div className="w-4 h-1 bg-orange-500 rounded-full animate-pulse"></div>
+                <div className="w-8 h-1 bg-orange-400 rounded-full animate-pulse delay-75"></div>
+                <div className="w-2 h-1 bg-orange-300 rounded-full animate-pulse delay-150"></div>
+            </div>
+            
+            <div className="relative">
+                <div className="absolute inset-0 bg-orange-600 blur-2xl opacity-40 animate-pulse"></div>
+                <div className="relative z-10 flex items-center justify-center p-4 bg-gray-900 border-2 border-orange-500 rounded-2xl shadow-[0_0_20px_rgba(249,115,22,0.4)] transform -rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                    <Zap size={48} className="text-orange-400 fill-orange-400/20 drop-shadow-[0_0_10px_#f97316]" strokeWidth={2.5} />
+                    <FastForward size={24} className="absolute -right-2 -bottom-2 text-yellow-400 animate-bounce" />
+                </div>
+            </div>
+
+            <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex gap-1 opacity-50">
+                <div className="w-2 h-1 bg-red-500 rounded-full animate-pulse"></div>
+                <div className="w-6 h-1 bg-red-400 rounded-full animate-pulse delay-100"></div>
+            </div>
+        </div>
+    </div>
+);
 
 export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const { coins } = useCurrency();
@@ -87,12 +114,12 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
 
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Activity size={56} className="text-orange-400 drop-shadow-[0_0_25px_rgba(251,146,60,0.8)] animate-pulse hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-300 via-amber-300 to-red-300 drop-shadow-[0_0_30px_rgba(251,146,60,0.6)] tracking-tighter w-full">
-                                NEON<br className="md:hidden"/> RUN
-                            </h1>
-                            <Activity size={56} className="text-orange-400 drop-shadow-[0_0_25px_rgba(251,146,60,0.8)] animate-pulse hidden md:block" />
+                        <RunnerBrandingLogo />
+                        <h1 className="text-6xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-300 via-amber-300 to-red-400 drop-shadow-[0_0_30px_rgba(251,146,60,0.6)] tracking-tighter w-full uppercase mb-4">
+                            NEON<br className="md:hidden"/> RUN
+                        </h1>
+                        <div className="inline-block px-6 py-2 rounded-full border border-orange-500/30 bg-orange-900/20 backdrop-blur-sm">
+                            <p className="text-orange-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase italic">Vitesse • Réflexes • Adrénaline</p>
                         </div>
                     </div>
 
@@ -101,23 +128,25 @@ export const RunnerGame: React.FC<RunnerGameProps> = ({ onBack, audio, addCoins,
                             <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(251,146,60,0.3)]"><Play size={32} className="text-orange-400" /></div>
-                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-orange-300 transition-colors">COURIR</h2>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-orange-300 transition-colors uppercase">Courir</h2>
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Courez sans fin, évitez les obstacles, battez votre record.</p>
                             </div>
+                            <div className="relative z-10 flex items-center gap-2 text-orange-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">Lancer la simulation <ArrowRight size={18} /></div>
                         </button>
 
                         <button onClick={() => setShowSkinShop(true)} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-yellow-500/50 hover:shadow-[0_0_50px_rgba(250,204,21,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(250,204,21,0.3)]"><ShoppingBag size={32} className="text-yellow-400" /></div>
-                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-yellow-300 transition-colors">BOUTIQUE</h2>
+                                <h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-yellow-300 transition-colors uppercase">Vestiaire</h2>
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Personnalisez votre coureur avec des skins uniques.</p>
                             </div>
+                            <div className="relative z-10 flex items-center gap-2 text-yellow-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">Changer de style <ArrowRight size={18} /></div>
                         </button>
                     </div>
 
                     <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg"><Home size={14} /> RETOUR AU MENU PRINCIPAL</button>
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest italic"><Home size={14} /> Retour arcade</button>
                     </div>
                 </div>
                 
