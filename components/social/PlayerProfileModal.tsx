@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Trophy, Calendar, MessageSquare, UserPlus, UserMinus, Star, Clock } from 'lucide-react';
+import { X, Trophy, Calendar, MessageSquare, UserPlus, UserMinus, Star, Clock, Send } from 'lucide-react';
 import { Friend } from './types';
 import { GAME_NAMES } from './types';
 import { Avatar, Frame } from '../../hooks/useCurrency';
@@ -12,13 +12,14 @@ interface PlayerProfileModalProps {
     onRemoveFriend: (id: string) => void;
     onOpenChat: (friend: Friend) => void;
     isFriend: boolean;
+    isPending: boolean; // Nouveau: pour bloquer les doublons
     avatarsCatalog: Avatar[];
     framesCatalog: Frame[];
     badgesCatalog: any[];
 }
 
 export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({ 
-    player, onClose, onAddFriend, onRemoveFriend, onOpenChat, isFriend, 
+    player, onClose, onAddFriend, onRemoveFriend, onOpenChat, isFriend, isPending,
     avatarsCatalog, framesCatalog, badgesCatalog 
 }) => {
     
@@ -86,7 +87,6 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{player.status === 'online' ? 'En ligne' : 'Hors-ligne'}</span>
                     </div>
 
-                    {/* Section Stats, Badges & Connexion */}
                     <div className="w-full mt-6 space-y-4">
                         <div className="bg-black/40 rounded-2xl p-4 border border-white/5">
                             <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Trophy size={14}/> Records de jeu</h3>
@@ -108,12 +108,25 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
                     </div>
 
                     <div className="w-full flex flex-col gap-3 mt-8 shrink-0">
-                        <button 
-                            onClick={() => { if(isFriend) onOpenChat(player); else onAddFriend(); }} 
-                            className="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
-                        >
-                            {isFriend ? <><MessageSquare size={18}/> ENVOYER UN MESSAGE</> : <><UserPlus size={18}/> AJOUTER EN AMI</>}
-                        </button>
+                        {isFriend ? (
+                            <button 
+                                onClick={() => onOpenChat(player)} 
+                                className="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                            >
+                                <MessageSquare size={18}/> ENVOYER UN MESSAGE
+                            </button>
+                        ) : isPending ? (
+                            <div className="py-4 bg-gray-800 text-cyan-400 rounded-2xl font-black text-sm border border-cyan-500/30 flex items-center justify-center gap-2 cursor-default">
+                                <Clock size={18} className="animate-pulse" /> DEMANDE EN COURS
+                            </div>
+                        ) : (
+                            <button 
+                                onClick={onAddFriend} 
+                                className="py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-2xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                            >
+                                <UserPlus size={18}/> AJOUTER EN AMI
+                            </button>
+                        )}
                         
                         {isFriend && (
                             <button 

@@ -229,6 +229,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const sendFriendRequest = async () => {
         if (!selectedPlayer) return;
         
+        // Anti-doublon local immédiat
+        if (sentRequests.some(r => r.name === selectedPlayer.name)) return;
+
         const targetPlayer = { ...selectedPlayer };
 
         // 1. Optimistic Update : on l'ajoute direct à la liste "Envoyées"
@@ -341,14 +344,25 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 ) : socialTab === 'FRIENDS' ? (
                     <FriendsList friends={friends} messages={messages} currentUsername={username} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onOpenChat={openChat} searchTerm={friendsSearchTerm} onSearchChange={setFriendsSearchTerm}/>
                 ) : socialTab === 'COMMUNITY' ? (
-                    <CommunityView myPeerId={mp.peerId} currentUsername={username} friends={friends} onlineUsers={onlineUsers} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onPlayerClick={handlePlayerClick} isSearching={isCommunitySearching} onSearch={async (query) => { if (!isSupabaseConfigured) return []; setIsCommunitySearching(true); const results = await DB.searchUsers(query); setIsCommunitySearching(false); return results; }}/>
+                    <CommunityView myPeerId={mp.peerId} currentUsername={username} friends={friends} onlineUsers={onlineUsers} sentRequests={sentRequests} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onPlayerClick={handlePlayerClick} isSearching={isCommunitySearching} onSearch={async (query) => { if (!isSupabaseConfigured) return []; setIsCommunitySearching(true); const results = await DB.searchUsers(query); setIsCommunitySearching(false); return results; }}/>
                 ) : (
                     <RequestsList requests={friendRequests} sentRequests={sentRequests} avatarsCatalog={avatarsCatalog} onAccept={acceptRequest} onDecline={declineRequest} onCancel={cancelSentRequest} onRefresh={refreshRequests} isRefreshing={isRefreshingRequests}/>
                 )}
             </div>
 
             {selectedPlayer && (
-                <PlayerProfileModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} onAddFriend={sendFriendRequest} onRemoveFriend={() => handleRemoveFriend(selectedPlayer.name)} onOpenChat={openChat} isFriend={friends.some(f => f.name === selectedPlayer.name)} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} badgesCatalog={BADGES_CATALOG}/>
+                <PlayerProfileModal 
+                    player={selectedPlayer} 
+                    onClose={() => setSelectedPlayer(null)} 
+                    onAddFriend={sendFriendRequest} 
+                    onRemoveFriend={() => handleRemoveFriend(selectedPlayer.name)} 
+                    onOpenChat={openChat} 
+                    isFriend={friends.some(f => f.name === selectedPlayer.name)} 
+                    isPending={sentRequests.some(r => r.name === selectedPlayer.name)} // Passé ici
+                    avatarsCatalog={avatarsCatalog} 
+                    framesCatalog={framesCatalog} 
+                    badgesCatalog={BADGES_CATALOG}
+                />
             )}
         </div>
     );

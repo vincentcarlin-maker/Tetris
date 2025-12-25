@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Search, RefreshCw, X, UserPlus, UserCheck, Globe, Clock } from 'lucide-react';
-import { Friend, GAME_NAMES } from './types';
+import { Search, RefreshCw, X, UserPlus, UserCheck, Globe, Clock, Send } from 'lucide-react';
+import { Friend, GAME_NAMES, FriendRequest } from './types';
 import { Avatar, Frame } from '../../hooks/useCurrency';
 import { OnlineUser } from '../../hooks/useSupabase';
 
@@ -10,6 +10,7 @@ interface CommunityViewProps {
     currentUsername: string;
     friends: Friend[];
     onlineUsers: OnlineUser[];
+    sentRequests: FriendRequest[]; // Nouveau
     avatarsCatalog: Avatar[];
     framesCatalog: Frame[];
     onPlayerClick: (player: any) => void;
@@ -18,7 +19,7 @@ interface CommunityViewProps {
 }
 
 export const CommunityView: React.FC<CommunityViewProps> = ({ 
-    currentUsername, friends, onlineUsers, 
+    currentUsername, friends, onlineUsers, sentRequests,
     avatarsCatalog, framesCatalog, onPlayerClick, onSearch, isSearching 
 }) => {
     const [communitySearch, setCommunitySearch] = React.useState('');
@@ -33,17 +34,19 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         
         const results = await onSearch(query);
         
-        // On fusionne les résultats de la DB avec les données de présence LIVE
+        // On fusionne les résultats de la DB avec les données de présence LIVE et les requêtes en cours
         const mapped = results.filter((u: any) => u.name !== currentUsername)
             .map((u: any) => {
                 const onlineMatch = onlineUsers.find(o => o.name === u.name);
                 const isFriend = friends.some(f => f.name === u.name);
+                const isPending = sentRequests.some(r => r.name === u.name);
                 return {
                     ...u,
                     id: onlineMatch ? onlineMatch.id : u.id,
                     status: onlineMatch ? 'online' : 'offline',
                     gameActivity: onlineMatch?.gameActivity,
-                    isFriend
+                    isFriend,
+                    isPending
                 };
             });
         setSearchResults(mapped);
@@ -107,6 +110,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                                         <div className="flex items-center gap-2">
                                             <span className="font-bold text-sm text-white group-hover:text-purple-300 transition-colors">{player.name}</span>
                                             {player.isFriend && <div className="px-1.5 py-0.5 rounded-full bg-cyan-900/40 border border-cyan-500/30 text-[8px] font-black text-cyan-400 tracking-tighter uppercase">Ami</div>}
+                                            {player.isPending && <div className="px-1.5 py-0.5 rounded-full bg-cyan-900/20 border border-cyan-500/20 text-[8px] font-black text-cyan-300 tracking-tighter uppercase">Envoyé</div>}
                                         </div>
                                         <div className="flex items-center gap-1.5">
                                             <span className={`text-[10px] font-bold uppercase tracking-widest ${isOnline ? 'text-green-400' : 'text-gray-500'}`}>
@@ -115,8 +119,8 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                                         </div>
                                     </div>
                                 </div>
-                                <div className={`p-2 rounded-xl transition-all ${player.isFriend ? 'bg-cyan-500/10 text-cyan-400' : 'bg-gray-700/50 text-gray-300 hover:bg-white hover:text-black'}`}>
-                                    {player.isFriend ? <UserCheck size={18}/> : <UserPlus size={18}/>}
+                                <div className={`p-2 rounded-xl transition-all ${player.isFriend ? 'bg-cyan-500/10 text-cyan-400' : player.isPending ? 'bg-cyan-500/5 text-cyan-500/50' : 'bg-gray-700/50 text-gray-300 hover:bg-white hover:text-black'}`}>
+                                    {player.isFriend ? <UserCheck size={18}/> : player.isPending ? <Clock size={18} className="animate-pulse"/> : <UserPlus size={18}/>}
                                 </div>
                             </div>
                         );
@@ -132,11 +136,6 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                         Aucun signal détecté pour<br/>
                         <span className="text-white italic">"{communitySearch}"</span>
                     </p>
-                    <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-xl max-w-[200px]">
-                        <p className="text-[10px] text-gray-500 font-bold text-center">
-                            Astuce : Vérifiez l'orthographe ou essayez de créer un autre compte localement pour tester.
-                        </p>
-                    </div>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -151,6 +150,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                             activeOnlineUsers.map(player => {
                                 const avatar = avatarsCatalog.find(a => a.id === player.avatarId) || avatarsCatalog[0];
                                 const isFriend = friends.some(f => f.name === player.name);
+                                const isPending = sentRequests.some(r => r.name === player.name);
                                 return (
                                     <div key={player.id} onClick={() => onPlayerClick(player)} className="flex items-center justify-between p-3 bg-gray-800/60 rounded-2xl border border-white/5 hover:bg-gray-800 transition-all group cursor-pointer shadow-md">
                                         <div className="flex items-center gap-3">
@@ -162,14 +162,15 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-bold text-sm text-white">{player.name}</span>
                                                     {isFriend && <div className="px-1 py-0.5 rounded-full bg-cyan-900/30 border border-cyan-500/20 text-[7px] font-black text-cyan-400 uppercase">Ami</div>}
+                                                    {isPending && <div className="px-1 py-0.5 rounded-full bg-cyan-900/10 border border-cyan-500/10 text-[7px] font-black text-cyan-300/70 uppercase">Envoyé</div>}
                                                 </div>
                                                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                                                     {player.gameActivity && player.gameActivity !== 'menu' ? `Joue à ${GAME_NAMES[player.gameActivity] || player.gameActivity}` : 'Actif'}
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className={`p-2 rounded-xl transition-all ${isFriend ? 'bg-cyan-500/10 text-cyan-400' : 'bg-gray-700/50 text-gray-300 hover:bg-white hover:text-black'}`}>
-                                            {isFriend ? <UserCheck size={18}/> : <UserPlus size={18}/>}
+                                        <div className={`p-2 rounded-xl transition-all ${isFriend ? 'bg-cyan-500/10 text-cyan-400' : isPending ? 'bg-cyan-500/5 text-cyan-500/50' : 'bg-gray-700/50 text-gray-300 hover:bg-white hover:text-black'}`}>
+                                            {isFriend ? <UserCheck size={18}/> : isPending ? <Clock size={18} className="animate-pulse"/> : <UserPlus size={18}/>}
                                         </div>
                                     </div>
                                 );
