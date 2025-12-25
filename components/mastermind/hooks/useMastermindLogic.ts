@@ -45,7 +45,11 @@ export const useMastermindLogic = (
     const handleDataRef = useRef<(data: any) => void>(null);
 
     // --- INIT ---
-    useEffect(() => { mp.updateSelfInfo(username, currentAvatarId, undefined, 'Mastermind'); }, [username, currentAvatarId, mp]);
+    useEffect(() => { 
+        if (mp?.updateSelfInfo) {
+            mp.updateSelfInfo(username, currentAvatarId, undefined, 'Mastermind'); 
+        }
+    }, [username, currentAvatarId, mp]);
 
     const resetGame = () => {
         setSecretCode([]);
@@ -72,9 +76,9 @@ export const useMastermindLogic = (
             setPhase('PLAYING');
             if (onReportProgress) onReportProgress('play', 1);
         } else {
-            setPhase('LOBBY'); // Important pour sortir du menu
+            setPhase('LOBBY'); 
             setOnlineStep('connecting');
-            mp.connect();
+            if (mp?.connect) mp.connect();
         }
     };
 
@@ -106,7 +110,7 @@ export const useMastermindLogic = (
         setFeedback(newFeedback);
 
         // Sync Online
-        if (gameMode === 'ONLINE') {
+        if (gameMode === 'ONLINE' && mp?.sendData) {
             mp.sendData({ type: 'MASTERMIND_GUESS_SYNC', rowIdx: activeRow, guess: currentGuess, fb });
         }
 
@@ -143,13 +147,12 @@ export const useMastermindLogic = (
             setSecretCode(makerBuffer);
             setPhase('PLAYING');
             playVictory();
-            mp.sendData({ type: 'MASTERMIND_SET_CODE', code: makerBuffer });
+            if (mp?.sendData) mp.sendData({ type: 'MASTERMIND_SET_CODE', code: makerBuffer });
         }
     };
 
     // --- OUTCOME ---
     const handleWin = (attempts: number) => {
-        // Codebreaker won
         if (gameMode === 'SOLO') {
             setPhase('GAMEOVER');
             playVictory();
@@ -161,34 +164,29 @@ export const useMastermindLogic = (
             setResultMessage("CODE DÉCRYPTÉ !");
             if (onReportProgress) onReportProgress('win', 1);
         } else {
-            // Online
             if (isCodemaker) {
-                // I am Maker, they won -> I lose
                 setPhase('GAMEOVER');
                 setResultMessage("IL A TROUVÉ VOTRE CODE !");
                 playGameOver();
             } else {
-                // I am Breaker, I won
                 setPhase('GAMEOVER');
                 setResultMessage("CODE DÉCRYPTÉ ! VICTOIRE !");
                 playVictory();
                 addCoins(50);
                 setEarnedCoins(50);
-                mp.sendData({ type: 'MASTERMIND_GAME_OVER', result: 'BREAKER_WON' });
+                if (mp?.sendData) mp.sendData({ type: 'MASTERMIND_GAME_OVER', result: 'BREAKER_WON' });
                 if (onReportProgress) onReportProgress('win', 1);
             }
         }
     };
 
     const handleLoss = () => {
-        // Codebreaker lost
         if (gameMode === 'SOLO') {
             setPhase('GAMEOVER');
             playGameOver();
             setResultMessage("ÉCHEC... CODE NON TROUVÉ.");
         } else {
              if (isCodemaker) {
-                // I am Maker, they lost -> I win
                 setPhase('GAMEOVER');
                 setResultMessage("VOTRE CODE EST RESTÉ SECRET !");
                 playVictory();
@@ -196,11 +194,10 @@ export const useMastermindLogic = (
                 setEarnedCoins(50);
                 if (onReportProgress) onReportProgress('win', 1);
             } else {
-                // I am Breaker, I lost
                 setPhase('GAMEOVER');
                 setResultMessage("ÉCHEC... PLUS D'ESSAIS.");
                 playGameOver();
-                mp.sendData({ type: 'MASTERMIND_GAME_OVER', result: 'BREAKER_LOST' });
+                if (mp?.sendData) mp.sendData({ type: 'MASTERMIND_GAME_OVER', result: 'BREAKER_LOST' });
             }
         }
     };
@@ -229,7 +226,7 @@ export const useMastermindLogic = (
             if (data.type === 'LEAVE_GAME') { setOpponentLeft(true); setPhase('GAMEOVER'); setResultMessage("ADVERSAIRE PARTI."); }
             if (data.type === 'REMATCH_START') {
                  resetGame();
-                 if (mp.isHost) {
+                 if (mp?.isHost) {
                      setIsCodemaker(true);
                      setPhase('CREATION');
                  } else {
@@ -241,13 +238,13 @@ export const useMastermindLogic = (
     });
 
     useEffect(() => {
+        if (!mp?.subscribe) return;
         const unsubscribe = mp.subscribe((data: any) => handleDataRef.current?.(data));
         return () => unsubscribe();
     }, [mp]);
 
-    // Handle online connection flow
     useEffect(() => {
-        // Empêcher la bascule automatique vers le lobby si on est pas explicitement en mode ONLINE
+        if (!mp || !mp.mode) return; // FIX: Protection évaluation mp.mode
         if (gameMode !== 'ONLINE' && mp.mode !== 'in_game') return;
 
         const isHosting = mp.players.find((p: any) => p.id === mp.peerId)?.status === 'hosting';
@@ -263,7 +260,6 @@ export const useMastermindLogic = (
         } else if (mp.mode === 'in_game') {
             setOnlineStep('game');
             setOpponentLeft(false);
-            // If just joined via invite
             if (phase === 'MENU' || phase === 'LOBBY') {
                 setGameMode('ONLINE');
                 if (mp.isHost) {
@@ -275,17 +271,17 @@ export const useMastermindLogic = (
                 }
             }
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, phase, gameMode]);
+    }, [mp?.mode, mp?.isHost, mp?.players, mp?.peerId, phase, gameMode]);
 
     const sendChat = (text: string) => {
         const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };
         setChatHistory(prev => [...prev, msg]);
-        mp.sendData({ type: 'CHAT', text, senderName: username });
+        if (mp?.sendData) mp.sendData({ type: 'CHAT', text, senderName: username });
     };
 
     const sendReaction = (id: string) => {
         setActiveReaction({ id, isMe: true });
-        mp.sendData({ type: 'REACTION', id });
+        if (mp?.sendData) mp.sendData({ type: 'REACTION', id });
         setTimeout(() => setActiveReaction(null), 3000);
     };
 

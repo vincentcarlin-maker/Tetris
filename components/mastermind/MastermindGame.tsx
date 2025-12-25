@@ -54,8 +54,12 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
             if (logic.onlineStep !== 'game') mp.disconnect();
             else mp.leaveGame();
         }
-        logic.setPhase('MENU');
-        if (logic.phase === 'MENU') onBack();
+        
+        if (logic.phase !== 'MENU') {
+            logic.setPhase('MENU');
+        } else {
+            onBack();
+        }
     };
 
     const renderLobby = () => {
@@ -63,7 +67,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
          
          return (
              <div className="flex flex-col h-full animate-in fade-in w-full max-w-md gap-6 p-4">
-                 {/* Create Section */}
                  <div className="bg-gradient-to-br from-gray-900 to-black border border-indigo-500/30 rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.15)] relative overflow-hidden group shrink-0">
                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                      <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2"><Wifi size={16} className="text-indigo-400"/> HÉBERGER UNE PARTIE</h3>
@@ -72,7 +75,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                      </button>
                 </div>
 
-                {/* List Section */}
                 <div className="flex-1 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex flex-col min-h-0">
                     <div className="flex justify-between items-center mb-4 px-2">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cerveaux en attente</span>
@@ -118,13 +120,11 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
          );
     };
 
-    // --- RENDER ---
-    
     if (logic.phase === 'MENU') {
         return <MastermindMenu onStart={logic.startGame} onBack={onBack} />;
     }
 
-    if (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game') {
+    if (logic.phase === 'LOBBY' || (logic.gameMode === 'ONLINE' && logic.onlineStep !== 'game')) {
         return (
             <div className="h-full w-full flex flex-col items-center bg-black/20 relative overflow-y-auto text-white font-sans p-2">
                 <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-900/30 blur-[120px] rounded-full pointer-events-none -z-10 mix-blend-hard-light" />
@@ -146,7 +146,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
             
             {showTutorial && <TutorialOverlay gameId="mastermind" onClose={() => setShowTutorial(false)} />}
 
-            {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-10 mb-2 shrink-0">
                 <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
                 <div className="flex flex-col items-center">
@@ -163,7 +162,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 </div>
             </div>
 
-            {/* WAITING FOR OPPONENT */}
             {logic.gameMode === 'ONLINE' && mp.isHost && logic.onlineStep === 'game' && !mp.gameOpponent && (
                 <div className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
                     <Loader2 size={48} className="text-cyan-400 animate-spin mb-4" />
@@ -172,7 +170,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 </div>
             )}
 
-            {/* CREATION PHASE */}
             {logic.phase === 'CREATION' && (
                 <MastermindCreation 
                     buffer={logic.makerBuffer}
@@ -182,7 +179,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 />
             )}
 
-            {/* WAITING PHASE (GUEST) */}
             {logic.phase === 'WAITING' && (
                 <div className="flex-1 w-full max-w-md flex flex-col items-center justify-center z-20 text-center p-6">
                     <Lock size={64} className="text-purple-500 mb-6 animate-bounce drop-shadow-[0_0_15px_#a855f7]" />
@@ -194,7 +190,6 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 </div>
             )}
 
-            {/* PLAYING PHASE */}
             {(logic.phase === 'PLAYING' || logic.phase === 'GAMEOVER') && (
                 <>
                     <div className="w-full max-w-lg flex justify-between items-center px-4 mb-2 z-10">
@@ -236,9 +231,8 @@ export const MastermindGame: React.FC<MastermindGameProps> = ({ onBack, audio, a
                 </>
             )}
 
-            {/* ONLINE CHAT */}
             {logic.gameMode === 'ONLINE' && mp.gameOpponent && (
-                 <div className="w-full max-w-lg z-30 px-2 pb-4 mt-2">
+                <div className="w-full max-w-lg z-30 px-2 pb-4 mt-2">
                     <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
                         {REACTIONS.map(reaction => {
                             return <button key={reaction.id} onClick={() => logic.sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><SmileIcon size={16} className={reaction.color} /></button>;

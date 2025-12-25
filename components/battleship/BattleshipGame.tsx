@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, RefreshCw, Trophy, Target, ShieldAlert, Coins, HelpCircle, ArrowLeft, Loader2, Cpu, Globe, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Play, Wifi, Search, Ship, ArrowRight } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -16,7 +17,6 @@ interface BattleshipGameProps {
   onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
-// Réactions Néon Animées
 const REACTIONS = [
     { id: 'angry', icon: Frown, color: 'text-red-600', bg: 'bg-red-600/20', border: 'border-red-600', anim: 'animate-pulse' },
     { id: 'wave', icon: Hand, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500', anim: 'animate-bounce' },
@@ -38,15 +38,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
   const { username, currentAvatarId, avatarsCatalog } = useCurrency();
   const [showTutorial, setShowTutorial] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  // Fix: Corrected useState declaration to avoid using setChatInput before its declaration
   const [chatInput, setChatInput] = useState('');
+  // Fix: Added missing activeReaction state
   const [activeReaction, setActiveReaction] = useState<{id: string, isMe: boolean} | null>(null);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const logic = useBattleshipLogic(audio, addCoins, mp, onReportProgress);
 
-  // --- SETUP ---
   useEffect(() => {
       const hasSeen = localStorage.getItem('neon_battleship_tutorial_seen');
       if (!hasSeen) {
@@ -55,10 +54,10 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
       }
   }, []);
 
-  // --- CHAT & NETWORK SYNC ---
   useEffect(() => {
     const unsubscribe = mp.subscribe((data: any) => {
         if (data.type === 'CHAT') setChatHistory(prev => [...prev, { id: Date.now(), text: data.text, senderName: data.senderName || 'Opposant', isMe: false, timestamp: Date.now() }]);
+        // Fix: Added missing setActiveReaction call logic for incoming network reactions
         if (data.type === 'REACTION') { setActiveReaction({ id: data.id, isMe: false }); setTimeout(() => setActiveReaction(null), 3000); }
     });
     return () => unsubscribe();
@@ -77,6 +76,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
 
   const sendReaction = (reactionId: string) => {
       if (logic.gameMode === 'ONLINE' && mp.mode === 'in_game') {
+          // Fix: Now uses the added setActiveReaction state to show own reaction
           setActiveReaction({ id: reactionId, isMe: true });
           mp.sendData({ type: 'REACTION', id: reactionId });
           setTimeout(() => setActiveReaction(null), 3000);
@@ -169,8 +169,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
          );
     };
 
-  // --- VIEWS ---
-
   if (logic.phase === 'MENU') {
       return (
         <div className="absolute inset-0 z-50 flex flex-col items-center bg-[#020205] overflow-y-auto overflow-x-hidden touch-auto">
@@ -203,7 +201,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="relative z-10">
                             <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]"><Globe size={32} className="text-blue-400" /></div>
-                            <div className="flex items-center gap-3 mb-2"><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors">EN LIGNE</h2><span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span></div>
+                            <div className="flex items-center gap-3 mb-2"><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors uppercase">EN LIGNE</h2><span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span></div>
                             <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez un autre amiral en temps réel.</p>
                         </div>
                         <div className="relative z-10 flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4">REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
@@ -248,13 +246,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
             </div>
         )}
 
-        {activeReaction && (() => {
-            const reaction = REACTIONS.find(r => r.id === activeReaction.id);
-            if (!reaction) return null;
-            const positionClass = activeReaction.isMe ? 'bottom-24 right-4' : 'top-20 left-4';
-            return <div className={`absolute z-50 pointer-events-none ${positionClass}`}><div className={`p-3 drop-shadow-2xl ${reaction.anim || 'animate-bounce'}`}>{renderReactionVisual(reaction.id, reaction.color)}</div></div>;
-        })()}
-
         {/* Header */}
         <div className="w-full max-w-md flex items-center justify-between z-10 mb-4 shrink-0">
             <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform"><ArrowLeft size={20} /></button>
@@ -279,7 +270,6 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 onSelectShip={logic.setSelectedShipType}
                 onToggleOrientation={logic.onToggleOrientation}
                 onRandomize={logic.randomizeSetup}
-                onAddCoins={addCoins}
                 onStartBattle={logic.startBattle}
             />
         )}
@@ -301,6 +291,7 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                 <div className="flex justify-between items-center gap-1 p-1 bg-gray-900/80 rounded-xl border border-white/10 overflow-x-auto no-scrollbar mb-2">
                     {REACTIONS.map(reaction => {
                         const Icon = reaction.icon;
+                        // Fix: Correctly call the local sendReaction function instead of accessing missing logic.sendReaction
                         return <button key={reaction.id} onClick={() => sendReaction(reaction.id)} className={`p-1.5 rounded-lg shrink-0 ${reaction.bg} ${reaction.border} border active:scale-95 transition-transform`}><Icon size={16} className={reaction.color} /></button>;
                     })}
                 </div>
@@ -308,6 +299,13 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                     <div className="flex-1 bg-black/50 border border-white/10 rounded-xl flex items-center px-3"><MessageSquare size={14} className="text-gray-500 mr-2" /><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Message..." className="bg-transparent border-none outline-none text-white text-xs w-full h-8" /></div>
                     <button type="submit" disabled={!chatInput.trim()} className="w-8 h-8 flex items-center justify-center bg-cyan-500 text-black rounded-xl hover:bg-white transition-colors disabled:opacity-50"><Send size={14} /></button>
                 </form>
+                
+                {/* Fix: Call renderReactionVisual if activeReaction is not null to show reactions on screen */}
+                {activeReaction && (
+                    <div className={`absolute z-50 pointer-events-none ${activeReaction.isMe ? 'bottom-24 right-4' : 'top-24 left-4'}`}>
+                        {renderReactionVisual(activeReaction.id, REACTIONS.find(r => r.id === activeReaction.id)?.color || '')}
+                    </div>
+                )}
             </div>
         )}
 

@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins, HelpCircle, MousePointer2, Hash, Brain, Play, ArrowRight } from 'lucide-react';
+import { Home, RefreshCw, Eraser, Trophy, AlertCircle, Coins, HelpCircle, Brain, Play, ArrowRight, Sparkles, Hash } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { generateSudoku } from './logic';
 import { Difficulty, Grid } from './types';
@@ -13,6 +12,37 @@ interface SudokuGameProps {
     addCoins: (amount: number) => void;
     onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
+
+// Logo de marque spécifique pour Neon Sudoku
+const SudokuBrandingLogo = () => (
+    <div className="flex items-center justify-center mb-8 relative h-32 w-full">
+        <div className="relative w-32 h-32 flex items-center justify-center">
+            {/* Grille 3x3 de fond */}
+            <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1 p-2 bg-gray-900/50 border-2 border-sky-500/30 rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.2)]">
+                {[...Array(9)].map((_, i) => (
+                    <div key={i} className="border border-sky-500/20 rounded-sm bg-black/40 animate-pulse" style={{ animationDelay: `${i * 150}ms` }}></div>
+                ))}
+            </div>
+            
+            {/* Chiffre central flottant */}
+            <div className="relative z-10 flex items-center justify-center">
+                <div className="absolute inset-0 bg-sky-500/20 blur-2xl rounded-full animate-pulse"></div>
+                <span className="text-6xl font-mono font-black text-sky-400 drop-shadow-[0_0_15px_#38bdf8] italic transform -rotate-6">9</span>
+            </div>
+
+            {/* Effet de scanline horizontal */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-sky-400 to-transparent opacity-50 animate-[scan_2s_linear_infinite] pointer-events-none"></div>
+        </div>
+        
+        <style>{`
+            @keyframes scan {
+                0% { top: 10%; opacity: 0; }
+                50% { opacity: 0.8; }
+                100% { top: 90%; opacity: 0; }
+            }
+        `}</style>
+    </div>
+);
 
 export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const [difficulty, setDifficulty] = useState<Difficulty>('EASY');
@@ -156,12 +186,12 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
 
                 <div className="relative z-10 w-full max-w-5xl px-6 flex flex-col items-center min-h-full justify-start md:justify-center pt-20 pb-12 md:py-0">
                     <div className="mb-6 md:mb-12 w-full text-center animate-in slide-in-from-top-10 duration-700 flex-shrink-0 px-4">
-                        <div className="flex items-center justify-center gap-6 mb-4">
-                            <Brain size={56} className="text-sky-400 drop-shadow-[0_0_25px_rgba(56,189,248,0.8)] animate-pulse hidden md:block" />
-                            <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-blue-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(56,189,248,0.6)] tracking-tighter w-full">
-                                NEON<br className="md:hidden"/> SUDOKU
-                            </h1>
-                            <Brain size={56} className="text-sky-400 drop-shadow-[0_0_25px_rgba(56,189,248,0.8)] animate-pulse hidden md:block" />
+                        <SudokuBrandingLogo />
+                        <h1 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-blue-300 to-indigo-300 drop-shadow-[0_0_30px_rgba(56,189,248,0.6)] tracking-tighter w-full uppercase mb-4">
+                            NEON<br className="md:hidden"/> SUDOKU
+                        </h1>
+                        <div className="inline-block px-6 py-2 rounded-full border border-sky-500/30 bg-sky-900/20 backdrop-blur-sm">
+                            <p className="text-sky-200 font-bold tracking-[0.3em] text-xs md:text-sm uppercase italic">Logique • Patience • Maîtrise</p>
                         </div>
                     </div>
 
@@ -169,10 +199,10 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
                         <button onClick={() => startNewGame('EASY')} className="group relative h-40 md:h-60 rounded-[24px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
-                                <h2 className="text-2xl font-black text-white italic mb-1 group-hover:text-green-300 transition-colors">FACILE</h2>
+                                <h2 className="text-2xl font-black text-white italic mb-1 group-hover:text-green-300 transition-colors uppercase">Facile</h2>
                                 <p className="text-gray-400 text-xs font-medium">Pour s'échauffer les neurones.</p>
                             </div>
-                            <div className="relative z-10 flex items-center gap-2 text-green-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors">
+                            <div className="relative z-10 flex items-center gap-2 text-green-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors uppercase italic">
                                 LANCER <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
                             </div>
                         </button>
@@ -180,10 +210,10 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
                         <button onClick={() => startNewGame('MEDIUM')} className="group relative h-40 md:h-60 rounded-[24px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-yellow-500/50 hover:shadow-[0_0_50px_rgba(250,204,21,0.2)] text-left p-6 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
-                                <h2 className="text-2xl font-black text-white italic mb-1 group-hover:text-yellow-300 transition-colors">MOYEN</h2>
+                                <h2 className="text-2xl font-black text-white italic mb-1 group-hover:text-yellow-300 transition-colors uppercase">Moyen</h2>
                                 <p className="text-gray-400 text-xs font-medium">Un défi équilibré.</p>
                             </div>
-                            <div className="relative z-10 flex items-center gap-2 text-yellow-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors">
+                            <div className="relative z-10 flex items-center gap-2 text-yellow-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors uppercase italic">
                                 LANCER <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
                             </div>
                         </button>
@@ -191,17 +221,17 @@ export const SudokuGame: React.FC<SudokuGameProps> = ({ onBack, audio, addCoins,
                         <button onClick={() => startNewGame('HARD')} className="group relative h-40 md:h-60 rounded-[24px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
-                                <h2 className="text-2xl font-black text-white italic mb-1 group-hover:text-red-300 transition-colors">DIFFICILE</h2>
+                                <h2 className="text-2xl font-black text-white italic mb-1 group-hover:text-red-300 transition-colors uppercase">Difficile</h2>
                                 <p className="text-gray-400 text-xs font-medium">Pour les maîtres de la logique.</p>
                             </div>
-                            <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors">
+                            <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs tracking-widest group-hover:text-white transition-colors uppercase italic">
                                 LANCER <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
                             </div>
                         </button>
                     </div>
 
                     <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">
-                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg">
+                        <button onClick={onBack} className="text-gray-500 hover:text-white text-xs font-bold transition-colors flex items-center gap-2 py-2 px-4 hover:bg-white/5 rounded-lg uppercase tracking-widest italic">
                             <Home size={14} /> RETOUR AU MENU PRINCIPAL
                         </button>
                     </div>
