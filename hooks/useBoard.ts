@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createBoard, BOARD_WIDTH } from '../gameHelpers';
 import { Board, Player, TetrominoKey, Cell } from '../types';
 
@@ -7,123 +7,106 @@ export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: P
     const [board, setBoard] = useState(createBoard());
     const [rowsCleared, setRowsCleared] = useState(0);
 
-    // Effect to handle line clearing animation and removal
-    useEffect(() => {
-        const clearingRowsIndices = board.reduce((acc, row, idx) => {
-            if (row[0][1] === 'clearing') acc.push(idx);
+    // Fonction pour nettoyer et décaler les lignes
+    const sweepRows = useCallback((currentBoard: Board) => {
+        const rowsToClearIndices = currentBoard.reduce((acc, row, idx) => {
+            if (row.every(cell => cell[0] !== '0')) {
+                acc.push(idx);
+            }
             return acc;
         }, [] as number[]);
 
-        if (clearingRowsIndices.length > 0) {
-            
-            // 1. Identifier les types de blocs qui sont détruits pour jouer les sons
-            const uniqueBlocks = new Set<string>();
-            clearingRowsIndices.forEach(rowIndex => {
-                board[rowIndex].forEach(cell => {
-                    if (cell[0] !== '0') {
-                        uniqueBlocks.add(String(cell[0]));
-                    }
-                });
+        if (rowsToClearIndices.length === 0) return currentBoard;
+
+        // 1. Jouer les sons pour les blocs détruits
+        const uniqueBlocks = new Set<string>();
+        rowsToClearIndices.forEach(rowIndex => {
+            currentBoard[rowIndex].forEach(cell => {
+                if (cell[0] !== '0') uniqueBlocks.add(String(cell[0]));
             });
+        });
+        uniqueBlocks.forEach((type) => setTimeout(() => playBlockDestroy(type), Math.random() * 50));
 
-            // 2. Jouer un son pour chaque type de bloc unique présent dans les lignes détruites
-            uniqueBlocks.forEach((type) => {
-                // Petit délai aléatoire pour éviter que tous les sons se superposent parfaitement (phasing)
-                setTimeout(() => {
-                    playBlockDestroy(type);
-                }, Math.random() * 50);
+        // 2. Marquer comme 'clearing' pour l'animation
+        const animatedBoard = currentBoard.map((row, i) =>
+            rowsToClearIndices.includes(i)
+                ? row.map(c => [c[0], 'clearing'] as Cell)
+                : row
+        );
+        setBoard(animatedBoard);
+
+        // 3. Après l'animation, supprimer et décaler
+        setTimeout(() => {
+            setBoard(prev => {
+                const filteredBoard = prev.filter((_, idx) => !rowsToClearIndices.includes(idx));
+                const newRows = Array.from({ length: rowsToClearIndices.length }, () =>
+                    Array.from({ length: BOARD_WIDTH }, () => ['0', 'clear'] as Cell)
+                );
+                return [...newRows, ...filteredBoard];
             });
+            setRowsCleared(rowsToClearIndices.length);
+        }, 200);
 
-
-            const timer = setTimeout(() => {
-                // Remove the clearing rows
-                setBoard(prev => {
-                    const newBoard = prev.filter((_, idx) => !clearingRowsIndices.includes(idx));
-                    const newRows = Array.from({ length: clearingRowsIndices.length }, () =>
-                        Array.from({ length: BOARD_WIDTH }, () => ['0', 'clear'] as Cell)
-                    );
-                    return [...newRows, ...newBoard];
-                });
-                
-                // Update score
-                setRowsCleared(prev => prev + clearingRowsIndices.length);
-
-            }, 200); // Wait for animation to finish (matches CSS duration)
-
-            return () => clearTimeout(timer);
-        }
-    }, [board, playBlockDestroy]);
+        return animatedBoard;
+    }, [playBlockDestroy]);
 
     useEffect(() => {
-        setRowsCleared(0);
+        // On ne réinitialise rowsCleared que si on n'est pas en train d'en supprimer
+        if (rowsCleared > 0) {
+            const timer = setTimeout(() => setRowsCleared(0), 100);
+            return () => clearTimeout(timer);
+        }
+    }, [rowsCleared]);
 
+    useEffect(() => {
         const updateBoard = (prevBoard: Board): Board => {
-            // 1. Flush the board: Keep merged/clearing cells, remove clear/ghost
+            // 1. Flush : On garde merged/clearing, on vire clear/ghost
             const newBoard = prevBoard.map(
                 row => row.map(cell => (cell[1] === 'clear' || cell[1] === 'ghost' ? ['0', 'clear'] : cell)) as typeof row
             );
 
-            // 2. Draw Ghost Piece
+            // 2. Draw Ghost
             if (ghostPlayer) {
                 ghostPlayer.tetromino.forEach((row, y) => {
                     row.forEach((value, x) => {
                         if (value !== 0) {
-                            if (
-                                y + ghostPlayer.pos.y >= 0 &&
-                                newBoard[y + ghostPlayer.pos.y] &&
-                                newBoard[y + ghostPlayer.pos.y][x + ghostPlayer.pos.x] &&
-                                newBoard[y + ghostPlayer.pos.y][x + ghostPlayer.pos.x][1] === 'clear' // Only draw on clear cells
-                            ) {
-                                newBoard[y + ghostPlayer.pos.y][x + ghostPlayer.pos.x] = [
-                                    value as TetrominoKey,
-                                    'ghost',
-                                ];
+                            const boardY = y + ghostPlayer.pos.y;
+                            const boardX = x + ghostPlayer.pos.x;
+                            if (newBoard[boardY] && newBoard[boardY][boardX] && newBoard[boardY][boardX][1] === 'clear') {
+                                newBoard[boardY][boardX] = [value as TetrominoKey, 'ghost'];
                             }
                         }
                     });
                 });
             }
 
-            // 3. Draw Player Piece
+            // 3. Draw Player
             player.tetromino.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value !== 0) {
-                        newBoard[y + player.pos.y][x + player.pos.x] = [
-                            value as TetrominoKey,
-                            player.collided ? 'merged' : 'clear',
-                        ];
+                        const boardY = y + player.pos.y;
+                        const boardX = x + player.pos.x;
+                        if (newBoard[boardY] && newBoard[boardY][boardX]) {
+                            newBoard[boardY][boardX] = [
+                                value as TetrominoKey,
+                                player.collided ? 'merged' : 'clear',
+                            ];
+                        }
                     }
                 });
             });
 
-            // 4. Handle Collision
+            // 4. Collision
             if (player.collided) {
                 resetPlayer();
-                
-                // Check for lines to clear
-                const rowsToClearIndices = newBoard.reduce((acc, row, i) => {
-                    // Check if row is full (no '0' cells) and not already clearing
-                    if (row.every(cell => cell[0] !== '0') && !row.some(c => c[1] === 'clearing')) {
-                        acc.push(i);
-                    }
-                    return acc;
-                }, [] as number[]);
-
-                if (rowsToClearIndices.length > 0) {
-                    // Mark rows as clearing instead of removing immediately
-                    return newBoard.map((row, i) => 
-                        rowsToClearIndices.includes(i) 
-                        ? row.map(c => [c[0], 'clearing'] as Cell)
-                        : row
-                    );
-                }
+                return sweepRows(newBoard);
             }
 
             return newBoard;
         };
 
         setBoard(prev => updateBoard(prev));
-    }, [player, resetPlayer, ghostPlayer]);
+    }, [player, resetPlayer, ghostPlayer, sweepRows]);
 
     return { board, setBoard, rowsCleared };
 };
