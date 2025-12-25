@@ -6,7 +6,7 @@ import { useHighScores } from '../../../hooks/useHighScores';
 import { useGameLoop } from '../../../hooks/useGameLoop';
 import { useGameAudio } from '../../../hooks/useGameAudio';
 import { createBoard, checkCollision } from '../../../gameHelpers';
-import { LINE_POINTS } from '../constants';
+import { LINE_POINTS, SPEED_INCREMENT, LINES_PER_LEVEL } from '../constants';
 import type { Player } from '../../../types';
 
 export const useTetrisLogic = (
@@ -54,7 +54,8 @@ export const useTetrisLogic = (
     }, [rowsCleared, level, playClear, onReportProgress]);
 
     useEffect(() => {
-        setEarnedCoins(Math.floor(score / 50));
+        // Nouveau ratio : 1 pièce pour 250 points au lieu de 50
+        setEarnedCoins(Math.floor(score / 250));
     }, [score]);
 
     const startGame = useCallback((startLevel: number = 0) => {
@@ -68,7 +69,7 @@ export const useTetrisLogic = (
         setIsPaused(false);
         setInMenu(false);
         
-        const initialSpeed = Math.max(100, 1000 / (startLevel + 1) + 200);
+        const initialSpeed = Math.max(120, 800 * Math.pow(SPEED_INCREMENT, startLevel));
         setDropTime(initialSpeed);
         
         playClear(); 
@@ -79,9 +80,9 @@ export const useTetrisLogic = (
         const { gameOver: go, isPaused: ip, inMenu: im, player: p, board: b } = stateRef.current;
         if (go || ip || im) return;
 
-        if (rows > (level + 1) * 10) {
+        if (rows >= (level + 1) * LINES_PER_LEVEL) {
             setLevel(prev => prev + 1);
-            setDropTime(prev => (prev ? prev * 0.9 : null));
+            setDropTime(prev => (prev ? prev * SPEED_INCREMENT : null));
         }
 
         if (!checkCollision(p, b, { x: 0, y: 1 })) {
@@ -92,7 +93,10 @@ export const useTetrisLogic = (
                 setDropTime(null);
                 playGameOver();
                 updateHighScore('tetris', score);
-                if (Math.floor(score / 50) > 0) addCoins(Math.floor(score / 50));
+                
+                // Nouveau ratio de gain final : 1 pièce / 250 points
+                const coinsToAward = Math.floor(score / 250);
+                if (coinsToAward > 0) addCoins(coinsToAward);
             } else {
                 playLand();
             }
