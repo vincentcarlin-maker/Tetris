@@ -66,17 +66,28 @@ export const useInvadersLogic = (audio: any, addCoins: any, updateHighScore: any
     const handlePlayerDeath = () => {
         audio.playExplosion();
         spawnParticles(playerRef.current.x, playerRef.current.y, '#00f3ff', 50);
-        if (lives > 1) {
-            setLives(l => l - 1);
-            playerRef.current.x = CANVAS_WIDTH / 2;
-            bulletsRef.current = [];
-        } else {
-            setLives(0); setGameState('GAMEOVER');
-            audio.playGameOver(); updateHighScore('invaders', score);
-            const coins = Math.floor(score / 50);
-            if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
-            if (onReportProgress) onReportProgress('score', score);
-        }
+        
+        setLives(prev => {
+            const next = prev - 1;
+            if (next <= 0) {
+                // GAME OVER
+                setGameState('GAMEOVER');
+                audio.playGameOver();
+                updateHighScore('invaders', score);
+                const coins = Math.floor(score / 50);
+                if (coins > 0) {
+                    addCoins(coins);
+                    setEarnedCoins(coins);
+                }
+                if (onReportProgress) onReportProgress('score', score);
+                return 0;
+            } else {
+                // Respawm
+                playerRef.current.x = CANVAS_WIDTH / 2;
+                bulletsRef.current = [];
+                return next;
+            }
+        });
     };
 
     const updatePhysics = () => {
@@ -103,6 +114,16 @@ export const useInvadersLogic = (audio: any, addCoins: any, updateHighScore: any
                 bulletsRef.current.push({ x: e.x, y: e.y + 15, width: 4, height: 10, active: true, dy: ENEMY_BULLET_SPEED, color: e.color, isEnemy: true });
             }
             if (Math.hypot(e.x - player.x, e.y - player.y) < 25) { e.active = false; handlePlayerDeath(); }
+            
+            // Fin de partie si un ennemi atteint le bas de l'écran
+            if (e.y > CANVAS_HEIGHT - 40) {
+                setGameState('GAMEOVER');
+                audio.playGameOver();
+                updateHighScore('invaders', score);
+                const coins = Math.floor(score / 50);
+                if (coins > 0) { addCoins(coins); setEarnedCoins(coins); }
+                if (onReportProgress) onReportProgress('score', score);
+            }
         });
 
         if (hitEdge) enemiesRef.current.forEach(e => { e.dx *= -1; e.y += 20; });

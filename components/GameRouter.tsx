@@ -124,7 +124,7 @@ export const GameRouter: React.FC = () => {
         arenaclash: <ArenaClashGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'arenaclash')} mp={mp} onReportProgress={(m, v) => handleGameEvent('arenaclash', m, v)} />,
         skyjo: <SkyjoGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'skyjo')} mp={mp} onReportProgress={(m, v) => handleGameEvent('skyjo', m, v)} />,
         lumen: <LumenOrderGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'lumen')} onReportProgress={(m, v) => handleGameEvent('lumen', m, v)} />,
-        slither: <SlitherGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'slither')} mp={mp} onReportProgress={(m, v) => handleGameEvent('slither', m, v)} onlineUsers={supabase.onlineUsers} />
+        slither: <SlitherGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'slither')} mp={mp} onReportProgress={(m, v) => handleGameEvent('slither', m, v)} onlineUsers={supabase.onlineUsers} />,
     };
 
     return gamesMap[currentView] || gamesMap.tetris;

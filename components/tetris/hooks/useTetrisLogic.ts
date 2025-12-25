@@ -39,17 +39,15 @@ export const useTetrisLogic = (
         stateRef.current = { gameOver, isPaused, inMenu, player, board, score, level, rows };
     }, [gameOver, isPaused, inMenu, player, board, score, level, rows]);
 
-    // GESTION DU SCORE ET DES NIVEAUX (Fix loop bug)
+    // GESTION DU SCORE ET DES NIVEAUX
     useEffect(() => {
         if (rowsCleared > 0) {
             playClear();
             
-            // On calcule tout dans une seule mise à jour de ROWS pour éviter les loops
             setRows(prevRows => {
                 const newTotalRows = prevRows + rowsCleared;
                 const newLevel = Math.floor(newTotalRows / LINES_PER_LEVEL);
                 
-                // 1. Mise à jour du niveau seulement si nécessaire
                 setLevel(prevLevel => {
                     if (newLevel > prevLevel) {
                         setDropTime(prevTime => (prevTime ? prevTime * SPEED_INCREMENT : null));
@@ -58,7 +56,6 @@ export const useTetrisLogic = (
                     return prevLevel;
                 });
 
-                // 2. Calcul du score basé sur le nouveau niveau
                 setScore(prevScore => {
                     const newPoints = LINE_POINTS[rowsCleared - 1] * (newLevel + 1);
                     return prevScore + newPoints;
@@ -67,9 +64,8 @@ export const useTetrisLogic = (
                 return newTotalRows;
             });
         }
-    }, [rowsCleared, playClear]); // On a retiré 'level' et 'onReportProgress' des dépendances
+    }, [rowsCleared, playClear]);
 
-    // Rapport de progression séparé pour éviter les effets de bord dans les calculs
     useEffect(() => {
         if (score > 0 && onReportProgress) onReportProgress('score', score);
     }, [score, onReportProgress]);
@@ -78,12 +74,10 @@ export const useTetrisLogic = (
         if (rows > 0 && onReportProgress) onReportProgress('action', rows);
     }, [rows, onReportProgress]);
 
-    // Calcul des pièces en temps réel (affichage seulement)
     useEffect(() => {
         setEarnedCoins(Math.floor(score / 250));
     }, [score]);
 
-    // Distribution des pièces UNIQUE lors du Game Over
     const hasAwardedCoins = useRef(false);
     useEffect(() => {
         if (gameOver && score > 0 && !hasAwardedCoins.current && !inMenu) {
@@ -121,13 +115,16 @@ export const useTetrisLogic = (
             updatePlayerPos({ x: 0, y: 1, collided: false });
         } else {
             if (p.pos.y < 1) {
+                // GAME OVER : On arrête tout et on ne marque pas comme 'collided' 
+                // pour éviter de 'cuire' les blocs en haut de la grille.
                 setGameOver(true);
                 setDropTime(null);
                 playGameOver();
+                updatePlayerPos({ x: 0, y: 0, collided: false });
             } else {
                 playLand();
+                updatePlayerPos({ x: 0, y: 0, collided: true });
             }
-            updatePlayerPos({ x: 0, y: 0, collided: true });
         }
     }, [updatePlayerPos, playGameOver, playLand]);
     
@@ -141,9 +138,17 @@ export const useTetrisLogic = (
         while (!checkCollision(p, b, { x: 0, y: newY - p.pos.y + 1 })) {
             newY++;
         }
-        updatePlayerPos({ x: 0, y: newY - p.pos.y, collided: true });
-        playLand();
-    }, [updatePlayerPos, playLand]);
+        
+        if (newY < 1) {
+            setGameOver(true);
+            setDropTime(null);
+            playGameOver();
+            updatePlayerPos({ x: 0, y: 0, collided: false });
+        } else {
+            updatePlayerPos({ x: 0, y: newY - p.pos.y, collided: true });
+            playLand();
+        }
+    }, [updatePlayerPos, playLand, playGameOver]);
 
     const movePlayer = useCallback((dir: -1 | 1) => {
         const { gameOver: go, isPaused: ip, inMenu: im, player: p, board: b } = stateRef.current;
@@ -155,7 +160,6 @@ export const useTetrisLogic = (
         }
     }, [updatePlayerPos, playMove]);
 
-    // Ghost piece calculation
     useEffect(() => {
         if (gameOver || isPaused || inMenu || !player.tetromino || player.tetromino.length <= 1) {
             setGhostPlayer(null);

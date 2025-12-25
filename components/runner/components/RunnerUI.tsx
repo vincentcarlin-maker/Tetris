@@ -133,10 +133,35 @@ export const RunnerUI: React.FC<RunnerUIProps> = ({
             {/* Game Over Modal */}
             {gameOver && !showTutorial && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md z-50 animate-in zoom-in fade-in p-6 pointer-events-auto">
-                    <h2 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-orange-600 mb-6 italic drop-shadow-[0_0_25px_rgba(239,68,68,0.6)] pr-4">CRASH !</h2>
-                    <div className="bg-gray-900/50 p-4 rounded-xl border border-white/10 mb-6 w-full max-w-[200px] text-center backdrop-blur-sm"><p className="text-gray-400 text-xs font-bold tracking-widest mb-1">DISTANCE FINALE</p><p className="text-4xl font-mono text-white drop-shadow-md">{Math.floor(distance)} m</p></div>
-                    {earnedCoins > 0 && <div className="mb-6 flex items-center gap-2 bg-yellow-500/20 px-4 py-2 rounded-full border border-yellow-500 animate-pulse"><Coins className="text-yellow-400" size={20} /><span className="text-yellow-100 font-bold">+{earnedCoins} PIÈCES</span></div>}
-                    <button onClick={(e) => { e.stopPropagation(); onReset(); }} className="px-8 py-3 bg-orange-500 text-black font-black tracking-widest text-lg rounded-full hover:bg-white hover:scale-105 transition-all shadow-[0_0_20px_rgba(249,115,22,0.4)] flex items-center gap-2 pointer-events-auto"><RefreshCw size={20} /> REJOUER</button>
+                    <h2 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-orange-600 mb-6 italic drop-shadow-[0_0_25px_rgba(239,68,68,0.6)] pr-4 uppercase">Crash !</h2>
+                    
+                    <div className="bg-gray-900/50 p-6 rounded-2xl border border-white/10 mb-8 w-full max-w-[240px] text-center backdrop-blur-sm">
+                        <p className="text-gray-400 text-[10px] font-black tracking-[0.2em] uppercase mb-1">Distance Finale</p>
+                        <p className="text-4xl font-mono font-black text-white drop-shadow-md">{Math.floor(distance)}m</p>
+                    </div>
+                    
+                    {earnedCoins > 0 && (
+                        <div className="mb-8 flex items-center gap-2 bg-yellow-500/20 px-5 py-2 rounded-full border border-yellow-500 animate-pulse">
+                            <Coins className="text-yellow-400" size={20} />
+                            <span className="text-yellow-100 font-black text-xl">+{earnedCoins} PIÈCES</span>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onReset(); }} 
+                            className="w-full py-4 bg-orange-500 text-black font-black tracking-[0.2em] text-lg rounded-2xl hover:bg-white transition-all shadow-[0_0_25px_rgba(249,115,22,0.4)] flex items-center justify-center gap-2 active:scale-95 uppercase"
+                        >
+                            <RefreshCw size={24} /> Rejouer
+                        </button>
+                        
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onBack(); }} 
+                            className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-[0.2em] text-lg rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2 active:scale-95 uppercase"
+                        >
+                            <Home size={24} /> Quitter
+                        </button>
+                    </div>
                 </div>
             )}
         </>

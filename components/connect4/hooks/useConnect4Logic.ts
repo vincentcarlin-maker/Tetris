@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useGameAudio } from '../../../hooks/useGameAudio';
 import { useCurrency } from '../../../hooks/useCurrency';
@@ -91,17 +92,23 @@ export const useConnect4Logic = (
 
     // --- CORE GAMEPLAY ---
     const handleColumnClick = useCallback((colIndex: number, isRemoteMove = false) => {
-        // Bloquer si le jeu est fini ou si une animation est déjà en cours
+        // Bloquer si le jeu est fini, si une animation est en cours, ou si l'IA réfléchit (pour le joueur humain)
         if (winState.winner || isAnimatingRef.current || opponentLeft) return;
         
-        // Online Turn Check
+        // Bloquer le clic humain si l'IA réfléchit
+        if (!isRemoteMove && isAiThinking) return;
+
+        // Sécurité Solo contre IA : Seul l'appel "remote/IA" peut jouer pour le joueur 2
+        if (gameMode === 'PVE' && !isRemoteMove && currentPlayer !== 1) return;
+
+        // Turn Check pour le mode Online
         if (gameMode === 'ONLINE' && !isRemoteMove) {
             if (!mp.gameOpponent) return;
             const isMyTurn = (mp.amIP1 && currentPlayer === 1) || (!mp.amIP1 && currentPlayer === 2);
             if (!isMyTurn) return;
         }
 
-        // Find drop row
+        // Trouver la ligne de chute
         let rowIndex = -1;
         for (let r = ROWS - 1; r >= 0; r--) {
             if (boardRef.current[r][colIndex] === 0) {
@@ -110,9 +117,9 @@ export const useConnect4Logic = (
             }
         }
 
-        if (rowIndex === -1) return; // Column full
+        if (rowIndex === -1) return; // Colonne pleine
 
-        // Send Move Online
+        // Envoyer le mouvement en ligne si nécessaire
         if (gameMode === 'ONLINE' && !isRemoteMove) {
             mp.sendGameMove({ col: colIndex });
         }
@@ -132,13 +139,19 @@ export const useConnect4Logic = (
             if (result.winner) {
                 setWinState(result);
                 handleGameOver(result.winner);
+                setIsAiThinking(false); // Reset en cas de fin de jeu
             } else {
-                setCurrentPlayer(prev => prev === 1 ? 2 : 1);
+                setCurrentPlayer(prev => {
+                    const next = prev === 1 ? 2 : 1;
+                    return next;
+                });
+                // CRITIQUE : On ne libère la réflexion de l'IA qu'une fois le joueur changé
+                if (isRemoteMove) setIsAiThinking(false);
             }
             isAnimatingRef.current = false;
-        }, 550); // Légèrement supérieur à la durée de l'animation CSS (500ms)
+        }, 550);
 
-    }, [currentPlayer, winState.winner, gameMode, mp, opponentLeft, playMove, playLand]);
+    }, [currentPlayer, winState.winner, isAiThinking, gameMode, mp, opponentLeft, playMove, playLand]);
 
     const handleGameOver = (winner: Player | 'DRAW') => {
         const isMeP1 = mp.amIP1;
@@ -166,24 +179,25 @@ export const useConnect4Logic = (
     // --- AI ---
     useEffect(() => {
         if (gameMode === 'PVE' && currentPlayer === 2 && !winState.winner && !isAiThinking) {
-            // On attend que l'animation du joueur soit finie avant de lancer la réflexion
-            const checkAndPlay = () => {
+            const runAi = () => {
                 if (isAnimatingRef.current) {
-                    setTimeout(checkAndPlay, 100);
+                    setTimeout(runAi, 100);
                     return;
                 }
                 
                 setIsAiThinking(true);
+                // Temps de réflexion IA
                 setTimeout(() => {
                     const bestCol = getBestMove(boardRef.current, difficulty);
                     if (bestCol !== -1) {
                         handleColumnClick(bestCol, true);
                     }
-                    setIsAiThinking(false);
-                }, 800); // Temps de "réflexion" simulé
+                    // Note: setIsAiThinking(false) est maintenant géré dans handleColumnClick
+                    // pour s'assurer que le joueur a bien changé.
+                }, 800);
             };
 
-            const timer = setTimeout(checkAndPlay, 200);
+            const timer = setTimeout(runAi, 200);
             return () => clearTimeout(timer);
         }
     }, [gameMode, currentPlayer, winState.winner, difficulty, handleColumnClick]);
@@ -219,7 +233,7 @@ export const useConnect4Logic = (
             setOnlineStep('game');
             setOpponentLeft(false);
         }
-    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode, phase, resetGame]);
+    }, [mp.mode, mp.isHost, mp.players, mp.peerId, gameMode, phase, resetGame, board]);
 
     const sendChat = (text: string) => {
         const msg: ChatMessage = { id: Date.now(), text, senderName: username, isMe: true, timestamp: Date.now() };

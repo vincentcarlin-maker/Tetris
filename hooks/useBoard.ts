@@ -60,10 +60,12 @@ export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: P
 
     useEffect(() => {
         const updateBoard = (prevBoard: Board): Board => {
+            // Nettoyage des pièces mobiles précédentes
             const newBoard = prevBoard.map(
                 row => row.map(cell => (cell[1] === 'clear' || cell[1] === 'ghost' ? ['0', 'clear'] : cell)) as typeof row
             );
 
+            // Dessin du fantôme
             if (ghostPlayer) {
                 ghostPlayer.tetromino.forEach((row, y) => {
                     row.forEach((value, x) => {
@@ -78,6 +80,10 @@ export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: P
                 });
             }
 
+            // Dessin et fusion éventuelle du joueur
+            // On ne fusionne que si Y > 0 pour éviter les blocs collés au plafond en fin de partie
+            const canMerge = player.collided && player.pos.y >= 0;
+
             player.tetromino.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value !== 0) {
@@ -86,14 +92,15 @@ export const useBoard = (player: Player, resetPlayer: () => void, ghostPlayer: P
                         if (newBoard[boardY] && newBoard[boardY][boardX]) {
                             newBoard[boardY][boardX] = [
                                 value as TetrominoKey,
-                                player.collided ? 'merged' : 'clear',
+                                canMerge ? 'merged' : 'clear',
                             ];
                         }
                     }
                 });
             });
 
-            if (player.collided && !isProcessingCollision.current) {
+            // Si collision confirmée, on traite la fusion
+            if (canMerge && !isProcessingCollision.current) {
                 isProcessingCollision.current = true;
                 resetPlayer();
                 return sweepRows(newBoard);

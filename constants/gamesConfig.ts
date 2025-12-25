@@ -3,10 +3,10 @@ import React from 'react';
 import { 
     LayoutGrid, Globe, Gamepad2, Puzzle, Trophy, Hexagon, 
     Crosshair, Activity, Rocket, Ghost, Wind, Brain, 
-    BrainCircuit, Sparkles, Ship, Crown 
+    BrainCircuit, Sparkles, Ship, Crown
 } from 'lucide-react';
 
-// --- CUSTOM ICONS (Extracted from MainMenu) ---
+// --- CUSTOM ICONS ---
 export const CustomTetrisIcon = ({ size, className }: { size?: number | string, className?: string }) => 
     React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className },
         React.createElement("rect", { x: "2", y: "6", width: "6", height: "6", rx: "1.5" }),
