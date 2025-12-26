@@ -22,6 +22,7 @@ import { ArenaClashGame } from './arenaclash/ArenaClashGame';
 import { SkyjoGame } from './skyjo/SkyjoGame';
 import { LumenOrderGame } from './lumen/LumenOrderGame';
 import { SlitherGame } from './slither/SlitherGame';
+import { NeonSeekContainer } from './neon_seek/NeonSeekContainer';
 import { Shop } from './shop/Shop';
 import { AdminDashboard } from './AdminDashboard';
 import { SocialOverlay } from './social/SocialOverlay';
@@ -129,6 +130,7 @@ export const GameRouter: React.FC = () => {
         skyjo: <SkyjoGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'skyjo')} mp={mp} onReportProgress={(m, v) => handleGameEvent('skyjo', m, v)} />,
         lumen: <LumenOrderGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'lumen')} onReportProgress={(m, v) => handleGameEvent('lumen', m, v)} />,
         slither: <SlitherGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'slither')} mp={mp} onReportProgress={(m, v) => handleGameEvent('slither', m, v)} onlineUsers={supabase.onlineUsers} />,
+        neon_seek: <NeonSeekContainer onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'neon_seek')} onReportProgress={(m, v) => handleGameEvent('neon_seek', m, v)} />,
     };
 
     return gamesMap[currentView] || gamesMap.tetris;

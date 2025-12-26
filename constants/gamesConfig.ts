@@ -3,13 +3,12 @@ import React from 'react';
 import { 
     LayoutGrid, Globe, Gamepad2, Puzzle, Trophy, Hexagon, 
     Crosshair, Activity, Rocket, Ghost, Wind, Brain, 
-    BrainCircuit, Sparkles, Ship, Crown
+    BrainCircuit, Sparkles, Ship, Crown, Search
 } from 'lucide-react';
 
 // --- CUSTOM ICONS ---
 export const CustomTetrisIcon = ({ size = 24, className = "" }: { size?: number | string, className?: string }) => 
     React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className },
-        // Bloc T
         React.createElement("rect", { x: "2", y: "15", width: "6", height: "6", rx: "1", fill: "#00f3ff", fillOpacity: "0.2", stroke: "#00f3ff" }),
         React.createElement("rect", { x: "9", y: "15", width: "6", height: "6", rx: "1", fill: "#9d00ff", fillOpacity: "0.2", stroke: "#9d00ff" }),
         React.createElement("rect", { x: "16", y: "15", width: "6", height: "6", rx: "1", fill: "#ff00ff", fillOpacity: "0.2", stroke: "#ff00ff" }),
@@ -88,6 +87,7 @@ export const CustomStackIcon = ({ size, className }: { size?: number | string, c
 
 export const GAMES_CONFIG = [
     { id: 'slither', category: 'ARCADE', name: 'CYBER SERPENT', icon: CustomSlitherIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
+    { id: 'neon_seek', category: 'PUZZLE', name: 'NEON SEEK', icon: Search, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS', beta: false },
     { id: 'lumen', category: 'PUZZLE', name: 'LUMEN ORDER', icon: Hexagon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: true },
     { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: LayoutGrid, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'arenaclash', category: 'ARCADE', name: 'ARENA CLASH', icon: Crosshair, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: true },
