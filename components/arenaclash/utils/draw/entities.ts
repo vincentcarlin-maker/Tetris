@@ -1,170 +1,293 @@
+
 import { Character, Bullet, PowerUp, Particle } from '../../types';
 
 /**
  * Dessine l'accessoire (drapeau) sur le char.
  */
-const drawTankAccessory = (ctx: CanvasRenderingContext2D, acc: any, bodySize: number) => {
+const drawTankAccessory = (ctx: CanvasRenderingContext2D, acc: any, scale: number) => {
     const flagW = 22;
     const flagH = 14;
-    // Positionnement à l'arrière gauche du châssis pour un look équilibré
-    const posX = -bodySize / 2 + 4;
-    const posY = -bodySize / 2 + 4;
+    
+    // Positionnement adapté au nouveau design (arrière gauche du châssis)
+    const posX = -60;
+    const posY = 50;
 
     ctx.save();
     ctx.translate(posX, posY);
+    
+    const invScale = 1 / scale;
+    ctx.scale(invScale * 0.8, invScale * 0.8); 
 
     // Mât du drapeau (Effet métal poli)
     ctx.strokeStyle = '#94a3b8';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.lineTo(0, -8);
+    ctx.lineTo(0, -25);
     ctx.stroke();
 
-    ctx.translate(0, -8);
+    ctx.translate(0, -25);
     
     // Animation d'ondulation pour un effet "vent"
     const wave = Math.sin(Date.now() / 200) * 2;
     
     // Structure de base du drapeau
+    const dW = flagW * 1.5;
+    const dH = flagH * 1.5;
+
     ctx.fillStyle = '#000';
-    ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+    ctx.fillRect(0, 0, dW, dH);
 
     const layout = acc.layout || 'vertical';
     const colors = acc.colors || [];
 
-    // Logique de rendu selon la configuration du catalogue
     if (acc.id === 'ta_flag_neon') {
-        const grad = ctx.createLinearGradient(0, 0, flagW, 0);
+        const grad = ctx.createLinearGradient(0, 0, dW, 0);
         colors.forEach((c: string, i: number) => grad.addColorStop(i / (colors.length - 1), c));
         ctx.fillStyle = grad;
-        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillRect(0, 0 + wave/2, dW, dH);
     } else if (layout === 'japan') {
         ctx.fillStyle = '#fff';
-        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillRect(0, 0 + wave/2, dW, dH);
         ctx.fillStyle = '#BC002D';
         ctx.beginPath();
-        ctx.arc(flagW / 2, -flagH / 2 + wave/2, flagH / 4, 0, Math.PI * 2);
+        ctx.arc(dW / 2, dH / 2 + wave/2, dH / 3, 0, Math.PI * 2);
         ctx.fill();
     } else if (layout === 'usa') {
         ctx.fillStyle = '#fff';
-        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillRect(0, 0 + wave/2, dW, dH);
         for (let i = 0; i < 7; i++) {
             ctx.fillStyle = i % 2 === 0 ? '#B22234' : '#fff';
-            ctx.fillRect(0, -flagH + (i * flagH / 7) + wave/2, flagW, flagH / 7);
+            ctx.fillRect(0, (i * dH / 7) + wave/2, dW, dH / 7);
         }
         ctx.fillStyle = '#3C3B6E';
-        ctx.fillRect(0, -flagH + wave/2, flagW * 0.45, flagH * 0.55);
+        ctx.fillRect(0, 0 + wave/2, dW * 0.45, dH * 0.55);
     } else if (layout === 'brazil') {
         ctx.fillStyle = '#009739';
-        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillRect(0, 0 + wave/2, dW, dH);
         ctx.fillStyle = '#FEDD00';
         ctx.beginPath();
-        ctx.moveTo(2, -flagH / 2 + wave/2);
-        ctx.lineTo(flagW / 2, -flagH + 2 + wave/2);
-        ctx.lineTo(flagW - 2, -flagH / 2 + wave/2);
-        ctx.lineTo(flagW / 2, -2 + wave/2);
+        ctx.moveTo(2, dH / 2 + wave/2);
+        ctx.lineTo(dW / 2, dH - 2 + wave/2);
+        ctx.lineTo(dW - 2, dH / 2 + wave/2);
+        ctx.lineTo(dW / 2, 2 + wave/2);
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#012169';
         ctx.beginPath();
-        ctx.arc(flagW / 2, -flagH / 2 + wave/2, flagH / 5, 0, Math.PI * 2);
+        ctx.arc(dW / 2, dH / 2 + wave/2, dH / 4, 0, Math.PI * 2);
         ctx.fill();
     } else if (layout === 'pirate') {
         ctx.fillStyle = '#000';
-        ctx.fillRect(0, -flagH + wave/2, flagW, flagH);
+        ctx.fillRect(0, 0 + wave/2, dW, dH);
         ctx.fillStyle = '#fff';
         ctx.beginPath();
-        ctx.arc(flagW / 2, -flagH / 2 + wave/2, 2.5, 0, Math.PI * 2);
+        ctx.arc(dW / 2, dH / 2 + wave/2 - 2, 4, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillRect(flagW / 2 - 3, -flagH / 2 + 2 + wave/2, 6, 2); // Simple base de crâne
+        ctx.fillRect(dW / 2 - 4, dH / 2 + 4 + wave/2, 8, 3);
     } else {
         const isVert = layout === 'vertical';
         colors.forEach((c: string, i: number) => {
             ctx.fillStyle = c;
             if (isVert) {
-                ctx.fillRect((i * flagW) / colors.length, -flagH + wave/2, flagW / colors.length, flagH);
+                ctx.fillRect((i * dW) / colors.length, 0 + wave/2, dW / colors.length, dH);
             } else {
-                ctx.fillRect(0, -flagH + (i * flagH) / colors.length + wave/2, flagW, flagH / colors.length);
+                ctx.fillRect(0, (i * dH) / colors.length + wave/2, dW, dH / colors.length);
             }
         });
     }
     
-    // Bordure de finition pour détacher le drapeau du fond
     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(0, -flagH + wave/2, flagW, flagH);
+    ctx.strokeRect(0, 0 + wave/2, dW, dH);
 
     ctx.restore();
 };
 
 export const drawTank = (ctx: CanvasRenderingContext2D, char: Character, recoil: number) => {
     if (!char) return;
-    const { x, y, angle, radius, skin, hp, maxHp, name, shield, accessory } = char;
-    const primary = skin?.primaryColor || char.color;
+    const { x, y, angle, radius, skin, hp, maxHp, name, shield, accessory, vx, vy } = char;
+    
+    const primary = skin?.primaryColor || char.color;     
+    const secondary = skin?.secondaryColor || '#ff00ff';  
     const glow = skin?.glowColor || primary;
     
+    // Calcul des angles indépendants
+    // 1. Angle du corps (Châssis) : Suit le vecteur de mouvement (vx, vy)
+    // Si le char est immobile, on garde l'orientation de la tourelle pour pas qu'il "snap" à 0
+    const speed = Math.hypot(vx, vy);
+    const bodyAngle = speed > 0.1 ? Math.atan2(vy, vx) : angle;
+
+    // 2. Angle de la tourelle : Suit le joystick de visée (char.angle)
+    const turretAngle = angle;
+
+    // Échelle visuelle
+    const scale = (radius * 2.4) / 200;
+
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(angle);
-    
-    // Corps (Plus carré et massif style Arcade)
-    const bodySize = radius * 1.8;
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = glow;
-    ctx.fillStyle = '#0f172a'; 
-    ctx.beginPath();
-    ctx.roundRect(-bodySize/2, -bodySize/2, bodySize, bodySize, 6);
-    ctx.fill();
+
+    // --- COUCHE 1 : CHÂSSIS & CHENILLES (Rotation selon le Mouvement) ---
+    ctx.save();
+    ctx.rotate(bodyAngle);
+    // On tourne de 90 degrés car le design SVG "regarde" vers le haut (-Y),
+    // mais atan2(vy, vx) donne 0 vers la droite (+X).
+    ctx.rotate(Math.PI / 2); 
+    ctx.scale(scale, scale);
+
+    // Fonction de dessin des chenilles (incluse ici pour accès au context)
+    const drawTrack = (tx: number) => {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = glow;
+        
+        ctx.strokeStyle = primary;
+        ctx.lineWidth = 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; 
+
+        ctx.beginPath();
+        ctx.roundRect(tx, -80, 30, 160, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.5;
+        // Animation des chenilles si le char bouge
+        const trackOffset = speed > 0.1 ? (Date.now() / 50) % 20 : 0;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(tx, -80, 30, 160, 5);
+        ctx.clip(); // Pour ne pas dessiner les traits hors de la chenille
+
+        for (let i = -1; i < 9; i++) {
+            const ly = -80 + i * 20 + trackOffset;
+            ctx.beginPath();
+            ctx.moveTo(tx, ly);
+            ctx.lineTo(tx + 30, ly);
+            ctx.stroke();
+        }
+        ctx.restore();
+        
+        ctx.globalAlpha = 1.0;
+        ctx.shadowBlur = 0;
+    };
+
+    drawTrack(-80); // Gauche
+    drawTrack(50);  // Droite
+
+    // Châssis central
+    ctx.fillStyle = '#050510';
     ctx.strokeStyle = primary;
     ctx.lineWidth = 3;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = glow;
+    
+    ctx.beginPath();
+    ctx.roundRect(-50, -70, 100, 140, 10);
+    ctx.fill();
     ctx.stroke();
 
-    // Rendu de l'accessoire (Drapeau) - Dessiné après le corps pour être au-dessus
+    // Détail arrière moteur
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-40, 60);
+    ctx.lineTo(40, 60);
+    ctx.lineTo(30, 70);
+    ctx.lineTo(-30, 70);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+
+    // Accessoire (Drapeau) - Attaché au châssis
     if (accessory && accessory.id !== 'ta_none') {
-        drawTankAccessory(ctx, accessory, bodySize);
+        drawTankAccessory(ctx, accessory, scale);
     }
+    
+    ctx.restore(); // Fin rotation châssis
+
+
+    // --- COUCHE 2 : TOURELLE (Rotation selon la Visée) ---
+    ctx.save();
+    ctx.rotate(turretAngle);
+    // Ajustement de 90 degrés car le SVG pointe vers le haut (-Y)
+    // mais l'angle de visée 0 est à droite (+X)
+    ctx.rotate(Math.PI / 2);
+    ctx.scale(scale, scale);
 
     // Canon
-    const barrelW = bodySize * 0.8, barrelH = bodySize * 0.28;
-    ctx.fillStyle = '#1e293b';
-    ctx.strokeStyle = primary;
-    ctx.lineWidth = 2;
+    ctx.fillStyle = '#0a0a0a';
+    ctx.strokeStyle = secondary;
+    ctx.lineWidth = 3;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = secondary;
+
+    const cannonY = -100 + (recoil * 2); 
+
+    // Canon Body
     ctx.beginPath();
-    ctx.roundRect(bodySize/4 - recoil, -barrelH/2, barrelW, barrelH, 2);
+    ctx.rect(-10, cannonY, 20, 90);
     ctx.fill();
     ctx.stroke();
 
-    // Tourelle
-    const turretRadius = bodySize * 0.35;
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = glow;
-    ctx.fillStyle = '#1e293b';
-    ctx.beginPath();
-    ctx.arc(0, 0, turretRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = primary;
+    // Muzzle (Bout)
     ctx.lineWidth = 2;
+    ctx.strokeRect(-12, cannonY - 5, 24, 10);
+
+    // Corps Tourelle (Cercle r=35)
+    ctx.fillStyle = '#050505';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 35, 0, Math.PI * 2);
+    ctx.fill();
     ctx.stroke();
 
-    // Bouclier Énergétique
+    // Déco centrale tourelle
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -35);
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+
+    ctx.restore(); // Fin rotation tourelle
+
+
+    // --- COUCHE 3 : EFFETS (Bouclier) ---
+    // Le bouclier est une sphère, pas besoin de rotation spécifique, ou rotation lente
     if (shield > 0) {
+        ctx.save();
+        ctx.rotate(Date.now() / 1000); // Rotation lente indépendante
+        ctx.scale(scale, scale);
         ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.shadowBlur = 20;
         ctx.shadowColor = '#3b82f6';
         ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.5, 0, Math.PI * 2);
+        ctx.arc(0, 0, 110, 0, Math.PI * 2);
         ctx.stroke();
+        
+        ctx.fillStyle = '#3b82f6';
+        ctx.globalAlpha = 0.1;
+        ctx.fill();
+        ctx.restore();
     }
-    ctx.restore();
 
-    // Infos flottantes (Nom & Barre de HP)
+    ctx.restore(); // Fin translation globale (x, y)
+
+    // Infos flottantes (Nom & Barre de HP) - Doit rester hors du scale/rotate du tank
     ctx.save();
-    ctx.translate(x, y - radius - 40);
+    ctx.translate(x, y - radius - 50);
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Rajdhani';
     ctx.textAlign = 'center';
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'black';
     ctx.fillText(name.toUpperCase(), 0, -8);
     
     const barW = 60, barH = 6;

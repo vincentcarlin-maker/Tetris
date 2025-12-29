@@ -38,12 +38,50 @@ const renderPreview = (item: ShopItem, category: string) => {
         );
     }
     if (category === 'TANKS') {
+        // SVG Exact replica of in-game drawTank logic
+        // Viewbox matches the coordinate system used in entities.ts (-100 to 100 roughly)
         return (
-            <div className="relative w-14 h-14 flex items-center justify-center">
-                <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: item.primaryColor, boxShadow: `0 0 10px ${item.glowColor}50` }}>
-                     <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: item.primaryColor }}></div>
-                     <div className="w-4 h-4 rounded-full bg-current" style={{ color: item.primaryColor }}></div>
-                </div>
+            <div className="relative w-16 h-16 flex items-center justify-center">
+                <svg viewBox="-120 -150 240 300" className="w-full h-full overflow-visible drop-shadow-lg">
+                    <defs>
+                        <filter id={`glow-${item.id}`} x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                    </defs>
+
+                    {/* Tracks (Left: -80, Right: 50 | Width 30) */}
+                    <rect x="-80" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={item.primaryColor} strokeWidth="4" />
+                    <rect x="50" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={item.primaryColor} strokeWidth="4" />
+                    
+                    {/* Track Details */}
+                    {[...Array(6)].map((_, i) => (
+                        <g key={i}>
+                             <line x1="-80" y1={-60 + i*25} x2="-50" y2={-60 + i*25} stroke={item.primaryColor} strokeWidth="1" opacity="0.5" />
+                             <line x1="50" y1={-60 + i*25} x2="80" y2={-60 + i*25} stroke={item.primaryColor} strokeWidth="1" opacity="0.5" />
+                        </g>
+                    ))}
+
+                    {/* Chassis */}
+                    <rect x="-50" y="-70" width="100" height="140" rx="10" fill="#050510" stroke={item.primaryColor} strokeWidth="5" filter={`url(#glow-${item.id})`} />
+                    
+                    {/* Engine Detail */}
+                    <path d="M-40 60 L40 60 L30 70 L-30 70 Z" fill="none" stroke={item.primaryColor} strokeWidth="3" opacity="0.6" />
+
+                    {/* Cannon Group (Rotated -90deg effectively because y is up in SVG but cannon points up) */}
+                    <g>
+                        {/* Barrel */}
+                        <rect x="-10" y="-130" width="20" height="90" fill="#0a0a0a" stroke={item.secondaryColor} strokeWidth="5" />
+                        {/* Muzzle */}
+                        <rect x="-14" y="-135" width="28" height="10" fill="none" stroke={item.secondaryColor} strokeWidth="3" />
+                        
+                        {/* Turret Body */}
+                        <circle cx="0" cy="-25" r="35" fill="#050505" stroke={item.secondaryColor} strokeWidth="5" filter={`url(#glow-${item.id})`} />
+                        {/* Turret Center Detail */}
+                        <circle cx="0" cy="-25" r="15" fill="none" stroke={item.secondaryColor} strokeWidth="2" opacity="0.7" />
+                        <line x1="0" y1="-25" x2="0" y2="-60" stroke={item.secondaryColor} strokeWidth="2" />
+                    </g>
+                </svg>
             </div>
         );
     }

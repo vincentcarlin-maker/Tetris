@@ -307,9 +307,32 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onClose={() => setLockerTab('NONE')}
                         onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(tank) => (
-                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
-                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
-                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            <div className="relative w-12 h-16 flex items-center justify-center scale-90">
+                                <svg viewBox="-120 -150 240 300" className="w-full h-full overflow-visible drop-shadow-lg">
+                                    <defs>
+                                        <filter id={`glow-lk-${tank.id}`} x="-50%" y="-50%" width="200%" height="200%">
+                                            <feGaussianBlur stdDeviation="4" result="blur" />
+                                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                        </filter>
+                                    </defs>
+                                    <rect x="-80" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={tank.primaryColor} strokeWidth="4" />
+                                    <rect x="50" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={tank.primaryColor} strokeWidth="4" />
+                                    {[...Array(6)].map((_, i) => (
+                                        <g key={i}>
+                                            <line x1="-80" y1={-60 + i*25} x2="-50" y2={-60 + i*25} stroke={tank.primaryColor} strokeWidth="1" opacity="0.5" />
+                                            <line x1="50" y1={-60 + i*25} x2="80" y2={-60 + i*25} stroke={tank.primaryColor} strokeWidth="1" opacity="0.5" />
+                                        </g>
+                                    ))}
+                                    <rect x="-50" y="-70" width="100" height="140" rx="10" fill="#050510" stroke={tank.primaryColor} strokeWidth="5" filter={`url(#glow-lk-${tank.id})`} />
+                                    <path d="M-40 60 L40 60 L30 70 L-30 70 Z" fill="none" stroke={tank.primaryColor} strokeWidth="3" opacity="0.6" />
+                                    <g>
+                                        <rect x="-10" y="-130" width="20" height="90" fill="#0a0a0a" stroke={tank.secondaryColor} strokeWidth="5" />
+                                        <rect x="-14" y="-135" width="28" height="10" fill="none" stroke={tank.secondaryColor} strokeWidth="3" />
+                                        <circle cx="0" cy="-25" r="35" fill="#050505" stroke={tank.secondaryColor} strokeWidth="5" filter={`url(#glow-lk-${tank.id})`} />
+                                        <circle cx="0" cy="-25" r="15" fill="none" stroke={tank.secondaryColor} strokeWidth="2" opacity="0.7" />
+                                        <line x1="0" y1="-25" x2="0" y2="-60" stroke={tank.secondaryColor} strokeWidth="2" />
+                                    </g>
+                                </svg>
                             </div>
                         )}
                     />
@@ -445,9 +468,32 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onClose={() => setLockerTab('NONE')}
                         onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(tank) => (
-                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
-                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
-                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            <div className="relative w-12 h-16 flex items-center justify-center scale-90">
+                                <svg viewBox="-120 -150 240 300" className="w-full h-full overflow-visible drop-shadow-lg">
+                                    <defs>
+                                        <filter id={`glow-lk-${tank.id}`} x="-50%" y="-50%" width="200%" height="200%">
+                                            <feGaussianBlur stdDeviation="4" result="blur" />
+                                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                        </filter>
+                                    </defs>
+                                    <rect x="-80" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={tank.primaryColor} strokeWidth="4" />
+                                    <rect x="50" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={tank.primaryColor} strokeWidth="4" />
+                                    {[...Array(6)].map((_, i) => (
+                                        <g key={i}>
+                                            <line x1="-80" y1={-60 + i*25} x2="-50" y2={-60 + i*25} stroke={tank.primaryColor} strokeWidth="1" opacity="0.5" />
+                                            <line x1="50" y1={-60 + i*25} x2="80" y2={-60 + i*25} stroke={tank.primaryColor} strokeWidth="1" opacity="0.5" />
+                                        </g>
+                                    ))}
+                                    <rect x="-50" y="-70" width="100" height="140" rx="10" fill="#050510" stroke={tank.primaryColor} strokeWidth="5" filter={`url(#glow-lk-${tank.id})`} />
+                                    <path d="M-40 60 L40 60 L30 70 L-30 70 Z" fill="none" stroke={tank.primaryColor} strokeWidth="3" opacity="0.6" />
+                                    <g>
+                                        <rect x="-10" y="-130" width="20" height="90" fill="#0a0a0a" stroke={tank.secondaryColor} strokeWidth="5" />
+                                        <rect x="-14" y="-135" width="28" height="10" fill="none" stroke={tank.secondaryColor} strokeWidth="3" />
+                                        <circle cx="0" cy="-25" r="35" fill="#050505" stroke={tank.secondaryColor} strokeWidth="5" filter={`url(#glow-lk-${tank.id})`} />
+                                        <circle cx="0" cy="-25" r="15" fill="none" stroke={tank.secondaryColor} strokeWidth="2" opacity="0.7" />
+                                        <line x1="0" y1="-25" x2="0" y2="-60" stroke={tank.secondaryColor} strokeWidth="2" />
+                                    </g>
+                                </svg>
                             </div>
                         )}
                     />
@@ -536,9 +582,32 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                         onClose={() => setLockerTab('NONE')}
                         onGoToShop={() => setCurrentView('shop')}
                         renderPreview={(tank) => (
-                            <div className="w-12 h-12 bg-gray-800 border-2 rounded-lg relative flex items-center justify-center" style={{ borderColor: tank.primaryColor, boxShadow: `0 0 10px ${tank.glowColor}50` }}>
-                                <div className="w-8 h-3 bg-gray-700 border border-current absolute -right-2" style={{ color: tank.primaryColor }}></div>
-                                <div className="w-4 h-4 rounded-full bg-current" style={{ color: tank.primaryColor }}></div>
+                            <div className="relative w-12 h-16 flex items-center justify-center scale-90">
+                                <svg viewBox="-120 -150 240 300" className="w-full h-full overflow-visible drop-shadow-lg">
+                                    <defs>
+                                        <filter id={`glow-lk-${tank.id}`} x="-50%" y="-50%" width="200%" height="200%">
+                                            <feGaussianBlur stdDeviation="4" result="blur" />
+                                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                        </filter>
+                                    </defs>
+                                    <rect x="-80" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={tank.primaryColor} strokeWidth="4" />
+                                    <rect x="50" y="-80" width="30" height="160" rx="4" fill="rgba(0,0,0,0.6)" stroke={tank.primaryColor} strokeWidth="4" />
+                                    {[...Array(6)].map((_, i) => (
+                                        <g key={i}>
+                                            <line x1="-80" y1={-60 + i*25} x2="-50" y2={-60 + i*25} stroke={tank.primaryColor} strokeWidth="1" opacity="0.5" />
+                                            <line x1="50" y1={-60 + i*25} x2="80" y2={-60 + i*25} stroke={tank.primaryColor} strokeWidth="1" opacity="0.5" />
+                                        </g>
+                                    ))}
+                                    <rect x="-50" y="-70" width="100" height="140" rx="10" fill="#050510" stroke={tank.primaryColor} strokeWidth="5" filter={`url(#glow-lk-${tank.id})`} />
+                                    <path d="M-40 60 L40 60 L30 70 L-30 70 Z" fill="none" stroke={tank.primaryColor} strokeWidth="3" opacity="0.6" />
+                                    <g>
+                                        <rect x="-10" y="-130" width="20" height="90" fill="#0a0a0a" stroke={tank.secondaryColor} strokeWidth="5" />
+                                        <rect x="-14" y="-135" width="28" height="10" fill="none" stroke={tank.secondaryColor} strokeWidth="3" />
+                                        <circle cx="0" cy="-25" r="35" fill="#050505" stroke={tank.secondaryColor} strokeWidth="5" filter={`url(#glow-lk-${tank.id})`} />
+                                        <circle cx="0" cy="-25" r="15" fill="none" stroke={tank.secondaryColor} strokeWidth="2" opacity="0.7" />
+                                        <line x1="0" y1="-25" x2="0" y2="-60" stroke={tank.secondaryColor} strokeWidth="2" />
+                                    </g>
+                                </svg>
                             </div>
                         )}
                     />
