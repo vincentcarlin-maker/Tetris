@@ -7,6 +7,106 @@ import {
 } from 'lucide-react';
 
 // --- CUSTOM ICONS ---
+export const CustomUltraInvadersIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) =>
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+      React.createElement("defs", null,
+        React.createElement("filter", { id: "iv-neonGlow", x: "-200%", y: "-200%", width: "500%", height: "500%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "10", result: "blur" }),
+          React.createElement("feComposite", { in: "SourceGraphic", in2: "blur", operator: "over" })
+        ),
+        React.createElement("linearGradient", { id: "iv-shipGrad", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#22D3EE" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#0891B2" })
+        ),
+        React.createElement("linearGradient", { id: "iv-alienGrad", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#F472B6" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#9D174D" })
+        ),
+        React.createElement("linearGradient", { id: "iv-shieldGrad", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#38BDF8", stopOpacity: "0.3" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#0EA5E9", stopOpacity: "0.1" })
+        )
+      ),
+      React.createElement("rect", { width: "512", height: "512", rx: "108", fill: "#020617" }),
+      React.createElement("circle", { cx: "100", cy: "100", r: "1.5", fill: "white", opacity: "0.4" }),
+      React.createElement("circle", { cx: "400", cy: "150", r: "1", fill: "white", opacity: "0.3" }),
+      React.createElement("circle", { cx: "450", cy: "400", r: "2", fill: "white", opacity: "0.2" }),
+      React.createElement("circle", { cx: "80", cy: "350", r: "1.2", fill: "white", opacity: "0.3" }),
+      React.createElement("g", { transform: "translate(136, 80)" },
+        React.createElement("path", { d: "M60 20H180V40H200V100H180V120H160V100H80V120H60V100H40V40H60V20Z", fill: "#F472B6", opacity: "0.15", filter: "url(#iv-neonGlow)" }),
+        React.createElement("path", { fillRule: "evenodd", clipRule: "evenodd", d: "M80 0H160V20H200V40H240V100H200V120H180V100H60V120H40V100H0V40H40V20H80V0ZM60 40H100V60H60V40ZM140 40H180V60H140V40ZM80 80H160V100H80V80Z", fill: "url(#iv-alienGrad)", filter: "url(#iv-neonGlow)" }),
+        React.createElement("rect", { x: "65", y: "45", width: "30", height: "10", fill: "#FCE7F3", opacity: "0.8" }),
+        React.createElement("rect", { x: "145", y: "45", width: "30", height: "10", fill: "#FCE7F3", opacity: "0.8" })
+      ),
+      React.createElement("g", { filter: "url(#iv-neonGlow)" },
+        React.createElement("rect", { x: "251", y: "210", width: "10", height: "180", rx: "5", fill: "#4ADE80" }),
+        React.createElement("rect", { x: "254", y: "210", width: "4", height: "180", rx: "2", fill: "white" })
+      ),
+      React.createElement("g", { transform: "translate(60, 320)" },
+        React.createElement("rect", { x: "0", y: "0", width: "80", height: "40", rx: "4", fill: "url(#iv-shieldGrad)", stroke: "#38BDF8", strokeWidth: "2" }),
+        React.createElement("path", { d: "M10 10L30 30M50 5L70 25", stroke: "#38BDF8", strokeWidth: "1", opacity: "0.5" }),
+        React.createElement("rect", { x: "312", y: "0", width: "80", height: "40", rx: "4", fill: "url(#iv-shieldGrad)", stroke: "#38BDF8", strokeWidth: "2" }),
+        React.createElement("path", { d: "M322 25L342 5M362 35L382 15", stroke: "#38BDF8", strokeWidth: "1", opacity: "0.5" })
+      ),
+      React.createElement("g", { transform: "translate(206, 400)" },
+        React.createElement("path", { d: "M50 0L100 80H0L50 0Z", fill: "#22D3EE", opacity: "0.2", filter: "url(#iv-neonGlow)" }),
+        React.createElement("path", { d: "M50 10L65 40H35L50 10Z", fill: "#0891B2" }),
+        React.createElement("rect", { x: "10", y: "40", width: "80", height: "30", rx: "4", fill: "url(#iv-shipGrad)", filter: "url(#iv-neonGlow)" }),
+        React.createElement("rect", { x: "40", y: "30", width: "20", height: "20", rx: "2", fill: "url(#iv-shipGrad)" }),
+        React.createElement("rect", { x: "46", y: "15", width: "8", height: "20", rx: "2", fill: "white", filter: "url(#iv-neonGlow)" }),
+        React.createElement("path", { d: "M20 45H80", stroke: "white", strokeWidth: "2", strokeLinecap: "round", opacity: "0.3" })
+      )
+    );
+
+export const CustomUltraPacmanIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) => 
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+      React.createElement("defs", null,
+        React.createElement("filter", { id: "pm-neonGlow", x: "-200%", y: "-200%", width: "500%", height: "500%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }),
+          React.createElement("feComposite", { in: "SourceGraphic", in2: "blur", operator: "over" })
+        ),
+        React.createElement("radialGradient", { id: "pm-pacmanGrad", cx: "40%", cy: "40%", r: "60%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#FDE047" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#CA8A04" })
+        ),
+        React.createElement("linearGradient", { id: "pm-ghostGrad", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#EF4444" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#7F1D1D" })
+        ),
+        React.createElement("linearGradient", { id: "pm-glassReflect", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "white", stopOpacity: "0.3" }),
+          React.createElement("stop", { offset: "50%", stopColor: "white", stopOpacity: "0.05" }),
+          React.createElement("stop", { offset: "100%", stopColor: "white", stopOpacity: "0" })
+        )
+      ),
+      React.createElement("rect", { width: "512", height: "512", rx: "108", fill: "#020617" }),
+      React.createElement("g", { stroke: "#1D4ED8", strokeWidth: "8", strokeLinecap: "round", opacity: "0.4", filter: "url(#pm-neonGlow)" },
+        React.createElement("path", { d: "M80 80H200M80 80V200M432 80H312M432 80V200M80 432H200M80 432V312M432 432H312M432 432V312" }),
+        React.createElement("rect", { x: "236", y: "40", width: "40", height: "80", rx: "4" })
+      ),
+      React.createElement("g", { transform: "translate(320, 240) rotate(15)" },
+        React.createElement("path", { d: "M-50 40V-10C-50 -37.6 -27.6 -60 0 -60C27.6 -60 50 -37.6 50 -10V40L33 30L17 40L0 30L-17 40L-33 30L-50 40Z", fill: "url(#pm-ghostGrad)", filter: "url(#pm-neonGlow)", opacity: "0.6" }),
+        React.createElement("path", { d: "M-50 40V-10C-50 -37.6 -27.6 -60 0 -60C27.6 -60 50 -37.6 50 -10V40L33 30L17 40L0 30L-17 40L-33 30L-50 40Z", fill: "#020617", stroke: "#EF4444", strokeWidth: "3" }),
+        React.createElement("circle", { cx: "-18", cy: "-15", r: "12", fill: "white" }),
+        React.createElement("circle", { cx: "18", cy: "-15", r: "12", fill: "white" }),
+        React.createElement("circle", { cx: "-12", cy: "-15", r: "5", fill: "#1D4ED8" }),
+        React.createElement("circle", { cx: "24", cy: "-15", r: "5", fill: "#1D4ED8" })
+      ),
+      React.createElement("g", { transform: "translate(180, 280)" },
+        React.createElement("path", { d: "M0 0L85 -50A100 100 0 1 0 85 50Z", fill: "#FDE047", opacity: "0.2", filter: "url(#pm-neonGlow)" }),
+        React.createElement("path", { d: "M0 0L85 -50A100 100 0 1 0 85 50Z", fill: "url(#pm-pacmanGrad)", stroke: "#CA8A04", strokeWidth: "2" }),
+        React.createElement("circle", { cx: "20", cy: "-45", r: "10", fill: "#020617" }),
+        React.createElement("path", { d: "M-60 -20A70 70 0 0 1 20 -70", stroke: "white", strokeWidth: "6", strokeLinecap: "round", opacity: "0.3" })
+      ),
+      React.createElement("g", { transform: "translate(380, 150)" },
+        React.createElement("circle", { r: "20", fill: "white", filter: "url(#pm-neonGlow)" }),
+        React.createElement("circle", { r: "12", fill: "white" }),
+        React.createElement("circle", { cx: "-30", cy: "-10", r: "3", fill: "white", opacity: "0.5" }),
+        React.createElement("circle", { cx: "10", cy: "-35", r: "2", fill: "white", opacity: "0.3" })
+      ),
+      React.createElement("circle", { cx: "280", cy: "220", r: "6", fill: "#FDE047", opacity: "0.6" })
+    );
+
 export const CustomCheckersIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) =>
     React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
       React.createElement("defs", null,
@@ -496,9 +596,9 @@ export const GAMES_CONFIG = [
     { id: 'checkers', category: 'STRATEGY', name: 'DAMES', icon: CustomCheckersIcon, color: 'text-teal-400', bg: 'bg-teal-900/20', border: 'border-teal-500/30', hoverBorder: 'hover:border-teal-400', shadow: 'hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]', glow: 'rgba(45,212,191,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'uno', category: 'STRATEGY', name: 'UNO', icon: CustomUnoIcon, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-500', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'snake', category: 'ARCADE', name: 'SNAKE', icon: CustomUltraSnakeIcon, color: 'text-green-500', bg: 'bg-green-900/20', border: 'border-green-500/30', hoverBorder: 'hover:border-green-500', shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', glow: 'rgba(34,197,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
-    { id: 'invaders', category: 'ARCADE', name: 'INVADERS', icon: Rocket, color: 'text-rose-500', bg: 'bg-rose-900/20', border: 'border-rose-500/30', hoverBorder: 'hover:border-rose-500', shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', glow: 'rgba(244,63,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
+    { id: 'invaders', category: 'ARCADE', name: 'INVADERS', icon: CustomUltraInvadersIcon, color: 'text-rose-500', bg: 'bg-rose-900/20', border: 'border-rose-500/30', hoverBorder: 'hover:border-rose-500', shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', glow: 'rgba(244,63,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'breaker', category: 'ARCADE', name: 'BREAKER', icon: CustomBreakerIcon, color: 'text-fuchsia-500', bg: 'bg-fuchsia-900/20', border: 'border-fuchsia-500/30', hoverBorder: 'hover:border-fuchsia-500', shadow: 'hover:shadow-[0_0_20px_rgba(217,70,239,0.3)]', glow: 'rgba(217,70,239,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
-    { id: 'pacman', category: 'ARCADE', name: 'PACMAN', icon: Ghost, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
+    { id: 'pacman', category: 'ARCADE', name: 'PACMAN', icon: CustomUltraPacmanIcon, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'airhockey', category: 'ARCADE', name: 'AIR HOCKEY', icon: CustomAirHockeyIcon, color: 'text-sky-400', bg: 'bg-sky-900/20', border: 'border-sky-500/30', hoverBorder: 'hover:border-sky-400', shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', glow: 'rgba(56,189,248,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'sudoku', category: 'PUZZLE', name: 'SUDOKU', icon: Brain, color: 'text-sky-400', bg: 'bg-sky-900/20', border: 'border-sky-500/30', hoverBorder: 'hover:border-sky-400', shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', glow: 'rgba(56,189,248,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: '50', beta: false },
     { id: 'mastermind', category: 'PUZZLE', name: 'MASTERMIND', icon: BrainCircuit, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },

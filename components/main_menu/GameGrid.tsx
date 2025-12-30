@@ -66,7 +66,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                         const hasTried = !isAuthenticated && guestPlayedGames.includes(game.id);
                         const canTry = !isAuthenticated && !hasTried;
 
-                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers'].includes(game.id)) {
+                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers', 'pacman', 'invaders'].includes(game.id)) {
                             const ringColor = game.id === 'airhockey' ? 'focus:ring-sky-400' : 
                                               game.id === 'slither' ? 'focus:ring-indigo-400' :
                                               game.id === 'snake' ? 'focus:ring-green-500' :
@@ -74,6 +74,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                                               game.id === 'battleship' ? 'focus:ring-blue-500' :
                                               game.id === 'connect4' ? 'focus:ring-pink-500' :
                                               game.id === 'skyjo' ? 'focus:ring-purple-400' :
+                                              game.id === 'pacman' ? 'focus:ring-yellow-400' :
+                                              game.id === 'invaders' ? 'focus:ring-rose-500' :
                                               'focus:ring-teal-400';
                             return (
                                 <button
