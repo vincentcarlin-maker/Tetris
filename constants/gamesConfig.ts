@@ -7,6 +7,138 @@ import {
 } from 'lucide-react';
 
 // --- CUSTOM ICONS ---
+export const CustomCheckersIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) =>
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+      React.createElement("defs", null,
+        React.createElement("filter", { id: "dc-neonGlow", x: "-200%", y: "-200%", width: "500%", height: "500%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }),
+          React.createElement("feComposite", { in: "SourceGraphic", in2: "blur", operator: "over" })
+        ),
+        React.createElement("filter", { id: "dc-levitationShadow" },
+          React.createElement("feGaussianBlur", { stdDeviation: "6", result: "blur" }),
+          React.createElement("feColorMatrix", { type: "matrix", values: "0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.5 0" })
+        ),
+        React.createElement("linearGradient", { id: "dc-pinkArtefact", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#F472B6" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#701A75" })
+        ),
+        React.createElement("linearGradient", { id: "dc-blueArtefact", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#22D3EE" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#164E63" })
+        ),
+        React.createElement("linearGradient", { id: "dc-caseActive", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#1E293B" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#0F172A" })
+        )
+      ),
+      React.createElement("rect", { width: "512", height: "512", rx: "108", fill: "#020617" }),
+      React.createElement("g", { transform: "translate(60, 140) skewX(-12)" },
+        React.createElement("rect", { x: "-2", y: "-2", width: "404", height: "304", rx: "8", stroke: "#334155", strokeWidth: "2", opacity: "0.3" }),
+        React.createElement("g", { id: "dc-checkerboard" },
+          React.createElement("rect", { x: "0", y: "0", width: "100", height: "75", fill: "#020617" }),
+          React.createElement("rect", { x: "100", y: "0", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "200", y: "0", width: "100", height: "75", fill: "#020617" }),
+          React.createElement("rect", { x: "300", y: "0", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "0", y: "75", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "100", y: "75", width: "100", height: "75", fill: "#020617" }),
+          React.createElement("rect", { x: "200", y: "75", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "300", y: "75", width: "100", height: "75", fill: "#020617" }),
+          React.createElement("rect", { x: "0", y: "150", width: "100", height: "75", fill: "#020617" }),
+          React.createElement("rect", { x: "100", y: "150", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "200", y: "150", width: "100", height: "75", fill: "#020617" }),
+          React.createElement("rect", { x: "300", y: "150", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "0", y: "225", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "100", y: "225", width: "100", height: "75", fill: "#020617" }),
+          React.createElement("rect", { x: "200", y: "225", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
+          React.createElement("rect", { x: "300", y: "225", width: "100", height: "75", fill: "#020617" })
+        ),
+        React.createElement("g", { transform: "translate(150, 37.5)" },
+          React.createElement("ellipse", { cy: "15", rx: "35", ry: "12", fill: "black", filter: "url(#dc-levitationShadow)" }),
+          React.createElement("circle", { r: "28", fill: "none", stroke: "#22D3EE", strokeWidth: "6", filter: "url(#dc-neonGlow)", opacity: "0.4" }),
+          React.createElement("circle", { r: "28", fill: "#020617", stroke: "#22D3EE", strokeWidth: "2" }),
+          React.createElement("circle", { r: "12", fill: "url(#dc-blueArtefact)", filter: "url(#dc-neonGlow)" })
+        ),
+        React.createElement("g", { transform: "translate(50, 112.5)" },
+          React.createElement("ellipse", { cy: "15", rx: "38", ry: "14", fill: "black", filter: "url(#dc-levitationShadow)" }),
+          React.createElement("circle", { r: "32", fill: "none", stroke: "#F472B6", strokeWidth: "6", filter: "url(#dc-neonGlow)", opacity: "0.4" }),
+          React.createElement("circle", { r: "32", fill: "#020617", stroke: "#F472B6", strokeWidth: "2" }),
+          React.createElement("circle", { r: "14", fill: "url(#dc-pinkArtefact)", filter: "url(#dc-neonGlow)" })
+        ),
+        React.createElement("g", { transform: "translate(250, 187.5)" },
+          React.createElement("ellipse", { cy: "15", rx: "42", ry: "16", fill: "black", filter: "url(#dc-levitationShadow)" }),
+          React.createElement("circle", { r: "36", fill: "none", stroke: "#22D3EE", strokeWidth: "8", filter: "url(#dc-neonGlow)", opacity: "0.4" }),
+          React.createElement("circle", { r: "36", fill: "#020617", stroke: "#22D3EE", strokeWidth: "2" }),
+          React.createElement("circle", { r: "16", fill: "url(#dc-blueArtefact)", filter: "url(#dc-neonGlow)" })
+        ),
+        React.createElement("g", { transform: "translate(150, 262.5)" },
+          React.createElement("ellipse", { cy: "20", rx: "55", ry: "20", fill: "black", filter: "url(#dc-levitationShadow)" }),
+          React.createElement("circle", { r: "45", fill: "none", stroke: "#22D3EE", strokeWidth: "12", filter: "url(#dc-neonGlow)", opacity: "0.3" }),
+          React.createElement("circle", { r: "45", fill: "#020617", stroke: "#22D3EE", strokeWidth: "3" }),
+          React.createElement("path", { d: "M-15 5 L-8 -12 L0 -2 L8 -12 L15 5 Z", fill: "#22D3EE", filter: "url(#dc-neonGlow)" }),
+          React.createElement("circle", { r: "25", stroke: "#22D3EE", strokeWidth: "1", strokeDasharray: "4 4", opacity: "0.5" })
+        )
+      ),
+      React.createElement("circle", { cx: "440", cy: "80", r: "3", fill: "#22D3EE", filter: "url(#dc-neonGlow)" }),
+      React.createElement("circle", { cx: "70", cy: "440", r: "2", fill: "#F472B6", filter: "url(#dc-neonGlow)" })
+    );
+
+export const CustomUltraSkyjoIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) => 
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+      React.createElement("defs", null,
+        React.createElement("filter", { id: "sk-hyperGlow", x: "-200%", y: "-200%", width: "500%", height: "500%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "15", result: "blur" }),
+          React.createElement("feComposite", { in: "SourceGraphic", in2: "blur", operator: "over" })
+        ),
+        React.createElement("filter", { id: "sk-cardBevel" },
+          React.createElement("feGaussianBlur", { stdDeviation: "2", result: "blur" }),
+          React.createElement("feSpecularLighting", { surfaceScale: "5", specularConstant: "0.8", specularExponent: "30", lightingColor: "#ffffff", in: "blur", result: "spec" },
+            React.createElement("fePointLight", { x: "-5000", y: "-10000", z: "20000" })
+          ),
+          React.createElement("feComposite", { in: "spec", in2: "SourceGraphic", operator: "in", result: "comp" }),
+          React.createElement("feComposite", { in: "SourceGraphic", in2: "comp", operator: "over" })
+        ),
+        React.createElement("linearGradient", { id: "sk-greenMaster", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#4ADE80" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#064E3B" })
+        ),
+        React.createElement("linearGradient", { id: "sk-redMaster", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#F87171" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#7F1D1D" })
+        ),
+        React.createElement("linearGradient", { id: "sk-premiumReflect", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "white", stopOpacity: "0.3" }),
+          React.createElement("stop", { offset: "45%", stopColor: "white", stopOpacity: "0.05" }),
+          React.createElement("stop", { offset: "100%", stopColor: "white", stopOpacity: "0" })
+        )
+      ),
+      React.createElement("rect", { width: "512", height: "512", rx: "108", fill: "#020617" }),
+      React.createElement("circle", { cx: "256", cy: "256", r: "250", fill: "#1E293B", opacity: "0.15" }),
+      React.createElement("g", { transform: "translate(100, 220) rotate(-20)" },
+        React.createElement("rect", { width: "180", height: "260", rx: "20", fill: "#0F172A", stroke: "#991B1B", strokeWidth: "2", opacity: "0.5" }),
+        React.createElement("text", { x: "90", y: "160", fontFamily: "Arial Black", fontSize: "80", fill: "#991B1B", textAnchor: "middle", opacity: "0.4" }, "12")
+      ),
+      React.createElement("g", { transform: "translate(160, 160) rotate(-5)" },
+        React.createElement("rect", { width: "190", height: "270", rx: "22", fill: "#0F172A", stroke: "#F59E0B", strokeWidth: "3", filter: "url(#sk-hyperGlow)", opacity: "0.3" }),
+        React.createElement("rect", { width: "190", height: "270", rx: "22", fill: "#0F172A", stroke: "#F59E0B", strokeWidth: "2" }),
+        React.createElement("text", { x: "95", y: "165", fontFamily: "Arial Black", fontSize: "90", fill: "#F59E0B", textAnchor: "middle" }, "5"),
+        React.createElement("rect", { width: "190", height: "270", rx: "22", fill: "url(#sk-premiumReflect)" })
+      ),
+      React.createElement("g", { transform: "translate(240, 100) rotate(12)", filter: "url(#sk-cardBevel)" },
+        React.createElement("rect", { width: "210", height: "290", rx: "24", stroke: "#4ADE80", strokeWidth: "15", filter: "url(#sk-hyperGlow)", opacity: "0.4" }),
+        React.createElement("rect", { width: "210", height: "290", rx: "24", fill: "#020617", stroke: "#4ADE80", strokeWidth: "4" }),
+        React.createElement("path", { d: "M40 25 H20 V45 M170 25 H190 V45 M40 265 H20 V245 M170 265 H190 V245", stroke: "#4ADE80", strokeWidth: "3", opacity: "0.7" }),
+        React.createElement("text", { x: "105", y: "180", fontFamily: "Arial Black", fontSize: "120", fill: "#4ADE80", textAnchor: "middle", filter: "url(#sk-hyperGlow)" }, "-2"),
+        React.createElement("circle", { cx: "105", cy: "240", r: "6", fill: "#4ADE80", filter: "url(#sk-hyperGlow)" }),
+        React.createElement("rect", { width: "210", height: "290", rx: "24", fill: "url(#sk-premiumReflect)" })
+      ),
+      React.createElement("g", { filter: "url(#sk-hyperGlow)" },
+        React.createElement("circle", { cx: "420", cy: "150", r: "4", fill: "#4ADE80" }),
+        React.createElement("circle", { cx: "450", cy: "300", r: "2", fill: "#F59E0B" }),
+        React.createElement("circle", { cx: "80", cy: "150", r: "3", fill: "#F87171" }),
+        React.createElement("rect", { x: "440", y: "120", width: "8", height: "2", rx: "1", fill: "#4ADE80", transform: "rotate(45 440 120)" })
+      )
+    );
+
 export const CustomBattleshipIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) => 
     React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
       React.createElement("defs", null,
@@ -355,13 +487,13 @@ export const GAMES_CONFIG = [
     { id: 'slither', category: 'ARCADE', name: 'CYBER SERPENT', icon: CustomCyberSerpentIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'neon_seek', category: 'PUZZLE', name: 'NEON SEEK', icon: Search, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS', beta: false },
     { id: 'lumen', category: 'PUZZLE', name: 'LUMEN ORDER', icon: Hexagon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: true },
-    { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: LayoutGrid, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
+    { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: CustomUltraSkyjoIcon, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'arenaclash', category: 'ARCADE', name: 'ARENA CLASH', icon: Crosshair, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: true },
     { id: 'stack', category: 'ARCADE', name: 'STACK', icon: CustomStackIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'tetris', category: 'ARCADE', name: 'TETRIS', icon: CustomUltraTetrisIcon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'runner', category: 'ARCADE', name: 'NEON RUN', icon: Activity, color: 'text-orange-400', bg: 'bg-orange-900/20', border: 'border-orange-500/30', hoverBorder: 'hover:border-orange-400', shadow: 'hover:shadow-[0_0_20px_rgba(251,146,60,0.3)]', glow: 'rgba(251,146,60,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'watersort', category: 'PUZZLE', name: 'NEON MIX', icon: CustomNeonMixIcon, color: 'text-pink-400', bg: 'bg-pink-900/20', border: 'border-pink-500/30', hoverBorder: 'hover:border-pink-400', shadow: 'hover:shadow-[0_0_20px_rgba(244,114,182,0.3)]', glow: 'rgba(244,114,182,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
-    { id: 'checkers', category: 'STRATEGY', name: 'DAMES', icon: Crown, color: 'text-teal-400', bg: 'bg-teal-900/20', border: 'border-teal-500/30', hoverBorder: 'hover:border-teal-400', shadow: 'hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]', glow: 'rgba(45,212,191,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
+    { id: 'checkers', category: 'STRATEGY', name: 'DAMES', icon: CustomCheckersIcon, color: 'text-teal-400', bg: 'bg-teal-900/20', border: 'border-teal-500/30', hoverBorder: 'hover:border-teal-400', shadow: 'hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]', glow: 'rgba(45,212,191,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'uno', category: 'STRATEGY', name: 'UNO', icon: CustomUnoIcon, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-500', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'snake', category: 'ARCADE', name: 'SNAKE', icon: CustomUltraSnakeIcon, color: 'text-green-500', bg: 'bg-green-900/20', border: 'border-green-500/30', hoverBorder: 'hover:border-green-500', shadow: 'hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]', glow: 'rgba(34,197,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'invaders', category: 'ARCADE', name: 'INVADERS', icon: Rocket, color: 'text-rose-500', bg: 'bg-rose-900/20', border: 'border-rose-500/30', hoverBorder: 'hover:border-rose-500', shadow: 'hover:shadow-[0_0_20px_rgba(244,63,94,0.3)]', glow: 'rgba(244,63,94,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },

@@ -66,19 +66,21 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                         const hasTried = !isAuthenticated && guestPlayedGames.includes(game.id);
                         const canTry = !isAuthenticated && !hasTried;
 
-                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4'].includes(game.id)) {
+                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers'].includes(game.id)) {
                             const ringColor = game.id === 'airhockey' ? 'focus:ring-sky-400' : 
                                               game.id === 'slither' ? 'focus:ring-indigo-400' :
                                               game.id === 'snake' ? 'focus:ring-green-500' :
                                               game.id === 'tetris' ? 'focus:ring-cyan-400' :
                                               game.id === 'battleship' ? 'focus:ring-blue-500' :
-                                              'focus:ring-pink-500';
+                                              game.id === 'connect4' ? 'focus:ring-pink-500' :
+                                              game.id === 'skyjo' ? 'focus:ring-purple-400' :
+                                              'focus:ring-teal-400';
                             return (
                                 <button
                                     key={game.id}
                                     onClick={() => isPlayable && onSelectGame(game.id)}
                                     disabled={!isPlayable}
-                                    className={`group relative aspect-square rounded-xl overflow-hidden transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${ringColor} ${!isPlayable ? 'cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'}`}
+                                    className={`group relative aspect-square rounded-xl overflow-hidden transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 border ${ringColor} ${!isPlayable ? 'cursor-not-allowed border-red-900/50' : `hover:scale-[1.02] active:scale-95 ${game.border} ${game.hoverBorder} ${game.shadow}`}`}
                                     {...(isPlayable ? bindGlow(game.glow) : {})}
                                 >
                                     <game.icon size="100%" className={`w-full h-full transition-all duration-300 ${isPlayable ? 'group-hover:brightness-110' : 'grayscale opacity-60'}`} />
