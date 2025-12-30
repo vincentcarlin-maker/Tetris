@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { GAMES_CONFIG, CATEGORIES } from '../../constants/gamesConfig';
 import { Globe, Construction, Lock, Zap } from 'lucide-react';
@@ -66,7 +65,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                         const hasTried = !isAuthenticated && guestPlayedGames.includes(game.id);
                         const canTry = !isAuthenticated && !hasTried;
 
-                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers', 'pacman', 'invaders', 'breaker', 'lumen', 'sudoku', 'arenaclash', 'stack', 'runner'].includes(game.id)) {
+                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers', 'pacman', 'invaders', 'breaker', 'lumen', 'sudoku', 'arenaclash', 'stack', 'runner', 'watersort', 'uno'].includes(game.id)) {
                             const ringColor = game.id === 'airhockey' ? 'focus:ring-sky-400' : 
                                               game.id === 'slither' ? 'focus:ring-indigo-400' :
                                               game.id === 'snake' ? 'focus:ring-green-500' :
@@ -82,6 +81,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                                               game.id === 'arenaclash' ? 'focus:ring-red-500' :
                                               game.id === 'stack' ? 'focus:ring-indigo-400' :
                                               game.id === 'runner' ? 'focus:ring-orange-400' :
+                                              game.id === 'watersort' ? 'focus:ring-pink-400' :
+                                              game.id === 'uno' ? 'focus:ring-red-500' :
                                               'focus:ring-teal-400';
                             return (
                                 <button

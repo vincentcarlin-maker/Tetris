@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
     LayoutGrid, Globe, Gamepad2, Puzzle, Trophy, Hexagon, 
@@ -732,13 +731,72 @@ export const CustomCyberSerpentIcon = ({ size = "100%", className = "" }: { size
       React.createElement("circle", { cx: "200", cy: "150", r: "1.5", fill: "#22D3EE", filter: "url(#cs-neonGlow)" })
     );
 
-export const CustomUnoIcon = ({ size, className }: { size?: number | string, className?: string }) => 
-    React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", className },
-        React.createElement("rect", { x: "4", y: "6", width: "8.5", height: "13", rx: "1.5", transform: "rotate(-20 8.25 18)", fill: "#ef4444", stroke: "#ef4444", fillOpacity: "0.3" }),
-        React.createElement("rect", { x: "6.5", y: "5", width: "8.5", height: "13", rx: "1.5", transform: "rotate(-5 10.75 18)", fill: "#3b82f6", stroke: "#3b82f6", fillOpacity: "0.3" }),
-        React.createElement("rect", { x: "9", y: "5", width: "8.5", height: "13", rx: "1.5", transform: "rotate(10 13.25 18)", fill: "#22c55e", stroke: "#22c55e", fillOpacity: "0.3" }),
-        React.createElement("rect", { x: "11.5", y: "6", width: "8.5", height: "13", rx: "1.5", transform: "rotate(20 15.75 18)", fill: "#eab308", stroke: "#eab308", fillOpacity: "0.3" }),
-        React.createElement("ellipse", { cx: "15.75", cy: "12.5", rx: "2", ry: "3.5", transform: "rotate(20 15.75 12.5)", fill: "none", stroke: "rgba(255,255,255,0.5)" })
+export const CustomUnoIcon = ({ size, className }: { size?: number | string, className?: string }) =>
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+        React.createElement("defs", null,
+            React.createElement("filter", { id: "uno-cardShadow", x: "-30%", y: "-30%", width: "160%", height: "160%" },
+                React.createElement("feGaussianBlur", { in: "SourceAlpha", stdDeviation: "5" }),
+                React.createElement("feOffset", { dx: "0", dy: "3", result: "offsetblur" }),
+                React.createElement("feFlood", { floodColor: "#000", floodOpacity: "0.4" }),
+                React.createElement("feComposite", { in2: "offsetblur", operator: "in" }),
+                React.createElement("feMerge", null,
+                    React.createElement("feMergeNode", null),
+                    React.createElement("feMergeNode", { in: "SourceGraphic" })
+                )
+            ),
+            React.createElement("linearGradient", { id: "uno-colorRed", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+                React.createElement("stop", { offset: "0%", stopColor: "#ff4b2b" }),
+                React.createElement("stop", { offset: "100%", stopColor: "#ff416c" })
+            ),
+            React.createElement("linearGradient", { id: "uno-colorBlue", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+                React.createElement("stop", { offset: "0%", stopColor: "#00c6ff" }),
+                React.createElement("stop", { offset: "100%", stopColor: "#0072ff" })
+            ),
+            React.createElement("linearGradient", { id: "uno-colorYellow", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+                React.createElement("stop", { offset: "0%", stopColor: "#f7ff00" }),
+                React.createElement("stop", { offset: "100%", stopColor: "#dbb400" })
+            ),
+            React.createElement("linearGradient", { id: "uno-colorGreen", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+                React.createElement("stop", { offset: "0%", stopColor: "#56ab2f" }),
+                React.createElement("stop", { offset: "100%", stopColor: "#a8e063" })
+            ),
+            React.createElement("radialGradient", { id: "uno-bgRadial", cx: "50%", cy: "50%", r: "50%" },
+                React.createElement("stop", { offset: "0%", stopColor: "#2c3e50" }),
+                React.createElement("stop", { offset: "100%", stopColor: "#0c0c0c" })
+            )
+        ),
+        React.createElement("rect", { width: "512", height: "512", rx: "40", fill: "url(#uno-bgRadial)" }),
+        React.createElement("g", { transform: "translate(256, 460)" },
+            React.createElement("g", { transform: "rotate(-40)", filter: "url(#uno-cardShadow)" },
+                React.createElement("rect", { x: "-85", y: "-320", width: "170", height: "260", rx: "15", fill: "url(#uno-colorBlue)", stroke: "white", strokeWidth: "4" }),
+                React.createElement("text", { x: "-70", y: "-285", fontFamily: "Arial, sans-serif", fontWeight: "900", fontSize: "34", fill: "white" }, "7")
+            ),
+            React.createElement("g", { transform: "rotate(-20)", filter: "url(#uno-cardShadow)" },
+                React.createElement("rect", { x: "-85", y: "-320", width: "170", height: "260", rx: "15", fill: "url(#uno-colorRed)", stroke: "white", strokeWidth: "4" }),
+                React.createElement("text", { x: "-70", y: "-285", fontFamily: "Arial, sans-serif", fontWeight: "900", fontSize: "30", fill: "white" }, "⇄")
+            ),
+            React.createElement("g", { transform: "rotate(0)", filter: "url(#uno-cardShadow)" },
+                React.createElement("rect", { x: "-85", y: "-320", width: "170", height: "260", rx: "15", fill: "url(#uno-colorYellow)", stroke: "white", strokeWidth: "4" }),
+                React.createElement("text", { x: "-70", y: "-285", fontFamily: "Arial, sans-serif", fontWeight: "900", fontSize: "34", fill: "white" }, "2")
+            ),
+            React.createElement("g", { transform: "rotate(20)", filter: "url(#uno-cardShadow)" },
+                React.createElement("rect", { x: "-85", y: "-320", width: "170", height: "260", rx: "15", fill: "url(#uno-colorGreen)", stroke: "white", strokeWidth: "4" }),
+                React.createElement("text", { x: "-70", y: "-285", fontFamily: "Arial, sans-serif", fontWeight: "900", fontSize: "34", fill: "white" }, "8"),
+                React.createElement("text", { x: "0", y: "-190", fontFamily: "Arial, sans-serif", fontWeight: "900", fontSize: "80", fill: "white", fillOpacity: "0.3", textAnchor: "middle" }, "8")
+            ),
+            React.createElement("g", { transform: "rotate(40)", filter: "url(#uno-cardShadow)" },
+                React.createElement("rect", { x: "-85", y: "-320", width: "170", height: "260", rx: "15", fill: "#1a1a1a", stroke: "white", strokeWidth: "5" }),
+                React.createElement("text", { x: "-72", y: "-285", fontFamily: "Arial, sans-serif", fontWeight: "900", fontSize: "30", fill: "white" }, "+4"),
+                React.createElement("ellipse", { cx: "0", cy: "-190", rx: "60", ry: "85", fill: "white", fillOpacity: "0.1" }),
+                React.createElement("g", { transform: "translate(0, -190)" },
+                    React.createElement("path", { d: "M-35,-50 L0,-50 L0,0 L-35,0 Z", fill: "#ff416c" }),
+                    React.createElement("path", { d: "M0,-50 L35,-50 L35,0 L0,0 Z", fill: "#0072ff" }),
+                    React.createElement("path", { d: "M-35,0 L0,0 L0,50 L-35,50 Z", fill: "#dbb400" }),
+                    React.createElement("path", { d: "M0,0 L35,0 L35,50 L0,50 Z", fill: "#56ab2f" }),
+                    React.createElement("text", { x: "0", y: "12", fontFamily: "Arial, sans-serif", fontWeight: "900", fontSize: "40", fill: "white", textAnchor: "middle", stroke: "black", strokeWidth: "1" }, "+4")
+                )
+            )
+        )
     );
 
 export const CustomUltraConnect4Icon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) =>
@@ -803,13 +861,65 @@ export const CustomUltraConnect4Icon = ({ size = "100%", className = "" }: { siz
     );
 
 export const CustomNeonMixIcon = ({ size, className }: { size?: number | string, className?: string }) => 
-    React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className },
-        React.createElement("path", { d: "M3 11v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-6", fill: "#facc15", stroke: "none" }),
-        React.createElement("path", { d: "M3 2v15a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2", stroke: "#ffffff", strokeOpacity: "0.9" }),
-        React.createElement("path", { d: "M10 6v11a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-11", fill: "#22d3ee", stroke: "none" }),
-        React.createElement("path", { d: "M10 2v15a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2", stroke: "#ffffff", strokeOpacity: "0.9" }),
-        React.createElement("path", { d: "M17 14v3a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-3", fill: "#e879f9", stroke: "none" }),
-        React.createElement("path", { d: "M17 2v15a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2", stroke: "#ffffff", strokeOpacity: "0.9" })
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+      React.createElement("defs", null,
+        React.createElement("radialGradient", { id: "bg_grad", cx: "50%", cy: "50%", r: "50%", fx: "50%", fy: "50%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#252535" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#05050A" })
+        ),
+        React.createElement("filter", { id: "glow_strong", x: "-50%", y: "-50%", width: "200%", height: "200%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "8", result: "blur" }),
+          React.createElement("feComposite", { in: "SourceGraphic", in2: "blur", operator: "over" })
+        ),
+        React.createElement("linearGradient", { id: "color_purple", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#D070FF" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#6B69FF" })
+        ),
+        React.createElement("linearGradient", { id: "color_cyan", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#60E0FF" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#0080FF" })
+        ),
+        React.createElement("linearGradient", { id: "color_pink", x1: "0%", y1: "0%", x2: "0%", y2: "100%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#FF5080" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#FF2050" })
+        ),
+        React.createElement("path", { id: "large_flask_path", d: "M0 15 C0 6.7, 6.7 0, 15 0 H85 C93.3 0, 100 6.7, 100 15 V280 C100 307.6, 77.6 330, 50 330 C22.4 330, 0 307.6, 0 280 Z" }),
+        React.createElement("clipPath", { id: "large_flask_clip" },
+          React.createElement("use", { href: "#large_flask_path" })
+        )
+      ),
+      React.createElement("rect", { width: "512", height: "512", rx: "120", fill: "url(#bg_grad)" }),
+      React.createElement("g", { transform: "translate(70, 90)" },
+        React.createElement("use", { href: "#large_flask_path", fill: "rgba(255,255,255,0.05)", stroke: "rgba(255,255,255,0.25)", strokeWidth: "4" }),
+        React.createElement("g", { clipPath: "url(#large_flask_clip)" },
+          React.createElement("rect", { y: "230", width: "100", height: "100", fill: "url(#color_cyan)" }),
+          React.createElement("rect", { y: "140", width: "100", height: "90", fill: "url(#color_pink)" }),
+          React.createElement("rect", { y: "50", width: "100", height: "90", fill: "url(#color_purple)" })
+        ),
+        React.createElement("rect", { x: "12", y: "25", width: "8", height: "260", rx: "4", fill: "white", fillOpacity: "0.1" })
+      ),
+      React.createElement("g", { transform: "translate(206, 90)" },
+        React.createElement("use", { href: "#large_flask_path", fill: "rgba(255,255,255,0.08)", stroke: "rgba(255,255,255,0.5)", strokeWidth: "5" }),
+        React.createElement("g", { clipPath: "url(#large_flask_clip)" },
+          React.createElement("rect", { y: "180", width: "100", height: "150", fill: "url(#color_pink)", filter: "url(#glow_strong)" }),
+          React.createElement("rect", { y: "70", width: "100", height: "110", fill: "url(#color_purple)", filter: "url(#glow_strong)" })
+        ),
+        React.createElement("rect", { x: "12", y: "25", width: "8", height: "260", rx: "4", fill: "white", fillOpacity: "0.15" })
+      ),
+      React.createElement("g", { transform: "translate(342, 90)" },
+        React.createElement("use", { href: "#large_flask_path", fill: "rgba(255,255,255,0.05)", stroke: "rgba(255,255,255,0.25)", strokeWidth: "4" }),
+        React.createElement("g", { clipPath: "url(#large_flask_clip)" },
+          React.createElement("rect", { y: "40", width: "100", height: "290", fill: "url(#color_cyan)", filter: "url(#glow_strong)" })
+        ),
+        React.createElement("circle", { cx: "50", cy: "165", r: "35", fill: "white", fillOpacity: "0.15", filter: "url(#glow_strong)" }),
+        React.createElement("path", { d: "M35 165 L45 175 L65 155", stroke: "white", strokeWidth: "8", strokeLinecap: "round", strokeLinejoin: "round" }),
+        React.createElement("rect", { x: "12", y: "25", width: "8", height: "260", rx: "4", fill: "white", fillOpacity: "0.1" })
+      ),
+      React.createElement("g", { opacity: "0.6" },
+        React.createElement("rect", { x: "65", y: "90", width: "110", height: "6", rx: "3", fill: "white", fillOpacity: "0.2" }),
+        React.createElement("rect", { x: "201", y: "90", width: "110", height: "6", rx: "3", fill: "white", fillOpacity: "0.2" }),
+        React.createElement("rect", { x: "337", y: "90", width: "110", height: "6", rx: "3", fill: "white", fillOpacity: "0.2" })
+      )
     );
 
 export const CustomUltraStackIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) => 
