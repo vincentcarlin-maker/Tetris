@@ -65,7 +65,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                         const hasTried = !isAuthenticated && guestPlayedGames.includes(game.id);
                         const canTry = !isAuthenticated && !hasTried;
 
-                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers', 'pacman', 'invaders', 'breaker', 'lumen', 'sudoku', 'arenaclash', 'stack', 'runner', 'watersort', 'uno'].includes(game.id)) {
+                        if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers', 'pacman', 'invaders', 'breaker', 'lumen', 'sudoku', 'arenaclash', 'stack', 'runner', 'watersort', 'uno', 'mastermind', 'memory'].includes(game.id)) {
                             const ringColor = game.id === 'airhockey' ? 'focus:ring-sky-400' : 
                                               game.id === 'slither' ? 'focus:ring-indigo-400' :
                                               game.id === 'snake' ? 'focus:ring-green-500' :
@@ -83,13 +83,15 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                                               game.id === 'runner' ? 'focus:ring-orange-400' :
                                               game.id === 'watersort' ? 'focus:ring-pink-400' :
                                               game.id === 'uno' ? 'focus:ring-red-500' :
+                                              game.id === 'mastermind' ? 'focus:ring-indigo-400' :
+                                              game.id === 'memory' ? 'focus:ring-violet-400' :
                                               'focus:ring-teal-400';
                             return (
                                 <button
                                     key={game.id}
                                     onClick={() => isPlayable && onSelectGame(game.id)}
                                     disabled={!isPlayable}
-                                    className={`group relative aspect-square rounded-xl overflow-hidden transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 border ${ringColor} ${!isPlayable ? 'cursor-not-allowed border-red-900/50' : `hover:scale-[1.02] active:scale-95 ${game.border} ${game.hoverBorder} ${game.shadow}`}`}
+                                    className={`group relative aspect-square rounded-[60px] overflow-hidden transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 border ${ringColor} ${!isPlayable ? 'cursor-not-allowed border-red-900/50' : `hover:scale-[1.02] active:scale-95 ${game.border} ${game.hoverBorder} ${game.shadow}`}`}
                                     {...(isPlayable ? bindGlow(game.glow) : {})}
                                 >
                                     <game.icon size="100%" className={`w-full h-full transition-all duration-300 ${isPlayable ? 'group-hover:brightness-110' : 'grayscale opacity-60'}`} />
@@ -98,25 +100,25 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                                         <h3 className="font-black italic text-sm tracking-wider text-white drop-shadow-lg uppercase">{game.name}</h3>
                                     </div>
                                     
-                                    <div className="absolute top-0 right-0 w-full flex justify-end gap-1 p-3 z-20">
+                                    <div className="absolute top-0 right-0 w-full flex justify-end gap-1 p-5 z-20">
                                         {canTry && isPlayable && (<div className="px-1.5 py-0.5 rounded bg-green-600/90 text-white border border-green-500/50 text-[8px] font-black tracking-widest shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse flex items-center gap-1 uppercase"><Zap size={8} fill="white"/> Essai Libre</div>)}
                                         {game.badges.new && isPlayable && !canTry && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse uppercase">{language === 'fr' ? 'NOUVEAU' : 'NEW'}</div>}
                                         {game.badges.online && isPlayable && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
                                     </div>
                                     
-                                    {!isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center border-2 border-red-500/30 rounded-xl"><Construction className="text-red-500 mb-1 animate-pulse" size={24} /><span className="text-[10px] font-black text-red-500 tracking-widest bg-red-900/20 px-2 py-0.5 rounded border border-red-500/20">MAINTENANCE</span></div>)}
-                                    {hasTried && isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[1px] flex flex-col items-center justify-center border-2 border-white/10 rounded-xl"><Lock className="text-gray-400 mb-1" size={24} /><span className="text-[9px] font-black text-white/50 tracking-widest uppercase px-2 py-0.5 rounded">Rejoindre</span></div>)}
+                                    {!isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center border-2 border-red-500/30 rounded-[60px]"><Construction className="text-red-500 mb-1 animate-pulse" size={24} /><span className="text-[10px] font-black text-red-500 tracking-widest bg-red-900/20 px-2 py-0.5 rounded border border-red-500/20">MAINTENANCE</span></div>)}
+                                    {hasTried && isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[1px] flex flex-col items-center justify-center border-2 border-white/10 rounded-[60px]"><Lock className="text-gray-400 mb-1" size={24} /><span className="text-[9px] font-black text-white/50 tracking-widest uppercase px-2 py-0.5 rounded">Rejoindre</span></div>)}
                                 </button>
                             );
                         }
 
                         return (
-                            <button key={game.id} onClick={() => onSelectGame(game.id)} disabled={!isPlayable} {...(isPlayable ? bindGlow(game.glow) : {})} className={`group relative flex flex-col items-center justify-between p-3 aspect-square bg-black/60 border rounded-xl overflow-hidden transition-all duration-300 backdrop-blur-md ${!isPlayable ? 'border-red-900/50 cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}>
+                            <button key={game.id} onClick={() => onSelectGame(game.id)} disabled={!isPlayable} {...(isPlayable ? bindGlow(game.glow) : {})} className={`group relative flex flex-col items-center justify-between p-5 aspect-square bg-black/60 border rounded-[60px] overflow-hidden transition-all duration-300 backdrop-blur-md ${!isPlayable ? 'border-red-900/50 cursor-not-allowed' : `${game.border} ${game.hoverBorder} ${game.shadow} hover:scale-[1.02] active:scale-95`}`}>
                                 
                                 {game.beta && (<div className="absolute top-2 left-2 bg-purple-600/90 text-white text-[7px] px-1.5 py-0.5 rounded border border-purple-400 font-black tracking-widest z-30 shadow-[0_0_10px_purple]">BETA</div>)}
                                 {isAdmin && isGloballyDisabled && (<div className="absolute top-2 right-2 bg-red-600/90 text-white text-[7px] px-1.5 py-0.5 rounded border border-red-400 font-black tracking-widest z-30 shadow-[0_0_10px_red]">DEPRECATED</div>)}
-                                {!isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center border-2 border-red-500/30 rounded-xl"><Construction className="text-red-500 mb-1 animate-pulse" size={24} /><span className="text-[10px] font-black text-red-500 tracking-widest bg-red-900/20 px-2 py-0.5 rounded border border-red-500/20">MAINTENANCE</span></div>)}
-                                {hasTried && isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[1px] flex flex-col items-center justify-center border-2 border-white/10 rounded-xl"><Lock className="text-gray-400 mb-1" size={24} /><span className="text-[9px] font-black text-white/50 tracking-widest uppercase px-2 py-0.5 rounded">Rejoindre</span></div>)}
+                                {!isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center border-2 border-red-500/30 rounded-[60px]"><Construction className="text-red-500 mb-1 animate-pulse" size={24} /><span className="text-[10px] font-black text-red-500 tracking-widest bg-red-900/20 px-2 py-0.5 rounded border border-red-500/20">MAINTENANCE</span></div>)}
+                                {hasTried && isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[1px] flex flex-col items-center justify-center border-2 border-white/10 rounded-[60px]"><Lock className="text-gray-400 mb-1" size={24} /><span className="text-[9px] font-black text-white/50 tracking-widest uppercase px-2 py-0.5 rounded">Rejoindre</span></div>)}
 
                                 {isPlayable && <div className={`absolute inset-0 ${game.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}></div>}
                                 

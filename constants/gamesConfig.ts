@@ -1026,6 +1026,90 @@ export const CustomAirHockeyIcon = ({ size = 24, className = "" }: { size?: numb
       React.createElement("circle", { cx: "300", cy: "360", r: "2", fill: "#F87171", opacity: "0.4" })
     );
 
+export const CustomUltraMastermindIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) => 
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+      React.createElement("defs", null,
+        React.createElement("filter", { id: "mm-glow", x: "-50%", y: "-50%", width: "200%", height: "200%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "15", result: "blur" }),
+          React.createElement("feComposite", { in: "SourceGraphic", in2: "blur", operator: "over" })
+        ),
+        React.createElement("radialGradient", { id: "mm-bgGrad", cx: "50%", cy: "50%", r: "50%", fx: "50%", fy: "50%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#1a1a2e" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#0f0f1b" })
+        ),
+        React.createElement("filter", { id: "mm-redGlow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }), React.createElement("feMerge", null, React.createElement("feMergeNode", { in: "blur" }), React.createElement("feMergeNode", { in: "SourceGraphic" }))),
+        React.createElement("filter", { id: "mm-blueGlow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }), React.createElement("feMerge", null, React.createElement("feMergeNode", { in: "blur" }), React.createElement("feMergeNode", { in: "SourceGraphic" }))),
+        React.createElement("filter", { id: "mm-yellowGlow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }), React.createElement("feMerge", null, React.createElement("feMergeNode", { in: "blur" }), React.createElement("feMergeNode", { in: "SourceGraphic" }))),
+        React.createElement("filter", { id: "mm-greenGlow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }), React.createElement("feMerge", null, React.createElement("feMergeNode", { in: "blur" }), React.createElement("feMergeNode", { in: "SourceGraphic" }))),
+        React.createElement("filter", { id: "mm-orangeGlow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }), React.createElement("feMerge", null, React.createElement("feMergeNode", { in: "blur" }), React.createElement("feMergeNode", { in: "SourceGraphic" }))),
+        React.createElement("filter", { id: "mm-purpleGlow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }), React.createElement("feMerge", null, React.createElement("feMergeNode", { in: "blur" }), React.createElement("feMergeNode", { in: "SourceGraphic" })))
+      ),
+      React.createElement("rect", { width: "512", height: "512", rx: "80", fill: "url(#mm-bgGrad)" }),
+      React.createElement("rect", { x: "10", y: "10", width: "492", height: "492", rx: "75", stroke: "#4834d4", strokeWidth: "2", strokeOpacity: "0.3", fill: "none" }),
+      React.createElement("circle", { cx: "130", cy: "150", r: "50", fill: "#ff4d4d", filter: "url(#mm-redGlow)" }),
+      React.createElement("circle", { cx: "256", cy: "150", r: "50", fill: "#00d2ff", filter: "url(#mm-blueGlow)" }),
+      React.createElement("circle", { cx: "382", cy: "150", r: "50", fill: "#fff200", filter: "url(#mm-yellowGlow)" }),
+      React.createElement("circle", { cx: "130", cy: "280", r: "50", fill: "#32ff7e", filter: "url(#mm-greenGlow)" }),
+      React.createElement("circle", { cx: "256", cy: "280", r: "50", fill: "#ffaf40", filter: "url(#mm-orangeGlow)" }),
+      React.createElement("circle", { cx: "382", cy: "280", r: "50", fill: "#c56cf0", filter: "url(#mm-purpleGlow)" }),
+      React.createElement("g", { transform: "translate(100, 390)" },
+        React.createElement("rect", { width: "312", height: "70", rx: "15", fill: "#161625", stroke: "#4834d4", strokeWidth: "1", strokeOpacity: "0.5" }),
+        React.createElement("circle", { cx: "50", cy: "35", r: "12", fill: "#ffffff", filter: "url(#mm-glow)" }),
+        React.createElement("circle", { cx: "100", cy: "35", r: "12", fill: "#ff4d4d", filter: "url(#mm-redGlow)" }),
+        React.createElement("circle", { cx: "150", cy: "35", r: "12", fill: "none", stroke: "#4834d4", strokeWidth: "2" }),
+        React.createElement("circle", { cx: "200", cy: "35", r: "12", fill: "none", stroke: "#4834d4", strokeWidth: "2" }),
+        React.createElement("circle", { cx: "250", cy: "35", r: "12", fill: "#ffffff", filter: "url(#mm-glow)", opacity: "0.6" })
+      ),
+      React.createElement("path", { d: "M80 20 Q256 10 432 20", stroke: "white", strokeWidth: "2", strokeOpacity: "0.1", fill: "none" })
+    );
+
+export const CustomUltraMemoryIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) =>
+    React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+        React.createElement("defs", null,
+            React.createElement("filter", { id: "mem-neonBlue", x: "-50%", y: "-50%", width: "200%", height: "200%" },
+                React.createElement("feGaussianBlur", { stdDeviation: "6", result: "blur" }),
+                React.createElement("feFlood", { floodColor: "#00d2ff", floodOpacity: "0.8", result: "color" }),
+                React.createElement("feComposite", { in: "color", in2: "blur", operator: "in" }),
+                React.createElement("feMerge", null,
+                    React.createElement("feMergeNode", null),
+                    React.createElement("feMergeNode", { in: "SourceGraphic" })
+                )
+            ),
+            React.createElement("filter", { id: "mem-neonPink", x: "-50%", y: "-50%", width: "200%", height: "200%" },
+                React.createElement("feGaussianBlur", { stdDeviation: "8", result: "blur" }),
+                React.createElement("feFlood", { floodColor: "#ff00ff", floodOpacity: "0.9", result: "color" }),
+                React.createElement("feComposite", { in: "color", in2: "blur", operator: "in" }),
+                React.createElement("feMerge", null,
+                    React.createElement("feMergeNode", null),
+                    React.createElement("feMergeNode", { in: "SourceGraphic" })
+                )
+            ),
+            React.createElement("radialGradient", { id: "mem-darkBg", cx: "50%", cy: "50%", r: "50%", fx: "50%", fy: "50%" },
+                React.createElement("stop", { offset: "0%", stopColor: "#1a1a2e" }),
+                React.createElement("stop", { offset: "100%", stopColor: "#020205" })
+            )
+        ),
+        React.createElement("rect", { width: "512", height: "512", rx: "80", fill: "url(#mem-darkBg)" }),
+        React.createElement("g", { stroke: "#004466", strokeWidth: "3", opacity: "0.6" },
+            React.createElement("rect", { x: "70", y: "80", width: "110", height: "150", rx: "10", fill: "#0a192f" }),
+            React.createElement("rect", { x: "201", y: "80", width: "110", height: "150", rx: "10", fill: "#0a192f" }),
+            React.createElement("rect", { x: "332", y: "80", width: "110", height: "150", rx: "10", fill: "#0a192f" }),
+            React.createElement("rect", { x: "70", y: "260", width: "110", height: "150", rx: "10", fill: "#0a192f" }),
+            React.createElement("rect", { x: "332", y: "260", width: "110", height: "150", rx: "10", fill: "#0a192f" })
+        ),
+        React.createElement("g", { transform: "translate(110, 200) rotate(-4)" },
+            React.createElement("rect", { width: "130", height: "180", rx: "12", fill: "#0a192f", stroke: "#ff00ff", strokeWidth: "4", filter: "url(#mem-neonPink)" }),
+            React.createElement("path", { d: "M75 50 L50 100 L70 100 L55 140 L85 85 L65 85 Z", stroke: "#ff00ff", strokeWidth: "3", fill: "none", filter: "url(#mem-neonPink)" })
+        ),
+        React.createElement("g", { transform: "translate(270, 200) rotate(4)" },
+            React.createElement("rect", { width: "130", height: "180", rx: "12", fill: "#0a192f", stroke: "#ff00ff", strokeWidth: "4", filter: "url(#mem-neonPink)" }),
+            React.createElement("path", { d: "M75 50 L50 100 L70 100 L55 140 L85 85 L65 85 Z", stroke: "#ff00ff", strokeWidth: "3", fill: "none", filter: "url(#mem-neonPink)" })
+        ),
+        React.createElement("circle", { cx: "256", cy: "450", r: "2", fill: "#ff00ff", filter: "url(#mem-neonPink)" }),
+        React.createElement("circle", { cx: "100", cy: "100", r: "1.5", fill: "#00d2ff", filter: "url(#mem-neonBlue)" }),
+        React.createElement("circle", { cx: "412", cy: "150", r: "1.5", fill: "#00d2ff", filter: "url(#mem-neonBlue)" })
+    );
+
 // --- CONFIGURATIONS ---
 
 export const GAMES_CONFIG = [
@@ -1046,9 +1130,9 @@ export const GAMES_CONFIG = [
     { id: 'pacman', category: 'ARCADE', name: 'PACMAN', icon: CustomUltraPacmanIcon, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'airhockey', category: 'ARCADE', name: 'AIR HOCKEY', icon: CustomAirHockeyIcon, color: 'text-sky-400', bg: 'bg-sky-900/20', border: 'border-sky-500/30', hoverBorder: 'hover:border-sky-400', shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', glow: 'rgba(56,189,248,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'sudoku', category: 'PUZZLE', name: 'SUDOKU', icon: CustomUltraSudokuIcon, color: 'text-sky-400', bg: 'bg-sky-900/20', border: 'border-sky-500/30', hoverBorder: 'hover:border-sky-400', shadow: 'hover:shadow-[0_0_20px_rgba(56,189,248,0.3)]', glow: 'rgba(56,189,248,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: '50', beta: false },
-    { id: 'mastermind', category: 'PUZZLE', name: 'MASTERMIND', icon: BrainCircuit, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },
+    { id: 'mastermind', category: 'PUZZLE', name: 'MASTERMIND', icon: CustomUltraMastermindIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'connect4', category: 'STRATEGY', name: 'CONNECT 4', icon: CustomUltraConnect4Icon, color: 'text-pink-500', bg: 'bg-pink-900/20', border: 'border-pink-500/30', hoverBorder: 'hover:border-pink-500', shadow: 'hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]', glow: 'rgba(236,72,153,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: '30', beta: false },
-    { id: 'memory', category: 'PUZZLE', name: 'MEMORY', icon: Sparkles, color: 'text-violet-400', bg: 'bg-violet-900/20', border: 'border-violet-500/30', hoverBorder: 'hover:border-violet-400', shadow: 'hover:shadow-[0_0_20px_rgba(167,139,250,0.3)]', glow: 'rgba(167,139,250,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },
+    { id: 'memory', category: 'PUZZLE', name: 'MEMORY', icon: CustomUltraMemoryIcon, color: 'text-violet-400', bg: 'bg-violet-900/20', border: 'border-violet-500/30', hoverBorder: 'hover:border-violet-400', shadow: 'hover:shadow-[0_0_20px_rgba(167,139,250,0.3)]', glow: 'rgba(167,139,250,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },
     { id: 'battleship', category: 'STRATEGY', name: 'BATAILLE', icon: CustomBattleshipIcon, color: 'text-blue-500', bg: 'bg-blue-900/20', border: 'border-blue-500/30', hoverBorder: 'hover:border-blue-500', shadow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', glow: 'rgba(59,130,246,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: false },
 ];
 
