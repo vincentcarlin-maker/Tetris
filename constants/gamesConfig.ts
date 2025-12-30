@@ -290,7 +290,7 @@ export const CustomUltraBreakerIcon = ({ size = "100%", className = "" }: { size
       React.createElement("path", { d: "M256 420L256 260", stroke: "url(#brk-crystalCyan)", strokeWidth: "40", strokeLinecap: "round", opacity: "0.1", filter: "url(#brk-neonGlow)" }),
       React.createElement("g", { transform: "translate(116, 420)" },
         React.createElement("rect", { width: "280", height: "30", rx: "15", fill: "#22D3EE", opacity: "0.15", filter: "url(#brk-neonGlow)" }),
-        React.createElement("path", { d: "M0 15C0 6.7 6.7 0 15 0H265C273.3 0 280 6.7 280 15V15C280 23.3 273.3 30 265 30H15C6.7 30 0 23.3 0 15V15Z", fill: "#0F172A", stroke: "#22D3EE", strokeWidth: "4" }),
+        React.createElement("path", { d: "M0 15C0 6.7, 6.7 0, 15 0H265C273.3 0, 280 6.7, 280 15V15C280 23.3, 273.3 30, 265 30H15C6.7 30, 0 23.3, 0 15V15Z", fill: "#0F172A", stroke: "#22D3EE", strokeWidth: "4" }),
         React.createElement("rect", { x: "110", y: "10", width: "60", height: "10", rx: "5", fill: "#22D3EE", filter: "url(#brk-neonGlow)" }),
         React.createElement("circle", { cx: "20", cy: "15", r: "4", fill: "#22D3EE" }),
         React.createElement("circle", { cx: "260", cy: "15", r: "4", fill: "#22D3EE" }),
@@ -404,76 +404,40 @@ export const CustomUltraPacmanIcon = ({ size = "100%", className = "" }: { size?
 export const CustomCheckersIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) =>
     React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
       React.createElement("defs", null,
-        React.createElement("filter", { id: "dc-neonGlow", x: "-200%", y: "-200%", width: "500%", height: "500%" },
-          React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }),
+        React.createElement("filter", { id: "glow-soft", x: "-20%", y: "-20%", width: "140%", height: "140%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "5", result: "blur" }),
           React.createElement("feComposite", { in: "SourceGraphic", in2: "blur", operator: "over" })
         ),
-        React.createElement("filter", { id: "dc-levitationShadow" },
-          React.createElement("feGaussianBlur", { stdDeviation: "6", result: "blur" }),
-          React.createElement("feColorMatrix", { type: "matrix", values: "0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.5 0" })
+        React.createElement("filter", { id: "glow-strong", x: "-50%", y: "-50%", width: "200%", height: "200%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "15", result: "blur" }),
+          React.createElement("feFlood", { floodColor: "#00f2ff", floodOpacity: "0.5", result: "color" }),
+          React.createElement("feComposite", { in: "color", in2: "blur", operator: "in", result: "coloredBlur" }),
+          React.createElement("feMerge", null,
+            React.createElement("feMergeNode", { in: "coloredBlur" }),
+            React.createElement("feMergeNode", { in: "SourceGraphic" })
+          )
         ),
-        React.createElement("linearGradient", { id: "dc-pinkArtefact", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
-          React.createElement("stop", { offset: "0%", stopColor: "#F472B6" }),
-          React.createElement("stop", { offset: "100%", stopColor: "#701A75" })
+        React.createElement("filter", { id: "glow-magenta", x: "-50%", y: "-50%", width: "200%", height: "200%" },
+          React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }),
+          React.createElement("feFlood", { floodColor: "#ff0077", floodOpacity: "0.6", result: "color" }),
+          React.createElement("feComposite", { in: "color", in2: "blur", operator: "in", result: "coloredBlur" }),
+          React.createElement("feMerge", null,
+            React.createElement("feMergeNode", { in: "coloredBlur" }),
+            React.createElement("feMergeNode", { in: "SourceGraphic" })
+          )
         ),
-        React.createElement("linearGradient", { id: "dc-blueArtefact", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
-          React.createElement("stop", { offset: "0%", stopColor: "#22D3EE" }),
-          React.createElement("stop", { offset: "100%", stopColor: "#164E63" })
-        ),
-        React.createElement("linearGradient", { id: "dc-caseActive", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
-          React.createElement("stop", { offset: "0%", stopColor: "#1E293B" }),
-          React.createElement("stop", { offset: "100%", stopColor: "#0F172A" })
+        React.createElement("radialGradient", { id: "pawnInternal", cx: "50%", cy: "50%", r: "50%" },
+          React.createElement("stop", { offset: "0%", stopColor: "#1a0a25" }),
+          React.createElement("stop", { offset: "100%", stopColor: "#050510" })
         )
       ),
-      React.createElement("rect", { width: "512", height: "512", rx: "108", fill: "#020617" }),
-      React.createElement("g", { transform: "translate(60, 140) skewX(-12)" },
-        React.createElement("rect", { x: "-2", y: "-2", width: "404", height: "304", rx: "8", stroke: "#334155", strokeWidth: "2", opacity: "0.3" }),
-        React.createElement("g", { id: "dc-checkerboard" },
-          React.createElement("rect", { x: "0", y: "0", width: "100", height: "75", fill: "#020617" }),
-          React.createElement("rect", { x: "100", y: "0", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "200", y: "0", width: "100", height: "75", fill: "#020617" }),
-          React.createElement("rect", { x: "300", y: "0", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "0", y: "75", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "100", y: "75", width: "100", height: "75", fill: "#020617" }),
-          React.createElement("rect", { x: "200", y: "75", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "300", y: "75", width: "100", height: "75", fill: "#020617" }),
-          React.createElement("rect", { x: "0", y: "150", width: "100", height: "75", fill: "#020617" }),
-          React.createElement("rect", { x: "100", y: "150", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "200", y: "150", width: "100", height: "75", fill: "#020617" }),
-          React.createElement("rect", { x: "300", y: "150", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "0", y: "225", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "100", y: "225", width: "100", height: "75", fill: "#020617" }),
-          React.createElement("rect", { x: "200", y: "225", width: "100", height: "75", fill: "url(#dc-caseActive)", stroke: "#22D3EE", strokeWidth: "0.5", strokeOpacity: "0.1" }),
-          React.createElement("rect", { x: "300", y: "225", width: "100", height: "75", fill: "#020617" })
-        ),
-        React.createElement("g", { transform: "translate(150, 37.5)" },
-          React.createElement("ellipse", { cy: "15", rx: "35", ry: "12", fill: "black", filter: "url(#dc-levitationShadow)" }),
-          React.createElement("circle", { r: "28", fill: "none", stroke: "#22D3EE", strokeWidth: "6", filter: "url(#dc-neonGlow)", opacity: "0.4" }),
-          React.createElement("circle", { r: "28", fill: "#020617", stroke: "#22D3EE", strokeWidth: "2" }),
-          React.createElement("circle", { r: "12", fill: "url(#dc-blueArtefact)", filter: "url(#dc-neonGlow)" })
-        ),
-        React.createElement("g", { transform: "translate(50, 112.5)" },
-          React.createElement("ellipse", { cy: "15", rx: "38", ry: "14", fill: "black", filter: "url(#dc-levitationShadow)" }),
-          React.createElement("circle", { r: "32", fill: "none", stroke: "#F472B6", strokeWidth: "6", filter: "url(#dc-neonGlow)", opacity: "0.4" }),
-          React.createElement("circle", { r: "32", fill: "#020617", stroke: "#F472B6", strokeWidth: "2" }),
-          React.createElement("circle", { r: "14", fill: "url(#dc-pinkArtefact)", filter: "url(#dc-neonGlow)" })
-        ),
-        React.createElement("g", { transform: "translate(250, 187.5)" },
-          React.createElement("ellipse", { cy: "15", rx: "42", ry: "16", fill: "black", filter: "url(#dc-levitationShadow)" }),
-          React.createElement("circle", { r: "36", fill: "none", stroke: "#22D3EE", strokeWidth: "8", filter: "url(#dc-neonGlow)", opacity: "0.4" }),
-          React.createElement("circle", { r: "36", fill: "#020617", stroke: "#22D3EE", strokeWidth: "2" }),
-          React.createElement("circle", { r: "16", fill: "url(#dc-blueArtefact)", filter: "url(#dc-neonGlow)" })
-        ),
-        React.createElement("g", { transform: "translate(150, 262.5)" },
-          React.createElement("ellipse", { cy: "20", rx: "55", ry: "20", fill: "black", filter: "url(#dc-levitationShadow)" }),
-          React.createElement("circle", { r: "45", fill: "none", stroke: "#22D3EE", strokeWidth: "12", filter: "url(#dc-neonGlow)", opacity: "0.3" }),
-          React.createElement("circle", { r: "45", fill: "#020617", stroke: "#22D3EE", strokeWidth: "3" }),
-          React.createElement("path", { d: "M-15 5 L-8 -12 L0 -2 L8 -12 L15 5 Z", fill: "#22D3EE", filter: "url(#dc-neonGlow)" }),
-          React.createElement("circle", { r: "25", stroke: "#22D3EE", strokeWidth: "1", strokeDasharray: "4 4", opacity: "0.5" })
-        )
-      ),
-      React.createElement("circle", { cx: "440", cy: "80", r: "3", fill: "#22D3EE", filter: "url(#dc-neonGlow)" }),
-      React.createElement("circle", { cx: "70", cy: "440", r: "2", fill: "#F472B6", filter: "url(#dc-neonGlow)" })
+      React.createElement("rect", { width: "512", height: "512", rx: "100", fill: "#020205" }),
+      React.createElement("circle", { cx: "256", cy: "256", r: "160", stroke: "#00f2ff", strokeWidth: "12", filter: "url(#glow-strong)" }),
+      React.createElement("circle", { cx: "256", cy: "256", r: "160", stroke: "#fff", strokeWidth: "1", opacity: "0.3" }),
+      React.createElement("circle", { cx: "256", cy: "256", r: "105", fill: "url(#pawnInternal)" }),
+      React.createElement("circle", { cx: "256", cy: "256", r: "100", stroke: "#ff0077", strokeWidth: "8", filter: "url(#glow-magenta)" }),
+      React.createElement("path", { d: "M200 295L200 235L230 260L256 210L282 260L312 235L312 295H200Z", fill: "#ff0077", filter: "url(#glow-magenta)" }),
+      React.createElement("path", { d: "M256 210L262 225H250L256 210Z", fill: "white", opacity: "0.6" })
     );
 
 export const CustomUltraSkyjoIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) => 
