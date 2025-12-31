@@ -67,18 +67,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
 
     const refreshRequests = useCallback(async () => {
-        if (isConnectedToSupabase && username) {
-            setIsRefreshingRequests(true);
-            try {
-                const reqs = await DB.getPendingRequests(username);
-                setFriendRequests(reqs);
-                const sent = await DB.getSentRequests(username);
-                setSentRequests(sent);
-            } catch (err) {
-                console.error("Failed to refresh requests:", err);
-            } finally {
-                setIsRefreshingRequests(false);
-            }
+        if (!isConnectedToSupabase || !username) return;
+        setIsRefreshingRequests(true);
+        try {
+            const [reqs, sent] = await Promise.all([
+                DB.getPendingRequests(username),
+                DB.getSentRequests(username)
+            ]);
+            setFriendRequests(reqs);
+            setSentRequests(sent);
+        } catch (err) {
+            console.error("Failed to refresh requests:", err);
+        } finally {
+            setIsRefreshingRequests(false);
         }
     }, [isConnectedToSupabase, username, setFriendRequests]);
 
@@ -104,43 +105,67 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         loadInitialData();
     }, [isConnectedToSupabase, username, refreshRequests]);
 
+    // ÉCOUTEUR TEMPS RÉEL ROBUSTE
     useEffect(() => {
-        if (!isConnectedToSupabase || !mp.peerId || !username) return;
+        if (!isConnectedToSupabase || !mp.supabase || !username) return;
         
-        const channel = mp.supabase.channel(`msg_${username}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
-                const newMsg = payload.new;
-                if (newMsg.receiver_id !== username) return;
-                
-                if (newMsg.text === 'CMD:FRIEND_REQUEST') {
-                    refreshRequests();
-                    playCoin();
-                    return;
-                }
-                
-                const senderUsername = newMsg.sender_id;
-                const onlineSender = onlineUsers.find(u => u.name === senderUsername);
-                const senderId = onlineSender ? onlineSender.id : (senderUsername === SUPPORT_ID ? SUPPORT_ID : senderUsername);
-                
-                setMessages(prev => {
-                    const chat = prev[senderId] || [];
-                    return { ...prev, [senderId]: [...chat, { id: newMsg.id.toString(), senderId: senderUsername, text: newMsg.text, timestamp: new Date(newMsg.created_at).getTime(), read: false }] };
-                });
+        // Abonnement précis aux messages destinés à CET utilisateur
+        const channel = mp.supabase.channel(`personal_notifications_${username}`)
+            .on(
+                'postgres_changes', 
+                { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'messages',
+                    filter: `receiver_id=eq.${username}`
+                }, 
+                (payload: any) => {
+                    const newMsg = payload.new;
+                    
+                    if (newMsg.text === 'CMD:FRIEND_REQUEST') {
+                        refreshRequests();
+                        playCoin();
+                        return;
+                    }
+                    
+                    const senderUsername = newMsg.sender_id;
+                    const onlineSender = onlineUsers.find(u => u.name === senderUsername);
+                    const senderId = onlineSender ? onlineSender.id : (senderUsername === SUPPORT_ID ? SUPPORT_ID : senderUsername);
+                    
+                    setMessages(prev => {
+                        const chat = prev[senderId] || [];
+                        const msgExists = chat.some(m => m.id === newMsg.id.toString());
+                        if (msgExists) return prev;
+                        
+                        return { 
+                            ...prev, 
+                            [senderId]: [...chat, { 
+                                id: newMsg.id.toString(), 
+                                senderId: senderUsername, 
+                                text: newMsg.text, 
+                                timestamp: new Date(newMsg.created_at).getTime(), 
+                                read: false 
+                            }] 
+                        };
+                    });
 
-                if (stateRef.current.activeChatId !== senderId) {
-                    setUnreadCount(c => c + 1);
-                    playCoin();
-                } else {
-                    DB.markMessagesAsRead(senderUsername, username);
+                    if (stateRef.current.activeChatId !== senderId) {
+                        setUnreadCount(c => c + 1);
+                        playCoin();
+                    } else {
+                        DB.markMessagesAsRead(senderUsername, username);
+                    }
                 }
-            })
-            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, () => {
-                refreshRequests();
-            })
+            )
+            .on(
+                'postgres_changes', 
+                { event: 'DELETE', schema: 'public', table: 'messages' }, 
+                () => { refreshRequests(); }
+            )
             .subscribe();
             
         return () => { mp.supabase.removeChannel(channel); };
-    }, [isConnectedToSupabase, mp.peerId, username, playCoin, refreshRequests, onlineUsers]);
+    }, [isConnectedToSupabase, mp.supabase, username, playCoin, refreshRequests, onlineUsers]);
 
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
@@ -231,12 +256,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const sendFriendRequest = async () => {
-        if (!selectedPlayer) return;
+        if (!selectedPlayer || !username) return;
         
         if (sentRequests.some(r => r.name === selectedPlayer.name)) return;
 
         const targetPlayer = { ...selectedPlayer };
 
+        // Ajout optimiste à la liste locale
         const optimisticReq: FriendRequest = {
             id: targetPlayer.name,
             name: targetPlayer.name,
@@ -246,6 +272,17 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         };
         setSentRequests(prev => [optimisticReq, ...prev]);
 
+        // 1. Envoi via DB (Persistant)
+        if (isConnectedToSupabase) {
+            try {
+                await DB.sendFriendRequestDB(username, targetPlayer.name);
+            } catch (e) {
+                setSentRequests(prev => prev.filter(r => r.id !== targetPlayer.name));
+            }
+            refreshRequests();
+        }
+
+        // 2. Envoi via PeerJS (Instantané si en ligne)
         let targetPeerId = targetPlayer.id;
         const liveUser = onlineUsers.find(u => u.name === targetPlayer.name);
         if (liveUser) targetPeerId = liveUser.id;
@@ -255,15 +292,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 type: 'FRIEND_REQUEST',
                 sender: { id: mp.peerId, name: username, avatarId: currentAvatarId, frameId: currentFrameId }
             });
-        }
-
-        if (isConnectedToSupabase) {
-            try {
-                await DB.sendFriendRequestDB(username, targetPlayer.name);
-            } catch (e) {
-                setSentRequests(prev => prev.filter(r => r.id !== targetPlayer.name));
-            }
-            refreshRequests();
         }
 
         alert(`Demande d'ami envoyée à ${targetPlayer.name} !`);

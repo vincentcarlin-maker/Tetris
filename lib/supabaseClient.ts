@@ -173,7 +173,9 @@ export const DB = {
                 .from('messages')
                 .select('*')
                 .eq('receiver_id', username)
-                .eq('text', 'CMD:FRIEND_REQUEST');
+                .eq('text', 'CMD:FRIEND_REQUEST')
+                .order('created_at', { ascending: false });
+                
             if (error || !data) return [];
             
             const requests = await Promise.all(data.map(async (m) => {
@@ -198,6 +200,7 @@ export const DB = {
                 .select('*')
                 .eq('sender_id', username)
                 .eq('text', 'CMD:FRIEND_REQUEST');
+                
             if (error || !data) return [];
             
             const requests = await Promise.all(data.map(async (m) => {
@@ -252,6 +255,14 @@ export const DB = {
     },
 
     sendFriendRequestDB: async (sender_id: string, receiver_id: string) => {
+        // Supprime une ancienne demande identique si elle existe pour éviter les conflits
+        if (supabase) {
+            await supabase.from('messages')
+                .delete()
+                .eq('sender_id', sender_id)
+                .eq('receiver_id', receiver_id)
+                .eq('text', 'CMD:FRIEND_REQUEST');
+        }
         return await DB.sendMessage(sender_id, receiver_id, 'CMD:FRIEND_REQUEST');
     },
 
@@ -270,6 +281,7 @@ export const DB = {
     acceptFriendRequestDB: async (username: string, requesterId: string) => {
         if (!supabase) return;
         try {
+            // Supprime la demande une fois acceptée
             await supabase
                 .from('messages')
                 .delete()
