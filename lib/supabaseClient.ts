@@ -266,19 +266,22 @@ export const DB = {
     },
 
     cancelFriendRequestDB: async (sender_id: string, receiver_id: string) => {
-        if (!supabase) return;
+        if (!supabase) return false;
         try {
-            await supabase
+            const { error } = await supabase
                 .from('messages')
                 .delete()
-                .eq('sender_id', sender_id)
-                .eq('receiver_id', receiver_id)
-                .eq('text', 'CMD:FRIEND_REQUEST');
-        } catch (e) {}
+                .match({ 
+                    sender_id: sender_id, 
+                    receiver_id: receiver_id, 
+                    text: 'CMD:FRIEND_REQUEST' 
+                });
+            return !error;
+        } catch (e) { return false; }
     },
 
     acceptFriendRequestDB: async (username: string, requesterName: string) => {
-        if (!supabase) return;
+        if (!supabase) return false;
         try {
             // 1. Mettre à jour le profil de l'utilisateur actuel
             const { data: p1 } = await supabase.from('profiles').select('data').eq('username', username).single();
@@ -322,13 +325,15 @@ export const DB = {
                 }
             }
 
-            // 3. Supprimer la notification
+            // 3. Supprimer la notification (toujours le faire même si p2 est absent pour nettoyer)
             await supabase
                 .from('messages')
                 .delete()
-                .eq('sender_id', requesterName)
-                .eq('receiver_id', username)
-                .eq('text', 'CMD:FRIEND_REQUEST');
+                .match({ 
+                    sender_id: requesterName, 
+                    receiver_id: username, 
+                    text: 'CMD:FRIEND_REQUEST' 
+                });
                 
             return true;
         } catch (e) {

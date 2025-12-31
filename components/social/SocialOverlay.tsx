@@ -203,21 +203,18 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const acceptRequest = async (req: FriendRequest) => {
-        setIsAcceptingFriend(true); // Activer le verrou
+        setIsAcceptingFriend(true); 
         
-        // 1. Mise à jour optimiste locale
         const newFriend: Friend = { id: req.id, name: req.name, avatarId: req.avatarId, frameId: req.frameId, status: 'online', lastSeen: Date.now() };
         addFriend(newFriend);
         setFriendRequests(prev => prev.filter(r => r.id !== req.id));
         
         playVictory();
 
-        // 2. Mise à jour persistante Cloud (C'est cette fonction qui ajoute l'ami dans les deux profils)
         if (isConnectedToSupabase) {
             await DB.acceptFriendRequestDB(username, req.name);
         }
         
-        // 3. Signalisation PeerJS si en ligne
         if (mp.peerId) {
             const senderOnline = onlineUsers.find(u => u.name === req.name);
             if (senderOnline) {
@@ -228,25 +225,39 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             }
         }
 
-        // 4. Forcer un refresh propre après un court délai pour confirmer l'état cloud
         setTimeout(async () => {
-            setIsAcceptingFriend(false); // Relâcher le verrou
+            setIsAcceptingFriend(false); 
             await refreshSocialData();
         }, 1500);
     };
 
-    const declineRequest = (reqId: string) => {
+    const declineRequest = async (reqId: string) => {
         const req = friendRequests.find(r => r.id === reqId);
         if (!req) return;
+        
+        setIsAcceptingFriend(true); // Utiliser le verrou pour empêcher le rafraîchissement automatique instable
         setFriendRequests(prev => prev.filter(r => r.id !== reqId));
-        if (isConnectedToSupabase) DB.cancelFriendRequestDB(req.name, username);
+        
+        if (isConnectedToSupabase) {
+            await DB.cancelFriendRequestDB(req.name, username);
+        }
+        
+        setTimeout(async () => {
+            setIsAcceptingFriend(false); 
+            await refreshSocialData();
+        }, 1000);
     };
 
     const cancelSentRequest = async (targetId: string) => {
+        setIsAcceptingFriend(true);
         setSentRequests(prev => prev.filter(r => r.id !== targetId));
         if (isConnectedToSupabase) {
             await DB.cancelFriendRequestDB(username, targetId);
         }
+        setTimeout(async () => {
+            setIsAcceptingFriend(false); 
+            await refreshSocialData();
+        }, 1000);
     };
 
     const handleManualRefresh = async () => {
