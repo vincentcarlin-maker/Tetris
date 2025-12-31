@@ -23,8 +23,7 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
             const stored = localStorage.getItem(HISTORY_KEY);
             if (stored) {
                 const parsed = JSON.parse(stored);
-                // FIX: Force everyone to offline on load. 
-                // Only the live 'sync' event from Supabase should mark users as 'online'.
+                // On force hors-ligne au chargement, le temps réel fera le reste
                 return parsed.map((u: any) => ({ ...u, status: 'offline', gameActivity: undefined }));
             }
             return [];
@@ -33,24 +32,27 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
         }
     });
     
-    // --- GLOBAL LEADERBOARD STATE (All-Time History from DB) ---
     const [globalLeaderboard, setGlobalLeaderboard] = useState<OnlineUser[]>([]);
-
     const [isConnectedToSupabase, setIsConnectedToSupabase] = useState(false);
     const channelRef = useRef<any>(null);
 
-    // Initialisation et abonnement à la présence
-    // ADDED myName to dependency to re-init on login
-    useEffect(() => {
-        if (!isSupabaseConfigured || !supabase || !myPeerId) return;
+    // Récupération de l'ID persistant pour la présence
+    const getPersistentId = () => {
+        let id = localStorage.getItem('neon_social_id');
+        if (!id) {
+            id = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('neon_social_id', id);
+        }
+        return id;
+    };
 
-        // Création du canal de présence global
+    const socialId = myPeerId || getPersistentId();
+
+    useEffect(() => {
+        if (!isSupabaseConfigured || !supabase || !myName || myName === "Joueur Néon") return;
+
         const channel = supabase.channel('global_presence', {
-            config: {
-                presence: {
-                    key: myPeerId,
-                },
-            },
+            config: { presence: { key: socialId } },
         });
 
         channel
@@ -58,46 +60,40 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                 const newState = channel.presenceState();
                 const currentOnlineMap = new Map<string, OnlineUser>();
                 
-                // 1. Extract currently online users
                 for (const key in newState) {
-                    if (key === myPeerId) continue;
+                    if (key === socialId) continue;
 
                     const presence = newState[key][0] as any;
-                    if (presence) {
+                    if (presence && presence.name) {
                         currentOnlineMap.set(key, {
                             id: key,
-                            name: presence.name || 'Inconnu',
+                            name: presence.name,
                             avatarId: presence.avatarId || 'av_bot',
                             frameId: presence.frameId,
                             status: 'online',
                             lastSeen: Date.now(),
-                            online_at: presence.online_at,
+                            online_at: presence.online_at || new Date().toISOString(),
                             stats: presence.stats || {},
                             gameActivity: presence.gameActivity
                         });
                     }
                 }
 
-                // 2. Merge with history
                 setOnlineUsers(prev => {
                     const mergedMap = new Map<string, OnlineUser>();
-
-                    // Mark everyone from previous state as offline first
+                    // 1. On garde l'historique mais en mode offline
                     prev.forEach(u => {
-                        mergedMap.set(u.id, { ...u, status: 'offline', gameActivity: undefined });
+                        mergedMap.set(u.id, { ...u, status: 'offline' });
                     });
-
-                    // Update with currently online users (this will overwrite status to 'online')
+                    // 2. On écrase avec les vrais gens connectés
                     currentOnlineMap.forEach((u, key) => {
                         mergedMap.set(key, u);
                     });
 
                     const newList = Array.from(mergedMap.values());
-                    // Limit history size to prevent localStorage bloat
-                    const trimmedList = newList.sort((a, b) => b.lastSeen - a.lastSeen).slice(0, 50);
-                    
-                    localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmedList));
-                    return trimmedList;
+                    const sorted = newList.sort((a, b) => b.lastSeen - a.lastSeen).slice(0, 100);
+                    localStorage.setItem(HISTORY_KEY, JSON.stringify(sorted));
+                    return sorted;
                 });
             })
             .subscribe(async (status) => {
@@ -111,33 +107,27 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
                         gameActivity: currentGame,
                         online_at: new Date().toISOString(),
                     });
-                } else {
-                    setIsConnectedToSupabase(false);
                 }
             });
 
         channelRef.current = channel;
+        return () => { supabase.removeChannel(channel); };
+    }, [socialId, myName]);
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [myPeerId, myName]); 
-
-    // Mettre à jour ma présence si mes infos ou mes scores changent
+    // Update auto lors des changements d'activité ou de profil
     useEffect(() => {
-        if (channelRef.current && isConnectedToSupabase && myPeerId) {
+        if (channelRef.current && isConnectedToSupabase) {
             channelRef.current.track({
                 name: myName,
                 avatarId: myAvatar,
                 frameId: myFrame,
-                stats: myStats, // Broadcast updated scores
-                gameActivity: currentGame, // Broadcast current game
+                stats: myStats,
+                gameActivity: currentGame,
                 online_at: new Date().toISOString(),
-            }).catch(console.error);
+            }).catch(() => {});
         }
-    }, [myName, myAvatar, myFrame, myStats, currentGame, isConnectedToSupabase, myPeerId]);
+    }, [myName, myAvatar, myFrame, myStats, currentGame, isConnectedToSupabase]);
 
-    // --- FEATURE 1: CLOUD SAVE & LOGIN ---
     const loginAndFetchProfile = useCallback(async (username: string) => {
         if (!isSupabaseConfigured) return null;
         return await DB.getUserProfile(username);
@@ -149,7 +139,6 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
         fetchLeaderboard(); 
     }, []);
 
-    // --- FEATURE 2: HISTORICAL LEADERBOARD ---
     const fetchLeaderboard = useCallback(async () => {
         if (!isSupabaseConfigured) return;
         const board = await DB.getGlobalLeaderboard();

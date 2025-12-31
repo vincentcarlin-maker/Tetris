@@ -29,10 +29,12 @@ export interface MultiplayerState {
 type DataCallback = (data: any, conn: any) => void;
 
 export const useMultiplayer = () => {
-    const [state, setState] = useState<MultiplayerState>({
-        peerId: null, isConnected: false, isHost: false, error: null, isLoading: false,
+    // Initialisation immédiate du peerId si possible
+    const [state, setState] = useState<MultiplayerState>(() => ({
+        peerId: localStorage.getItem('neon_social_id'), 
+        isConnected: false, isHost: false, error: null, isLoading: false,
         mode: 'disconnected', players: [], gameOpponent: null, isMyTurn: false, amIP1: false
-    });
+    }));
 
     const stateRef = useRef(state);
     useEffect(() => { stateRef.current = state; }, [state]);
@@ -42,7 +44,7 @@ export const useMultiplayer = () => {
     const subscribersRef = useRef<Set<DataCallback>>(new Set());
     
     const myInfoRef = useRef<{name: string, avatarId: string, extraInfo?: string, malletId?: string}>({name: 'Joueur', avatarId: 'av_bot', malletId: 'm_classic'});
-    const myIdRef = useRef<string | null>(null);
+    const myIdRef = useRef<string | null>(localStorage.getItem('neon_social_id'));
 
     const notifySubscribers = useCallback((data: any, senderId: string) => {
         const mockConn = { peer: senderId };
@@ -58,12 +60,12 @@ export const useMultiplayer = () => {
 
         setState(prev => ({ ...prev, isLoading: true, mode: 'connecting', error: null }));
 
-        let id = localStorage.getItem('neon_social_id');
+        let id = myIdRef.current;
         if (!id) {
             id = 'user_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('neon_social_id', id);
+            myIdRef.current = id;
         }
-        myIdRef.current = id;
 
         const channel = supabase.channel('neon_lobby', {
             config: { presence: { key: id } }
