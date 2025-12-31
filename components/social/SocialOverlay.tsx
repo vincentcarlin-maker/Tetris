@@ -37,7 +37,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     audio, mp, onlineUsers, isConnectedToSupabase, isSupabaseConfigured, 
     onUnreadChange, friendRequests, setFriendRequests, activeTabOverride, onTabChangeOverride 
 }) => {
-    const { currency, setCurrentView, unreadMessages, sentRequests, setSentRequests, refreshSocialData } = useGlobal();
+    const { currency, setCurrentView, unreadMessages, sentRequests, setSentRequests, refreshSocialData, setIsAcceptingFriend } = useGlobal();
     const { username, currentAvatarId, currentFrameId, avatarsCatalog, framesCatalog, friends, addFriend, removeFriend } = currency;
     const { playVictory, playLand } = audio;
     
@@ -80,7 +80,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 playVictory();
                 const newFriend: Friend = { id: sender.id, name: sender.name, avatarId: sender.avatarId, frameId: sender.frameId, status: 'online', lastSeen: Date.now() };
                 addFriend(newFriend);
-                // Le socket global dans GlobalContext s'occupera du refreshSocialData avec délai
             }
         });
         return () => unsubscribe();
@@ -177,7 +176,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         if (isConnectedToSupabase) {
             try {
                 await DB.sendFriendRequestDB(username, targetPlayer.name);
-                // On laisse le socket gérer le rafraîchissement global
             } catch (e) {
                 setSentRequests(prev => prev.filter(r => r.id !== targetPlayer.name));
             }
@@ -204,16 +202,22 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         setSelectedPlayer(null);
     };
 
-    const acceptRequest = (req: FriendRequest) => {
-        // 1. Mise à jour optimiste et instantanée
+    const acceptRequest = async (req: FriendRequest) => {
+        setIsAcceptingFriend(true); // Activer le verrou
+        
+        // 1. Mise à jour optimiste locale
         const newFriend: Friend = { id: req.id, name: req.name, avatarId: req.avatarId, frameId: req.frameId, status: 'online', lastSeen: Date.now() };
         addFriend(newFriend);
         setFriendRequests(prev => prev.filter(r => r.id !== req.id));
         
-        // 2. Mise à jour persistante
-        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
+        playVictory();
+
+        // 2. Mise à jour persistante Cloud (C'est cette fonction qui ajoute l'ami dans les deux profils)
+        if (isConnectedToSupabase) {
+            await DB.acceptFriendRequestDB(username, req.name);
+        }
         
-        // 3. Signalisation PeerJS
+        // 3. Signalisation PeerJS si en ligne
         if (mp.peerId) {
             const senderOnline = onlineUsers.find(u => u.name === req.name);
             if (senderOnline) {
@@ -223,15 +227,19 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 });
             }
         }
-        playVictory();
-        // NOTE : On ne force pas refreshSocialData() ici, on laisse le socket asynchrone faire son travail avec son délai de sécurité de 500ms
+
+        // 4. Forcer un refresh propre après un court délai pour confirmer l'état cloud
+        setTimeout(async () => {
+            setIsAcceptingFriend(false); // Relâcher le verrou
+            await refreshSocialData();
+        }, 1500);
     };
 
     const declineRequest = (reqId: string) => {
         const req = friendRequests.find(r => r.id === reqId);
         if (!req) return;
         setFriendRequests(prev => prev.filter(r => r.id !== reqId));
-        if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
+        if (isConnectedToSupabase) DB.cancelFriendRequestDB(req.name, username);
     };
 
     const cancelSentRequest = async (targetId: string) => {

@@ -48,6 +48,8 @@ interface GlobalContextType {
     supabase: ReturnType<typeof useSupabase>;
     guestPlayedGames: string[];
     registerGuestPlay: (gameId: string) => void;
+    isAcceptingFriend: boolean;
+    setIsAcceptingFriend: (val: boolean) => void;
 }
 
 const GlobalContext = createContext<GlobalContextType | null>(null);
@@ -65,6 +67,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
+    const [isAcceptingFriend, setIsAcceptingFriend] = useState(false);
     
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
     const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
@@ -99,22 +102,24 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
     const refreshSocialData = useCallback(async () => {
-        if (!isAuthenticated || !currency.username || !isSupabaseConfigured) return;
+        if (!isAuthenticated || !currency.username || !isSupabaseConfigured || isAcceptingFriend) return;
         try {
-            const [pending, sent, unread] = await Promise.all([
+            const [pending, sent, unread, profile] = await Promise.all([
                 DB.getPendingRequests(currency.username),
                 DB.getSentRequests(currency.username),
-                DB.getUnreadCount(currency.username)
+                DB.getUnreadCount(currency.username),
+                DB.getUserProfile(currency.username)
             ]);
+            
             if (pending) setFriendRequests(pending);
             if (sent) setSentRequests(sent);
+            if (profile?.data?.friends) currency.importData({ friends: profile.data.friends });
             setUnreadMessages(unread || 0);
         } catch (e) {
             console.error("Social refresh failed", e);
         }
-    }, [isAuthenticated, currency.username]);
+    }, [isAuthenticated, currency.username, isAcceptingFriend]);
 
-    // Listener Realtime global avec gestion du délai de cache
     useEffect(() => {
         if (!isAuthenticated || !currency.username || !supabase) return;
 
@@ -141,13 +146,12 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 schema: 'public', 
                 table: 'messages'
             }, () => {
-                // IMPORTANT : Délai de 500ms avant de rafraîchir sur une suppression
-                // Cela évite que l'élément supprimé réapparaisse parce qu'il n'était pas encore
-                // retiré des index de lecture au moment du SELECT.
+                if (isAcceptingFriend) return; // Ne pas rafraîchir si on est en train d'accepter manuellement
+                
                 if (deleteTimeout) clearTimeout(deleteTimeout);
                 deleteTimeout = setTimeout(() => {
                     refreshSocialData();
-                }, 500);
+                }, 800);
             })
             .subscribe();
 
@@ -155,7 +159,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             supabase.removeChannel(channel); 
             if (deleteTimeout) clearTimeout(deleteTimeout);
         };
-    }, [isAuthenticated, currency.username, refreshSocialData, audio]);
+    }, [isAuthenticated, currency.username, refreshSocialData, audio, isAcceptingFriend]);
 
     useEffect(() => {
         if (isAuthenticated) refreshSocialData();
@@ -210,7 +214,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, []);
 
     const syncDataWithCloud = useCallback(async () => {
-        if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon') return;
+        if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon' || isAcceptingFriend) return;
 
         const fullData = {
             password: localStorage.getItem('neon_current_password') || undefined,
@@ -235,7 +239,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
 
         await supabaseHook.syncProfileToCloud(currency.username, fullData);
-    }, [isAuthenticated, currency, highScoresHook, daily, supabaseHook]);
+    }, [isAuthenticated, currency, highScoresHook, daily, supabaseHook, isAcceptingFriend]);
 
     useEffect(() => {
         const attemptAutoLogin = async () => {
@@ -325,7 +329,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             disabledGames, setDisabledGames, featureFlags, setFeatureFlags, handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,
-            guestPlayedGames, registerGuestPlay
+            guestPlayedGames, registerGuestPlay, isAcceptingFriend, setIsAcceptingFriend
         }}>
             {children}
         </GlobalContext.Provider>

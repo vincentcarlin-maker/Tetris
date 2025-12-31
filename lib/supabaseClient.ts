@@ -255,7 +255,6 @@ export const DB = {
     },
 
     sendFriendRequestDB: async (sender_id: string, receiver_id: string) => {
-        // Supprime une ancienne demande identique si elle existe pour éviter les conflits
         if (supabase) {
             await supabase.from('messages')
                 .delete()
@@ -278,17 +277,64 @@ export const DB = {
         } catch (e) {}
     },
 
-    acceptFriendRequestDB: async (username: string, requesterId: string) => {
+    acceptFriendRequestDB: async (username: string, requesterName: string) => {
         if (!supabase) return;
         try {
-            // Supprime la demande une fois acceptée
+            // 1. Mettre à jour le profil de l'utilisateur actuel
+            const { data: p1 } = await supabase.from('profiles').select('data').eq('username', username).single();
+            const p1Data = p1?.data || {};
+            const p1Friends = p1Data.friends || [];
+            
+            // On récupère les infos du demandeur pour l'ajouter proprement
+            const { data: p2 } = await supabase.from('profiles').select('username, data').eq('username', requesterName).single();
+            if (p2) {
+                const newFriendForP1 = {
+                    id: p2.username,
+                    name: p2.username,
+                    avatarId: p2.data?.avatarId || 'av_bot',
+                    frameId: p2.data?.frameId,
+                    status: 'offline',
+                    lastSeen: Date.now()
+                };
+
+                if (!p1Friends.some((f: any) => f.name === requesterName)) {
+                    await supabase.from('profiles').update({
+                        data: { ...p1Data, friends: [...p1Friends, newFriendForP1] }
+                    }).eq('username', username);
+                }
+
+                // 2. Mettre à jour le profil du demandeur
+                const p2Data = p2.data || {};
+                const p2Friends = p2Data.friends || [];
+                const newFriendForP2 = {
+                    id: username,
+                    name: username,
+                    avatarId: p1Data.avatarId || 'av_bot',
+                    frameId: p1Data.frameId,
+                    status: 'offline',
+                    lastSeen: Date.now()
+                };
+
+                if (!p2Friends.some((f: any) => f.name === username)) {
+                    await supabase.from('profiles').update({
+                        data: { ...p2Data, friends: [...p2Friends, newFriendForP2] }
+                    }).eq('username', requesterName);
+                }
+            }
+
+            // 3. Supprimer la notification
             await supabase
                 .from('messages')
                 .delete()
-                .eq('sender_id', requesterId)
+                .eq('sender_id', requesterName)
                 .eq('receiver_id', username)
                 .eq('text', 'CMD:FRIEND_REQUEST');
-        } catch (e) {}
+                
+            return true;
+        } catch (e) {
+            console.error("Accept friend error:", e);
+            return false;
+        }
     },
 
     searchUsers: async (query: string) => {
