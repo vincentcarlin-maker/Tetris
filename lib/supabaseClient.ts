@@ -271,11 +271,9 @@ export const DB = {
             const { error } = await supabase
                 .from('messages')
                 .delete()
-                .match({ 
-                    sender_id: sender_id, 
-                    receiver_id: receiver_id, 
-                    text: 'CMD:FRIEND_REQUEST' 
-                });
+                .eq('sender_id', sender_id)
+                .eq('receiver_id', receiver_id)
+                .eq('text', 'CMD:FRIEND_REQUEST');
             return !error;
         } catch (e) { return false; }
     },

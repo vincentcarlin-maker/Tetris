@@ -102,6 +102,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
     const refreshSocialData = useCallback(async () => {
+        // CRITIQUE : Si on est en cours de modification manuelle, on bloque le rafraîchissement global
         if (!isAuthenticated || !currency.username || !isSupabaseConfigured || isAcceptingFriend) return;
         try {
             const [pending, sent, unread, profile] = await Promise.all([
@@ -146,12 +147,14 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 schema: 'public', 
                 table: 'messages'
             }, () => {
-                if (isAcceptingFriend) return; // Ne pas rafraîchir si on est en train d'accepter manuellement
+                // IMPORTANT : Si isAcceptingFriend est TRUE, on ignore totalement l'événement DELETE
+                // car c'est nous qui venons de le déclencher. Cela évite les clignotements/réapparitions.
+                if (isAcceptingFriend) return; 
                 
                 if (deleteTimeout) clearTimeout(deleteTimeout);
                 deleteTimeout = setTimeout(() => {
                     refreshSocialData();
-                }, 800);
+                }, 1000); // Délai un peu plus long pour laisser Supabase stable
             })
             .subscribe();
 

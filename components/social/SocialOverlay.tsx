@@ -235,7 +235,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         const req = friendRequests.find(r => r.id === reqId);
         if (!req) return;
         
-        setIsAcceptingFriend(true); // Utiliser le verrou pour empêcher le rafraîchissement automatique instable
+        setIsAcceptingFriend(true); 
         setFriendRequests(prev => prev.filter(r => r.id !== reqId));
         
         if (isConnectedToSupabase) {
@@ -245,19 +245,21 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         setTimeout(async () => {
             setIsAcceptingFriend(false); 
             await refreshSocialData();
-        }, 1000);
+        }, 1500);
     };
 
     const cancelSentRequest = async (targetId: string) => {
         setIsAcceptingFriend(true);
         setSentRequests(prev => prev.filter(r => r.id !== targetId));
+        
         if (isConnectedToSupabase) {
             await DB.cancelFriendRequestDB(username, targetId);
         }
+        
         setTimeout(async () => {
             setIsAcceptingFriend(false); 
             await refreshSocialData();
-        }, 1000);
+        }, 1500);
     };
 
     const handleManualRefresh = async () => {
