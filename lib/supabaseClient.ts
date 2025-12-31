@@ -63,12 +63,10 @@ export const DB = {
             return;
         }
         try {
-            // 1. Log dans la table SQL
             const { error } = await supabase.from('transactions').insert([{ 
                 username, type, amount, description, game_id: gameId, timestamp 
             }]);
             
-            // 2. Backup dans SYSTEM_CONFIG (au cas où la table SQL est supprimée ou inaccessible)
             const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
             const logs = sys?.data?.transaction_logs || [];
             const newLog = { username, type, amount, description, gameId, timestamp };
@@ -90,7 +88,6 @@ export const DB = {
         let allLogs: any[] = [];
         
         try {
-            // 1. Récupération SQL
             const { data: sqlData } = await supabase
                 .from('transactions')
                 .select('*')
@@ -101,11 +98,9 @@ export const DB = {
                 allLogs = [...sqlData];
             }
 
-            // 2. Récupération JSON de secours
             const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
             const jsonLogs = sys?.data?.transaction_logs || [];
             
-            // 3. Fusion Anti-Doublons stricte
             const signatures = new Set(allLogs.map(l => `${new Date(l.timestamp).getTime()}_${l.username}_${l.amount}`));
             
             jsonLogs.forEach((jLog: any) => {
@@ -116,7 +111,6 @@ export const DB = {
                 }
             });
 
-            // 4. Tri chronologique final
             return allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         } catch (e) { 
@@ -182,17 +176,16 @@ export const DB = {
                 .eq('text', 'CMD:FRIEND_REQUEST');
             if (error || !data) return [];
             
-            const requests = [];
-            for (const m of data) {
+            const requests = await Promise.all(data.map(async (m) => {
                 const profile = await DB.getUserProfile(m.sender_id);
-                requests.push({
+                return {
                     id: m.sender_id,
                     name: m.sender_id,
                     avatarId: profile?.data?.avatarId || 'av_bot',
                     frameId: profile?.data?.frameId,
                     timestamp: new Date(m.created_at).getTime()
-                });
-            }
+                };
+            }));
             return requests;
         } catch (e) { return []; }
     },
@@ -207,17 +200,16 @@ export const DB = {
                 .eq('text', 'CMD:FRIEND_REQUEST');
             if (error || !data) return [];
             
-            const requests = [];
-            for (const m of data) {
+            const requests = await Promise.all(data.map(async (m) => {
                 const profile = await DB.getUserProfile(m.receiver_id);
-                requests.push({
+                return {
                     id: m.receiver_id,
                     name: m.receiver_id,
                     avatarId: profile?.data?.avatarId || 'av_bot',
                     frameId: profile?.data?.frameId,
                     timestamp: new Date(m.created_at).getTime()
-                });
-            }
+                };
+            }));
             return requests;
         } catch (e) { return []; }
     },
@@ -291,7 +283,6 @@ export const DB = {
         let results: any[] = [];
         const queryLower = query.toLowerCase();
 
-        // 1. RECHERCHE LOCALE (Fallback immédiat)
         const localUsersStr = localStorage.getItem('neon_users_db');
         if (localUsersStr) {
             try {
@@ -311,16 +302,13 @@ export const DB = {
             } catch (e) {}
         }
 
-        // 2. RECHERCHE SUPABASE (Si configuré)
         if (supabase) {
             try {
-                // On tente le RPC
                 const { data, error } = await supabase.rpc('search_users_by_name', {
                     p_username: query
                 });
 
                 if (error) {
-                    // Fallback sur une requête select standard si RPC indisponible
                     const { data: selData } = await supabase
                         .from('profiles')
                         .select('username, data')

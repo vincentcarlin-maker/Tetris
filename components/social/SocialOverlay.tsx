@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { MessageSquare, Globe, Home as HomeIcon } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
 import { useCurrency, BADGES_CATALOG } from '../../hooks/useCurrency';
@@ -66,7 +66,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
     useEffect(() => { if (onUnreadChange) onUnreadChange(unreadCount); }, [unreadCount, onUnreadChange]);
 
-    const refreshRequests = async () => {
+    const refreshRequests = useCallback(async () => {
         if (isConnectedToSupabase && username) {
             setIsRefreshingRequests(true);
             try {
@@ -74,11 +74,13 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 setFriendRequests(reqs);
                 const sent = await DB.getSentRequests(username);
                 setSentRequests(sent);
+            } catch (err) {
+                console.error("Failed to refresh requests:", err);
             } finally {
                 setIsRefreshingRequests(false);
             }
         }
-    };
+    }, [isConnectedToSupabase, username, setFriendRequests]);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -100,10 +102,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             }
         };
         loadInitialData();
-    }, [isConnectedToSupabase, username, setFriendRequests]);
+    }, [isConnectedToSupabase, username, refreshRequests]);
 
     useEffect(() => {
         if (!isConnectedToSupabase || !mp.peerId || !username) return;
+        
         const channel = mp.supabase.channel(`msg_${username}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
                 const newMsg = payload.new;
@@ -135,8 +138,9 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 refreshRequests();
             })
             .subscribe();
+            
         return () => { mp.supabase.removeChannel(channel); };
-    }, [isConnectedToSupabase, mp.peerId, username, playCoin, setFriendRequests, onlineUsers]);
+    }, [isConnectedToSupabase, mp.peerId, username, playCoin, refreshRequests, onlineUsers]);
 
     useEffect(() => {
         const unsubscribe = mp.subscribe((data: any) => {
@@ -149,7 +153,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             }
         });
         return () => unsubscribe();
-    }, [mp, playVictory, addFriend]);
+    }, [mp, playVictory, addFriend, refreshRequests]);
 
     const openChat = async (friend: Friend) => {
         setActiveChatId(friend.id);
@@ -229,12 +233,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     const sendFriendRequest = async () => {
         if (!selectedPlayer) return;
         
-        // Anti-doublon local immédiat
         if (sentRequests.some(r => r.name === selectedPlayer.name)) return;
 
         const targetPlayer = { ...selectedPlayer };
 
-        // 1. Optimistic Update : on l'ajoute direct à la liste "Envoyées"
         const optimisticReq: FriendRequest = {
             id: targetPlayer.name,
             name: targetPlayer.name,
@@ -244,7 +246,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         };
         setSentRequests(prev => [optimisticReq, ...prev]);
 
-        // 2. Peer-to-Peer Signal (Fast)
         let targetPeerId = targetPlayer.id;
         const liveUser = onlineUsers.find(u => u.name === targetPlayer.name);
         if (liveUser) targetPeerId = liveUser.id;
@@ -256,12 +257,10 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             });
         }
 
-        // 3. Database Sync (Persistent)
         if (isConnectedToSupabase) {
             try {
                 await DB.sendFriendRequestDB(username, targetPlayer.name);
             } catch (e) {
-                // Rollback optimistic si erreur critique
                 setSentRequests(prev => prev.filter(r => r.id !== targetPlayer.name));
             }
             refreshRequests();
@@ -304,7 +303,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const cancelSentRequest = async (targetId: string) => {
-        // Optimistic removal
         setSentRequests(prev => prev.filter(r => r.id !== targetId));
         if (isConnectedToSupabase) {
             await DB.cancelFriendRequestDB(username, targetId);
@@ -358,7 +356,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                     onRemoveFriend={() => handleRemoveFriend(selectedPlayer.name)} 
                     onOpenChat={openChat} 
                     isFriend={friends.some(f => f.name === selectedPlayer.name)} 
-                    isPending={sentRequests.some(r => r.name === selectedPlayer.name)} // Passé ici
+                    isPending={sentRequests.some(r => r.name === selectedPlayer.name)} 
                     avatarsCatalog={avatarsCatalog} 
                     framesCatalog={framesCatalog} 
                     badgesCatalog={BADGES_CATALOG}
