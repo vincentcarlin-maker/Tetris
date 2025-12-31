@@ -9,7 +9,7 @@ import { useSupabase } from '../hooks/useSupabase';
 import { DB, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { FriendRequest } from '../components/social/types';
 
-export type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard';
+export type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard' | 'neon_seek';
 export type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
 
 interface GlobalContextType {
@@ -27,13 +27,15 @@ interface GlobalContextType {
     setUnreadMessages: (count: number) => void;
     friendRequests: FriendRequest[];
     setFriendRequests: React.Dispatch<React.SetStateAction<FriendRequest[]>>;
+    sentRequests: FriendRequest[];
+    setSentRequests: React.Dispatch<React.SetStateAction<FriendRequest[]>>;
+    refreshSocialData: () => Promise<void>;
     disabledGames: string[];
     setDisabledGames: React.Dispatch<React.SetStateAction<string[]>>;
     featureFlags: Record<string, boolean>;
     setFeatureFlags: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
     globalEvents: any[];
     eventProgress: Record<string, number>;
-    updateEventProgress: (gameId: string, metric: string, value: number) => void;
     handleGameEvent: (gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => void;
     handleLogin: (username: string, cloudData?: any) => void;
     handleLogout: () => void;
@@ -64,12 +66,15 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
+    
+    // États sociaux persistent
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
+    const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
+    
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
     
-    // Initialisation dynamique des flags
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
         try {
             return JSON.parse(localStorage.getItem('neon_feature_flags') || JSON.stringify({
@@ -84,9 +89,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     });
 
-    const [globalEvents, setGlobalEvents] = useState<any[]>([]);
-    const [eventProgress, setEventProgress] = useState<Record<string, number>>({});
-
     const [guestPlayedGames, setGuestPlayedGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_guest_trials') || '[]'); } catch { return []; }
     });
@@ -98,7 +100,60 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const mp = useMultiplayer(); 
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
-    // --- SYNC SYSTEM CONFIG (MAINTENANCE & FLAGS) ---
+    // --- REFRESH SOCIAL DATA (Centralized) ---
+    const refreshSocialData = useCallback(async () => {
+        if (!isAuthenticated || !currency.username || !isSupabaseConfigured) return;
+        try {
+            const [pending, sent, unread] = await Promise.all([
+                DB.getPendingRequests(currency.username),
+                DB.getSentRequests(currency.username),
+                DB.getUnreadCount(currency.username)
+            ]);
+            if (pending) setFriendRequests(pending);
+            if (sent) setSentRequests(sent);
+            setUnreadMessages(unread || 0);
+        } catch (e) {
+            console.error("Social refresh failed", e);
+        }
+    }, [isAuthenticated, currency.username]);
+
+    // --- REALTIME NOTIFICATIONS (Global) ---
+    useEffect(() => {
+        if (!isAuthenticated || !currency.username || !supabase) return;
+
+        const channel = supabase.channel(`global_social_${currency.username}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'messages',
+                filter: `receiver_id=eq.${currency.username}`
+            }, (payload: any) => {
+                const msg = payload.new;
+                if (msg.text === 'CMD:FRIEND_REQUEST') {
+                    refreshSocialData();
+                    audio.playCoin();
+                } else {
+                    setUnreadMessages(prev => prev + 1);
+                    audio.playCoin();
+                }
+            })
+            .on('postgres_changes', { 
+                event: 'DELETE', 
+                schema: 'public', 
+                table: 'messages'
+            }, () => {
+                refreshSocialData();
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [isAuthenticated, currency.username, refreshSocialData, audio]);
+
+    // Initial load of social data on login
+    useEffect(() => {
+        if (isAuthenticated) refreshSocialData();
+    }, [isAuthenticated, refreshSocialData]);
+
     useEffect(() => {
         const loadSystemConfig = async () => {
             if (isSupabaseConfigured) {
@@ -117,10 +172,8 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
         loadSystemConfig();
 
-        // Écouter les mises à jour globales via broadcast admin
         const handleAdminEvent = (e: any) => {
             const payload = e.detail;
-            // Mise à jour des jeux désactivés
             if (payload.type === 'game_config' && payload.data) {
                 if (payload.data.flags) {
                     setFeatureFlags(payload.data.flags);
@@ -130,7 +183,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     localStorage.setItem('neon_disabled_games', JSON.stringify(payload.data));
                 }
             }
-            // Alertes globales
             if (payload.message && payload.type !== 'game_config') {
                 setGlobalAlert({ message: payload.message, type: payload.type === 'warning' ? 'warning' : 'info' });
                 setTimeout(() => setGlobalAlert(null), 5000);
@@ -177,7 +229,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         await supabaseHook.syncProfileToCloud(currency.username, fullData);
     }, [isAuthenticated, currency, highScoresHook, daily, supabaseHook]);
-
 
     useEffect(() => {
         const attemptAutoLogin = async () => {
@@ -267,8 +318,8 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         <GlobalContext.Provider value={{
             currentView, setCurrentView, isAuthenticated, setIsAuthenticated, showLoginModal, setShowLoginModal,
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
-            friendRequests, setFriendRequests, disabledGames, setDisabledGames, featureFlags, setFeatureFlags, globalEvents, eventProgress,
-            updateEventProgress: () => {}, handleGameEvent, handleLogin, handleLogout, recordTransaction,
+            friendRequests, setFriendRequests, sentRequests, setSentRequests, refreshSocialData,
+            disabledGames, setDisabledGames, featureFlags, setFeatureFlags, handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,
             guestPlayedGames, registerGuestPlay
