@@ -227,7 +227,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
         setTimeout(async () => {
             setIsAcceptingFriend(false); 
-            await refreshSocialData();
+            // On ne force pas le refresh ici, l'optimistic UI suffit
         }, 1500);
     };
 
@@ -244,22 +244,27 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         
         setTimeout(async () => {
             setIsAcceptingFriend(false); 
-            await refreshSocialData();
+            // Pas de refresh forcé
         }, 1500);
     };
 
     const cancelSentRequest = async (targetId: string) => {
+        // 1. Verrouiller le listener temps réel pour éviter le refresh
         setIsAcceptingFriend(true);
+        
+        // 2. Mise à jour Optimiste : on retire immédiatement de la liste locale
         setSentRequests(prev => prev.filter(r => r.id !== targetId));
         
+        // 3. Suppression en base
         if (isConnectedToSupabase) {
             await DB.cancelFriendRequestDB(username, targetId);
         }
         
-        setTimeout(async () => {
+        // 4. Déverrouiller le listener après un délai sûr, SANS forcer de refresh
+        // car l'état local est déjà bon.
+        setTimeout(() => {
             setIsAcceptingFriend(false); 
-            await refreshSocialData();
-        }, 1500);
+        }, 2000);
     };
 
     const handleManualRefresh = async () => {
