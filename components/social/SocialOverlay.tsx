@@ -80,11 +80,11 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 playVictory();
                 const newFriend: Friend = { id: sender.id, name: sender.name, avatarId: sender.avatarId, frameId: sender.frameId, status: 'online', lastSeen: Date.now() };
                 addFriend(newFriend);
-                refreshSocialData();
+                // Le socket global dans GlobalContext s'occupera du refreshSocialData avec délai
             }
         });
         return () => unsubscribe();
-    }, [mp, playVictory, addFriend, refreshSocialData]);
+    }, [mp, playVictory, addFriend]);
 
     const openChat = async (friend: Friend) => {
         setActiveChatId(friend.id);
@@ -123,6 +123,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             setTimeout(() => {
                 const botMsg = { id: Date.now().toString(), senderId: activeChatId, text: "Bip bop... Reçu !", timestamp: Date.now(), read: false };
                 setMessages(prev => ({ ...prev, [activeChatId]: [...(prev[activeChatId] || []), botMsg] }));
+                audio.playCoin();
             }, 1000);
         } else if (isConnectedToSupabase) {
             const targetName = activeChatId === SUPPORT_ID ? SUPPORT_ID : (friends.find(f => f.id === activeChatId) || { name: activeChatId }).name;
@@ -176,7 +177,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         if (isConnectedToSupabase) {
             try {
                 await DB.sendFriendRequestDB(username, targetPlayer.name);
-                refreshSocialData();
+                // On laisse le socket gérer le rafraîchissement global
             } catch (e) {
                 setSentRequests(prev => prev.filter(r => r.id !== targetPlayer.name));
             }
@@ -204,10 +205,15 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
     };
 
     const acceptRequest = (req: FriendRequest) => {
+        // 1. Mise à jour optimiste et instantanée
         const newFriend: Friend = { id: req.id, name: req.name, avatarId: req.avatarId, frameId: req.frameId, status: 'online', lastSeen: Date.now() };
         addFriend(newFriend);
         setFriendRequests(prev => prev.filter(r => r.id !== req.id));
+        
+        // 2. Mise à jour persistante
         if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
+        
+        // 3. Signalisation PeerJS
         if (mp.peerId) {
             const senderOnline = onlineUsers.find(u => u.name === req.name);
             if (senderOnline) {
@@ -218,7 +224,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
             }
         }
         playVictory();
-        refreshSocialData();
+        // NOTE : On ne force pas refreshSocialData() ici, on laisse le socket asynchrone faire son travail avec son délai de sécurité de 500ms
     };
 
     const declineRequest = (reqId: string) => {
@@ -226,14 +232,12 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         if (!req) return;
         setFriendRequests(prev => prev.filter(r => r.id !== reqId));
         if (isConnectedToSupabase) DB.acceptFriendRequestDB(username, req.name);
-        refreshSocialData();
     };
 
     const cancelSentRequest = async (targetId: string) => {
         setSentRequests(prev => prev.filter(r => r.id !== targetId));
         if (isConnectedToSupabase) {
             await DB.cancelFriendRequestDB(username, targetId);
-            refreshSocialData();
         }
     };
 
@@ -271,7 +275,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
 
             <div className="flex-1 overflow-y-auto flex flex-col relative pb-4 custom-scrollbar">
                 {socialTab === 'CHAT' && activeFriend ? (
-                    <ChatView activeFriend={activeFriend} messages={messages[activeChatId!] || []} currentUsername={username} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onBack={() => setSocialTab('FRIENDS')} onOpenProfile={handlePlayerClick} onSendMessage={sendMessage} isLoadingHistory={isLoadingHistory} mp={mp}/>
+                    <ChatView activeFriend={activeFriend} messages={messages[activeChatId!] || []} currentUsername={username} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onBack={() => setLocalTab('FRIENDS')} onOpenProfile={handlePlayerClick} onSendMessage={sendMessage} isLoadingHistory={isLoadingHistory} mp={mp}/>
                 ) : socialTab === 'FRIENDS' ? (
                     <FriendsList friends={friends} messages={messages} currentUsername={username} avatarsCatalog={avatarsCatalog} framesCatalog={framesCatalog} onOpenChat={openChat} searchTerm={friendsSearchTerm} onSearchChange={setFriendsSearchTerm}/>
                 ) : socialTab === 'COMMUNITY' ? (

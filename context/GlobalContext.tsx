@@ -35,7 +35,6 @@ interface GlobalContextType {
     featureFlags: Record<string, boolean>;
     setFeatureFlags: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
     globalEvents: any[];
-    eventProgress: Record<string, number>;
     handleGameEvent: (gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => void;
     handleLogin: (username: string, cloudData?: any) => void;
     handleLogout: () => void;
@@ -67,7 +66,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
     const [unreadMessages, setUnreadMessages] = useState(0);
     
-    // États sociaux persistent
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
     const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
     
@@ -100,7 +98,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const mp = useMultiplayer(); 
     const supabaseHook = useSupabase(mp.peerId, currency.username, currency.currentAvatarId, currency.currentFrameId, highScoresHook.highScores, currentView);
 
-    // --- REFRESH SOCIAL DATA (Centralized) ---
     const refreshSocialData = useCallback(async () => {
         if (!isAuthenticated || !currency.username || !isSupabaseConfigured) return;
         try {
@@ -117,9 +114,11 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
     }, [isAuthenticated, currency.username]);
 
-    // --- REALTIME NOTIFICATIONS (Global) ---
+    // Listener Realtime global avec gestion du délai de cache
     useEffect(() => {
         if (!isAuthenticated || !currency.username || !supabase) return;
+
+        let deleteTimeout: any = null;
 
         const channel = supabase.channel(`global_social_${currency.username}`)
             .on('postgres_changes', { 
@@ -142,14 +141,22 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 schema: 'public', 
                 table: 'messages'
             }, () => {
-                refreshSocialData();
+                // IMPORTANT : Délai de 500ms avant de rafraîchir sur une suppression
+                // Cela évite que l'élément supprimé réapparaisse parce qu'il n'était pas encore
+                // retiré des index de lecture au moment du SELECT.
+                if (deleteTimeout) clearTimeout(deleteTimeout);
+                deleteTimeout = setTimeout(() => {
+                    refreshSocialData();
+                }, 500);
             })
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => { 
+            supabase.removeChannel(channel); 
+            if (deleteTimeout) clearTimeout(deleteTimeout);
+        };
     }, [isAuthenticated, currency.username, refreshSocialData, audio]);
 
-    // Initial load of social data on login
     useEffect(() => {
         if (isAuthenticated) refreshSocialData();
     }, [isAuthenticated, refreshSocialData]);
@@ -254,12 +261,8 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, []);
 
     useEffect(() => {
-        if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon' || currentView.includes('admin')) return;
-
-        const timer = setTimeout(() => {
-            syncDataWithCloud();
-        }, 3000); 
-
+        if (!isAuthenticated || !currency.username || !syncDataWithCloud || currentView.includes('admin')) return;
+        const timer = setTimeout(() => { syncDataWithCloud(); }, 3000); 
         return () => clearTimeout(timer);
     }, [
         isAuthenticated, currency.username, currency.coins, currency.friends,
