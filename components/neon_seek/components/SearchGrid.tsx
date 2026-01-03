@@ -54,15 +54,15 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             onMouseMove={handleMouseMove}
             className="w-full h-full relative cursor-none bg-black overflow-hidden flex items-center justify-center"
         >
-            {/* FOND IMMERSIF */}
+            {/* FOND DE RÉCURRENCE (BLUR) */}
             {isLoaded && !imageError && (
                 <div className="absolute inset-0 z-0">
                     <img 
                         src={imageSrc} 
                         alt="Blurred background" 
-                        className="w-full h-full object-cover blur-2xl opacity-40 scale-110"
+                        className="w-full h-full object-cover blur-3xl opacity-50 scale-110"
                     />
-                    <div className="absolute inset-0 bg-black/60"></div>
+                    <div className="absolute inset-0 bg-black/40"></div>
                 </div>
             )}
 
@@ -83,13 +83,13 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                 </div>
             )}
 
-            {/* IMAGE DE JEU PRINCIPALE */}
+            {/* IMAGE DE JEU PRINCIPALE - CHANGÉ EN object-cover POUR PRENDRE TOUT L'ÉCRAN */}
             <img 
                 src={imageSrc} 
                 alt="Arcade Scene" 
                 onLoad={() => { setIsLoaded(true); setImageError(false); }}
                 onError={handleImageError}
-                className={`relative z-10 max-w-full max-h-full object-contain select-none pointer-events-none transition-all duration-1000 shadow-[0_0_50px_rgba(0,0,0,0.5)] ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+                className={`relative z-10 w-full h-full object-cover select-none pointer-events-none transition-all duration-1000 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
             />
 
             {isLoaded && !imageError && (
@@ -105,7 +105,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                         </div>
                     </div>
 
-                    {/* Target Found Markers - Vraiment petits et précis */}
+                    {/* Target Found Markers - Positionnement absolu sur le conteneur couvrant */}
                     {objects.filter(obj => obj.found).map((obj) => (
                         <div 
                             key={obj.id}
