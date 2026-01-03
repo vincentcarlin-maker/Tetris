@@ -1,8 +1,10 @@
-
-import React from 'react';
-import { Home, RefreshCw, Trophy, Coins, HelpCircle, Search, Sparkles, Timer, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Home, RefreshCw, Trophy, Coins, HelpCircle, Search, Sparkles, Timer, Check, ArrowLeft } from 'lucide-react';
 import { useNeonSeekLogic } from './hooks/useNeonSeekLogic';
 import { SearchGrid } from './components/SearchGrid';
+import { NeonSeekMenu } from './views/NeonSeekMenu';
+import { PREDEFINED_LEVELS } from './constants';
+import { SeekLevel } from './types';
 import { useGlobal } from '../../context/GlobalContext';
 
 interface NeonSeekProps {
@@ -14,43 +16,58 @@ interface NeonSeekProps {
 
 export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const { neonSeekConfig } = useGlobal();
-    const [showTutorial, setShowTutorial] = React.useState(false);
+    const [inMenu, setInMenu] = useState(true);
+    const [showTutorial, setShowTutorial] = useState(false);
+    const [currentLevelData, setCurrentLevelData] = useState<SeekLevel | null>(null);
     
+    // On fusionne les niveaux prédéfinis avec le niveau "LIVE" s'il existe
+    const allLevels = React.useMemo(() => {
+        const levels = [...PREDEFINED_LEVELS];
+        if (neonSeekConfig?.currentImage) {
+            levels.unshift({
+                id: 'live_daily',
+                title: 'SIGNAL LIVE',
+                description: 'Le secteur actuel généré par l\'IA du système.',
+                difficulty: 'EXPERT',
+                image: neonSeekConfig.currentImage,
+                objects: neonSeekConfig.objects || [],
+                reward: 250
+            });
+        }
+        return levels;
+    }, [neonSeekConfig]);
+
     const { state, timeLeft, earnedCoins, lastFoundName, checkClick, resetGame } = useNeonSeekLogic(
         audio, 
         addCoins, 
         onReportProgress, 
-        neonSeekConfig?.objects
+        currentLevelData?.objects
     );
 
-    if (!neonSeekConfig?.currentImage) {
-        return (
-            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black p-4 text-center h-[100dvh]">
-                <div className="bg-gray-900 p-8 rounded-3xl border border-yellow-500/20 max-w-sm">
-                    <Search size={48} className="text-yellow-500/50 mb-4 mx-auto" />
-                    <h2 className="text-xl font-black text-white italic uppercase">Niveau non configuré</h2>
-                    <p className="text-gray-400 text-sm mt-2 mb-6">L'image du niveau n'est pas encore prête.</p>
-                    <button onClick={onBack} className="mt-4 px-8 py-3 bg-gray-800 text-white font-bold rounded-xl border border-white/10 hover:bg-gray-700 transition-colors">
-                        Retour au menu
-                    </button>
-                </div>
-            </div>
-        );
+    const handleSelectLevel = (level: SeekLevel) => {
+        setCurrentLevelData(level);
+        setInMenu(false);
+        audio.resumeAudio();
+        audio.playVictory();
+    };
+
+    if (inMenu) {
+        return <NeonSeekMenu levels={allLevels} onSelectLevel={handleSelectLevel} onBack={onBack} />;
     }
+
+    if (!currentLevelData) return null;
 
     return (
         <div className="fixed inset-0 z-[100] w-full h-[100dvh] bg-black font-sans text-white overflow-hidden select-none touch-none flex flex-col">
             
-            {/* 1. L'IMAGE DE JEU (Conteneur occupant tout l'espace disponible) */}
             <div className="flex-1 w-full relative z-0 overflow-hidden bg-black/40">
                 <SearchGrid 
                     objects={state.objects} 
                     onGridClick={checkClick} 
-                    imageSrc={neonSeekConfig.currentImage}
+                    imageSrc={currentLevelData.image}
                 />
             </div>
 
-            {/* 2. HEADER FLOTTANT (Absolu pour ne pas réduire la zone de jeu) */}
             <div 
                 className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-20 pointer-events-none"
                 style={{ 
@@ -59,26 +76,25 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 }}
             >
                 <div className="flex gap-2 pointer-events-auto">
-                    <button onClick={onBack} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 transition-all shadow-xl">
-                        <Home size={22} />
+                    <button onClick={() => setInMenu(true)} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 transition-all shadow-xl">
+                        <ArrowLeft size={22} />
                     </button>
                 </div>
                 
-                <h1 className="text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] uppercase tracking-tighter pointer-events-none">
-                    NEON SEEK
-                </h1>
+                <div className="flex flex-col items-center pointer-events-none">
+                    <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] uppercase tracking-tighter">
+                        {currentLevelData.title}
+                    </h1>
+                    <span className="text-[8px] font-black text-yellow-500/80 tracking-[0.2em] uppercase">{currentLevelData.difficulty}</span>
+                </div>
 
                 <div className="flex gap-2 pointer-events-auto">
-                    <button onClick={() => setShowTutorial(true)} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-yellow-400 border border-white/10 active:scale-95 shadow-xl">
-                        <HelpCircle size={22} />
-                    </button>
                     <button onClick={resetGame} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 shadow-xl">
                         <RefreshCw size={22} />
                     </button>
                 </div>
             </div>
 
-            {/* 3. BANDEAU DES OBJETS (Strictement collé au bas dvh) */}
             <div 
                 className="w-full bg-black/80 backdrop-blur-xl border-t border-white/10 z-20 flex items-center px-4 md:px-8 shadow-[0_-15px_40px_rgba(0,0,0,0.8)] shrink-0"
                 style={{ 
@@ -87,16 +103,13 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                     marginBottom: '0px'
                 }}
             >
-                {/* Chrono */}
                 <div className="flex flex-col items-center justify-center border-r border-white/10 pr-5 mr-5 shrink-0">
                     <span className="text-[9px] font-black text-white/60 uppercase tracking-widest mb-1">Temps</span>
                     <div className={`flex items-center gap-1.5 text-2xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
-                        <Timer size={18} />
                         {timeLeft}s
                     </div>
                 </div>
 
-                {/* Liste des objets à trouver */}
                 <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar py-2">
                     {state.objects.map(obj => (
                         <div 
@@ -117,7 +130,6 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 </div>
             </div>
 
-            {/* FEEDBACK ET OVERLAYS */}
             {lastFoundName && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none select-none overflow-hidden">
                     <div className="bg-black/20 backdrop-blur-[2px] w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300">
@@ -156,12 +168,12 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                    <div className="flex flex-col gap-3 w-full max-w-[280px]">
                         <button onClick={resetGame} className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-yellow-400 transition-all shadow-xl flex items-center justify-center gap-2 uppercase italic">
                             <RefreshCw size={20} /> Recommencer
                         </button>
-                        <button onClick={onBack} className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl active:scale-95 transition-all uppercase italic">
-                            Retour Arcade
+                        <button onClick={() => setInMenu(true)} className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl active:scale-95 transition-all uppercase italic">
+                            Choix du Niveau
                         </button>
                     </div>
                 </div>
