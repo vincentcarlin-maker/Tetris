@@ -15,9 +15,16 @@ interface NeonSeekProps {
 }
 
 export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
-    const { state, timeLeft, earnedCoins, checkClick, resetGame } = useNeonSeekLogic(audio, addCoins, onReportProgress);
-    const [showTutorial, setShowTutorial] = React.useState(false);
     const { neonSeekConfig } = useGlobal();
+    const [showTutorial, setShowTutorial] = React.useState(false);
+    
+    // On passe les objets configurés à la logique du jeu
+    const { state, timeLeft, earnedCoins, checkClick, resetGame } = useNeonSeekLogic(
+        audio, 
+        addCoins, 
+        onReportProgress, 
+        neonSeekConfig?.objects // Passage des objets dynamiques
+    );
 
     if (!neonSeekConfig?.currentImage) {
         return (
@@ -105,7 +112,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                         <ul className="space-y-4 text-left">
                             <li className="flex gap-3 text-sm text-gray-300 bg-white/5 p-3 rounded-xl border border-white/10">
                                 <span className="w-6 h-6 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black shrink-0">1</span>
-                                <p>Identifiez les objets de la liste dans le décor arcade.</p>
+                                <p>Identifiez les objets listés en haut de l'écran.</p>
                             </li>
                             <li className="flex gap-3 text-sm text-gray-300 bg-white/5 p-3 rounded-xl border border-white/10">
                                 <span className="w-6 h-6 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black shrink-0">2</span>
@@ -113,7 +120,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                             </li>
                             <li className="flex gap-3 text-sm text-gray-300 bg-white/5 p-3 rounded-xl border border-white/10">
                                 <span className="w-6 h-6 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black shrink-0">3</span>
-                                <p>Finissez avant la fin du chrono pour le bonus de pièces !</p>
+                                <p>Finissez avant la fin du chrono pour le bonus !</p>
                             </li>
                         </ul>
                         <button className="mt-8 w-full py-3 bg-yellow-500 text-black font-black rounded-xl uppercase tracking-widest">J'AI COMPRIS</button>

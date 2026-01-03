@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle, Key } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle, Key, Search, ScanEye } from 'lucide-react';
+import { GoogleGenAI, Type } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useGlobal } from '../../context/GlobalContext';
 
@@ -13,8 +13,12 @@ if (typeof window !== 'undefined' && typeof (window as any).process === 'undefin
 export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const { neonSeekConfig } = useGlobal();
     const [prompt, setPrompt] = useState('A messy cyberpunk arcade room filled with neon signs, retro cabinets, cables, scattered items like VR headsets, soda cans, tools. High detail, 8k resolution, cinematic lighting, isometric view.');
+    
+    // On stocke l'image et les objets détectés
     const [generatedImage, setGeneratedImage] = useState<string | null>(() => neonSeekConfig?.currentImage || null);
-    const [isGenerating, setIsGenerating] = useState(false);
+    const [detectedObjects, setDetectedObjects] = useState<any[]>(() => neonSeekConfig?.objects || []);
+    
+    const [status, setStatus] = useState<'IDLE' | 'GENERATING_IMAGE' | 'ANALYZING_OBJECTS' | 'READY'>('IDLE');
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -37,55 +41,48 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         }
     };
 
+    const getApiKey = async () => {
+        let apiKey = '';
+        try {
+            apiKey = process.env.API_KEY || '';
+        } catch (e) {
+            const env = (window as any).process?.env || {};
+            apiKey = env.API_KEY || '';
+        }
+
+        if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+            const win = window as any;
+            if (typeof win !== 'undefined' && win.aistudio) {
+                await handleSelectKey();
+                throw new Error("Veuillez sélectionner une clé API puis réessayer.");
+            } else {
+                throw new Error("CONFIGURATION REQUISE : Clé API manquante.");
+            }
+        }
+        return apiKey;
+    };
+
     const handleGenerate = async () => {
-        setIsGenerating(true);
+        setStatus('GENERATING_IMAGE');
         setGeneratedImage(null);
+        setDetectedObjects([]);
         setError(null);
         setSuccess(null);
 
         try {
-            // Tentative d'accès à la clé (soit via le picker, soit via l'env)
-            let apiKey = '';
-            try {
-                // Sur GitHub Actions via esbuild define, cela sera remplacé par la string littérale
-                apiKey = process.env.API_KEY || '';
-            } catch (e) {
-                // Fallback runtime
-                const env = (window as any).process?.env || {};
-                apiKey = env.API_KEY || '';
-            }
-
-            if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-                // Si pas de clé et qu'on est dans l'environnement AI Studio, on propose de sélectionner
-                const win = window as any;
-                if (typeof win !== 'undefined' && win.aistudio) {
-                    await handleSelectKey();
-                    throw new Error("Veuillez sélectionner une clé API puis réessayer.");
-                } else {
-                    throw new Error("CONFIGURATION REQUISE : La clé API Gemini n'est pas configurée dans l'environnement. Ajoutez 'API_KEY' dans vos Secrets GitHub ou votre fichier .env.");
-                }
-            }
-
-            // Initialisation avec la clé
+            const apiKey = await getApiKey();
             const ai = new GoogleGenAI({ apiKey: apiKey });
             
-            // Utilisation de 'gemini-2.5-flash-image' (Rapide & Gratuit)
-            const response = await ai.models.generateContent({
+            // 1. GÉNÉRATION DE L'IMAGE
+            const imageResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
-                contents: {
-                    parts: [{ text: prompt }]
-                },
-                config: {
-                    imageConfig: {
-                        aspectRatio: "1:1"
-                    }
-                },
+                contents: { parts: [{ text: prompt }] },
+                config: { imageConfig: { aspectRatio: "1:1" } },
             });
 
-            // Extraction de l'image
             let base64Image = null;
-            if (response.candidates && response.candidates[0].content.parts) {
-                for (const part of response.candidates[0].content.parts) {
+            if (imageResponse.candidates && imageResponse.candidates[0].content.parts) {
+                for (const part of imageResponse.candidates[0].content.parts) {
                     if (part.inlineData) {
                         base64Image = part.inlineData.data;
                         break;
@@ -93,25 +90,62 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 }
             }
 
-            if (base64Image) {
-                setGeneratedImage(`data:image/png;base64,${base64Image}`);
+            if (!base64Image) throw new Error("Aucune image générée.");
+            
+            const fullImageStr = `data:image/png;base64,${base64Image}`;
+            setGeneratedImage(fullImageStr);
+
+            // 2. ANALYSE DE L'IMAGE POUR TROUVER LES OBJETS
+            setStatus('ANALYZING_OBJECTS');
+
+            const analysisResponse = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: {
+                    parts: [
+                        { inlineData: { mimeType: 'image/png', data: base64Image } },
+                        { text: "Identify 5 distinct, small, and findable objects in this image for a 'Hidden Object' game. Return a JSON list. For each object: 'id' (short string), 'name' (French name), 'x' (approximate horizontal percentage 0-100 from left), 'y' (approximate vertical percentage 0-100 from top), 'radius' (detection radius in percentage, usually 5 to 10)." }
+                    ]
+                },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                id: { type: Type.STRING },
+                                name: { type: Type.STRING },
+                                x: { type: Type.NUMBER, description: "Percentage form 0 to 100" },
+                                y: { type: Type.NUMBER, description: "Percentage form 0 to 100" },
+                                radius: { type: Type.NUMBER, description: "Percentage form 0 to 100" }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const jsonText = analysisResponse.text;
+            if (jsonText) {
+                const objects = JSON.parse(jsonText);
+                // On ajoute 'found: false' pour le jeu
+                const gameObjects = objects.map((o: any) => ({ ...o, found: false }));
+                setDetectedObjects(gameObjects);
+                setStatus('READY');
             } else {
-                setError("Aucune image n'a été générée. Le modèle a peut-être refusé le prompt.");
+                throw new Error("L'IA n'a pas pu identifier d'objets.");
             }
 
         } catch (err: any) {
-            console.error("Erreur génération image:", err);
-            let msg = err.message || "Erreur inconnue lors de la génération.";
-            if (msg.includes("API key")) msg = "Clé API invalide ou permissions insuffisantes.";
-            if (msg.includes("403")) msg = "Accès refusé (403). Vérifiez que l'API Gemini est activée pour cette clé.";
+            console.error("Erreur complète:", err);
+            let msg = err.message || "Erreur inconnue.";
+            if (msg.includes("403")) msg = "Accès refusé. Vérifiez votre clé API.";
             setError(msg);
-        } finally {
-            setIsGenerating(false);
+            setStatus('IDLE');
         }
     };
 
     const handleSave = async () => {
-        if (!generatedImage || !isSupabaseConfigured) return;
+        if (!generatedImage || detectedObjects.length === 0 || !isSupabaseConfigured) return;
         
         setIsSaving(true);
         setError(null);
@@ -123,6 +157,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 neonSeekConfig: {
                     ...currentConfig.neonSeekConfig,
                     currentImage: generatedImage,
+                    objects: detectedObjects, // On sauvegarde les objets détectés
                     lastUpdated: Date.now()
                 }
             };
@@ -130,7 +165,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             await DB.saveSystemConfig(updatedConfig);
             mp.sendAdminBroadcast("Nouveau niveau Neon Seek disponible !", "game_config", { neonSeekConfig: updatedConfig.neonSeekConfig });
             
-            setSuccess("Niveau sauvegardé et déployé !");
+            setSuccess("Niveau complet (Image + Objets) sauvegardé !");
         } catch (e) {
             console.error(e);
             setError("Erreur lors de la sauvegarde dans la base de données.");
@@ -141,6 +176,8 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
     const handleReject = () => {
         setGeneratedImage(null);
+        setDetectedObjects([]);
+        setStatus('IDLE');
         setError(null);
         setSuccess(null);
     };
@@ -154,7 +191,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-white italic uppercase tracking-wider">Générateur Neon Seek</h2>
-                        <p className="text-xs text-gray-400">Créez des scènes uniques (Mode Rapide & Gratuit).</p>
+                        <p className="text-xs text-gray-400">Créez une scène ET laissez l'IA trouver les objets cachés.</p>
                     </div>
                 </div>
 
@@ -180,7 +217,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 text-red-400 text-xs animate-in slide-in-from-top-2">
                             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
                             <div>
-                                <p className="font-bold mb-1">Erreur de Génération</p>
+                                <p className="font-bold mb-1">Erreur</p>
                                 <p>{error}</p>
                             </div>
                         </div>
@@ -188,39 +225,84 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
                     <div className="flex gap-2">
                         {canSelectKey && (
-                            <button 
-                                onClick={handleSelectKey}
-                                className="px-4 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
-                                title="Saisir / Changer Clé API"
-                            >
-                                <RefreshCw size={20} />
+                            <button onClick={handleSelectKey} className="px-4 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95" title="Clé API">
+                                <Key size={20} />
                             </button>
                         )}
                         <button 
                             onClick={handleGenerate}
-                            disabled={isGenerating}
+                            disabled={status !== 'IDLE' && status !== 'READY'}
                             className="flex-1 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isGenerating ? <Loader2 className="animate-spin" /> : <Image size={20} />}
-                            {isGenerating ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER (FLASH)'}
+                            {status === 'GENERATING_IMAGE' ? (
+                                <><Loader2 className="animate-spin" /> GÉNÉRATION IMAGE...</>
+                            ) : status === 'ANALYZING_OBJECTS' ? (
+                                <><ScanEye className="animate-pulse" /> ANALYSE OBJETS...</>
+                            ) : (
+                                <><Image size={20} /> GÉNÉRER LE NIVEAU</>
+                            )}
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 bg-gray-900/50 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden group min-h-[300px]">
-                {generatedImage ? (
-                    <img src={generatedImage} alt="Generated Scene" className="w-full h-full object-contain" />
-                ) : (
-                    <div className="text-center text-gray-600">
-                        <Image size={48} className="mx-auto mb-2 opacity-20" />
-                        <p className="text-xs font-bold uppercase tracking-widest">Aperçu de l'image</p>
+            <div className="flex flex-col md:flex-row gap-4 h-full min-h-[300px]">
+                {/* Aperçu Image */}
+                <div className="flex-1 bg-gray-900/50 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden group min-h-[300px]">
+                    {generatedImage ? (
+                        <>
+                            <img src={generatedImage} alt="Generated Scene" className="w-full h-full object-contain" />
+                            {/* Overlay des objets détectés pour débug visuel */}
+                            {detectedObjects.map((obj: any) => (
+                                <div 
+                                    key={obj.id}
+                                    className="absolute border-2 border-green-500/50 rounded-full flex items-center justify-center group/marker hover:bg-green-500/20 hover:border-green-400 cursor-help"
+                                    style={{
+                                        left: `${obj.x}%`,
+                                        top: `${obj.y}%`,
+                                        width: `${obj.radius * 2}%`,
+                                        height: `${obj.radius * 2}%`,
+                                        transform: 'translate(-50%, -50%)'
+                                    }}
+                                    title={obj.name}
+                                >
+                                    <div className="w-1 h-1 bg-green-400 rounded-full"></div>
+                                    <span className="absolute -top-6 bg-black/80 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover/marker:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">
+                                        {obj.name}
+                                    </span>
+                                </div>
+                            ))}
+                        </>
+                    ) : (
+                        <div className="text-center text-gray-600">
+                            <Image size={48} className="mx-auto mb-2 opacity-20" />
+                            <p className="text-xs font-bold uppercase tracking-widest">Aperçu</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Liste des Objets */}
+                {detectedObjects.length > 0 && (
+                    <div className="w-full md:w-64 bg-gray-800 p-4 rounded-2xl border border-white/10 flex flex-col">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <Search size={14}/> Objets ({detectedObjects.length})
+                        </h4>
+                        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+                            {detectedObjects.map((obj: any) => (
+                                <div key={obj.id} className="bg-black/20 p-2 rounded-lg border border-white/5 flex items-center justify-between text-xs">
+                                    <span className="font-bold text-white">{obj.name}</span>
+                                    <span className="text-[9px] font-mono text-gray-500">
+                                        {Math.round(obj.x)},{Math.round(obj.y)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
 
-            {generatedImage && (
-                <div className="flex gap-4 animate-in slide-in-from-bottom-4">
+            {generatedImage && status === 'READY' && (
+                <div className="flex gap-4 animate-in slide-in-from-bottom-4 pb-8">
                     <button 
                         onClick={handleReject}
                         className="flex-1 py-4 bg-gray-800 text-gray-300 font-bold rounded-xl border border-white/10 hover:bg-gray-700 transition-all flex items-center justify-center gap-2"
@@ -233,7 +315,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                         className="flex-[2] py-4 bg-green-600 hover:bg-green-500 text-white font-black tracking-widest rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                     >
                         {isSaving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                        VALIDER ET DÉPLOYER
+                        VALIDER LE NIVEAU
                     </button>
                 </div>
             )}
