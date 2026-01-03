@@ -21,33 +21,40 @@ export const TopBar: React.FC<TopBarProps> = ({
     const { featureFlags } = useGlobal();
 
     return (
-        <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-start p-4 pt-[calc(0.6rem+env(safe-area-inset-top))]">
+        <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-start p-3 pt-[calc(0.1rem+env(safe-area-inset-top))]">
             {isAuthenticated ? (
                 featureFlags.economy_system ? (
-                    <div ref={onCoinsRef} className="flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-                        <Coins className="text-yellow-400" size={16} />
-                        <span className="text-yellow-100 font-mono font-bold text-sm">{coins.toLocaleString()}</span>
+                    <div ref={onCoinsRef} className="flex items-center gap-1.5 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
+                        <Coins className="text-yellow-400" size={14} />
+                        <span className="text-yellow-100 font-mono font-bold text-xs">{coins.toLocaleString()}</span>
                     </div>
-                ) : <div className="w-10"></div>
+                ) : <div className="w-8"></div>
             ) : (
-                <button onClick={onLoginRequest} className="flex items-center gap-2 bg-neon-blue/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-neon-blue/50 hover:bg-neon-blue/40 transition-colors animate-pulse">
-                    <User className="text-neon-blue" size={16} />
-                    <span className="text-neon-blue font-bold text-[10px] uppercase tracking-wider">{language === 'fr' ? 'SE CONNECTER' : 'LOGIN'}</span>
+                <button onClick={onLoginRequest} className="flex items-center gap-1.5 bg-neon-blue/10 backdrop-blur-md px-2.5 py-1 rounded-full border border-neon-blue/30 hover:bg-neon-blue/30 transition-colors animate-pulse">
+                    <User className="text-neon-blue" size={14} />
+                    <span className="text-neon-blue font-bold text-[9px] uppercase tracking-wider">{language === 'fr' ? 'CONNECT' : 'LOGIN'}</span>
                 </button>
             )}
-            <div className="flex gap-2">
+            
+            <div className="flex gap-1.5">
                 {isAuthenticated && onOpenSocial && featureFlags.social_module && (
                     <button 
                         onClick={() => onOpenSocial('COMMUNITY')} 
-                        className="flex items-center gap-2 px-3 py-1.5 bg-green-900/40 text-green-400 rounded-full border border-green-500/30 font-bold text-[10px] hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.2)] active:scale-95"
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-green-950/30 text-green-400 rounded-full border border-green-500/20 font-bold text-[9px] hover:bg-green-500/20 transition-all shadow-[0_0_8px_rgba(34,197,94,0.1)] active:scale-95"
                         title={language === 'fr' ? 'Amis connectés' : 'Online Friends'}
                     >
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_#22c55e]"></div>
-                        <Users size={14} />
+                        <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse shadow-[0_0_3px_#22c55e]"></div>
+                        <Users size={12} />
                         <span className="font-mono">{onlineCount}</span>
                     </button>
                 )}
-                <button onClick={onReload} className="p-1.5 bg-gray-900/80 rounded-full text-gray-400 hover:text-white border border-white/10 backdrop-blur-sm active:scale-95 transition-transform" title="Actualiser"><RefreshCw size={16} /></button>
+                <button 
+                    onClick={onReload} 
+                    className="p-1.5 bg-gray-900/60 rounded-full text-gray-500 hover:text-white border border-white/5 backdrop-blur-sm active:scale-90 transition-all" 
+                    title="Actualiser"
+                >
+                    <RefreshCw size={14} />
+                </button>
             </div>
         </div>
     );
