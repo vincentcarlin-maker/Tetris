@@ -54,7 +54,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             onMouseMove={handleMouseMove}
             className="w-full h-full relative cursor-none bg-black overflow-hidden flex items-center justify-center"
         >
-            {/* FOND IMMERSIF (Version floue de l'image pour combler les bords sans rognage) */}
+            {/* FOND IMMERSIF */}
             {isLoaded && !imageError && (
                 <div className="absolute inset-0 z-0">
                     <img 
@@ -83,7 +83,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                 </div>
             )}
 
-            {/* IMAGE DE JEU PRINCIPALE (Contain : on voit TOUTE l'image, rien n'est coupé) */}
+            {/* IMAGE DE JEU PRINCIPALE */}
             <img 
                 src={imageSrc} 
                 alt="Arcade Scene" 
@@ -105,26 +105,24 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                         </div>
                     </div>
 
-                    {/* Precise Found Markers */}
-                    {objects.filter(obj => obj.found).map(obj => (
+                    {/* Precise Found Markers - Agrandis pour correspondre à la photo */}
+                    {objects.filter(obj => obj.found).map((obj, idx) => (
                         <div 
                             key={obj.id}
                             className="absolute flex items-center justify-center animate-pop pointer-events-none"
                             style={{
                                 left: `${obj.x}%`,
                                 top: `${obj.y}%`,
-                                width: `${obj.radius * 2.5}%`,
-                                height: `${obj.radius * 2.5}%`,
+                                width: `${obj.radius * 4.5}%`,
+                                height: `${obj.radius * 4.5}%`,
                                 transform: 'translate(-50%, -50%)'
                             }}
                         >
-                            <div className="absolute inset-0 border border-green-500 rounded-full opacity-30 animate-pulse shadow-[0_0_20px_rgba(34,197,94,0.3)]"></div>
-                            <div className="absolute inset-[5%] border-2 border-green-400 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)]">
-                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1px] h-3 bg-green-400"></div>
-                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1px] h-3 bg-green-400"></div>
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-[1px] bg-green-400"></div>
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-[1px] bg-green-400"></div>
-                            </div>
+                            {/* Halo extérieur */}
+                            <div className="absolute inset-0 border-4 border-green-500 rounded-full bg-green-500/10 shadow-[0_0_40px_rgba(34,197,94,0.6),inset_0_0_20px_rgba(34,197,94,0.3)] animate-pulse"></div>
+                            
+                            {/* Cercle intérieur blanc/vert */}
+                            <div className="relative z-10 w-4 h-4 bg-white rounded-full border-2 border-green-500 shadow-[0_0_15px_white]"></div>
                         </div>
                     ))}
                 </div>
