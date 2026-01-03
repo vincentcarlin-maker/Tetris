@@ -91,7 +91,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-b border-white/10 z-[210] flex flex-col pt-[env(safe-area-inset-top)]">
                 
                 {/* Title Bar */}
-                <div className="flex justify-between items-center p-4 mt-1">
+                <div className="flex justify-between items-center p-4 mt-4">
                     <div className="flex items-center gap-2">
                         <Shield size={20} className="text-blue-400 drop-shadow-[0_0_8px_#00f3ff]" />
                         <span className="font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600 uppercase tracking-tighter text-lg">ADMIN CONSOLE</span>
