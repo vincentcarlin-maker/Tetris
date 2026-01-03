@@ -49,15 +49,16 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             // Initialisation avec la clé
             const ai = new GoogleGenAI({ apiKey: apiKey });
             
+            // Utilisation de 'gemini-2.5-flash-image' qui est souvent disponible dans le tiers gratuit
+            // Note: imageSize n'est pas supporté par ce modèle, on ne garde que l'aspectRatio
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-image-preview',
+                model: 'gemini-2.5-flash-image',
                 contents: {
                     parts: [{ text: prompt }]
                 },
                 config: {
                     imageConfig: {
-                        aspectRatio: "1:1",
-                        imageSize: "1K"
+                        aspectRatio: "1:1"
                     }
                 },
             });
@@ -127,7 +128,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-white italic uppercase tracking-wider">Générateur Neon Seek</h2>
-                        <p className="text-xs text-gray-400">Créez des scènes uniques pour le jeu d'objets cachés.</p>
+                        <p className="text-xs text-gray-400">Créez des scènes uniques (Mode Rapide & Gratuit).</p>
                     </div>
                 </div>
 
@@ -165,7 +166,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                             className="flex-1 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isGenerating ? <Loader2 className="animate-spin" /> : <Image size={20} />}
-                            {isGenerating ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER LA SCÈNE'}
+                            {isGenerating ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER (FLASH)'}
                         </button>
                     </div>
                 </div>
