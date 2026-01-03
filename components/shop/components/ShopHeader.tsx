@@ -10,7 +10,7 @@ interface ShopHeaderProps {
 
 export const ShopHeader: React.FC<ShopHeaderProps> = ({ onBack, coins, activeGroupLabel }) => {
     return (
-        <div className="w-full max-w-4xl mx-auto flex items-center justify-between p-4 z-20 shrink-0">
+        <div className="w-full max-w-4xl mx-auto flex items-center justify-between px-4 py-3 z-20 shrink-0">
             <div className="flex items-center gap-3">
                 <button onClick={onBack} className="p-2.5 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg">
                     <ArrowLeft size={20} />

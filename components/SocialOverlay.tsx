@@ -236,7 +236,7 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         if (!req) return;
         
         setIsAcceptingFriend(true); 
-        setFriendRequests(prev => prev.filter(r => r.id !== req.id));
+        setFriendRequests(prev => prev.filter(r => r.id !== reqId));
         
         if (isConnectedToSupabase) {
             await DB.cancelFriendRequestDB(req.name, username);
@@ -284,8 +284,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         <div className="h-full w-full flex flex-col bg-black/20 font-sans text-white relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             
-            <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 w-full z-10 flex flex-col shrink-0" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-                <div className="p-4 flex items-center justify-between">
+            <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 w-full z-10 flex flex-col shrink-0" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }}>
+                <div className="px-4 py-3 flex items-center justify-between">
                     <button onClick={() => setCurrentView('menu')} className="p-2 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10"><HomeIcon size={20} /></button>
                     <h2 className={`text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 pr-4 pb-1 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>{isMessagingCategory ? <MessageSquare size={24}/> : <Globe size={24}/>} {isMessagingCategory ? 'MESSAGERIE' : 'HUB SOCIAL'}</h2>
                     <div className="w-10"></div>
@@ -293,7 +293,6 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
                 <div className="flex p-2 gap-2 bg-black/20 mx-4 mb-2 rounded-xl">
                     <button onClick={() => setSocialTab('FRIENDS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'FRIENDS' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>DISCUSSIONS</button>
                     <button onClick={() => setSocialTab('COMMUNITY')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${socialTab === 'COMMUNITY' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>EN LIGNE</button>
-                    {/* Fixed: Removed duplicate 'className' attribute */}
                     <button onClick={() => setSocialTab('REQUESTS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all relative ${socialTab === 'REQUESTS' ? 'bg-pink-600 text-white' : 'text-gray-400 hover:bg-white/5'}`}>
                         REQUÊTES {friendRequests.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] rounded-full flex items-center justify-center border border-black">{friendRequests.length}</span>}
                     </button>

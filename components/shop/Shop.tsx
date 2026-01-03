@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { useGlobal } from '../../context/GlobalContext';
@@ -29,11 +30,13 @@ export const Shop: React.FC<ShopContainerProps> = ({ onBack }) => {
         <div className="flex flex-col h-full w-full bg-[#05050a] relative overflow-hidden font-sans text-white">
             <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             
-            <ShopHeader 
-                onBack={activeGroup ? () => setActiveGroup(null) : onBack}
-                coins={currency.coins}
-                activeGroupLabel={getGroupLabel(activeGroup)}
-            />
+            <div className="w-full max-w-4xl mx-auto z-20 shrink-0" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }}>
+                <ShopHeader 
+                    onBack={activeGroup ? () => setActiveGroup(null) : onBack}
+                    coins={currency.coins}
+                    activeGroupLabel={getGroupLabel(activeGroup)}
+                />
+            </div>
 
             <div className="flex-1 w-full max-w-4xl mx-auto px-4 pb-24 overflow-y-auto custom-scrollbar z-10">
                 {activeGroup === null ? (
