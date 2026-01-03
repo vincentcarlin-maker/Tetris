@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle, Key } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 
@@ -43,22 +43,22 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             // Tentative d'accès à la clé (soit via le picker, soit via l'env)
             let apiKey = '';
             try {
+                // Sur GitHub Actions via esbuild define, cela sera remplacé par la string littérale
                 apiKey = process.env.API_KEY || '';
             } catch (e) {
+                // Fallback runtime
                 const env = (window as any).process?.env || {};
                 apiKey = env.API_KEY || '';
             }
 
-            if (!apiKey) {
+            if (!apiKey || apiKey === 'undefined' || apiKey === '') {
                 // Si pas de clé et qu'on est dans l'environnement AI Studio, on propose de sélectionner
                 const win = window as any;
                 if (typeof win !== 'undefined' && win.aistudio) {
                     await handleSelectKey();
-                    // On ne peut pas récupérer la clé immédiatement après, l'utilisateur devra recliquer sur Générer
-                    // ou on attend un re-render si la clé est injectée dynamiquement (ce qui n'est pas garanti ici sans reload)
                     throw new Error("Veuillez sélectionner une clé API puis réessayer.");
                 } else {
-                    throw new Error("Clé API manquante dans la configuration (process.env.API_KEY).");
+                    throw new Error("CONFIGURATION REQUISE : La clé API Gemini n'est pas configurée dans l'environnement. Ajoutez 'API_KEY' dans vos Secrets GitHub ou votre fichier .env.");
                 }
             }
 
@@ -159,9 +159,12 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     </div>
 
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-center gap-3 text-red-400 text-xs font-bold animate-in slide-in-from-top-2">
-                            <AlertTriangle size={16} />
-                            {error}
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 text-red-400 text-xs animate-in slide-in-from-top-2">
+                            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-bold mb-1">Erreur de Génération</p>
+                                <p>{error}</p>
+                            </div>
                         </div>
                     )}
 

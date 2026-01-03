@@ -4,7 +4,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll"
+    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --define:process.env.API_KEY=\\\"${API_KEY}\\\" && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll"
   },
   "dependencies": {
     "react": "^18.3.1",
