@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Image, Sparkles, Check, Save, Loader2, RefreshCw } from 'lucide-react';
+import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 
@@ -9,18 +9,27 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleGenerate = async () => {
-        if (!process.env.API_KEY) {
-            alert("API_KEY manquante dans l'environnement.");
-            return;
-        }
-
         setIsGenerating(true);
         setGeneratedImage(null);
+        setError(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            // Vérification et demande de la clé API si nécessaire (spécifique AI Studio)
+            const win = window as any;
+            if (typeof win !== 'undefined' && win.aistudio) {
+                const hasKey = await win.aistudio.hasSelectedApiKey();
+                if (!hasKey) {
+                    await win.aistudio.openSelectKey();
+                }
+            }
+
+            // Initialisation avec la clé (injectée via process.env.API_KEY après sélection)
+            // Note: Si process.env.API_KEY est vide, cela lèvera une erreur gérée dans le catch
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-image-preview',
                 contents: {
@@ -34,7 +43,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 },
             });
 
-            // Extraction de l'image (itération sur les parts comme recommandé)
+            // Extraction de l'image
             let base64Image = null;
             if (response.candidates && response.candidates[0].content.parts) {
                 for (const part of response.candidates[0].content.parts) {
@@ -48,12 +57,15 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             if (base64Image) {
                 setGeneratedImage(`data:image/png;base64,${base64Image}`);
             } else {
-                alert("Aucune image générée. Essayez un autre prompt.");
+                setError("Aucune image n'a été générée. Le modèle a peut-être refusé le prompt.");
             }
 
-        } catch (error) {
-            console.error("Erreur génération image:", error);
-            alert("Erreur lors de la génération. Vérifiez la console.");
+        } catch (err: any) {
+            console.error("Erreur génération image:", err);
+            // Message d'erreur plus convivial
+            let msg = err.message || "Erreur inconnue lors de la génération.";
+            if (msg.includes("API key")) msg = "Clé API manquante ou invalide. Veuillez sélectionner une clé.";
+            setError(msg);
         } finally {
             setIsGenerating(false);
         }
@@ -64,10 +76,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         
         setIsSaving(true);
         try {
-            // Récupérer la config actuelle
             const currentConfig = await DB.getSystemConfig() || {};
-            
-            // Mettre à jour avec la nouvelle image
             const updatedConfig = {
                 ...currentConfig,
                 neonSeekConfig: {
@@ -78,12 +87,10 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             };
             
             await DB.saveSystemConfig(updatedConfig);
-            
-            // Broadcast pour mise à jour immédiate chez les clients connectés
             mp.sendAdminBroadcast("Nouveau niveau Neon Seek disponible !", "game_config", { neonSeekConfig: updatedConfig.neonSeekConfig });
             
             alert("Niveau sauvegardé et déployé !");
-            setGeneratedImage(null); // Reset pour éviter double save
+            setGeneratedImage(null); 
         } catch (e) {
             console.error(e);
             alert("Erreur lors de la sauvegarde.");
@@ -116,6 +123,13 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                         />
                     </div>
 
+                    {error && (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-center gap-3 text-red-400 text-xs font-bold animate-in slide-in-from-top-2">
+                            <AlertTriangle size={16} />
+                            {error}
+                        </div>
+                    )}
+
                     <button 
                         onClick={handleGenerate}
                         disabled={isGenerating}
@@ -127,8 +141,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 </div>
             </div>
 
-            {/* PREVIEW ZONE */}
-            <div className="flex-1 bg-gray-900/50 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden group">
+            <div className="flex-1 bg-gray-900/50 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden group min-h-[300px]">
                 {generatedImage ? (
                     <img src={generatedImage} alt="Generated Scene" className="w-full h-full object-contain" />
                 ) : (
@@ -139,7 +152,6 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 )}
             </div>
 
-            {/* VALIDATION */}
             {generatedImage && (
                 <div className="flex gap-4 animate-in slide-in-from-bottom-4">
                     <button 
