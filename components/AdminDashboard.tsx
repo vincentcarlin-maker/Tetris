@@ -87,54 +87,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                 onLogout={onBack} 
             />
 
-            {/* MOBILE HEADER */}
-            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-b border-white/10 z-50 flex flex-col pointer-events-none">
+            {/* MOBILE NAVIGATION BLOCK (Header + Tabs) */}
+            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-b border-white/10 z-[100] flex flex-col">
                 <div className="h-[env(safe-area-inset-top)] w-full"></div>
-                <div className="flex justify-between items-center p-4 pointer-events-auto">
+                
+                {/* Title Bar */}
+                <div className="flex justify-between items-center p-4">
                     <div className="flex items-center gap-2">
                         <Shield size={20} className="text-blue-400 drop-shadow-[0_0_8px_#00f3ff]" />
-                        <span className="font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">ADMIN</span>
+                        <span className="font-black italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600 uppercase tracking-tighter text-lg">ADMIN CONSOLE</span>
                     </div>
-                    <button onClick={onBack} className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white active:bg-red-500 transition-all shadow-lg active:scale-90"><X size={24} /></button>
+                    <button 
+                        onClick={onBack} 
+                        className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white active:bg-red-500 transition-all shadow-lg active:scale-90"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Tabs Bar (Mobile) */}
+                <div className="flex overflow-x-auto px-4 pb-3 gap-2 no-scrollbar scroll-smooth">
+                    {SECTIONS.map(s => (
+                        <button 
+                            key={s.id} 
+                            onClick={() => setActiveSection(s.id)} 
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black whitespace-nowrap transition-all active:scale-95 border ${
+                                activeSection === s.id 
+                                ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
+                                : 'bg-black/40 text-gray-500 border-white/5'
+                            }`}
+                        >
+                            {s.label.toUpperCase()}
+                        </button>
+                    ))}
                 </div>
             </div>
 
             {/* CONTENT AREA */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-24 md:pt-0">
-                {/* Mobile Tabs */}
-                <div className="md:hidden flex overflow-x-auto p-2 gap-2 bg-gray-900 border-b border-white/10 shrink-0">
-                    {SECTIONS.map(s => (
-                        <button key={s.id} onClick={() => setActiveSection(s.id)} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all active:scale-95 ${activeSection === s.id ? 'bg-blue-600 text-white shadow-[0_0:10px_rgba(37,99,235,0.5)]' : 'bg-gray-800 text-gray-400'}`}>
-                            {s.label}
-                        </button>
-                    ))}
-                </div>
-
+            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-36 md:pt-0">
                 <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
                      <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                        <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                        <h2 className="text-2xl font-black text-white flex items-center gap-3 uppercase italic">
                             {React.createElement(SECTIONS.find(s=>s.id===activeSection)?.icon || LayoutGrid, {size: 28, className: "text-blue-400"})} 
-                            {SECTIONS.find(s=>s.id===activeSection)?.label.toUpperCase()}
+                            {SECTIONS.find(s=>s.id===activeSection)?.label}
                         </h2>
                         <button 
                             onClick={() => loadData()}
-                            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-white/10 flex items-center gap-2 text-xs font-bold transition-all active:scale-95"
+                            className="hidden md:flex px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-white/10 items-center gap-2 text-xs font-bold transition-all active:scale-95"
                         >
                             <RefreshCcw size={14} className={loading ? "animate-spin" : ""}/> RAFRAÎCHIR
                         </button>
                     </div>
 
-                    {activeSection === 'DASHBOARD' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} />}
-                    {activeSection === 'NEON_GEN' && <NeonSeekGenSection mp={mp} />}
-                    {activeSection === 'USERS' && <UsersSection profiles={profiles} setProfiles={setProfiles} onlineUsers={onlineUsers} mp={mp} />}
-                    {activeSection === 'GAMES' && <GamesSection disabledGames={disabledGames} setDisabledGames={setDisabledGames} mp={mp} />}
-                    {activeSection === 'EVENTS' && <EventsSection mp={mp} />}
-                    {activeSection === 'NOTIFICATIONS' && <NotificationsSection mp={mp} />}
-                    {activeSection === 'ECONOMY' && <EconomySection profiles={profiles} />}
-                    {activeSection === 'STATS' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} detailed />}
-                    {activeSection === 'CONFIG' && <ConfigSection />}
-                    {activeSection === 'FLAGS' && <FlagsSection featureFlags={featureFlags} setFeatureFlags={setFeatureFlags} mp={mp} />}
-                    {activeSection === 'DATA' && <DataSection profiles={profiles} />}
+                    <div className="animate-in fade-in duration-500">
+                        {activeSection === 'DASHBOARD' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} />}
+                        {activeSection === 'NEON_GEN' && <NeonSeekGenSection mp={mp} />}
+                        {activeSection === 'USERS' && <UsersSection profiles={profiles} setProfiles={setProfiles} onlineUsers={onlineUsers} mp={mp} />}
+                        {activeSection === 'GAMES' && <GamesSection disabledGames={disabledGames} setDisabledGames={setDisabledGames} mp={mp} />}
+                        {activeSection === 'EVENTS' && <EventsSection mp={mp} />}
+                        {activeSection === 'NOTIFICATIONS' && <NotificationsSection mp={mp} />}
+                        {activeSection === 'ECONOMY' && <EconomySection profiles={profiles} />}
+                        {activeSection === 'STATS' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} detailed />}
+                        {activeSection === 'CONFIG' && <ConfigSection />}
+                        {activeSection === 'FLAGS' && <FlagsSection featureFlags={featureFlags} setFeatureFlags={setFeatureFlags} mp={mp} />}
+                        {activeSection === 'DATA' && <DataSection profiles={profiles} />}
+                    </div>
                 </div>
             </div>
         </div>
