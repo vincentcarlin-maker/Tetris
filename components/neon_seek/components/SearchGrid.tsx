@@ -105,32 +105,37 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                         </div>
                     </div>
 
-                    {/* Precise Found Markers - Agrandis pour correspondre à la photo */}
-                    {objects.filter(obj => obj.found).map((obj, idx) => (
+                    {/* Target Found Markers - Vraiment petits et précis */}
+                    {objects.filter(obj => obj.found).map((obj) => (
                         <div 
                             key={obj.id}
-                            className="absolute flex items-center justify-center animate-pop pointer-events-none"
+                            className="absolute flex items-center justify-center animate-pop-fast pointer-events-none"
                             style={{
                                 left: `${obj.x}%`,
                                 top: `${obj.y}%`,
-                                width: `${obj.radius * 4.5}%`,
-                                height: `${obj.radius * 4.5}%`,
+                                width: '28px',
+                                height: '28px',
                                 transform: 'translate(-50%, -50%)'
                             }}
                         >
-                            {/* Halo extérieur */}
-                            <div className="absolute inset-0 border-4 border-green-500 rounded-full bg-green-500/10 shadow-[0_0_40px_rgba(34,197,94,0.6),inset_0_0_20px_rgba(34,197,94,0.3)] animate-pulse"></div>
+                            {/* Anneau extérieur cible */}
+                            <div className="absolute inset-0 border-[1.5px] border-green-400 rounded-full shadow-[0_0_10px_#4ade80] opacity-80"></div>
                             
-                            {/* Cercle intérieur blanc/vert */}
-                            <div className="relative z-10 w-4 h-4 bg-white rounded-full border-2 border-green-500 shadow-[0_0_15px_white]"></div>
+                            {/* Point central (Bullseye) */}
+                            <div className="relative z-10 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_white]"></div>
+                            
+                            {/* Lignes de visée optionnelles pour le look cible */}
+                            <div className="absolute h-[1px] w-full bg-green-400/30"></div>
+                            <div className="absolute w-[1px] h-full bg-green-400/30"></div>
                         </div>
                     ))}
                 </div>
             )}
 
             <style>{`
-                @keyframes pop {
-                    0% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+                @keyframes pop-fast {
+                    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+                    80% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
                     100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
                 }
             `}</style>
