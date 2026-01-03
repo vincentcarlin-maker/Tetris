@@ -19,7 +19,7 @@ const GENERATION_MODELS = [
 
 export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const { neonSeekConfig } = useGlobal();
-    const [prompt, setPrompt] = useState('A messy cyberpunk arcade room filled with neon signs, retro cabinets, cables, scattered items like VR headsets, soda cans, tools. High detail, 8k resolution, cinematic lighting, isometric view.');
+    const [prompt, setPrompt] = useState('A messy cyberpunk arcade room filled with neon signs, retro cabinets, cables, scattered items like VR headsets, soda cans, tools. High detail, 8k resolution, cinematic lighting, portrait orientation, vertical composition.');
     const [selectedModel, setSelectedModel] = useState(GENERATION_MODELS[0].id);
     
     const [generatedImage, setGeneratedImage] = useState<string | null>(() => neonSeekConfig?.currentImage || null);
@@ -93,7 +93,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     config: {
                         numberOfImages: 1,
                         outputMimeType: 'image/png',
-                        aspectRatio: '1:1',
+                        aspectRatio: '9:16', // Changé de 1:1 à 9:16
                     },
                 });
                 base64Image = response.generatedImages?.[0]?.image?.imageBytes;
@@ -104,7 +104,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     contents: { parts: [{ text: prompt }] },
                     config: { 
                         imageConfig: { 
-                            aspectRatio: "1:1",
+                            aspectRatio: "9:16", // Changé de 1:1 à 9:16
                             // imageSize n'est supporté que par les modèles Pro
                             ...(selectedModel.includes('pro') ? { imageSize: "1K" } : {})
                         } 
@@ -306,7 +306,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
                         <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                            <Crosshair size={14}/> Aperçu Interactif
+                            <Crosshair size={14}/> Aperçu Portrait (9:16)
                         </h3>
                         {generatedImage && (
                             <span className="text-[10px] text-yellow-400 font-bold bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-500/20 animate-pulse">
@@ -318,11 +318,11 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     <div 
                         ref={imagePreviewRef}
                         onClick={handleImageClick}
-                        className={`w-full bg-gray-900/50 rounded-[32px] border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden aspect-square shadow-inner ${generatedImage ? 'cursor-crosshair' : ''}`}
+                        className={`w-full bg-gray-900/50 rounded-[32px] border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden aspect-[9/16] max-h-[650px] shadow-inner ${generatedImage ? 'cursor-crosshair' : ''}`}
                     >
                         {generatedImage ? (
                             <>
-                                <img src={generatedImage} alt="Generated Scene" className="w-full h-full object-contain select-none pointer-events-none" />
+                                <img src={generatedImage} alt="Generated Scene" className="w-full h-full object-cover select-none pointer-events-none" />
                                 {detectedObjects.map((obj, idx) => (
                                     <div 
                                         key={obj.id}
@@ -331,7 +331,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                             left: `${obj.x}%`,
                                             top: `${obj.y}%`,
                                             width: `${obj.radius * 2}%`,
-                                            height: `${obj.radius * 2}%`,
+                                            height: `${obj.radius * (2 * 16/9)}%`, // Compensation pour l'aspect ratio dans l'affichage
                                             transform: 'translate(-50%, -50%)'
                                         }}
                                     >
@@ -426,7 +426,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                 className="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-black tracking-widest rounded-2xl shadow-[0_0_30px_rgba(34,197,94,0.3)] transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                                 {isSaving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                                DÉPLOYER LE NIVEAU
+                                DÉPLOYER LE NIVEAU PORTRAIT
                             </button>
                         </div>
                     </div>
