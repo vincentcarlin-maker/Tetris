@@ -16,41 +16,49 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const handleSelectKey = async () => {
+        const win = window as any;
+        if (typeof win !== 'undefined' && win.aistudio) {
+            try {
+                await win.aistudio.openSelectKey();
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            alert("L'outil de sélection de clé API n'est disponible que dans l'environnement Google AI Studio Preview. Si vous testez en local, assurez-vous que la variable process.env.API_KEY est configurée.");
+        }
+    };
+
     const handleGenerate = async () => {
         setIsGenerating(true);
         setGeneratedImage(null);
         setError(null);
 
         try {
-            // Vérification et demande de la clé API si nécessaire (spécifique AI Studio)
-            const win = window as any;
-            if (typeof win !== 'undefined' && win.aistudio) {
-                const hasKey = await win.aistudio.hasSelectedApiKey();
-                if (!hasKey) {
-                    await win.aistudio.openSelectKey();
-                }
-            }
-
-            // Récupération sécurisée de la clé API
+            // Tentative d'accès à la clé (soit via le picker, soit via l'env)
             let apiKey = '';
             try {
-                // Tentative d'accès direct (pour remplacement au build)
                 apiKey = process.env.API_KEY || '';
             } catch (e) {
-                // Fallback si process n'est pas défini
                 const env = (window as any).process?.env || {};
                 apiKey = env.API_KEY || '';
             }
 
             if (!apiKey) {
-                throw new Error("Clé API manquante. Veuillez sélectionner une clé via le bouton.");
+                // Si pas de clé, on tente d'ouvrir le picker une dernière fois
+                await handleSelectKey();
+                // On revérifie
+                try { apiKey = process.env.API_KEY || ''; } catch {}
+                
+                if (!apiKey) {
+                    throw new Error("Clé API manquante. Veuillez utiliser le bouton de clé.");
+                }
             }
 
             // Initialisation avec la clé
             const ai = new GoogleGenAI({ apiKey: apiKey });
             
-            // Utilisation de 'gemini-2.5-flash-image' qui est souvent disponible dans le tiers gratuit
-            // Note: imageSize n'est pas supporté par ce modèle, on ne garde que l'aspectRatio
+            // Utilisation de 'gemini-2.5-flash-image' (Rapide & Gratuit)
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
                 contents: {
@@ -82,7 +90,6 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
         } catch (err: any) {
             console.error("Erreur génération image:", err);
-            // Message d'erreur plus convivial
             let msg = err.message || "Erreur inconnue lors de la génération.";
             if (msg.includes("API key")) msg = "Clé API manquante ou invalide. Veuillez sélectionner une clé.";
             setError(msg);
@@ -151,15 +158,13 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     )}
 
                     <div className="flex gap-2">
-                        {typeof window !== 'undefined' && (window as any).aistudio && (
-                            <button 
-                                onClick={() => (window as any).aistudio.openSelectKey()}
-                                className="px-4 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
-                                title="Changer la clé API"
-                            >
-                                <RefreshCw size={20} />
-                            </button>
-                        )}
+                        <button 
+                            onClick={handleSelectKey}
+                            className="px-4 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                            title="Saisir / Changer Clé API"
+                        >
+                            <RefreshCw size={20} />
+                        </button>
                         <button 
                             onClick={handleGenerate}
                             disabled={isGenerating}

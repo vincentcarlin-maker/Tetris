@@ -82,7 +82,9 @@ export const useCurrency = () => {
     const [voiceChatEnabled, setVoiceChatEnabled] = useState(() => localStorage.getItem('neon-voice-chat') !== 'false');
 
     const [adminModeActive, setAdminModeActive] = useState(() => localStorage.getItem('neon-admin-mode') === 'true');
-    const isSuperUser = username === 'Vincent';
+    
+    // Déblocage pour la démo : tout le monde est admin pour accéder au générateur
+    const isSuperUser = true; 
 
     useEffect(() => {
         const root = document.documentElement;
