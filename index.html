@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -101,7 +102,6 @@
     <style>
       :root {
         --bg-color: #020202;
-        /* Valeurs par défaut des néons */
         --neon-blue-def: #00f3ff;
         --neon-pink-def: #ff00ff;
         --neon-purple-def: #9d00ff;
@@ -109,18 +109,20 @@
         --neon-accent-rgb: 0, 243, 255;
       }
       
-      html {
+      html, body, #root {
         background-color: var(--bg-color);
         height: 100%;
-        transition: --neon-accent 0.5s ease;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        position: fixed;
       }
       
       body {
-        background-color: transparent;
         color: white;
-        height: 100%;
-        margin: 0;
-        overflow-x: hidden;
+        touch-action: none;
+        -webkit-overflow-scrolling: touch;
       }
       
       #app-background {
@@ -138,67 +140,16 @@
         background-attachment: fixed;
         background-repeat: no-repeat, repeat;
         pointer-events: none;
-        transition: background-image 0.8s ease;
       }
 
       * {
         user-select: none;
         -webkit-user-select: none;
-      }
-      
-      .accent-border {
-        border-color: rgba(var(--neon-accent-rgb), 0.3);
-      }
-      .accent-border:hover {
-        border-color: rgba(var(--neon-accent-rgb), 0.6);
-      }
-      .accent-text {
-        color: var(--neon-accent);
-      }
-      .accent-glow {
-        box-shadow: 0 0 15px rgba(var(--neon-accent-rgb), 0.3);
-      }
-
-      .glitch {
-        position: relative;
-      }
-      .glitch:before,
-      .glitch:after {
-        content: attr(data-text);
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: transparent; 
-        overflow: hidden;
-      }
-      .glitch:before {
-        left: 2px;
-        text-shadow: -2px 0 var(--neon-pink, #ff00ff);
-        animation: glitch-anim-2 3s infinite linear alternate-reverse;
-      }
-      .glitch:after {
-        left: -2px;
-        text-shadow: -2px 0 var(--neon-blue, #00f3ff), 2px 2px var(--neon-pink, #ff00ff);
-        animation: glitch-anim-2 2s infinite linear alternate-reverse;
-      }
-      @keyframes glitch-anim-2 {
-        0% { clip-path: polygon(0 42%, 100% 42%, 100% 44%, 0 44%); }
-        10% { clip-path: polygon(0 57%, 100% 57%, 100% 64%, 0 64%); }
-        20% { clip-path: polygon(0 25%, 100% 25%, 100% 25%, 0 25%); }
-        30% { clip-path: polygon(0 82%, 100% 82%, 100% 81%, 0 81%); }
-        40% { clip-path: polygon(0 53%, 100% 53%, 100% 56%, 0 56%); }
-        50% { clip-path: polygon(0 68%, 100% 68%, 100% 66%, 0 66%); }
-        60% { clip-path: polygon(0 20%, 100% 20%, 100% 22%, 0 22%); }
-        70% { clip-path: polygon(0 99%, 100% 99%, 100% 98%, 0 98%); }
-        80% { clip-path: polygon(0 34%, 100% 34%, 100% 36%, 0 36%); }
-        90% { clip-path: polygon(0 14%, 100% 14%, 100% 15%, 0 15%); }
-        100% { clip-path: polygon(0 77%, 100% 77%, 100% 79%, 0 79%); }
+        -webkit-tap-highlight-color: transparent;
       }
     </style>
 </head>
-  <body class="h-[100dvh] w-screen">
+  <body class="h-full w-full">
     <div id="app-background"></div>
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="index.js"></script>

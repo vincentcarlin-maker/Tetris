@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { HiddenObject } from '../types';
-import { Crosshair, ImageOff, Loader2, Target } from 'lucide-react';
+import { Crosshair, ImageOff, Loader2 } from 'lucide-react';
 
 interface SearchGridProps {
     objects: HiddenObject[];
@@ -16,12 +16,10 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
     const [imageError, setImageError] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    const activeSrc = imageSrc;
-
     useEffect(() => {
         setIsLoaded(false);
         setImageError(false);
-    }, [activeSrc]);
+    }, [imageSrc]);
 
     const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
         if (!containerRef.current || !isLoaded) return;
@@ -57,7 +55,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             className="w-full h-full relative cursor-none bg-black overflow-hidden"
         >
             {!isLoaded && !imageError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-yellow-500/50 z-10">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-yellow-500/50 z-10 bg-black">
                     <Loader2 size={64} className="animate-spin" />
                     <span className="text-xs font-black tracking-widest uppercase italic">Initialisation du secteur de recherche...</span>
                 </div>
@@ -68,13 +66,13 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                     <ImageOff size={48} className="text-red-500 mb-4 animate-pulse" />
                     <h3 className="text-xl font-black text-white italic uppercase mb-2">Signal Interrompu</h3>
                     <p className="text-gray-400 text-xs leading-relaxed max-w-xs mb-6">
-                        L'image du niveau est corrompue ou introuvable dans la base de données.
+                        L'image du niveau est introuvable.
                     </p>
                 </div>
             )}
 
             <img 
-                src={activeSrc} 
+                src={imageSrc} 
                 alt="Arcade Scene" 
                 onLoad={() => { setIsLoaded(true); setImageError(false); }}
                 onError={handleImageError}
@@ -94,9 +92,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                         </div>
                     </div>
 
-                    {/* Scanline FX */}
-                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent shadow-[0_0_20px_#facc15] opacity-30 animate-[scan_6s_linear_infinite] pointer-events-none z-10"></div>
-
                     {/* Precise Found Markers */}
                     {objects.filter(obj => obj.found).map(obj => (
                         <div 
@@ -105,26 +100,17 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                             style={{
                                 left: `${obj.x}%`,
                                 top: `${obj.y}%`,
-                                width: `${obj.radius * 2.5}%`, // Un peu plus grand pour bien entourer
+                                width: `${obj.radius * 2.5}%`,
                                 height: `${obj.radius * 2.5}%`,
                                 transform: 'translate(-50%, -50%)'
                             }}
                         >
-                            {/* Cercle extérieur pulsant */}
                             <div className="absolute inset-0 border border-green-500 rounded-full opacity-30 animate-pulse shadow-[0_0_20px_rgba(34,197,94,0.3)]"></div>
-                            
-                            {/* Viseur technique principal */}
                             <div className="absolute inset-[5%] border-2 border-green-400 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)]">
-                                {/* Mire interne */}
                                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1px] h-3 bg-green-400"></div>
                                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1px] h-3 bg-green-400"></div>
                                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-[1px] bg-green-400"></div>
                                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-[1px] bg-green-400"></div>
-                            </div>
-
-                            {/* Micro-indicateur d'ID */}
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-green-500 text-black text-[8px] font-black px-2 py-0.5 rounded-sm tracking-widest whitespace-nowrap uppercase shadow-xl border border-white/20">
-                                IDENTIFIED
                             </div>
                         </div>
                     ))}
@@ -132,11 +118,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             )}
 
             <style>{`
-                @keyframes scan {
-                    0% { top: -5%; opacity: 0; }
-                    50% { opacity: 0.5; }
-                    100% { top: 105%; opacity: 0; }
-                }
                 @keyframes pop {
                     0% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
                     100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
