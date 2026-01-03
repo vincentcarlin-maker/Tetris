@@ -54,7 +54,7 @@ const AppContent: React.FC = () => {
 
     const isGameActive = !['menu', 'shop', 'admin_dashboard', 'social', 'settings', 'contact'].includes(currentView);
     // On cache le BottomNav explicitement pour la vue 'social' pour libérer l'espace messagerie
-    const shouldShowBottomNav = !isGameActive && currentView !== 'admin_dashboard' && currentView !== 'social';
+    const shouldShowBottomNav = !isGameActive && currentView !== 'admin_dashboard';
 
     const handleOpenSocial = (tab: any) => {
         if (!isAuthenticated) { setShowLoginModal(true); return; }
