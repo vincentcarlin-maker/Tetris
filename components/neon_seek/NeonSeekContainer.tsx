@@ -50,13 +50,16 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 />
             </div>
 
-            {/* 2. UI FLOTTANTE HAUT (Safe Area Top) */}
+            {/* 2. HEADER FLOTTANT (Transparent / Glassmorphism) */}
             <div 
                 className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-20 pointer-events-none"
-                style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
+                style={{ 
+                    paddingTop: 'calc(0.5rem + env(safe-area-inset-top))',
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)'
+                }}
             >
                 <div className="flex gap-2 pointer-events-auto">
-                    <button onClick={onBack} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 shadow-xl">
+                    <button onClick={onBack} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 transition-all shadow-xl">
                         <Home size={22} />
                     </button>
                 </div>
@@ -75,45 +78,45 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 </div>
             </div>
 
-            {/* 3. BANDEAU DES OBJETS (Safe Area Bottom) */}
+            {/* 3. BANDEAU DES OBJETS (Bas, Transparent / Glassmorphism) */}
             <div 
-                className="absolute bottom-0 left-0 w-full bg-black/80 backdrop-blur-xl border-t border-white/10 z-20 flex items-center px-4 md:px-8 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
+                className="absolute bottom-0 left-0 w-full bg-black/40 backdrop-blur-xl border-t border-white/10 z-20 flex items-center px-4 md:px-8 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
                 style={{ 
-                    height: 'calc(6.5rem + env(safe-area-inset-bottom))',
+                    height: 'calc(5.5rem + env(safe-area-inset-bottom))',
                     paddingBottom: 'env(safe-area-inset-bottom)'
                 }}
             >
                 {/* Chrono */}
                 <div className="flex flex-col items-center justify-center border-r border-white/10 pr-5 mr-5 shrink-0">
-                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Temps</span>
+                    <span className="text-[9px] font-black text-white/60 uppercase tracking-widest mb-1">Temps</span>
                     <div className={`flex items-center gap-1.5 text-2xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
                         <Timer size={18} />
                         {timeLeft}s
                     </div>
                 </div>
 
-                {/* Liste des objets à trouver */}
-                <div className="flex-1 flex gap-3 overflow-x-auto no-scrollbar py-2">
+                {/* Liste des objets à trouver (Boutons plus compacts et translucides) */}
+                <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar py-2">
                     {state.objects.map(obj => (
                         <div 
                             key={obj.id} 
-                            className={`min-w-[120px] md:min-w-[160px] px-4 py-3 rounded-2xl border transition-all flex items-center gap-3 shrink-0 ${
+                            className={`min-w-[110px] md:min-w-[150px] px-3 py-2.5 rounded-xl border transition-all flex items-center gap-2 shrink-0 ${
                                 obj.found 
-                                ? 'bg-green-500/10 border-green-500/40 opacity-40 grayscale' 
-                                : 'bg-gray-800/40 border-white/10 shadow-lg'
+                                ? 'bg-green-500/10 border-green-500/40 opacity-30 grayscale' 
+                                : 'bg-black/60 border-white/10 shadow-lg'
                             }`}
                         >
-                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${obj.found ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-yellow-500 animate-pulse shadow-[0_0_8px_#facc15]'}`}></div>
-                            <span className={`text-[11px] font-black uppercase tracking-tight truncate ${obj.found ? 'text-green-400 line-through' : 'text-white'}`}>
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${obj.found ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-yellow-500 animate-pulse shadow-[0_0_8px_#facc15]'}`}></div>
+                            <span className={`text-[10px] font-black uppercase tracking-tight truncate ${obj.found ? 'text-green-400 line-through' : 'text-white'}`}>
                                 {obj.name}
                             </span>
-                            {obj.found && <Check size={14} className="text-green-500 ml-auto" />}
+                            {obj.found && <Check size={12} className="text-green-500 ml-auto" />}
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* BIG FEEDBACK TEXT OVERLAY */}
+            {/* FEEDBACK OVERLAY */}
             {lastFoundName && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none select-none overflow-hidden">
                     <div className="bg-black/20 backdrop-blur-[2px] w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300">
@@ -160,26 +163,6 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                         <button onClick={onBack} className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl active:scale-95 transition-all uppercase italic">
                             Retour Arcade
                         </button>
-                    </div>
-                </div>
-            )}
-
-            {showTutorial && (
-                <div className="fixed inset-0 z-[110] bg-black/98 backdrop-blur-xl flex flex-col items-center justify-center p-8 animate-in fade-in" onClick={() => setShowTutorial(false)}>
-                    <div className="max-w-xs text-center">
-                        <Search size={48} className="text-yellow-400 mx-auto mb-6" />
-                        <h2 className="text-2xl font-black text-white italic mb-6 uppercase">Comment Jouer ?</h2>
-                        <ul className="space-y-4 text-left">
-                            <li className="flex gap-3 text-sm text-gray-300 bg-white/5 p-4 rounded-2xl border border-white/10">
-                                <span className="w-6 h-6 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black shrink-0">1</span>
-                                <p>Trouvez les objets listés dans le bandeau du bas.</p>
-                            </li>
-                            <li className="flex gap-3 text-sm text-gray-300 bg-white/5 p-4 rounded-2xl border border-white/10">
-                                <span className="w-6 h-6 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black shrink-0">2</span>
-                                <p>Touchez l'objet directement sur l'image.</p>
-                            </li>
-                        </ul>
-                        <button className="mt-8 w-full py-4 bg-yellow-500 text-black font-black rounded-2xl uppercase tracking-widest shadow-lg active:scale-95">LANCER LE SCAN</button>
                     </div>
                 </div>
             )}
