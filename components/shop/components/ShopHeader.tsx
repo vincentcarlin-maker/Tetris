@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ArrowLeft, Coins } from 'lucide-react';
 
