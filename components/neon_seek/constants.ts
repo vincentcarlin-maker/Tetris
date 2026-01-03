@@ -1,13 +1,6 @@
 
 import { HiddenObject } from './types';
 
-/**
- * CONFIGURATION DE L'IMAGE
- * Assurez-vous que le fichier 'arcade_scene.png' est à la racine du projet
- * (au même niveau que index.html et package.json).
- */
-export const SCENE_IMAGE = "arcade_scene.png"; 
-
 export const HIDDEN_OBJECTS: HiddenObject[] = [
     { 
         id: 'neon_x', 

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle, Key } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { useGlobal } from '../../context/GlobalContext';
 
 // Polyfill pour éviter le crash si process n'existe pas
 if (typeof window !== 'undefined' && typeof (window as any).process === 'undefined') {
@@ -10,11 +11,13 @@ if (typeof window !== 'undefined' && typeof (window as any).process === 'undefin
 }
 
 export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
+    const { neonSeekConfig } = useGlobal();
     const [prompt, setPrompt] = useState('A messy cyberpunk arcade room filled with neon signs, retro cabinets, cables, scattered items like VR headsets, soda cans, tools. High detail, 8k resolution, cinematic lighting, isometric view.');
-    const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+    const [generatedImage, setGeneratedImage] = useState<string | null>(() => neonSeekConfig?.currentImage || null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
     const [canSelectKey, setCanSelectKey] = useState(false);
 
     useEffect(() => {
@@ -38,6 +41,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         setIsGenerating(true);
         setGeneratedImage(null);
         setError(null);
+        setSuccess(null);
 
         try {
             // Tentative d'accès à la clé (soit via le picker, soit via l'env)
@@ -110,6 +114,8 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         if (!generatedImage || !isSupabaseConfigured) return;
         
         setIsSaving(true);
+        setError(null);
+        setSuccess(null);
         try {
             const currentConfig = await DB.getSystemConfig() || {};
             const updatedConfig = {
@@ -124,14 +130,19 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             await DB.saveSystemConfig(updatedConfig);
             mp.sendAdminBroadcast("Nouveau niveau Neon Seek disponible !", "game_config", { neonSeekConfig: updatedConfig.neonSeekConfig });
             
-            alert("Niveau sauvegardé et déployé !");
-            setGeneratedImage(null); 
+            setSuccess("Niveau sauvegardé et déployé !");
         } catch (e) {
             console.error(e);
             setError("Erreur lors de la sauvegarde dans la base de données.");
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleReject = () => {
+        setGeneratedImage(null);
+        setError(null);
+        setSuccess(null);
     };
 
     return (
@@ -157,6 +168,13 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                             placeholder="Décrivez la scène..."
                         />
                     </div>
+                    
+                    {success && (
+                        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 flex items-center gap-3 text-green-400 text-xs font-bold animate-in slide-in-from-top-2">
+                            <Check size={16} />
+                            {success}
+                        </div>
+                    )}
 
                     {error && (
                         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 text-red-400 text-xs animate-in slide-in-from-top-2">
@@ -204,7 +222,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             {generatedImage && (
                 <div className="flex gap-4 animate-in slide-in-from-bottom-4">
                     <button 
-                        onClick={() => setGeneratedImage(null)}
+                        onClick={handleReject}
                         className="flex-1 py-4 bg-gray-800 text-gray-300 font-bold rounded-xl border border-white/10 hover:bg-gray-700 transition-all flex items-center justify-center gap-2"
                     >
                         <RefreshCw size={18} /> REJETER

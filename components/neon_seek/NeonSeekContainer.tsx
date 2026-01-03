@@ -19,6 +19,21 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
     const [showTutorial, setShowTutorial] = React.useState(false);
     const { neonSeekConfig } = useGlobal();
 
+    if (!neonSeekConfig?.currentImage) {
+        return (
+            <div className="h-full w-full flex flex-col items-center justify-center bg-black/20 p-4 text-center animate-in fade-in">
+                <div className="bg-gray-900/80 p-8 rounded-3xl border border-yellow-500/20 max-w-sm">
+                    <Search size={48} className="text-yellow-500/50 mb-4 mx-auto" />
+                    <h2 className="text-xl font-black text-white italic uppercase">Niveau non configuré</h2>
+                    <p className="text-gray-400 text-sm mt-2 mb-6">L'administrateur doit générer et sauvegarder une image pour ce jeu via le tableau de bord.</p>
+                    <button onClick={onBack} className="mt-4 px-8 py-3 bg-gray-800 text-white font-bold rounded-xl border border-white/10 hover:bg-gray-700 transition-colors">
+                        Retour au menu
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 p-4 font-sans text-white relative touch-none select-none overflow-y-auto">
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-900/20 blur-[150px] rounded-full pointer-events-none -z-10" />
@@ -43,7 +58,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 <SearchGrid 
                     objects={state.objects} 
                     onGridClick={checkClick} 
-                    externalImageSrc={neonSeekConfig?.currentImage}
+                    imageSrc={neonSeekConfig.currentImage}
                 />
             </div>
 

@@ -1,26 +1,22 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { SCENE_IMAGE } from '../constants';
 import { HiddenObject } from '../types';
-import { Crosshair, ImageOff, Loader2, Upload } from 'lucide-react';
+import { Crosshair, ImageOff, Loader2 } from 'lucide-react';
 
 interface SearchGridProps {
     objects: HiddenObject[];
     onGridClick: (x: number, y: number) => void;
-    externalImageSrc?: string;
+    imageSrc: string;
 }
 
-export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, externalImageSrc }) => {
+export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, imageSrc }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     
     const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
     const [imageError, setImageError] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
-    const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
 
-    // Priorité : Image externe (admin) > Image uploadée localement > Image par défaut
-    const activeSrc = externalImageSrc || customImageSrc || SCENE_IMAGE;
+    const activeSrc = imageSrc;
 
     useEffect(() => {
         // Reset state si la source change
@@ -54,20 +50,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, ex
         setIsLoaded(false);
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                if (event.target?.result) {
-                    setCustomImageSrc(event.target.result as string);
-                    setImageError(false);
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     return (
         <div 
             ref={containerRef}
@@ -75,14 +57,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, ex
             onMouseMove={handleMouseMove}
             className="relative w-full aspect-square max-w-[800px] border-4 border-yellow-500/30 rounded-3xl overflow-hidden cursor-none shadow-[0_0_50px_rgba(250,204,21,0.15)] group bg-gray-900"
         >
-            <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="image/*"
-                className="hidden"
-            />
-
             {!isLoaded && !imageError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-yellow-500/50">
                     <Loader2 size={48} className="animate-spin" />
@@ -93,16 +67,10 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, ex
             {imageError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-black/80 backdrop-blur-md z-20">
                     <ImageOff size={48} className="text-red-500 mb-4 animate-pulse" />
-                    <h3 className="text-xl font-black text-white italic uppercase mb-2">Image non trouvée</h3>
+                    <h3 className="text-xl font-black text-white italic uppercase mb-2">Erreur de chargement</h3>
                     <p className="text-gray-400 text-xs leading-relaxed max-w-xs mb-6">
-                        Le fichier source n'est pas détecté. Chargez l'image manuellement.
+                        L'image du niveau est corrompue ou introuvable. L'administrateur doit en générer une nouvelle.
                     </p>
-                    <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(250,204,21,0.4)] active:scale-95 text-xs uppercase tracking-widest"
-                    >
-                        <Upload size={16} /> Charger l'image
-                    </button>
                 </div>
             )}
 
