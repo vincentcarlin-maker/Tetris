@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { HiddenObject } from '../types';
-import { Crosshair, ImageOff, Loader2 } from 'lucide-react';
+import { Crosshair, ImageOff, Loader2, Target } from 'lucide-react';
 
 interface SearchGridProps {
     objects: HiddenObject[];
@@ -19,7 +19,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
     const activeSrc = imageSrc;
 
     useEffect(() => {
-        // Reset state si la source change
         setIsLoaded(false);
         setImageError(false);
     }, [activeSrc]);
@@ -55,12 +54,12 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             ref={containerRef}
             onClick={handleClick}
             onMouseMove={handleMouseMove}
-            className="relative w-full aspect-square max-w-[800px] border-4 border-yellow-500/30 rounded-3xl overflow-hidden cursor-none shadow-[0_0_50px_rgba(250,204,21,0.15)] group bg-gray-900"
+            className="relative w-full max-w-[1200px] aspect-square border-4 border-yellow-500/30 rounded-3xl overflow-hidden cursor-none shadow-[0_0_60px_rgba(250,204,21,0.2)] group bg-gray-900 mx-auto"
         >
             {!isLoaded && !imageError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-yellow-500/50">
-                    <Loader2 size={48} className="animate-spin" />
-                    <span className="text-[10px] font-black tracking-widest uppercase">Initialisation de la scène...</span>
+                    <Loader2 size={64} className="animate-spin" />
+                    <span className="text-xs font-black tracking-widest uppercase">Initialisation de la scène haute définition...</span>
                 </div>
             )}
 
@@ -69,7 +68,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                     <ImageOff size={48} className="text-red-500 mb-4 animate-pulse" />
                     <h3 className="text-xl font-black text-white italic uppercase mb-2">Erreur de chargement</h3>
                     <p className="text-gray-400 text-xs leading-relaxed max-w-xs mb-6">
-                        L'image du niveau est corrompue ou introuvable. L'administrateur doit en générer une nouvelle.
+                        L'image du niveau est corrompue ou introuvable.
                     </p>
                 </div>
             )}
@@ -84,32 +83,48 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
 
             {isLoaded && !imageError && (
                 <>
+                    {/* Crosshair (Desktop Only) */}
                     <div 
                         className="absolute pointer-events-none z-50 transition-transform duration-75 ease-out hidden md:block"
                         style={{ left: `${mousePos.x}%`, top: `${mousePos.y}%`, transform: 'translate(-50%, -50%)' }}
                     >
                         <div className="relative">
-                            <Crosshair size={40} className="text-yellow-400 opacity-80" />
-                            <div className="absolute inset-0 bg-yellow-400/20 blur-xl rounded-full"></div>
+                            <Crosshair size={50} className="text-yellow-400 opacity-80" />
+                            <div className="absolute inset-0 bg-yellow-400/20 blur-2xl rounded-full"></div>
                         </div>
                     </div>
 
-                    <div className="absolute top-0 left-0 w-full h-[2px] bg-yellow-400 shadow-[0_0_15px_#facc15] opacity-40 animate-[scan_3s_linear_infinite] pointer-events-none"></div>
+                    {/* Scanline Effect */}
+                    <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent shadow-[0_0_15px_#facc15] opacity-40 animate-[scan_4s_linear_infinite] pointer-events-none"></div>
 
+                    {/* Found Items Overlays - Version Précision */}
                     {objects.filter(obj => obj.found).map(obj => (
                         <div 
                             key={obj.id}
-                            className="absolute border-2 border-green-500 rounded-lg animate-pop shadow-[0_0_15px_#22c55e] z-10"
+                            className="absolute flex items-center justify-center animate-pop z-10 pointer-events-none"
                             style={{
                                 left: `${obj.x}%`,
                                 top: `${obj.y}%`,
-                                width: `${obj.radius * 2}%`,
-                                height: `${obj.radius * 2}%`,
+                                width: `${obj.radius * 2.2}%`,
+                                height: `${obj.radius * 2.2}%`,
                                 transform: 'translate(-50%, -50%)'
                             }}
                         >
-                            <div className="absolute -top-5 left-0 bg-green-500 text-black text-[7px] font-black px-1 py-0.5 rounded tracking-tighter whitespace-nowrap uppercase">
-                                Match Found
+                            {/* Cercle extérieur pulsant */}
+                            <div className="absolute inset-0 border-2 border-green-500 rounded-full opacity-40 animate-pulse"></div>
+                            
+                            {/* Cercle de précision principal */}
+                            <div className="absolute inset-[10%] border-2 border-green-400 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.6)]">
+                                {/* Mire interne */}
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-green-400"></div>
+                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-green-400"></div>
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-0.5 bg-green-400"></div>
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-0.5 bg-green-400"></div>
+                            </div>
+
+                            {/* Label miniature */}
+                            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-green-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded tracking-tighter whitespace-nowrap uppercase shadow-lg">
+                                Identifié
                             </div>
                         </div>
                     ))}
@@ -119,7 +134,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             <style>{`
                 @keyframes scan {
                     0% { top: -5%; opacity: 0; }
-                    50% { opacity: 0.5; }
+                    50% { opacity: 0.6; }
                     100% { top: 105%; opacity: 0; }
                 }
             `}</style>

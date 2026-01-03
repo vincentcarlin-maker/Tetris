@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Search } from 'lucide-react';
+import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Search, Sparkles } from 'lucide-react';
 import { useNeonSeekLogic } from './hooks/useNeonSeekLogic';
 import { SearchGrid } from './components/SearchGrid';
 import { SeekHUD } from './components/SeekHUD';
@@ -18,12 +18,11 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
     const { neonSeekConfig } = useGlobal();
     const [showTutorial, setShowTutorial] = React.useState(false);
     
-    // On passe les objets configurés à la logique du jeu
-    const { state, timeLeft, earnedCoins, checkClick, resetGame } = useNeonSeekLogic(
+    const { state, timeLeft, earnedCoins, lastFoundName, checkClick, resetGame } = useNeonSeekLogic(
         audio, 
         addCoins, 
         onReportProgress, 
-        neonSeekConfig?.objects // Passage des objets dynamiques
+        neonSeekConfig?.objects
     );
 
     if (!neonSeekConfig?.currentImage) {
@@ -45,6 +44,23 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
         <div className="h-full w-full flex flex-col items-center bg-black/20 p-4 font-sans text-white relative touch-none select-none overflow-y-auto">
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-900/20 blur-[150px] rounded-full pointer-events-none -z-10" />
             
+            {/* BIG FEEDBACK TEXT OVERLAY */}
+            {lastFoundName && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                    <div className="bg-black/20 backdrop-blur-[2px] w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300">
+                        <div className="flex items-center gap-4 mb-2">
+                            <Sparkles className="text-yellow-400 animate-pulse" size={32} />
+                            <span className="text-yellow-500 font-black tracking-[0.5em] text-sm uppercase">Fragment Identifié</span>
+                            <Sparkles className="text-yellow-400 animate-pulse" size={32} />
+                        </div>
+                        <h2 className="text-5xl md:text-7xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-400 to-white drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] uppercase tracking-tighter text-center px-6">
+                            {lastFoundName}
+                        </h2>
+                        <div className="mt-4 w-32 h-1 bg-yellow-500 shadow-[0_0_15px_#facc15] animate-scale-x"></div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between mb-6 shrink-0 z-20">
                 <button onClick={onBack} className="p-2.5 bg-gray-800 rounded-xl text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"><Home size={20} /></button>

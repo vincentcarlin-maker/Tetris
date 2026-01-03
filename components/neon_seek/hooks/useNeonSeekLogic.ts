@@ -5,7 +5,6 @@ import { HiddenObject, GameState } from '../types';
 
 export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onReportProgress?: any, customObjects?: HiddenObject[]) => {
     
-    // Utiliser les objets personnalisés s'ils existent, sinon les défauts
     const initialObjects = (customObjects && customObjects.length > 0) 
         ? customObjects.map(obj => ({ ...obj, found: false })) 
         : HIDDEN_OBJECTS.map(obj => ({ ...obj, found: false }));
@@ -19,9 +18,10 @@ export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onRe
     
     const [timeLeft, setTimeLeft] = useState(MAX_TIME);
     const [earnedCoins, setEarnedCoins] = useState(0);
+    const [lastFoundName, setLastFoundName] = useState<string | null>(null);
     const timerRef = useRef<any>(null);
+    const feedbackTimeoutRef = useRef<any>(null);
 
-    // Mettre à jour l'état si les objets personnalisés changent (nouvelle génération admin)
     useEffect(() => {
         if (customObjects && customObjects.length > 0) {
             setState(prev => ({
@@ -31,32 +31,43 @@ export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onRe
                 status: 'playing'
             }));
             setTimeLeft(MAX_TIME);
+            setLastFoundName(null);
         }
     }, [customObjects]);
 
     const checkClick = useCallback((clickX: number, clickY: number) => {
         if (state.status !== 'playing') return;
 
+        let foundObjName: string | null = null;
         let foundIdx = -1;
+        
         const newObjects = state.objects.map((obj, idx) => {
             if (obj.found) return obj;
             
-            // Calcul de distance simple (pourcentage)
-            const dx = Math.abs(clickX - obj.x);
-            const dy = Math.abs(clickY - obj.y);
+            // CALCUL DE PRÉCISION CIRCULAIRE (Distance Euclidienne)
+            const dx = clickX - obj.x;
+            const dy = clickY - obj.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Utiliser le radius défini par l'IA ou le défaut
+            // On utilise le rayon exact défini par l'IA
             const hitRadius = obj.radius || 7; 
             
-            if (dx <= hitRadius && dy <= hitRadius) {
+            if (distance <= hitRadius) {
                 foundIdx = idx;
+                foundObjName = obj.name;
                 return { ...obj, found: true };
             }
             return obj;
         });
 
-        if (foundIdx !== -1) {
+        if (foundIdx !== -1 && foundObjName) {
             audio.playVictory();
+            
+            // Déclencher le feedback textuel géant
+            setLastFoundName(foundObjName);
+            if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+            feedbackTimeoutRef.current = setTimeout(() => setLastFoundName(null), 1500);
+
             const newCount = state.foundCount + 1;
             setState(prev => ({ 
                 ...prev, 
@@ -72,12 +83,11 @@ export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onRe
                 if (onReportProgress) onReportProgress('win', 1);
             }
         } else {
-            audio.playWallHit(); // Son d'erreur
+            audio.playWallHit();
         }
     }, [state.objects, state.status, state.foundCount, timeLeft, audio, addCoins, onReportProgress]);
 
     const resetGame = useCallback(() => {
-        // Recharger les objets initiaux (soit custom soit default)
         const objsToUse = (customObjects && customObjects.length > 0) ? customObjects : HIDDEN_OBJECTS;
         
         setState({
@@ -88,6 +98,7 @@ export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onRe
         });
         setTimeLeft(MAX_TIME);
         setEarnedCoins(0);
+        setLastFoundName(null);
         if (onReportProgress) onReportProgress('play', 1);
     }, [customObjects, onReportProgress]);
 
@@ -108,5 +119,5 @@ export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onRe
         return () => clearInterval(timerRef.current);
     }, [state.status, timeLeft]);
 
-    return { state, timeLeft, earnedCoins, checkClick, resetGame };
+    return { state, timeLeft, earnedCoins, lastFoundName, checkClick, resetGame };
 };
