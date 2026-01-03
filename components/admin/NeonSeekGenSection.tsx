@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle, Key, Search, ScanEye, Trash2, Plus, Crosshair, Edit3 } from 'lucide-react';
+import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle, Key, Search, ScanEye, Trash2, Plus, Crosshair, Edit3, Cpu } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useGlobal } from '../../context/GlobalContext';
@@ -11,9 +11,16 @@ if (typeof window !== 'undefined' && typeof (window as any).process === 'undefin
     (window as any).process = { env: {} };
 }
 
+const GENERATION_MODELS = [
+    { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Standard)', type: 'GEMINI' },
+    { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Haute Qualité)', type: 'GEMINI' },
+    { id: 'imagen-4.0-generate-001', name: 'Imagen 4.0 (Ultra Réaliste)', type: 'IMAGEN' }
+];
+
 export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const { neonSeekConfig } = useGlobal();
     const [prompt, setPrompt] = useState('A messy cyberpunk arcade room filled with neon signs, retro cabinets, cables, scattered items like VR headsets, soda cans, tools. High detail, 8k resolution, cinematic lighting, isometric view.');
+    const [selectedModel, setSelectedModel] = useState(GENERATION_MODELS[0].id);
     
     const [generatedImage, setGeneratedImage] = useState<string | null>(() => neonSeekConfig?.currentImage || null);
     const [detectedObjects, setDetectedObjects] = useState<HiddenObject[]>(() => neonSeekConfig?.objects || []);
@@ -75,29 +82,53 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             const apiKey = await getApiKey();
             const ai = new GoogleGenAI({ apiKey: apiKey });
             
-            const imageResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: { parts: [{ text: prompt }] },
-                config: { imageConfig: { aspectRatio: "1:1" } },
-            });
-
             let base64Image = null;
-            if (imageResponse.candidates && imageResponse.candidates[0].content.parts) {
-                for (const part of imageResponse.candidates[0].content.parts) {
-                    if (part.inlineData) {
-                        base64Image = part.inlineData.data;
-                        break;
+            const modelConfig = GENERATION_MODELS.find(m => m.id === selectedModel);
+
+            // LOGIQUE DIFFÉRENTE SELON LE TYPE DE MODÈLE (GEMINI vs IMAGEN)
+            if (modelConfig?.type === 'IMAGEN') {
+                const response = await ai.models.generateImages({
+                    model: selectedModel,
+                    prompt: prompt,
+                    config: {
+                        numberOfImages: 1,
+                        outputMimeType: 'image/png',
+                        aspectRatio: '1:1',
+                    },
+                });
+                base64Image = response.generatedImages?.[0]?.image?.imageBytes;
+            } else {
+                // GEMINI MODELS
+                const response = await ai.models.generateContent({
+                    model: selectedModel,
+                    contents: { parts: [{ text: prompt }] },
+                    config: { 
+                        imageConfig: { 
+                            aspectRatio: "1:1",
+                            // imageSize n'est supporté que par les modèles Pro
+                            ...(selectedModel.includes('pro') ? { imageSize: "1K" } : {})
+                        } 
+                    },
+                });
+
+                if (response.candidates && response.candidates[0].content.parts) {
+                    for (const part of response.candidates[0].content.parts) {
+                        if (part.inlineData) {
+                            base64Image = part.inlineData.data;
+                            break;
+                        }
                     }
                 }
             }
 
-            if (!base64Image) throw new Error("Aucune image générée.");
+            if (!base64Image) throw new Error("Aucune image générée. Vérifiez les quotas ou le modèle.");
             
             const fullImageStr = `data:image/png;base64,${base64Image}`;
             setGeneratedImage(fullImageStr);
 
             setStatus('ANALYZING_OBJECTS');
 
+            // Analyse toujours faite par Gemini Flash pour la rapidité/coût
             const analysisResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
@@ -137,6 +168,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         } catch (err: any) {
             console.error("Erreur complète:", err);
             let msg = err.message || "Erreur inconnue.";
+            if (msg.includes("429")) msg = "Quota dépassé. Attendez ou changez de clé.";
             setError(msg);
             setStatus('IDLE');
         }
@@ -224,14 +256,32 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Prompt de génération (Imagen)</label>
-                        <textarea 
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            className="w-full h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-purple-500 outline-none transition-all resize-none"
-                            placeholder="Décrivez la scène..."
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-black text-gray-500 uppercase ml-1 flex items-center gap-1"><Image size={10} /> Modèle de Génération</label>
+                            <div className="relative">
+                                <select 
+                                    value={selectedModel}
+                                    onChange={(e) => setSelectedModel(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-purple-500 outline-none appearance-none cursor-pointer font-bold"
+                                >
+                                    {GENERATION_MODELS.map(model => (
+                                        <option key={model.id} value={model.id}>{model.name}</option>
+                                    ))}
+                                </select>
+                                <Cpu size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-black text-gray-500 uppercase ml-1">Prompt de génération</label>
+                            <textarea 
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                className="w-full h-24 bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-purple-500 outline-none transition-all resize-none"
+                                placeholder="Décrivez la scène..."
+                            />
+                        </div>
                     </div>
                     
                     <button 
@@ -240,7 +290,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                         className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                     >
                         {status === 'GENERATING_IMAGE' ? (
-                            <><Loader2 className="animate-spin" /> GÉNÉRATION IMAGE...</>
+                            <><Loader2 className="animate-spin" /> GÉNÉRATION IMAGE ({selectedModel.includes('imagen') ? 'IMAGEN' : 'GEMINI'})...</>
                         ) : status === 'ANALYZING_OBJECTS' ? (
                             <><ScanEye className="animate-pulse" /> IA ANALYSE LES OBJETS...</>
                         ) : (
