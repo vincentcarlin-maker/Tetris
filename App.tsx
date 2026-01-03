@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { GlobalProvider, useGlobal } from './context/GlobalContext';
 import { GameRouter } from './components/GameRouter';
@@ -62,7 +63,7 @@ const AppContent: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full w-full" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex flex-col h-full w-full">
             {globalAlert && (
                 <div className="fixed top-0 left-0 right-0 z-[300] flex justify-center p-4 pointer-events-none animate-in slide-in-from-top-10 fade-in duration-500" style={{ top: 'env(safe-area-inset-top)' }}>
                     <div className={`bg-gray-900/90 backdrop-blur-md border-l-4 ${globalAlert.type === 'warning' ? 'border-red-500 text-red-200' : 'border-blue-500 text-blue-200'} rounded-r-lg p-4 shadow-2xl flex items-center gap-4 max-w-md w-full`}>

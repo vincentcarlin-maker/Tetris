@@ -42,7 +42,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
     return (
         <div className="h-[100dvh] w-full flex flex-col bg-black font-sans text-white relative overflow-hidden select-none touch-none">
             
-            {/* 1. L'IMAGE DE JEU (Plein écran) */}
+            {/* 1. L'IMAGE DE JEU (Plein écran réel) */}
             <div className="flex-1 w-full relative z-0">
                 <SearchGrid 
                     objects={state.objects} 
@@ -51,8 +51,11 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 />
             </div>
 
-            {/* 2. HEADER FLOTTANT (Haut) */}
-            <div className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-20 pointer-events-none">
+            {/* 2. HEADER FLOTTANT (Haut) avec protection Safe Area */}
+            <div 
+                className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-20 pointer-events-none"
+                style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+            >
                 <div className="flex gap-2 pointer-events-auto">
                     <button onClick={onBack} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 transition-all shadow-xl">
                         <Home size={22} />
@@ -73,8 +76,14 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 </div>
             </div>
 
-            {/* 3. BANDEAU DES OBJETS (Bas) */}
-            <div className="h-28 w-full bg-black/80 backdrop-blur-xl border-t border-white/10 z-20 flex items-center px-4 md:px-8 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+            {/* 3. BANDEAU DES OBJETS (Bas) avec protection Safe Area */}
+            <div 
+                className="w-full bg-black/80 backdrop-blur-xl border-t border-white/10 z-20 flex items-center px-4 md:px-8 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
+                style={{ 
+                    height: 'calc(7rem + env(safe-area-inset-bottom))',
+                    paddingBottom: 'env(safe-area-inset-bottom)'
+                }}
+            >
                 {/* Chrono */}
                 <div className="flex flex-col items-center justify-center border-r border-white/10 pr-6 mr-6 shrink-0">
                     <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Temps</span>
