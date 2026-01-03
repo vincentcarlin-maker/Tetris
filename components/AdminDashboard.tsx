@@ -17,6 +17,7 @@ import { EconomySection } from './admin/EconomySection';
 import { ConfigSection } from './admin/ConfigSection';
 import { FlagsSection } from './admin/FlagsSection';
 import { DataSection } from './admin/DataSection';
+import { NeonSeekGenSection } from './admin/NeonSeekGenSection';
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -124,6 +125,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
                     </div>
 
                     {activeSection === 'DASHBOARD' && <DashboardSection profiles={profiles} onlineUsers={onlineUsers} />}
+                    {activeSection === 'NEON_GEN' && <NeonSeekGenSection mp={mp} />}
                     {activeSection === 'USERS' && <UsersSection profiles={profiles} setProfiles={setProfiles} onlineUsers={onlineUsers} mp={mp} />}
                     {activeSection === 'GAMES' && <GamesSection disabledGames={disabledGames} setDisabledGames={setDisabledGames} mp={mp} />}
                     {activeSection === 'EVENTS' && <EventsSection mp={mp} />}

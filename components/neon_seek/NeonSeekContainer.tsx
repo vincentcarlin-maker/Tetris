@@ -5,6 +5,7 @@ import { useNeonSeekLogic } from './hooks/useNeonSeekLogic';
 import { SearchGrid } from './components/SearchGrid';
 import { SeekHUD } from './components/SeekHUD';
 import { TutorialOverlay } from '../Tutorials';
+import { useGlobal } from '../../context/GlobalContext';
 
 interface NeonSeekProps {
     onBack: () => void;
@@ -16,6 +17,7 @@ interface NeonSeekProps {
 export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const { state, timeLeft, earnedCoins, checkClick, resetGame } = useNeonSeekLogic(audio, addCoins, onReportProgress);
     const [showTutorial, setShowTutorial] = React.useState(false);
+    const { neonSeekConfig } = useGlobal();
 
     return (
         <div className="h-full w-full flex flex-col items-center bg-black/20 p-4 font-sans text-white relative touch-none select-none overflow-y-auto">
@@ -38,7 +40,11 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
 
             {/* Game Grid */}
             <div className="mt-6 w-full flex justify-center z-10">
-                <SearchGrid objects={state.objects} onGridClick={checkClick} />
+                <SearchGrid 
+                    objects={state.objects} 
+                    onGridClick={checkClick} 
+                    externalImageSrc={neonSeekConfig?.currentImage}
+                />
             </div>
 
             {/* Game Over Overlay */}

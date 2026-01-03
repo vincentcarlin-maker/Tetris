@@ -1,5 +1,5 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { SCENE_IMAGE } from '../constants';
 import { HiddenObject } from '../types';
 import { Crosshair, ImageOff, Loader2, Upload } from 'lucide-react';
@@ -7,9 +7,10 @@ import { Crosshair, ImageOff, Loader2, Upload } from 'lucide-react';
 interface SearchGridProps {
     objects: HiddenObject[];
     onGridClick: (x: number, y: number) => void;
+    externalImageSrc?: string;
 }
 
-export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) => {
+export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, externalImageSrc }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     
@@ -18,7 +19,14 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
     const [isLoaded, setIsLoaded] = useState(false);
     const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
 
-    const activeSrc = customImageSrc || SCENE_IMAGE;
+    // Priorité : Image externe (admin) > Image uploadée localement > Image par défaut
+    const activeSrc = externalImageSrc || customImageSrc || SCENE_IMAGE;
+
+    useEffect(() => {
+        // Reset state si la source change
+        setIsLoaded(false);
+        setImageError(false);
+    }, [activeSrc]);
 
     const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
         if (!containerRef.current || !isLoaded) return;
@@ -42,8 +50,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
     };
 
     const handleImageError = () => {
-        // Si on a déjà essayé une image custom et qu'elle plante aussi, on reste en erreur
-        // Sinon, on affiche l'interface d'erreur qui propose l'upload
         setImageError(true);
         setIsLoaded(false);
     };
@@ -56,7 +62,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
                 if (event.target?.result) {
                     setCustomImageSrc(event.target.result as string);
                     setImageError(false);
-                    // Le onLoad de l'image mettra isLoaded à true
                 }
             };
             reader.readAsDataURL(file);
@@ -70,7 +75,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
             onMouseMove={handleMouseMove}
             className="relative w-full aspect-square max-w-[800px] border-4 border-yellow-500/30 rounded-3xl overflow-hidden cursor-none shadow-[0_0_50px_rgba(250,204,21,0.15)] group bg-gray-900"
         >
-            {/* Input caché pour l'upload */}
             <input 
                 type="file" 
                 ref={fileInputRef}
@@ -79,7 +83,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
                 className="hidden"
             />
 
-            {/* Spinner de chargement */}
             {!isLoaded && !imageError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-yellow-500/50">
                     <Loader2 size={48} className="animate-spin" />
@@ -87,15 +90,13 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
                 </div>
             )}
 
-            {/* Message si l'image est manquante avec bouton d'upload */}
             {imageError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-black/80 backdrop-blur-md z-20">
                     <ImageOff size={48} className="text-red-500 mb-4 animate-pulse" />
                     <h3 className="text-xl font-black text-white italic uppercase mb-2">Image non trouvée</h3>
                     <p className="text-gray-400 text-xs leading-relaxed max-w-xs mb-6">
-                        Le fichier source n'est pas détecté. Chargez l'image manuellement depuis votre appareil.
+                        Le fichier source n'est pas détecté. Chargez l'image manuellement.
                     </p>
-                    
                     <button 
                         onClick={() => fileInputRef.current?.click()}
                         className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(250,204,21,0.4)] active:scale-95 text-xs uppercase tracking-widest"
@@ -105,7 +106,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
                 </div>
             )}
 
-            {/* L'Image (Source locale ou custom) */}
             <img 
                 src={activeSrc} 
                 alt="Arcade Scene" 
@@ -116,7 +116,6 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
 
             {isLoaded && !imageError && (
                 <>
-                    {/* Viseur Tactique */}
                     <div 
                         className="absolute pointer-events-none z-50 transition-transform duration-75 ease-out hidden md:block"
                         style={{ left: `${mousePos.x}%`, top: `${mousePos.y}%`, transform: 'translate(-50%, -50%)' }}
@@ -127,10 +126,8 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick }) 
                         </div>
                     </div>
 
-                    {/* Scanline Laser */}
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-yellow-400 shadow-[0_0_15px_#facc15] opacity-40 animate-[scan_3s_linear_infinite] pointer-events-none"></div>
 
-                    {/* Cercles de validation */}
                     {objects.filter(obj => obj.found).map(obj => (
                         <div 
                             key={obj.id}

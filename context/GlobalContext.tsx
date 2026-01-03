@@ -34,6 +34,7 @@ interface GlobalContextType {
     setDisabledGames: React.Dispatch<React.SetStateAction<string[]>>;
     featureFlags: Record<string, boolean>;
     setFeatureFlags: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+    neonSeekConfig: { currentImage?: string } | null; // NOUVEAU
     globalEvents: any[];
     handleGameEvent: (gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => void;
     handleLogin: (username: string, cloudData?: any) => void;
@@ -69,12 +70,12 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [unreadMessages, setUnreadMessages] = useState(0);
     const [isAcceptingFriend, setIsAcceptingFriend] = useState(false);
     
-    // Ref pour accès immédiat dans le callback temps réel
     const isAcceptingFriendRef = useRef(false);
     useEffect(() => { isAcceptingFriendRef.current = isAcceptingFriend; }, [isAcceptingFriend]);
     
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
     const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
+    const [neonSeekConfig, setNeonSeekConfig] = useState<{ currentImage?: string } | null>(null); // NOUVEAU
     
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
@@ -151,9 +152,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 schema: 'public', 
                 table: 'messages'
             }, () => {
-                // Utilisation de la Ref pour garantir l'état le plus récent
                 if (isAcceptingFriendRef.current) return; 
-                
                 if (deleteTimeout) clearTimeout(deleteTimeout);
                 deleteTimeout = setTimeout(() => {
                     refreshSocialData();
@@ -184,6 +183,10 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         setFeatureFlags(config.featureFlags);
                         localStorage.setItem('neon_feature_flags', JSON.stringify(config.featureFlags));
                     }
+                    // CHARGEMENT CONFIG NEON SEEK
+                    if (config.neonSeekConfig) {
+                        setNeonSeekConfig(config.neonSeekConfig);
+                    }
                 }
             }
         };
@@ -195,6 +198,8 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (payload.data.flags) {
                     setFeatureFlags(payload.data.flags);
                     localStorage.setItem('neon_feature_flags', JSON.stringify(payload.data.flags));
+                } else if (payload.data.neonSeekConfig) {
+                    setNeonSeekConfig(payload.data.neonSeekConfig);
                 } else if (Array.isArray(payload.data)) {
                     setDisabledGames(payload.data);
                     localStorage.setItem('neon_disabled_games', JSON.stringify(payload.data));
@@ -332,7 +337,8 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             currentView, setCurrentView, isAuthenticated, setIsAuthenticated, showLoginModal, setShowLoginModal,
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
             friendRequests, setFriendRequests, sentRequests, setSentRequests, refreshSocialData,
-            disabledGames, setDisabledGames, featureFlags, setFeatureFlags, handleGameEvent, handleLogin, handleLogout, recordTransaction,
+            disabledGames, setDisabledGames, featureFlags, setFeatureFlags, neonSeekConfig, // NOUVEAU
+            handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,
             guestPlayedGames, registerGuestPlay, isAcceptingFriend, setIsAcceptingFriend
