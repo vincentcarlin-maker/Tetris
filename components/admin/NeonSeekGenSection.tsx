@@ -4,6 +4,11 @@ import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle } from 
 import { GoogleGenAI } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 
+// Polyfill pour éviter le crash si process n'existe pas
+if (typeof window !== 'undefined' && typeof (window as any).process === 'undefined') {
+    (window as any).process = { env: {} };
+}
+
 export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const [prompt, setPrompt] = useState('A messy cyberpunk arcade room filled with neon signs, retro cabinets, cables, scattered items like VR headsets, soda cans, tools. High detail, 8k resolution, cinematic lighting, isometric view.');
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -26,14 +31,19 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 }
             }
 
-            // Accès sécurisé à la variable process pour éviter le crash "process is not defined"
+            // Récupération sécurisée de la clé API
             let apiKey = '';
             try {
-                if (typeof process !== 'undefined' && process.env) {
-                    apiKey = process.env.API_KEY || '';
-                }
+                // Tentative d'accès direct (pour remplacement au build)
+                apiKey = process.env.API_KEY || '';
             } catch (e) {
-                // Ignore reference error
+                // Fallback si process n'est pas défini
+                const env = (window as any).process?.env || {};
+                apiKey = env.API_KEY || '';
+            }
+
+            if (!apiKey) {
+                throw new Error("Clé API manquante. Veuillez sélectionner une clé via le bouton.");
             }
 
             // Initialisation avec la clé
@@ -139,14 +149,25 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                         </div>
                     )}
 
-                    <button 
-                        onClick={handleGenerate}
-                        disabled={isGenerating}
-                        className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isGenerating ? <Loader2 className="animate-spin" /> : <Image size={20} />}
-                        {isGenerating ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER LA SCÈNE'}
-                    </button>
+                    <div className="flex gap-2">
+                        {typeof window !== 'undefined' && (window as any).aistudio && (
+                            <button 
+                                onClick={() => (window as any).aistudio.openSelectKey()}
+                                className="px-4 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                                title="Changer la clé API"
+                            >
+                                <RefreshCw size={20} />
+                            </button>
+                        )}
+                        <button 
+                            onClick={handleGenerate}
+                            disabled={isGenerating}
+                            className="flex-1 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black tracking-widest rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isGenerating ? <Loader2 className="animate-spin" /> : <Image size={20} />}
+                            {isGenerating ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER LA SCÈNE'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
