@@ -25,7 +25,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
 
     if (!neonSeekConfig?.currentImage) {
         return (
-            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black p-4 text-center">
+            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black p-4 text-center h-[100dvh]">
                 <div className="bg-gray-900 p-8 rounded-3xl border border-yellow-500/20 max-w-sm">
                     <Search size={48} className="text-yellow-500/50 mb-4 mx-auto" />
                     <h2 className="text-xl font-black text-white italic uppercase">Niveau non configuré</h2>
@@ -39,10 +39,10 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
     }
 
     return (
-        <div className="fixed inset-0 z-[100] w-full h-full bg-black font-sans text-white overflow-hidden select-none touch-none">
+        <div className="fixed inset-0 z-[100] w-full h-[100dvh] bg-black font-sans text-white overflow-hidden select-none touch-none flex flex-col">
             
-            {/* 1. L'IMAGE DE JEU (Plein écran réel sous tout le reste) */}
-            <div className="absolute inset-0 z-0">
+            {/* 1. L'IMAGE DE JEU (Conteneur occupant tout l'espace disponible) */}
+            <div className="flex-1 w-full relative z-0 overflow-hidden bg-black/40">
                 <SearchGrid 
                     objects={state.objects} 
                     onGridClick={checkClick} 
@@ -50,12 +50,12 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 />
             </div>
 
-            {/* 2. HEADER FLOTTANT (Transparent / Glassmorphism) */}
+            {/* 2. HEADER FLOTTANT (Absolu pour ne pas réduire la zone de jeu) */}
             <div 
                 className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-20 pointer-events-none"
                 style={{ 
                     paddingTop: 'calc(0.5rem + env(safe-area-inset-top))',
-                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)'
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)'
                 }}
             >
                 <div className="flex gap-2 pointer-events-auto">
@@ -78,12 +78,13 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 </div>
             </div>
 
-            {/* 3. BANDEAU DES OBJETS (Bas, Transparent / Glassmorphism) */}
+            {/* 3. BANDEAU DES OBJETS (Strictement collé au bas dvh) */}
             <div 
-                className="absolute bottom-0 left-0 w-full bg-black/40 backdrop-blur-xl border-t border-white/10 z-20 flex items-center px-4 md:px-8 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
+                className="w-full bg-black/80 backdrop-blur-xl border-t border-white/10 z-20 flex items-center px-4 md:px-8 shadow-[0_-15px_40px_rgba(0,0,0,0.8)] shrink-0"
                 style={{ 
-                    height: 'calc(5.5rem + env(safe-area-inset-bottom))',
-                    paddingBottom: 'env(safe-area-inset-bottom)'
+                    height: 'calc(6.5rem + env(safe-area-inset-bottom))',
+                    paddingBottom: 'env(safe-area-inset-bottom)',
+                    marginBottom: '0px'
                 }}
             >
                 {/* Chrono */}
@@ -95,7 +96,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                     </div>
                 </div>
 
-                {/* Liste des objets à trouver (Boutons plus compacts et translucides) */}
+                {/* Liste des objets à trouver */}
                 <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar py-2">
                     {state.objects.map(obj => (
                         <div 
@@ -116,7 +117,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 </div>
             </div>
 
-            {/* FEEDBACK OVERLAY */}
+            {/* FEEDBACK ET OVERLAYS */}
             {lastFoundName && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none select-none overflow-hidden">
                     <div className="bg-black/20 backdrop-blur-[2px] w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300">
@@ -132,9 +133,8 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 </div>
             )}
 
-            {/* Game Over Overlay */}
             {state.status === 'gameOver' && (
-                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300">
+                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300 h-[100dvh]">
                     {state.foundCount === state.objects.length ? (
                         <>
                             <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold] animate-bounce" />

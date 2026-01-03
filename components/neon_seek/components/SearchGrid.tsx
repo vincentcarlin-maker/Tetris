@@ -52,8 +52,20 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             ref={containerRef}
             onClick={handleClick}
             onMouseMove={handleMouseMove}
-            className="w-full h-full relative cursor-none bg-black overflow-hidden"
+            className="w-full h-full relative cursor-none bg-black overflow-hidden flex items-center justify-center"
         >
+            {/* FOND IMMERSIF (Version floue de l'image pour combler les bords sans rognage) */}
+            {isLoaded && !imageError && (
+                <div className="absolute inset-0 z-0">
+                    <img 
+                        src={imageSrc} 
+                        alt="Blurred background" 
+                        className="w-full h-full object-cover blur-2xl opacity-40 scale-110"
+                    />
+                    <div className="absolute inset-0 bg-black/60"></div>
+                </div>
+            )}
+
             {!isLoaded && !imageError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-yellow-500/50 z-10 bg-black">
                     <Loader2 size={64} className="animate-spin" />
@@ -71,19 +83,20 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                 </div>
             )}
 
+            {/* IMAGE DE JEU PRINCIPALE (Contain : on voit TOUTE l'image, rien n'est coupé) */}
             <img 
                 src={imageSrc} 
                 alt="Arcade Scene" 
                 onLoad={() => { setIsLoaded(true); setImageError(false); }}
                 onError={handleImageError}
-                className={`w-full h-full object-cover select-none pointer-events-none transition-all duration-1000 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-110'}`}
+                className={`relative z-10 max-w-full max-h-full object-contain select-none pointer-events-none transition-all duration-1000 shadow-[0_0_50px_rgba(0,0,0,0.5)] ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
             />
 
             {isLoaded && !imageError && (
-                <>
+                <div className="absolute inset-0 z-20 pointer-events-none">
                     {/* Crosshair Overlay (Desktop) */}
                     <div 
-                        className="absolute pointer-events-none z-50 transition-transform duration-75 ease-out hidden md:block"
+                        className="absolute pointer-events-none transition-transform duration-75 ease-out hidden md:block"
                         style={{ left: `${mousePos.x}%`, top: `${mousePos.y}%`, transform: 'translate(-50%, -50%)' }}
                     >
                         <div className="relative">
@@ -96,7 +109,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                     {objects.filter(obj => obj.found).map(obj => (
                         <div 
                             key={obj.id}
-                            className="absolute flex items-center justify-center animate-pop z-10 pointer-events-none"
+                            className="absolute flex items-center justify-center animate-pop pointer-events-none"
                             style={{
                                 left: `${obj.x}%`,
                                 top: `${obj.y}%`,
@@ -114,7 +127,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                             </div>
                         </div>
                     ))}
-                </>
+                </div>
             )}
 
             <style>{`

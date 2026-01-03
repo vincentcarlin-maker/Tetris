@@ -109,29 +109,37 @@
         --neon-accent-rgb: 0, 243, 255;
       }
       
-      html, body, #root {
-        background-color: var(--bg-color);
-        height: 100vh;
-        height: -webkit-fill-available;
+      html {
+        height: 100dvh;
         width: 100vw;
+        overflow: hidden;
+      }
+
+      body, #root {
+        background-color: var(--bg-color);
+        height: 100%;
+        width: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden;
         position: fixed;
+        top: 0;
+        left: 0;
       }
       
       body {
         color: white;
         touch-action: none;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: none;
       }
       
       #app-background {
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100dvh;
         z-index: -50;
         background-color: var(--bg-color);
         background-image: 
