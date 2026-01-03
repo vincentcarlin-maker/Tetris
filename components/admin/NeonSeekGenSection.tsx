@@ -26,9 +26,18 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 }
             }
 
-            // Initialisation avec la clé (injectée via process.env.API_KEY après sélection)
-            // Note: Si process.env.API_KEY est vide, cela lèvera une erreur gérée dans le catch
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            // Accès sécurisé à la variable process pour éviter le crash "process is not defined"
+            let apiKey = '';
+            try {
+                if (typeof process !== 'undefined' && process.env) {
+                    apiKey = process.env.API_KEY || '';
+                }
+            } catch (e) {
+                // Ignore reference error
+            }
+
+            // Initialisation avec la clé
+            const ai = new GoogleGenAI({ apiKey: apiKey });
             
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-image-preview',
