@@ -203,7 +203,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     };
 
     return (
-        <div className="h-full flex flex-col gap-6 animate-in fade-in pb-20">
+        <div className="flex flex-col gap-6 animate-in fade-in">
             {/* Header / Generator Panel */}
             <div className="bg-gray-800 p-6 rounded-2xl border border-white/10 shadow-xl shrink-0">
                 <div className="flex items-center justify-between mb-6">

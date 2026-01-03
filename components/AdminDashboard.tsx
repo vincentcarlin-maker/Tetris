@@ -78,7 +78,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
     };
 
     return (
-        <div className="h-full w-full bg-black/95 text-white font-sans flex overflow-hidden">
+        <div className="fixed inset-0 z-[200] w-full h-[100dvh] bg-black text-white font-sans flex overflow-hidden">
             
             {/* SIDEBAR (Desktop) */}
             <AdminSidebar 
@@ -88,7 +88,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             />
 
             {/* MOBILE NAVIGATION BLOCK (Header + Tabs) */}
-            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-b border-white/10 z-[100] flex flex-col">
+            <div className="md:hidden fixed top-0 left-0 w-full bg-gray-900/95 backdrop-blur-xl border-b border-white/10 z-[210] flex flex-col">
                 <div className="h-[env(safe-area-inset-top)] w-full"></div>
                 
                 {/* Title Bar */}
@@ -124,8 +124,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, mp, onli
             </div>
 
             {/* CONTENT AREA */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-gray-900 to-black md:relative pt-36 md:pt-0">
-                <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+            <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-br from-gray-900 to-black relative">
+                {/* Scrollable Container */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar pt-40 md:pt-8 pb-10">
                      <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
                         <h2 className="text-2xl font-black text-white flex items-center gap-3 uppercase italic">
                             {React.createElement(SECTIONS.find(s=>s.id===activeSection)?.icon || LayoutGrid, {size: 28, className: "text-blue-400"})} 
