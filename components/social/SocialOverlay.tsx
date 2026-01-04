@@ -10,11 +10,11 @@ import { useGlobal } from '../../context/GlobalContext';
 
 // Sub-components
 import { FriendRequest, PrivateMessage, SUPPORT_ID, Friend } from './types';
-import { PlayerProfileModal } from './social/PlayerProfileModal';
-import { ChatView } from './social/ChatView';
-import { FriendsList } from './social/FriendsList';
-import { CommunityView } from './social/CommunityView';
-import { RequestsList } from './social/RequestsList';
+import { PlayerProfileModal } from './PlayerProfileModal';
+import { ChatView } from './ChatView';
+import { FriendsList } from './FriendsList';
+import { CommunityView } from './CommunityView';
+import { RequestsList } from './RequestsList';
 
 // Re-export specific types if needed by other components, otherwise use internal
 export type { FriendRequest };
@@ -284,8 +284,8 @@ export const SocialOverlay: React.FC<SocialOverlayProps> = ({
         <div className="h-full w-full flex flex-col bg-black/20 font-sans text-white relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             
-            <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 w-full z-10 flex flex-col shrink-0" style={{ paddingTop: 'calc(3rem + env(safe-area-inset-top))' }}>
-                <div className="px-4 py-3 flex items-center justify-between">
+            <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 w-full z-10 flex flex-col shrink-0">
+                <div className="p-4 flex items-center justify-between">
                     <button onClick={() => setCurrentView('menu')} className="p-2 bg-gray-800/80 rounded-xl text-gray-400 hover:text-white border border-white/10"><HomeIcon size={20} /></button>
                     <h2 className={`text-2xl font-black italic text-transparent bg-clip-text bg-gradient-to-r flex items-center gap-2 pr-4 pb-1 ${isMessagingCategory ? 'from-cyan-400 to-blue-500' : 'from-purple-400 to-pink-500'}`}>{isMessagingCategory ? <MessageSquare size={24}/> : <Globe size={24}/>} {isMessagingCategory ? 'MESSAGERIE' : 'HUB SOCIAL'}</h2>
                     <div className="w-10"></div>
