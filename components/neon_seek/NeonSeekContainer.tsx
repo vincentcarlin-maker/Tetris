@@ -62,20 +62,20 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
     if (!currentLevelData) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] w-full h-[100dvh] bg-black font-sans text-white overflow-hidden select-none touch-none flex items-center justify-center">
+        <div className="fixed inset-0 z-[100] w-full h-[100dvh] bg-black font-sans text-white overflow-hidden select-none touch-none flex flex-col items-center justify-center p-4 gap-4">
             
             {/* FOND IMMERSIF (Flou dynamique) */}
             <div className="absolute inset-0 z-0">
                 <img 
                     src={currentLevelData.image} 
-                    className="w-full h-full object-cover blur-2xl opacity-40 scale-110" 
+                    className="w-full h-full object-cover blur-3xl opacity-30 scale-125" 
                     alt="Background blur"
                 />
-                <div className="absolute inset-0 bg-black/40"></div>
+                <div className="absolute inset-0 bg-black/60"></div>
             </div>
 
             {/* ZONE DE JEU 9:16 CENTRÉE */}
-            <div className="relative z-10 h-full max-h-full aspect-[9/16] bg-black shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden border-x border-white/5">
+            <div className="relative z-10 w-full max-w-md aspect-[9/16] shrink-1 bg-black shadow-2xl rounded-2xl border border-white/10 overflow-hidden">
                 <SearchGrid 
                     objects={state.objects} 
                     onGridClick={checkClick} 
@@ -86,7 +86,6 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 <div 
                     className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-30 pointer-events-none"
                     style={{ 
-                        paddingTop: 'calc(1rem + env(safe-area-inset-top))',
                         background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)'
                     }}
                 >
@@ -110,57 +109,50 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                     </div>
                 </div>
 
-                {/* BARRE INFÉRIEURE (OVERLAY) */}
-                <div 
-                    className="absolute bottom-0 left-0 w-full z-30 flex items-center px-4 shadow-[0_-15px_40px_rgba(0,0,0,0.5)] pointer-events-none"
-                    style={{ 
-                        height: 'calc(6rem + env(safe-area-inset-bottom))',
-                        paddingBottom: 'env(safe-area-inset-bottom)',
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%)'
-                    }}
-                >
-                    <div className="flex flex-col items-center justify-center border-r border-white/10 pr-4 mr-4 shrink-0 pointer-events-auto">
-                        <span className="text-[8px] font-black text-white/60 uppercase tracking-widest mb-1">Scanner</span>
-                        <div className={`flex items-center gap-1.5 text-xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
-                            {timeLeft}s
+                {/* FEEDBACK DE DÉCOUVERTE */}
+                {lastFoundName && (
+                    <div className="absolute inset-0 z-[150] flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                        <div className="bg-black/40 backdrop-blur-sm w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300 border-y border-yellow-500/30">
+                            <div className="flex items-center gap-4 mb-2">
+                                <Sparkles className="text-yellow-400 animate-pulse" size={24} />
+                                <span className="text-yellow-500 font-black tracking-[0.5em] text-xs uppercase">Fragment Localisé</span>
+                                <Sparkles className="text-yellow-400 animate-pulse" size={24} />
+                            </div>
+                            <h2 className="text-3xl md:text-5xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-400 to-white drop-shadow-[0_0_30px_rgba(250,204,21,0.8)] uppercase tracking-tighter text-center px-6">
+                                {lastFoundName}
+                            </h2>
                         </div>
                     </div>
-
-                    <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar py-2 pointer-events-auto">
-                        {state.objects.map(obj => (
-                            <div 
-                                key={obj.id} 
-                                className={`min-w-[100px] px-3 py-2 rounded-xl border transition-all flex items-center gap-2 shrink-0 ${
-                                    obj.found 
-                                    ? 'bg-green-500/10 border-green-500/40 opacity-30 grayscale' 
-                                    : 'bg-black/80 border-white/10 shadow-lg backdrop-blur-sm'
-                                }`}
-                            >
-                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${obj.found ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-yellow-500 animate-pulse shadow-[0_0_8px_#facc15]'}`}></div>
-                                <span className={`text-[9px] font-black uppercase tracking-tight truncate ${obj.found ? 'text-green-400 line-through' : 'text-white'}`}>
-                                    {obj.name}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                )}
             </div>
 
-            {/* FEEDBACK DE DÉCOUVERTE */}
-            {lastFoundName && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none select-none overflow-hidden">
-                    <div className="bg-black/20 backdrop-blur-[2px] w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300">
-                        <div className="flex items-center gap-4 mb-2">
-                            <Sparkles className="text-yellow-400 animate-pulse" size={24} />
-                            <span className="text-yellow-500 font-black tracking-[0.5em] text-xs uppercase">Fragment Localisé</span>
-                            <Sparkles className="text-yellow-400 animate-pulse" size={24} />
-                        </div>
-                        <h2 className="text-4xl md:text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-400 to-white drop-shadow-[0_0_30px_rgba(250,204,21,0.8)] uppercase tracking-tighter text-center px-6">
-                            {lastFoundName}
-                        </h2>
+            {/* BARRE INFÉRIEURE (SÉPARÉE SOUS L'IMAGE) */}
+            <div className="w-full max-w-md z-30 flex items-center p-3 bg-gray-900/90 border border-white/10 rounded-2xl shadow-xl backdrop-blur-md shrink-0">
+                <div className="flex flex-col items-center justify-center border-r border-white/10 pr-4 mr-4 shrink-0">
+                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Scanner</span>
+                    <div className={`flex items-center gap-1.5 text-xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
+                        {timeLeft}s
                     </div>
                 </div>
-            )}
+
+                <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar py-1">
+                    {state.objects.map(obj => (
+                        <div 
+                            key={obj.id} 
+                            className={`min-w-[100px] px-3 py-2 rounded-xl border transition-all flex items-center gap-2 shrink-0 ${
+                                obj.found 
+                                ? 'bg-green-500/10 border-green-500/40 opacity-50 grayscale' 
+                                : 'bg-black/40 border-white/10 shadow-lg'
+                            }`}
+                        >
+                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${obj.found ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-yellow-500 animate-pulse shadow-[0_0_8px_#facc15]'}`}></div>
+                            <span className={`text-[9px] font-black uppercase tracking-tight truncate ${obj.found ? 'text-green-400 line-through' : 'text-white'}`}>
+                                {obj.name}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
 
             {/* ÉCRAN DE FIN */}
             {state.status === 'gameOver' && (
