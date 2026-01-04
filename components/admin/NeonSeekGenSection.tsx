@@ -51,6 +51,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             setLevelDesc(slotData.description || '');
             setLevelDifficulty(slotData.difficulty || 'MOYEN');
             setLevelReward(slotData.reward || 100);
+            setPrompt('');
         } else {
             // Reset pour un nouveau slot
             setGeneratedImage(null);
@@ -58,7 +59,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             
             // --- SCÉNARIO SPÉCIAL NIVEAU 3 ---
             if (selectedSlot === 3) {
-                setPrompt("A futuristic cyberpunk rooftop garden at night, raining, neon bonsai trees, holographic koi fish pond, discarded noodle boxes, futuristic tools on a wet table, high detail, cinematic lighting, 8k, portrait 9:16.");
+                setPrompt("");
                 setLevelTitle("JARDIN CYBER");
                 setLevelDesc("Trouvez les artefacts cachés sous la pluie de néons.");
                 setLevelDifficulty('EXPERT');
