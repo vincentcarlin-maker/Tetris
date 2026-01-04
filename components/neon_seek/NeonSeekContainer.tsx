@@ -18,20 +18,24 @@ interface NeonSeekProps {
 export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const { neonSeekConfig } = useGlobal();
     const [inMenu, setInMenu] = useState(true);
-    const [showTutorial, setShowTutorial] = useState(false);
     const [currentLevelData, setCurrentLevelData] = useState<SeekLevel | null>(null);
     
+    // Fusionner les niveaux prédéfinis avec les slots 1-20 de l'admin
     const allLevels = React.useMemo(() => {
-        const levels = [...PREDEFINED_LEVELS];
-        if (neonSeekConfig?.currentImage) {
-            levels.unshift({
-                id: 'live_daily',
-                title: 'SIGNAL LIVE',
-                description: 'Le secteur actuel généré par l\'IA du système.',
-                difficulty: 'EXPERT',
-                image: neonSeekConfig.currentImage,
-                objects: neonSeekConfig.objects || [],
-                reward: 250
+        const levels: SeekLevel[] = [...PREDEFINED_LEVELS];
+        
+        if (neonSeekConfig?.customLevels) {
+            // On extrait les clés (1, 2, 3...), on les trie numériquement, 
+            // et on ajoute les niveaux correspondants
+            const slotKeys = Object.keys(neonSeekConfig.customLevels)
+                .map(Number)
+                .sort((a, b) => a - b);
+            
+            slotKeys.forEach(slot => {
+                const level = neonSeekConfig.customLevels![slot];
+                if (level && level.image) {
+                    levels.push(level);
+                }
             });
         }
         return levels;
@@ -78,7 +82,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                     imageSrc={currentLevelData.image}
                 />
                 
-                {/* BARRE SUPÉRIEURE (OVERLAY) - Contrainte au conteneur 9:16 */}
+                {/* BARRE SUPÉRIEURE (OVERLAY) */}
                 <div 
                     className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-30 pointer-events-none"
                     style={{ 
@@ -92,8 +96,8 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                         </button>
                     </div>
                     
-                    <div className="flex flex-col items-center pointer-events-none">
-                        <h1 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] uppercase tracking-tighter">
+                    <div className="flex flex-col items-center pointer-events-none text-center px-4 overflow-hidden">
+                        <h1 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] uppercase tracking-tighter truncate w-full">
                             {currentLevelData.title}
                         </h1>
                         <span className="text-[7px] font-black text-yellow-500/80 tracking-[0.2em] uppercase">{currentLevelData.difficulty}</span>
@@ -106,7 +110,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                     </div>
                 </div>
 
-                {/* BARRE INFÉRIEURE (OVERLAY) - Contrainte au conteneur 9:16 */}
+                {/* BARRE INFÉRIEURE (OVERLAY) */}
                 <div 
                     className="absolute bottom-0 left-0 w-full z-30 flex items-center px-4 shadow-[0_-15px_40px_rgba(0,0,0,0.5)] pointer-events-none"
                     style={{ 
@@ -142,7 +146,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
                 </div>
             </div>
 
-            {/* FEEDBACK DE DÉCOUVERTE (Full Screen Overlay) */}
+            {/* FEEDBACK DE DÉCOUVERTE */}
             {lastFoundName && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none select-none overflow-hidden">
                     <div className="bg-black/20 backdrop-blur-[2px] w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300">

@@ -8,6 +8,7 @@ import { useHighScores } from '../hooks/useHighScores';
 import { useSupabase } from '../hooks/useSupabase';
 import { DB, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { FriendRequest } from '../components/social/types';
+import { SeekLevel } from '../components/neon_seek/types';
 
 export type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard' | 'neon_seek';
 export type SocialTab = 'FRIENDS' | 'CHAT' | 'COMMUNITY' | 'REQUESTS';
@@ -34,7 +35,7 @@ interface GlobalContextType {
     setDisabledGames: React.Dispatch<React.SetStateAction<string[]>>;
     featureFlags: Record<string, boolean>;
     setFeatureFlags: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-    neonSeekConfig: { currentImage?: string } | null; // NOUVEAU
+    neonSeekConfig: { currentImage?: string, customLevels?: Record<number, SeekLevel> } | null;
     globalEvents: any[];
     handleGameEvent: (gameId: string, eventType: 'score' | 'win' | 'action' | 'play', value: number) => void;
     handleLogin: (username: string, cloudData?: any) => void;
@@ -75,7 +76,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]); 
     const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
-    const [neonSeekConfig, setNeonSeekConfig] = useState<{ currentImage?: string } | null>(null); // NOUVEAU
+    const [neonSeekConfig, setNeonSeekConfig] = useState<{ currentImage?: string, customLevels?: Record<number, SeekLevel> } | null>(null);
     
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
@@ -183,7 +184,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         setFeatureFlags(config.featureFlags);
                         localStorage.setItem('neon_feature_flags', JSON.stringify(config.featureFlags));
                     }
-                    // CHARGEMENT CONFIG NEON SEEK
                     if (config.neonSeekConfig) {
                         setNeonSeekConfig(config.neonSeekConfig);
                     }
@@ -337,7 +337,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             currentView, setCurrentView, isAuthenticated, setIsAuthenticated, showLoginModal, setShowLoginModal,
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
             friendRequests, setFriendRequests, sentRequests, setSentRequests, refreshSocialData,
-            disabledGames, setDisabledGames, featureFlags, setFeatureFlags, neonSeekConfig, // NOUVEAU
+            disabledGames, setDisabledGames, featureFlags, setFeatureFlags, neonSeekConfig,
             handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,
