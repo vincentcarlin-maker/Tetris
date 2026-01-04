@@ -30,6 +30,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const [viewState, setViewState] = useState({ scale: 1, x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
     const lastMousePosRef = useRef<{ x: number, y: number } | null>(null);
+    const lastPinchDistRef = useRef<number | null>(null);
     
     const [status, setStatus] = useState<'IDLE' | 'GENERATING_IMAGE' | 'ANALYZING_OBJECTS' | 'READY'>('IDLE');
     const [isSaving, setIsSaving] = useState(false);
@@ -196,6 +197,9 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
+        // Pour la souris ou le premier doigt
+        if (!e.isPrimary) return;
+
         // Si on clique sur le fond (pas un objet), on commence le pan
         if (!draggingId && generatedImage) {
             setIsPanning(true);
@@ -205,7 +209,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || !e.isPrimary) return;
         e.preventDefault();
 
         // 1. Déplacement de l'OBJET
@@ -236,11 +240,46 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     };
 
     const handlePointerUp = (e: React.PointerEvent) => {
+        if (!e.isPrimary) return;
         setDraggingId(null);
         setIsPanning(false);
         lastMousePosRef.current = null;
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     };
+
+    // --- MOBILE PINCH ZOOM ---
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (e.touches.length === 2) {
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            lastPinchDistRef.current = dist;
+            setIsPanning(false); // Stop panning if pinching
+            setDraggingId(null); // Stop dragging object if pinching
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
+            e.preventDefault(); // Prevent page scroll
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            
+            const delta = dist - lastPinchDistRef.current;
+            const newScale = Math.min(Math.max(1, viewState.scale + delta * 0.005), 4);
+            
+            setViewState(prev => ({ ...prev, scale: newScale }));
+            lastPinchDistRef.current = dist;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        lastPinchDistRef.current = null;
+    };
+
 
     const resetView = () => setViewState({ scale: 1, x: 0, y: 0 });
 
@@ -360,6 +399,9 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerUp}
                                 onPointerLeave={handlePointerUp}
+                                onTouchStart={handleTouchStart}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={handleTouchEnd}
                                 style={{ 
                                     transform: `translate(${viewState.x}px, ${viewState.y}px) scale(${viewState.scale})`,
                                     transformOrigin: '0 0',
@@ -371,6 +413,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                     <div 
                                         key={obj.id} 
                                         onPointerDown={(e) => {
+                                            if(!e.isPrimary) return;
                                             e.stopPropagation(); 
                                             setDraggingId(obj.id);
                                             (e.target as HTMLElement).setPointerCapture(e.pointerId);

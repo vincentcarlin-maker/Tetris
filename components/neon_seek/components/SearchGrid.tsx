@@ -22,6 +22,9 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
     const viewStartRef = useRef({ x: 0, y: 0 });
     const isClickRef = useRef(true);
 
+    // Refs pour le Pinch-to-Zoom (Mobile)
+    const lastPinchDistRef = useRef<number | null>(null);
+
     const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
     const [imageError, setImageError] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -43,8 +46,13 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
         });
     };
 
+    // --- SOURIS & TOUCH SINGLE (Drag & Click) ---
+
     const handlePointerDown = (e: React.PointerEvent) => {
         if (!contentRef.current) return;
+        // On ne capture pas le pointeur si c'est du multi-touch (géré par onTouch)
+        if (!e.isPrimary) return; 
+
         (e.target as Element).setPointerCapture(e.pointerId);
         
         dragStartRef.current = { x: e.clientX, y: e.clientY };
@@ -57,13 +65,12 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
         // Mise à jour de la position du curseur visuel (crosshair)
         if (contentRef.current) {
             const rect = contentRef.current.getBoundingClientRect();
-            // On calcule la position relative dans l'élément transformé
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             setMousePos({ x, y });
         }
 
-        if (!isDragging) return;
+        if (!isDragging || !e.isPrimary) return;
 
         const dx = e.clientX - dragStartRef.current.x;
         const dy = e.clientY - dragStartRef.current.y;
@@ -84,20 +91,60 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
     };
 
     const handlePointerUp = (e: React.PointerEvent) => {
+        if (!e.isPrimary) return;
+        
         setIsDragging(false);
         (e.target as Element).releasePointerCapture(e.pointerId);
 
         // Si c'était un clic propre (pas de drag significatif)
+        // ET qu'on n'était pas en train de faire un pinch zoom (vérif simple via scale lock si besoin, mais ici isClickRef suffit généralement)
         if (isClickRef.current && isLoaded && contentRef.current) {
             const rect = contentRef.current.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             
-            // Sécurité : on vérifie qu'on a cliqué DANS l'image
             if (x >= 0 && x <= 100 && y >= 0 && y <= 100) {
                 onGridClick(x, y);
             }
         }
+    };
+
+    // --- MOBILE PINCH ZOOM ---
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (e.touches.length === 2) {
+            // Début du pinch
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            lastPinchDistRef.current = dist;
+            isClickRef.current = false; // Annule le clic si on commence un pinch
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
+            // Mouvement du pinch
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            
+            const delta = dist - lastPinchDistRef.current;
+            // Sensibilité du zoom tactile
+            const zoomFactor = delta * 0.005; 
+            
+            handleZoom(zoomFactor);
+            lastPinchDistRef.current = dist;
+            
+            // Empêche le scroll de la page
+            e.preventDefault(); 
+        }
+    };
+
+    const handleTouchEnd = () => {
+        lastPinchDistRef.current = null;
     };
 
     const handleImageError = () => {
@@ -109,25 +156,28 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
         <div 
             ref={containerRef}
             className="w-full h-full relative bg-black overflow-hidden flex items-center justify-center touch-none select-none"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             {/* Contrôles de Zoom (Overlay UI) */}
             {isLoaded && (
                 <div className="absolute top-16 right-4 z-50 flex flex-col gap-2 pointer-events-auto">
                     <button 
-                        onClick={() => handleZoom(0.5)} 
+                        onPointerDown={(e) => { e.stopPropagation(); handleZoom(0.5); }} 
                         className="p-2 bg-black/60 backdrop-blur-md text-white rounded-full border border-white/20 active:bg-blue-600 transition-colors shadow-lg"
                     >
                         <ZoomIn size={20}/>
                     </button>
                     <button 
-                        onClick={() => handleZoom(-0.5)} 
+                        onPointerDown={(e) => { e.stopPropagation(); handleZoom(-0.5); }} 
                         className="p-2 bg-black/60 backdrop-blur-md text-white rounded-full border border-white/20 active:bg-blue-600 transition-colors shadow-lg"
                     >
                         <ZoomOut size={20}/>
                     </button>
                     {view.scale > 1 && (
                         <button 
-                            onClick={resetView} 
+                            onPointerDown={(e) => { e.stopPropagation(); resetView(); }} 
                             className="p-2 bg-black/60 backdrop-blur-md text-yellow-400 rounded-full border border-white/20 active:bg-yellow-600 active:text-black transition-colors shadow-lg"
                         >
                             <Maximize size={20}/>
