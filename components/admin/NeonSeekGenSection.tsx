@@ -201,6 +201,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         if (!e.isPrimary) return;
 
         // Si on clique sur le fond (pas un objet), on commence le pan
+        // NOTE: Si draggingId est déjà set (par l'objet), cette fonction ne devrait pas déclencher le pan
         if (!draggingId && generatedImage) {
             setIsPanning(true);
             lastMousePosRef.current = { x: e.clientX, y: e.clientY };
@@ -212,12 +213,22 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         if (!containerRef.current || !e.isPrimary) return;
         e.preventDefault();
 
-        // 1. Déplacement de l'OBJET
+        // 1. Déplacement de l'OBJET (Prioritaire)
         if (draggingId) {
             const rect = containerRef.current.getBoundingClientRect();
-            // Important : On divise par le scale pour que le mouvement de la souris corresponde au mouvement sur l'image zoomée
-            const x = Math.max(0, Math.min(100, ((e.clientX - rect.left - viewState.x) / (rect.width * viewState.scale)) * 100 * viewState.scale));
-            const y = Math.max(0, Math.min(100, ((e.clientY - rect.top - viewState.y) / (rect.height * viewState.scale)) * 100 * viewState.scale));
+            
+            // Calcul précis de la position relative à l'image zoomée
+            // On soustrait le décalage du Pan (viewState.x/y) et on divise par le Scale
+            const relX = e.clientX - rect.left;
+            const relY = e.clientY - rect.top;
+            
+            // Conversion en coordonnées image locales (0 -> rect.width/height en pixels originaux)
+            const imgX = (relX - viewState.x) / viewState.scale;
+            const imgY = (relY - viewState.y) / viewState.scale;
+
+            // Conversion en pourcentage
+            const x = Math.max(0, Math.min(100, (imgX / rect.width) * 100));
+            const y = Math.max(0, Math.min(100, (imgY / rect.height) * 100));
 
             setDetectedObjects(prev => prev.map(obj => 
                 obj.id === draggingId 
@@ -414,33 +425,34 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                         key={obj.id} 
                                         onPointerDown={(e) => {
                                             if(!e.isPrimary) return;
-                                            e.stopPropagation(); 
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            setIsPanning(false); // Force stop panning
                                             setDraggingId(obj.id);
                                             (e.target as HTMLElement).setPointerCapture(e.pointerId);
                                         }}
-                                        className={`absolute flex items-center justify-center transition-colors group ${draggingId === obj.id ? 'z-50 cursor-grabbing' : 'cursor-grab hover:z-40'}`}
+                                        // Zone de clic agrandie (w-12 h-12) mais centrée
+                                        className={`absolute flex items-center justify-center transition-colors group z-50 -ml-6 -mt-6 w-12 h-12 ${draggingId === obj.id ? 'cursor-grabbing' : 'cursor-grab hover:z-50'}`}
                                         style={{ 
                                             left: `${obj.x}%`, 
                                             top: `${obj.y}%`, 
-                                            transform: 'translate(-50%, -50%)',
-                                            // On inverse l'échelle pour que la croix reste de taille constante visuellement
-                                            // scale: `${1 / viewState.scale}` 
+                                            // Pas de transform ici car on gère le centrage avec les marges négatives pour que le clic soit plus facile
                                         }}
                                     >
-                                        {/* LA CROIX DE SÉLECTION */}
-                                        <div className="relative">
+                                        {/* LA CROIX DE SÉLECTION (Visuel) */}
+                                        <div className="relative pointer-events-none">
                                             {/* Ligne Verticale */}
                                             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-6 bg-green-500 shadow-[0_0_5px_black] ${draggingId === obj.id ? 'bg-white h-8' : ''}`}></div>
                                             {/* Ligne Horizontale */}
                                             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-0.5 bg-green-500 shadow-[0_0_5px_black] ${draggingId === obj.id ? 'bg-white w-8' : ''}`}></div>
                                             
                                             {/* Numéro au-dessus */}
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black/80 text-green-400 border border-green-500/50 px-1.5 py-0.5 rounded text-[10px] font-black pointer-events-none whitespace-nowrap shadow-lg">
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/80 text-green-400 border border-green-500/50 px-1.5 py-0.5 rounded text-[10px] font-black whitespace-nowrap shadow-lg">
                                                 {idx + 1}
                                             </div>
 
                                             {/* Tooltip coordonnées (visible au hover/drag) */}
-                                            <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-blue-600 text-white text-[8px] px-1 rounded opacity-0 group-hover:opacity-100 ${draggingId === obj.id ? 'opacity-100' : ''} pointer-events-none transition-opacity`}>
+                                            <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-blue-600 text-white text-[8px] px-1 rounded opacity-0 group-hover:opacity-100 ${draggingId === obj.id ? 'opacity-100' : ''} transition-opacity`}>
                                                 {Math.round(obj.x)},{Math.round(obj.y)}
                                             </div>
                                         </div>
