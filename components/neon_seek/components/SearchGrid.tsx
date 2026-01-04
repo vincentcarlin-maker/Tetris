@@ -15,6 +15,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
     const contentRef = useRef<HTMLDivElement>(null);   
     
     const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
+    const [layout, setLayout] = useState({ width: 0, height: 0 }); // Dimensions réelles de l'image affichée
     const [isDragging, setIsDragging] = useState(false);
     
     // Refs pour la logique de drag vs click
@@ -36,6 +37,38 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
         resetView(); 
     }, [imageSrc]);
 
+    // Calculer la taille optimale (Fit to screen with 9:16 aspect ratio)
+    useEffect(() => {
+        const updateLayout = () => {
+            if (!containerRef.current) return;
+            const { clientWidth: cw, clientHeight: ch } = containerRef.current;
+            const targetRatio = 9/16;
+            const containerRatio = cw / ch;
+
+            let w, h;
+            if (containerRatio > targetRatio) {
+                // L'écran est plus large que l'image (Bandes noires sur les côtés)
+                h = ch;
+                w = h * targetRatio;
+            } else {
+                // L'écran est plus haut que l'image (Bandes noires en haut/bas)
+                w = cw;
+                h = w / targetRatio;
+            }
+            setLayout({ width: w, height: h });
+        };
+
+        window.addEventListener('resize', updateLayout);
+        // Appel initial et petit délai pour s'assurer que le DOM est prêt
+        updateLayout();
+        const t = setTimeout(updateLayout, 100);
+        
+        return () => {
+            window.removeEventListener('resize', updateLayout);
+            clearTimeout(t);
+        };
+    }, []);
+
     const resetView = () => setView({ scale: 1, x: 0, y: 0 });
 
     /**
@@ -43,7 +76,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
      * Si focalPoint est null, on zoom vers le centre du conteneur.
      */
     const handleZoom = (delta: number, focalPoint?: { x: number, y: number }) => {
-        if (!containerRef.current) return;
+        if (!contentRef.current) return;
 
         setView(prev => {
             const newScale = Math.max(1, Math.min(6, prev.scale + delta)); // Max zoom augmenté à 6x
@@ -51,8 +84,8 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             // Si on revient à 1, on reset tout pour centrer proprement
             if (newScale === 1) return { scale: 1, x: 0, y: 0 };
 
-            // Calcul du point focal (soit la souris/doigts, soit le centre de l'écran)
-            const rect = containerRef.current!.getBoundingClientRect();
+            // Calcul du point focal (soit la souris/doigts, soit le centre de l'image visible)
+            const rect = contentRef.current!.getBoundingClientRect();
             const center = focalPoint 
                 ? { x: focalPoint.x - rect.left, y: focalPoint.y - rect.top }
                 : { x: rect.width / 2, y: rect.height / 2 };
@@ -120,6 +153,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             
+            // On valide le clic uniquement s'il est DANS l'image (0-100%)
             if (x >= 0 && x <= 100 && y >= 0 && y <= 100) {
                 onGridClick(x, y);
             }
@@ -227,16 +261,21 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                 </div>
             )}
 
-            {/* Conteneur Transformable */}
+            {/* Conteneur Transformable - Taille fixe calculée */}
             {/* NOTE: Suppression de `transition-transform` pour une fluidité 60fps en temps réel */}
             <div
                 ref={contentRef}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
-                className={`relative w-full h-full will-change-transform origin-top-left ${isDragging ? 'cursor-grabbing' : 'cursor-crosshair'}`}
+                className={`relative will-change-transform origin-top-left ${isDragging ? 'cursor-grabbing' : 'cursor-crosshair'}`}
                 style={{
-                    transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`
+                    width: layout.width > 0 ? layout.width : '100%',
+                    height: layout.height > 0 ? layout.height : '100%',
+                    transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+                    // Centrage si pas encore chargé ou si dimensions nulles
+                    marginLeft: view.scale === 1 ? 'auto' : undefined,
+                    marginRight: view.scale === 1 ? 'auto' : undefined
                 }}
             >
                 <img 
@@ -244,8 +283,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                     alt="Arcade Scene" 
                     onLoad={() => { setIsLoaded(true); setImageError(false); }}
                     onError={handleImageError}
-                    className={`w-full h-full object-contain pointer-events-none select-none transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-                    style={{ transformOrigin: 'center' }} // L'image elle-même reste centrée dans le div conteneur
+                    className={`w-full h-full object-fill pointer-events-none select-none transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 />
 
                 {isLoaded && !imageError && (
