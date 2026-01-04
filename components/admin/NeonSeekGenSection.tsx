@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check, Move, Plus } from 'lucide-react';
+import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check, Move, Plus, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useGlobal } from '../../context/GlobalContext';
@@ -24,14 +24,19 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [detectedObjects, setDetectedObjects] = useState<HiddenObject[]>([]);
+    
+    // Interaction States
     const [draggingId, setDraggingId] = useState<string | null>(null);
+    const [viewState, setViewState] = useState({ scale: 1, x: 0, y: 0 });
+    const [isPanning, setIsPanning] = useState(false);
+    const lastMousePosRef = useRef<{ x: number, y: number } | null>(null);
     
     const [status, setStatus] = useState<'IDLE' | 'GENERATING_IMAGE' | 'ANALYZING_OBJECTS' | 'READY'>('IDLE');
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    const imagePreviewRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Charger les données du slot sélectionné depuis la config globale
     useEffect(() => {
@@ -66,6 +71,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         }
         setSuccess(null);
         setError(null);
+        setViewState({ scale: 1, x: 0, y: 0 }); // Reset zoom
     }, [selectedSlot, neonSeekConfig]);
 
     const handleGenerate = async () => {
@@ -74,10 +80,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         setSuccess(null);
 
         try {
-            // 1. Gestion Robuste de la Clé API
             let apiKey = process.env.API_KEY;
-            
-            // Si pas de clé dans l'env, on vérifie si on est dans AI Studio
             if (!apiKey) {
                 const win = window as any;
                 if (win.aistudio) {
@@ -85,29 +88,23 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     if (!hasKey) {
                         await win.aistudio.openSelectKey();
                     }
-                    apiKey = process.env.API_KEY; // Tentative de relecture
+                    apiKey = process.env.API_KEY;
                 }
             }
 
-            // Si toujours pas de clé et pas dans AI Studio -> Erreur explicite pour l'utilisateur local
             if (!apiKey && !(window as any).aistudio) {
                 throw new Error("Clé API manquante. Configurez la variable d'environnement API_KEY ou utilisez Google AI Studio.");
             }
 
-            // Initialisation du client
             const ai = new GoogleGenAI({ apiKey: apiKey || '' });
             
             let base64Image = null;
-            const modelConfig = GENERATION_MODELS.find(m => m.id === selectedModel);
-
-            // Logique de génération standardisée pour Gemini (Imagen retiré)
             const response = await ai.models.generateContent({
                 model: selectedModel,
                 contents: { parts: [{ text: prompt }] },
                 config: { 
                     imageConfig: { 
                         aspectRatio: "9:16", 
-                        // On demande 1K pour le modèle Pro pour une meilleure qualité
                         ...(selectedModel.includes('pro') ? { imageSize: "1K" } : {}) 
                     } 
                 },
@@ -125,7 +122,6 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
             setStatus('ANALYZING_OBJECTS');
             
-            // Analyse pour trouver des objets (toujours avec Flash pour la rapidité)
             const analysisResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
@@ -160,12 +156,10 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
             if (analysisResponse.text) {
                 const result = JSON.parse(analysisResponse.text);
-                // On garde le titre manuel s'il a été défini spécifiquement (comme pour le niveau 3), sinon on prend l'auto
                 if (selectedSlot !== 3 && result.title) setLevelTitle(result.title.toUpperCase());
                 if (result.objects) setDetectedObjects(result.objects.map((o: any) => ({ ...o, found: false, radius: 7 })));
                 setStatus('READY');
             } else {
-                // Fallback si l'analyse échoue mais l'image est là
                 setStatus('READY');
                 setDetectedObjects([]);
             }
@@ -174,11 +168,6 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             setError(err.message || "Une erreur est survenue lors de la génération.");
             setStatus('IDLE');
         }
-    };
-
-    // NOTE: Clic sur l'image désactivé pour la création. Utiliser le bouton "Ajouter"
-    const handleImageClick = (e: React.MouseEvent) => {
-        // Vide intentionnellement
     };
 
     const handleAddManualObject = () => {
@@ -196,25 +185,64 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         ]);
     };
 
+    // --- LOGIQUE ZOOM & PANORAMIQUE ---
+
+    const handleWheel = (e: React.WheelEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = -e.deltaY * 0.001;
+        const newScale = Math.min(Math.max(1, viewState.scale + delta), 4);
+        setViewState(prev => ({ ...prev, scale: newScale }));
+    };
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        // Si on clique sur le fond (pas un objet), on commence le pan
+        if (!draggingId && generatedImage) {
+            setIsPanning(true);
+            lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+            (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        }
+    };
+
     const handlePointerMove = (e: React.PointerEvent) => {
-        if (!draggingId || !imagePreviewRef.current) return;
-        e.preventDefault(); // Empêche le scroll sur mobile pendant le drag
-        
-        const rect = imagePreviewRef.current.getBoundingClientRect();
-        // Calcul des coordonnées relatives en pourcentage, bornées entre 0 et 100
-        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+        if (!containerRef.current) return;
+        e.preventDefault();
 
-        setDetectedObjects(prev => prev.map(obj => 
-            obj.id === draggingId 
-                ? { ...obj, x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) } 
-                : obj
-        ));
+        // 1. Déplacement de l'OBJET
+        if (draggingId) {
+            const rect = containerRef.current.getBoundingClientRect();
+            // Important : On divise par le scale pour que le mouvement de la souris corresponde au mouvement sur l'image zoomée
+            const x = Math.max(0, Math.min(100, ((e.clientX - rect.left - viewState.x) / (rect.width * viewState.scale)) * 100 * viewState.scale));
+            const y = Math.max(0, Math.min(100, ((e.clientY - rect.top - viewState.y) / (rect.height * viewState.scale)) * 100 * viewState.scale));
+
+            setDetectedObjects(prev => prev.map(obj => 
+                obj.id === draggingId 
+                    ? { ...obj, x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) } 
+                    : obj
+            ));
+        } 
+        // 2. Déplacement de la VUE (Pan)
+        else if (isPanning && lastMousePosRef.current) {
+            const dx = e.clientX - lastMousePosRef.current.x;
+            const dy = e.clientY - lastMousePosRef.current.y;
+            lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+
+            setViewState(prev => ({
+                ...prev,
+                x: prev.x + dx,
+                y: prev.y + dy
+            }));
+        }
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e: React.PointerEvent) => {
         setDraggingId(null);
+        setIsPanning(false);
+        lastMousePosRef.current = null;
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     };
+
+    const resetView = () => setViewState({ scale: 1, x: 0, y: 0 });
 
     const handleSave = async () => {
         if (!generatedImage || detectedObjects.length === 0 || !isSupabaseConfigured) return;
@@ -313,45 +341,75 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <div className="space-y-4">
-                    <div 
-                        ref={imagePreviewRef}
-                        onClick={handleImageClick}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
-                        onPointerLeave={handlePointerUp}
-                        className={`w-full bg-gray-900 rounded-[40px] border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden aspect-[9/16] max-h-[600px] shadow-inner ${draggingId ? 'cursor-grabbing' : 'cursor-crosshair'} touch-none`}
-                    >
+                    
+                    {/* ZONE DE JEU / PREVIEW AVEC ZOOM */}
+                    <div className="relative w-full aspect-[9/16] max-h-[600px] bg-gray-900 rounded-[40px] border-2 border-dashed border-white/10 overflow-hidden shadow-inner cursor-move touch-none">
+                        {/* Contrôles de Zoom Flottants */}
+                        <div className="absolute top-4 right-4 z-50 flex flex-col gap-2">
+                            <button onClick={() => setViewState(p => ({...p, scale: Math.min(p.scale + 0.5, 4)}))} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><ZoomIn size={16}/></button>
+                            <button onClick={() => setViewState(p => ({...p, scale: Math.max(p.scale - 0.5, 1)}))} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><ZoomOut size={16}/></button>
+                            <button onClick={resetView} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><Maximize size={16}/></button>
+                        </div>
+
                         {generatedImage ? (
-                            <>
+                            <div 
+                                ref={containerRef}
+                                className="w-full h-full relative transform-gpu"
+                                onWheel={handleWheel}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                                onPointerLeave={handlePointerUp}
+                                style={{ 
+                                    transform: `translate(${viewState.x}px, ${viewState.y}px) scale(${viewState.scale})`,
+                                    transformOrigin: '0 0',
+                                    transition: isPanning || draggingId ? 'none' : 'transform 0.2s ease-out'
+                                }}
+                            >
                                 <img src={generatedImage} className="w-full h-full object-contain pointer-events-none select-none" alt="Preview" />
                                 {detectedObjects.map((obj, idx) => (
                                     <div 
                                         key={obj.id} 
                                         onPointerDown={(e) => {
-                                            e.stopPropagation(); // Empêche la création d'un nouveau point
+                                            e.stopPropagation(); 
                                             setDraggingId(obj.id);
+                                            (e.target as HTMLElement).setPointerCapture(e.pointerId);
                                         }}
-                                        className={`absolute border-2 border-green-500 rounded-full flex items-center justify-center bg-green-500/20 hover:bg-green-500/40 transition-colors ${draggingId === obj.id ? 'cursor-grabbing scale-110 z-50 border-white' : 'cursor-grab'}`}
+                                        className={`absolute flex items-center justify-center transition-colors group ${draggingId === obj.id ? 'z-50 cursor-grabbing' : 'cursor-grab hover:z-40'}`}
                                         style={{ 
                                             left: `${obj.x}%`, 
                                             top: `${obj.y}%`, 
-                                            width: `${obj.radius * 2}%`, 
-                                            height: `${obj.radius * (2 * 16/9)}%`, 
-                                            transform: 'translate(-50%, -50%)' 
+                                            transform: 'translate(-50%, -50%)',
+                                            // On inverse l'échelle pour que la croix reste de taille constante visuellement
+                                            // scale: `${1 / viewState.scale}` 
                                         }}
                                     >
-                                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
-                                            {obj.name} ({Math.round(obj.x)},{Math.round(obj.y)})
+                                        {/* LA CROIX DE SÉLECTION */}
+                                        <div className="relative">
+                                            {/* Ligne Verticale */}
+                                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-6 bg-green-500 shadow-[0_0_5px_black] ${draggingId === obj.id ? 'bg-white h-8' : ''}`}></div>
+                                            {/* Ligne Horizontale */}
+                                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-0.5 bg-green-500 shadow-[0_0_5px_black] ${draggingId === obj.id ? 'bg-white w-8' : ''}`}></div>
+                                            
+                                            {/* Numéro au-dessus */}
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-black/80 text-green-400 border border-green-500/50 px-1.5 py-0.5 rounded text-[10px] font-black pointer-events-none whitespace-nowrap shadow-lg">
+                                                {idx + 1}
+                                            </div>
+
+                                            {/* Tooltip coordonnées (visible au hover/drag) */}
+                                            <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-blue-600 text-white text-[8px] px-1 rounded opacity-0 group-hover:opacity-100 ${draggingId === obj.id ? 'opacity-100' : ''} pointer-events-none transition-opacity`}>
+                                                {Math.round(obj.x)},{Math.round(obj.y)}
+                                            </div>
                                         </div>
-                                        <span className="bg-green-500 text-black text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center pointer-events-none select-none">
-                                            {idx + 1}
-                                        </span>
-                                        {/* Poignée de redimensionnement visuelle (optionnelle pour UX) */}
-                                        <div className="absolute bottom-0 right-0 w-2 h-2 bg-white/50 rounded-full cursor-nwse-resize opacity-0 hover:opacity-100"></div>
                                     </div>
                                 ))}
-                            </>
-                        ) : <div className="text-gray-700 font-black uppercase text-center opacity-20"><Image size={80} className="mx-auto mb-2"/>Aucun visuel</div>}
+                            </div>
+                        ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-700 font-black uppercase text-center opacity-20">
+                                <Image size={80} className="mb-2"/>
+                                Aucun visuel
+                            </div>
+                        )}
                     </div>
                     
                     {/* Bouton Ajouter sous l'image */}
@@ -365,7 +423,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                         </button>
                     </div>
 
-                    <p className="text-xs text-center text-gray-500 italic flex items-center justify-center gap-2"><Move size={12}/> Glissez les cercles verts pour ajuster la position des objets.</p>
+                    <p className="text-xs text-center text-gray-500 italic flex items-center justify-center gap-2"><Move size={12}/> Zoom : Molette / Glissez le fond pour bouger la vue / Glissez les croix pour placer.</p>
                 </div>
 
                 <div className="flex flex-col gap-4 h-full min-h-[600px]">
