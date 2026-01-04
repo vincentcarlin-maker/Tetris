@@ -107,21 +107,27 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/png', data: base64Image } },
-                        { text: "Identifiez 5 petits objets. Donnez leur CENTRE GÉOMÉTRIQUE EXACT en %. Réponse JSON : id, name (FR), x, y, radius (5-8)." }
+                        { text: "Analyze this image. 1. Generate a cool, short Cyberpunk title (in French) for this level based on the visual theme (e.g. 'CYBER LAB', 'NÉON MARKET'). 2. Identify 5 small objects for a hidden object game. Give their EXACT GEOMETRIC CENTER in %. JSON Response." }
                     ]
                 },
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                id: { type: Type.STRING },
-                                name: { type: Type.STRING },
-                                x: { type: Type.NUMBER },
-                                y: { type: Type.NUMBER },
-                                radius: { type: Type.NUMBER }
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING, description: "A short cyberpunk title in French." },
+                            objects: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        id: { type: Type.STRING },
+                                        name: { type: Type.STRING },
+                                        x: { type: Type.NUMBER },
+                                        y: { type: Type.NUMBER },
+                                        radius: { type: Type.NUMBER }
+                                    }
+                                }
                             }
                         }
                     }
@@ -129,7 +135,9 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             });
 
             if (analysisResponse.text) {
-                setDetectedObjects(JSON.parse(analysisResponse.text).map((o: any) => ({ ...o, found: false })));
+                const result = JSON.parse(analysisResponse.text);
+                if (result.title) setLevelTitle(result.title.toUpperCase());
+                if (result.objects) setDetectedObjects(result.objects.map((o: any) => ({ ...o, found: false })));
                 setStatus('READY');
             }
         } catch (err: any) {
@@ -237,7 +245,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     disabled={status.includes('ING')}
                     className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black tracking-widest rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                 >
-                    {status === 'GENERATING_IMAGE' ? <><Loader2 className="animate-spin" /> GÉNÉRATION...</> : status === 'ANALYZING_OBJECTS' ? <><ScanEye className="animate-pulse" /> ANALYSE...</> : <><RefreshCw size={20} /> GÉNÉRER L'IMAGE DU NIVEAU {selectedSlot}</>}
+                    {status === 'GENERATING_IMAGE' ? <><Loader2 className="animate-spin" /> GÉNÉRATION...</> : status === 'ANALYZING_OBJECTS' ? <><ScanEye className="animate-pulse" /> ANALYSE & TITRAGE...</> : <><RefreshCw size={20} /> GÉNÉRER L'IMAGE DU NIVEAU {selectedSlot}</>}
                 </button>
             </div>
 
