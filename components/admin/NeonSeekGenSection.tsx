@@ -133,12 +133,15 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
             setStatus('ANALYZING_OBJECTS');
             
+            // Construction du prompt d'analyse en incluant la description utilisateur
+            const analysisPrompt = `Analyze this image. 1. Generate a cool, short Cyberpunk title (in French) for this level based on the visual theme. 2. Identify 5 small objects suitable for a hidden object game. Provide their EXACT GEOMETRIC CENTER coordinates in percentages (0-100). ${userPrompt ? `IMPORTANT: The user described: "${userPrompt}". You MUST prioritize identifying specific objects mentioned in this description if they are visible.` : ''} JSON Response.`;
+
             const analysisResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/png', data: base64Image } },
-                        { text: "Analyze this image. 1. Generate a cool, short Cyberpunk title (in French) for this level based on the visual theme (e.g. 'CYBER LAB', 'NÉON MARKET'). 2. Identify 5 small objects suitable for a hidden object game. Provide their EXACT GEOMETRIC CENTER coordinates in percentages (0-100). JSON Response." }
+                        { text: analysisPrompt }
                     ]
                 },
                 config: {
