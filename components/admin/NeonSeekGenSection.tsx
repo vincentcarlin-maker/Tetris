@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check } from 'lucide-react';
+import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check, Move } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useGlobal } from '../../context/GlobalContext';
@@ -24,6 +24,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [detectedObjects, setDetectedObjects] = useState<HiddenObject[]>([]);
+    const [draggingId, setDraggingId] = useState<string | null>(null);
     
     const [status, setStatus] = useState<'IDLE' | 'GENERATING_IMAGE' | 'ANALYZING_OBJECTS' | 'READY'>('IDLE');
     const [isSaving, setIsSaving] = useState(false);
@@ -176,11 +177,34 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     };
 
     const handleImageClick = (e: React.MouseEvent) => {
+        // On n'ajoute pas de point si on est en train de draguer ou si on clique sur un objet existant
+        if (draggingId) return;
         if (!generatedImage || !imagePreviewRef.current) return;
+        
         const rect = imagePreviewRef.current.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
         setDetectedObjects(prev => [...prev, { id: `m_${Date.now()}`, name: `Objet ${prev.length + 1}`, x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)), radius: 7, found: false }]);
+    };
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (!draggingId || !imagePreviewRef.current) return;
+        e.preventDefault(); // Empêche le scroll sur mobile pendant le drag
+        
+        const rect = imagePreviewRef.current.getBoundingClientRect();
+        // Calcul des coordonnées relatives en pourcentage, bornées entre 0 et 100
+        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+
+        setDetectedObjects(prev => prev.map(obj => 
+            obj.id === draggingId 
+                ? { ...obj, x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) } 
+                : obj
+        ));
+    };
+
+    const handlePointerUp = () => {
+        setDraggingId(null);
     };
 
     const handleSave = async () => {
@@ -283,19 +307,44 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     <div 
                         ref={imagePreviewRef}
                         onClick={handleImageClick}
-                        className="w-full bg-gray-900 rounded-[40px] border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden aspect-[9/16] max-h-[600px] shadow-inner cursor-crosshair"
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerLeave={handlePointerUp}
+                        className={`w-full bg-gray-900 rounded-[40px] border-2 border-dashed border-white/10 flex items-center justify-center relative overflow-hidden aspect-[9/16] max-h-[600px] shadow-inner ${draggingId ? 'cursor-grabbing' : 'cursor-crosshair'} touch-none`}
                     >
                         {generatedImage ? (
                             <>
-                                <img src={generatedImage} className="w-full h-full object-contain" alt="Preview" />
+                                <img src={generatedImage} className="w-full h-full object-contain pointer-events-none select-none" alt="Preview" />
                                 {detectedObjects.map((obj, idx) => (
-                                    <div key={obj.id} className="absolute border-2 border-green-500 rounded-full flex items-center justify-center bg-green-500/20" style={{ left: `${obj.x}%`, top: `${obj.y}%`, width: `${obj.radius * 2}%`, height: `${obj.radius * (2 * 16/9)}%`, transform: 'translate(-50%, -50%)' }}>
-                                        <span className="bg-green-500 text-black text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center">{idx + 1}</span>
+                                    <div 
+                                        key={obj.id} 
+                                        onPointerDown={(e) => {
+                                            e.stopPropagation(); // Empêche la création d'un nouveau point
+                                            setDraggingId(obj.id);
+                                        }}
+                                        className={`absolute border-2 border-green-500 rounded-full flex items-center justify-center bg-green-500/20 hover:bg-green-500/40 transition-colors ${draggingId === obj.id ? 'cursor-grabbing scale-110 z-50 border-white' : 'cursor-grab'}`}
+                                        style={{ 
+                                            left: `${obj.x}%`, 
+                                            top: `${obj.y}%`, 
+                                            width: `${obj.radius * 2}%`, 
+                                            height: `${obj.radius * (2 * 16/9)}%`, 
+                                            transform: 'translate(-50%, -50%)' 
+                                        }}
+                                    >
+                                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[8px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                                            {obj.name} ({Math.round(obj.x)},{Math.round(obj.y)})
+                                        </div>
+                                        <span className="bg-green-500 text-black text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center pointer-events-none select-none">
+                                            {idx + 1}
+                                        </span>
+                                        {/* Poignée de redimensionnement visuelle (optionnelle pour UX) */}
+                                        <div className="absolute bottom-0 right-0 w-2 h-2 bg-white/50 rounded-full cursor-nwse-resize opacity-0 hover:opacity-100"></div>
                                     </div>
                                 ))}
                             </>
                         ) : <div className="text-gray-700 font-black uppercase text-center opacity-20"><Image size={80} className="mx-auto mb-2"/>Aucun visuel</div>}
                     </div>
+                    <p className="text-xs text-center text-gray-500 italic flex items-center justify-center gap-2"><Move size={12}/> Glissez les cercles verts pour ajuster la position des objets.</p>
                 </div>
 
                 <div className="flex flex-col gap-4 h-full min-h-[600px]">
@@ -306,9 +355,19 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
                             {detectedObjects.map((obj, idx) => (
-                                <div key={obj.id} className="flex items-center gap-3 p-3 bg-black/40 rounded-2xl border border-white/5 group">
+                                <div key={obj.id} className="flex items-center gap-3 p-3 bg-black/40 rounded-2xl border border-white/5 group hover:border-white/20 transition-colors" onMouseEnter={() => { /* Highlight logic if needed */ }}>
                                     <div className="w-8 h-8 rounded-xl bg-gray-900 border border-white/10 flex items-center justify-center font-mono font-bold text-xs text-blue-400">{idx + 1}</div>
-                                    <input type="text" value={obj.name} onChange={e => setDetectedObjects(prev => prev.map(o => o.id === obj.id ? { ...o, name: e.target.value } : o))} className="flex-1 bg-transparent border-none text-sm font-bold text-white outline-none" />
+                                    <div className="flex-1 flex flex-col">
+                                        <input 
+                                            type="text" 
+                                            value={obj.name} 
+                                            onChange={e => setDetectedObjects(prev => prev.map(o => o.id === obj.id ? { ...o, name: e.target.value } : o))} 
+                                            className="bg-transparent border-none text-sm font-bold text-white outline-none w-full" 
+                                        />
+                                        <div className="flex gap-2 mt-1">
+                                            <span className="text-[8px] text-gray-500 font-mono">X: {obj.x}% Y: {obj.y}%</span>
+                                        </div>
+                                    </div>
                                     <button onClick={() => setDetectedObjects(prev => prev.filter(o => o.id !== obj.id))} className="p-2 text-gray-600 hover:text-red-500"><Trash2 size={16} /></button>
                                 </div>
                             ))}
