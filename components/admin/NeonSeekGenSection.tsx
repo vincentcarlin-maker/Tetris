@@ -186,14 +186,34 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         ]);
     };
 
-    // --- LOGIQUE ZOOM & PANORAMIQUE ---
+    // --- LOGIQUE ZOOM & PANORAMIQUE AMÉLIORÉE ---
+
+    const updateZoom = (delta: number, center?: { x: number, y: number }) => {
+        if (!containerRef.current) return;
+        
+        setViewState(prev => {
+            const newScale = Math.min(Math.max(1, prev.scale + delta), 4);
+            if (newScale === 1) return { scale: 1, x: 0, y: 0 };
+
+            const rect = containerRef.current!.getBoundingClientRect();
+            // Point focal : soit le point demandé, soit le centre de la vue
+            const focalX = center ? center.x - rect.left : rect.width / 2;
+            const focalY = center ? center.y - rect.top : rect.height / 2;
+
+            // Nouvelle translation pour garder le point focal stable
+            // NewX = Focal - (Focal - OldX) / OldScale * NewScale
+            const newX = focalX - ((focalX - prev.x) / prev.scale) * newScale;
+            const newY = focalY - ((focalY - prev.y) / prev.scale) * newScale;
+
+            return { scale: newScale, x: newX, y: newY };
+        });
+    };
 
     const handleWheel = (e: React.WheelEvent) => {
         e.preventDefault();
         e.stopPropagation();
         const delta = -e.deltaY * 0.001;
-        const newScale = Math.min(Math.max(1, viewState.scale + delta), 4);
-        setViewState(prev => ({ ...prev, scale: newScale }));
+        updateZoom(delta, { x: e.clientX, y: e.clientY });
     };
 
     const handlePointerDown = (e: React.PointerEvent) => {
@@ -279,10 +299,14 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 e.touches[0].clientY - e.touches[1].clientY
             );
             
-            const delta = dist - lastPinchDistRef.current;
-            const newScale = Math.min(Math.max(1, viewState.scale + delta * 0.005), 4);
+            const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
             
-            setViewState(prev => ({ ...prev, scale: newScale }));
+            const delta = dist - lastPinchDistRef.current;
+            
+            // On zoom vers le centre du pincement
+            updateZoom(delta * 0.01, { x: centerX, y: centerY });
+            
             lastPinchDistRef.current = dist;
         }
     };
@@ -396,15 +420,15 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     <div className="relative w-full aspect-[9/16] max-h-[600px] bg-gray-900 rounded-[40px] border-2 border-dashed border-white/10 overflow-hidden shadow-inner cursor-move touch-none">
                         {/* Contrôles de Zoom Flottants */}
                         <div className="absolute top-4 right-4 z-50 flex flex-col gap-2">
-                            <button onClick={() => setViewState(p => ({...p, scale: Math.min(p.scale + 0.5, 4)}))} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><ZoomIn size={16}/></button>
-                            <button onClick={() => setViewState(p => ({...p, scale: Math.max(p.scale - 0.5, 1)}))} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><ZoomOut size={16}/></button>
+                            <button onClick={() => updateZoom(0.5)} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><ZoomIn size={16}/></button>
+                            <button onClick={() => updateZoom(-0.5)} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><ZoomOut size={16}/></button>
                             <button onClick={resetView} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><Maximize size={16}/></button>
                         </div>
 
                         {generatedImage ? (
                             <div 
                                 ref={containerRef}
-                                className="w-full h-full relative transform-gpu"
+                                className="w-full h-full relative will-change-transform origin-top-left"
                                 onWheel={handleWheel}
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
@@ -415,11 +439,9 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                 onTouchEnd={handleTouchEnd}
                                 style={{ 
                                     transform: `translate(${viewState.x}px, ${viewState.y}px) scale(${viewState.scale})`,
-                                    transformOrigin: '0 0',
-                                    transition: isPanning || draggingId ? 'none' : 'transform 0.2s ease-out'
                                 }}
                             >
-                                <img src={generatedImage} className="w-full h-full object-contain pointer-events-none select-none" alt="Preview" />
+                                <img src={generatedImage} className="w-full h-full object-contain pointer-events-none select-none" alt="Preview" style={{ transformOrigin: 'center' }}/>
                                 {detectedObjects.map((obj, idx) => (
                                     <div 
                                         key={obj.id} 
