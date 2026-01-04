@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check, Move } from 'lucide-react';
+import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check, Move, Plus } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useGlobal } from '../../context/GlobalContext';
@@ -176,15 +176,24 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         }
     };
 
+    // NOTE: Clic sur l'image désactivé pour la création. Utiliser le bouton "Ajouter"
     const handleImageClick = (e: React.MouseEvent) => {
-        // On n'ajoute pas de point si on est en train de draguer ou si on clique sur un objet existant
-        if (draggingId) return;
-        if (!generatedImage || !imagePreviewRef.current) return;
-        
-        const rect = imagePreviewRef.current.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        setDetectedObjects(prev => [...prev, { id: `m_${Date.now()}`, name: `Objet ${prev.length + 1}`, x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)), radius: 7, found: false }]);
+        // Vide intentionnellement
+    };
+
+    const handleAddManualObject = () => {
+        if (!generatedImage) return;
+        setDetectedObjects(prev => [
+            ...prev,
+            { 
+                id: `m_${Date.now()}`, 
+                name: `Objet ${prev.length + 1}`, 
+                x: 50, 
+                y: 50, 
+                radius: 7, 
+                found: false 
+            }
+        ]);
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
@@ -344,6 +353,18 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                             </>
                         ) : <div className="text-gray-700 font-black uppercase text-center opacity-20"><Image size={80} className="mx-auto mb-2"/>Aucun visuel</div>}
                     </div>
+                    
+                    {/* Bouton Ajouter sous l'image */}
+                    <div className="flex justify-center">
+                        <button 
+                            onClick={handleAddManualObject}
+                            disabled={!generatedImage}
+                            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100 transition-all"
+                        >
+                            <Plus size={16} /> AJOUTER UN OBJET MANUELLEMENT
+                        </button>
+                    </div>
+
                     <p className="text-xs text-center text-gray-500 italic flex items-center justify-center gap-2"><Move size={12}/> Glissez les cercles verts pour ajuster la position des objets.</p>
                 </div>
 
