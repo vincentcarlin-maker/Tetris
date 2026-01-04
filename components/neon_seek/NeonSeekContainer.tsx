@@ -130,7 +130,7 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
             <div className="w-full max-w-md z-30 flex items-center p-3 bg-gray-900/90 border border-white/10 rounded-2xl shadow-xl backdrop-blur-md shrink-0">
                 <div className="flex flex-col items-center justify-center border-r border-white/10 pr-4 mr-4 shrink-0">
                     <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Scanner</span>
-                    <div className={`flex items-center gap-1.5 text-xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
+                    <div className={`flex items-center gap-1.5 text-xl font-mono font-black transition-all duration-300 ${timeLeft < 10 ? 'text-red-500 scale-110' : 'text-yellow-400'}`}>
                         {timeLeft}s
                     </div>
                 </div>
