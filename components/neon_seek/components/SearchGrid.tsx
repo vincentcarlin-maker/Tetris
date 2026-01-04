@@ -74,7 +74,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                 alt="Arcade Scene" 
                 onLoad={() => { setIsLoaded(true); setImageError(false); }}
                 onError={handleImageError}
-                className={`relative z-10 w-full h-full object-cover select-none pointer-events-none transition-all duration-1000 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+                className={`relative z-10 w-full h-full object-contain select-none pointer-events-none transition-all duration-1000 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
             />
 
             {isLoaded && !imageError && (
