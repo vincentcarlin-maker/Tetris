@@ -37,7 +37,9 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    const containerRef = useRef<HTMLDivElement>(null);
+    // Refs pour la logique de coordonnées
+    const wrapperRef = useRef<HTMLDivElement>(null); // Le cadre fixe
+    const containerRef = useRef<HTMLDivElement>(null); // Le contenu transformé
 
     // Charger les données du slot sélectionné depuis la config globale
     useEffect(() => {
@@ -189,19 +191,18 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     // --- LOGIQUE ZOOM & PANORAMIQUE AMÉLIORÉE ---
 
     const updateZoom = (delta: number, center?: { x: number, y: number }) => {
-        if (!containerRef.current) return;
+        if (!wrapperRef.current) return;
         
         setViewState(prev => {
             const newScale = Math.min(Math.max(1, prev.scale + delta), 4);
             if (newScale === 1) return { scale: 1, x: 0, y: 0 };
 
-            const rect = containerRef.current!.getBoundingClientRect();
-            // Point focal : soit le point demandé, soit le centre de la vue
+            const rect = wrapperRef.current!.getBoundingClientRect();
+            // Point focal : soit le point demandé, soit le centre de la vue visible
             const focalX = center ? center.x - rect.left : rect.width / 2;
             const focalY = center ? center.y - rect.top : rect.height / 2;
 
             // Nouvelle translation pour garder le point focal stable
-            // NewX = Focal - (Focal - OldX) / OldScale * NewScale
             const newX = focalX - ((focalX - prev.x) / prev.scale) * newScale;
             const newY = focalY - ((focalY - prev.y) / prev.scale) * newScale;
 
@@ -230,21 +231,30 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-        if (!containerRef.current || !e.isPrimary) return;
+        if (!wrapperRef.current || !e.isPrimary) return;
         e.preventDefault();
 
         // 1. Déplacement de l'OBJET (Prioritaire)
         if (draggingId) {
-            const rect = containerRef.current.getBoundingClientRect();
+            // On calcule la position de la souris relative au conteneur PARENT (non transformé)
+            const wrapperRect = wrapperRef.current.getBoundingClientRect();
             
-            // Calcul simplifié : On utilise les dimensions visuelles directes du conteneur (déjà transformé)
-            // Cela donne la position exacte sous le pointeur en pourcentage de l'image visible
-            const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-            const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+            // Position de la souris dans le wrapper
+            const mouseXInWrapper = e.clientX - wrapperRect.left;
+            const mouseYInWrapper = e.clientY - wrapperRect.top;
+
+            // Projection inverse : on applique la transformation inverse pour trouver la position dans l'image brute
+            // Formule : (Mouse - Translate) / Scale
+            const imageX = (mouseXInWrapper - viewState.x) / viewState.scale;
+            const imageY = (mouseYInWrapper - viewState.y) / viewState.scale;
+
+            // Conversion en pourcentage (0-100) relatif à la taille originale de l'image (qui est la même que le wrapper à scale 1)
+            const percentX = Math.max(0, Math.min(100, (imageX / wrapperRect.width) * 100));
+            const percentY = Math.max(0, Math.min(100, (imageY / wrapperRect.height) * 100));
 
             setDetectedObjects(prev => prev.map(obj => 
                 obj.id === draggingId 
-                    ? { ...obj, x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) } 
+                    ? { ...obj, x: parseFloat(percentX.toFixed(2)), y: parseFloat(percentY.toFixed(2)) } 
                     : obj
             ));
         } 
@@ -409,7 +419,10 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 <div className="space-y-4">
                     
                     {/* ZONE DE JEU / PREVIEW AVEC ZOOM */}
-                    <div className="relative w-full aspect-[9/16] max-h-[600px] bg-gray-900 rounded-[40px] border-2 border-dashed border-white/10 overflow-hidden shadow-inner cursor-move touch-none">
+                    <div 
+                        ref={wrapperRef}
+                        className="relative w-full aspect-[9/16] max-h-[600px] bg-gray-900 rounded-[40px] border-2 border-dashed border-white/10 overflow-hidden shadow-inner cursor-move touch-none"
+                    >
                         {/* Contrôles de Zoom Flottants */}
                         <div className="absolute top-4 right-4 z-50 flex flex-col gap-2">
                             <button onClick={() => updateZoom(0.5)} className="p-2 bg-black/60 text-white rounded-full hover:bg-blue-600 transition-colors border border-white/20"><ZoomIn size={16}/></button>
@@ -454,7 +467,10 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                         }}
                                     >
                                         {/* LA CROIX DE SÉLECTION (Visuel) */}
-                                        <div className="relative pointer-events-none">
+                                        <div className="relative pointer-events-none flex items-center justify-center">
+                                            {/* Point central rouge pour la précision pixel-perfect */}
+                                            <div className="absolute w-1 h-1 bg-red-500 rounded-full z-10"></div>
+                                            
                                             {/* Ligne Verticale */}
                                             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-6 bg-green-500 shadow-[0_0_5px_black] ${draggingId === obj.id ? 'bg-white h-8' : ''}`}></div>
                                             {/* Ligne Horizontale */}
