@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Image, Sparkles, Check, Save, Loader2, RefreshCw, AlertTriangle, Key, Search, ScanEye, Trash2, Plus, Crosshair, Edit3, Cpu, Layers } from 'lucide-react';
+import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useGlobal } from '../../context/GlobalContext';
-import { HiddenObject, SeekLevel } from '../neon_seek/types';
+import { HiddenObject } from '../neon_seek/types';
 
 const GENERATION_MODELS = [
     { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Standard)', type: 'GEMINI' },
@@ -56,24 +56,37 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         setError(null);
     }, [selectedSlot, neonSeekConfig]);
 
-    const handleSelectKey = async () => {
-        const win = window as any;
-        if (win?.aistudio) await win.aistudio.openSelectKey();
-    };
-
     const handleGenerate = async () => {
         setStatus('GENERATING_IMAGE');
         setError(null);
         setSuccess(null);
 
         try {
-            const apiKey = process.env.API_KEY;
+            // 1. Gestion Robuste de la Clé API
+            let apiKey = process.env.API_KEY;
+            
+            // Si pas de clé dans l'env, on vérifie si on est dans AI Studio
             if (!apiKey) {
-                await handleSelectKey();
-                throw new Error("Clé API requise.");
+                const win = window as any;
+                if (win.aistudio) {
+                    const hasKey = await win.aistudio.hasSelectedApiKey();
+                    if (!hasKey) {
+                        await win.aistudio.openSelectKey();
+                    }
+                    // Tentative de relecture après sélection (l'injection peut être asynchrone ou gérée par le proxy)
+                    // Dans le doute, on continue, si l'appel échoue le catch le prendra.
+                    apiKey = process.env.API_KEY;
+                }
             }
 
-            const ai = new GoogleGenAI({ apiKey });
+            // Si toujours pas de clé et pas dans AI Studio -> Erreur explicite
+            if (!apiKey && !(window as any).aistudio) {
+                throw new Error("Clé API manquante. Configurez la variable d'environnement ou utilisez Google AI Studio.");
+            }
+
+            // Initialisation du client (On passe apiKey uniquement s'il existe, sinon le SDK peut gérer via proxy interne AI Studio)
+            const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+            
             let base64Image = null;
             const modelConfig = GENERATION_MODELS.find(m => m.id === selectedModel);
 
@@ -97,17 +110,19 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 }
             }
 
-            if (!base64Image) throw new Error("Échec de la génération.");
+            if (!base64Image) throw new Error("Aucune image générée. Vérifiez vos quotas ou votre clé.");
             const fullImageStr = `data:image/png;base64,${base64Image}`;
             setGeneratedImage(fullImageStr);
 
             setStatus('ANALYZING_OBJECTS');
+            
+            // Analyse pour trouver des objets
             const analysisResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/png', data: base64Image } },
-                        { text: "Analyze this image. 1. Generate a cool, short Cyberpunk title (in French) for this level based on the visual theme (e.g. 'CYBER LAB', 'NÉON MARKET'). 2. Identify 5 small objects for a hidden object game. Give their EXACT GEOMETRIC CENTER in %. JSON Response." }
+                        { text: "Analyze this image. 1. Generate a cool, short Cyberpunk title (in French) for this level based on the visual theme (e.g. 'CYBER LAB', 'NÉON MARKET'). 2. Identify 5 small objects suitable for a hidden object game. Provide their EXACT GEOMETRIC CENTER coordinates in percentages (0-100). JSON Response." }
                     ]
                 },
                 config: {
@@ -137,11 +152,16 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             if (analysisResponse.text) {
                 const result = JSON.parse(analysisResponse.text);
                 if (result.title) setLevelTitle(result.title.toUpperCase());
-                if (result.objects) setDetectedObjects(result.objects.map((o: any) => ({ ...o, found: false })));
+                if (result.objects) setDetectedObjects(result.objects.map((o: any) => ({ ...o, found: false, radius: 7 })));
                 setStatus('READY');
+            } else {
+                // Fallback si l'analyse échoue mais l'image est là
+                setStatus('READY');
+                setDetectedObjects([]);
             }
         } catch (err: any) {
-            setError(err.message);
+            console.error(err);
+            setError(err.message || "Une erreur est survenue lors de la génération.");
             setStatus('IDLE');
         }
     };
@@ -178,9 +198,9 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             
             await DB.saveSystemConfig(updatedConfig);
             mp.sendAdminBroadcast(`Niveau ${selectedSlot} mis à jour !`, "game_config", { neonSeekConfig: updatedConfig.neonSeekConfig });
-            setSuccess(`Niveau ${selectedSlot} déployé !`);
+            setSuccess(`Niveau ${selectedSlot} déployé avec succès !`);
         } catch (e) {
-            setError("Erreur de sauvegarde.");
+            setError("Erreur lors de la sauvegarde en base de données.");
         } finally {
             setIsSaving(false);
         }
@@ -285,8 +305,8 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                             ))}
                         </div>
                         <div className="p-6 bg-black/60 border-t border-white/10">
-                            {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-400 text-xs font-bold mb-4">{error}</div>}
-                            {success && <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-green-400 text-xs font-black text-center italic mb-4">{success}</div>}
+                            {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-400 text-xs font-bold mb-4 flex items-center gap-2"><AlertTriangle size={16}/> {error}</div>}
+                            {success && <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-green-400 text-xs font-black text-center italic mb-4 flex items-center justify-center gap-2"><Check size={16}/> {success}</div>}
                             <button 
                                 onClick={handleSave}
                                 disabled={isSaving || !generatedImage || detectedObjects.length === 0}
