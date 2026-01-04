@@ -237,18 +237,10 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         if (draggingId) {
             const rect = containerRef.current.getBoundingClientRect();
             
-            // Calcul précis de la position relative à l'image zoomée
-            // On soustrait le décalage du Pan (viewState.x/y) et on divise par le Scale
-            const relX = e.clientX - rect.left;
-            const relY = e.clientY - rect.top;
-            
-            // Conversion en coordonnées image locales (0 -> rect.width/height en pixels originaux)
-            const imgX = (relX - viewState.x) / viewState.scale;
-            const imgY = (relY - viewState.y) / viewState.scale;
-
-            // Conversion en pourcentage
-            const x = Math.max(0, Math.min(100, (imgX / rect.width) * 100));
-            const y = Math.max(0, Math.min(100, (imgY / rect.height) * 100));
+            // Calcul simplifié : On utilise les dimensions visuelles directes du conteneur (déjà transformé)
+            // Cela donne la position exacte sous le pointeur en pourcentage de l'image visible
+            const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+            const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
 
             setDetectedObjects(prev => prev.map(obj => 
                 obj.id === draggingId 
