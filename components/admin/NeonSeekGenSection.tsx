@@ -7,9 +7,8 @@ import { useGlobal } from '../../context/GlobalContext';
 import { HiddenObject } from '../neon_seek/types';
 
 const GENERATION_MODELS = [
-    { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Standard)', type: 'GEMINI' },
-    { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Haute Qualité)', type: 'GEMINI' },
-    { id: 'imagen-4.0-generate-001', name: 'Imagen 4.0 (Ultra Réaliste)', type: 'IMAGEN' }
+    { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Rapide)', type: 'GEMINI' },
+    { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro (Haute Qualité)', type: 'GEMINI' }
 ];
 
 export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
@@ -47,10 +46,22 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             // Reset pour un nouveau slot
             setGeneratedImage(null);
             setDetectedObjects([]);
-            setLevelTitle(`NIVEAU ${selectedSlot}`);
-            setLevelDesc('');
-            setLevelDifficulty('MOYEN');
-            setLevelReward(100);
+            
+            // --- SCÉNARIO SPÉCIAL NIVEAU 3 ---
+            if (selectedSlot === 3) {
+                setPrompt("A futuristic cyberpunk rooftop garden at night, raining, neon bonsai trees, holographic koi fish pond, discarded noodle boxes, futuristic tools on a wet table, high detail, cinematic lighting, 8k, portrait 9:16.");
+                setLevelTitle("JARDIN CYBER");
+                setLevelDesc("Trouvez les artefacts cachés sous la pluie de néons.");
+                setLevelDifficulty('EXPERT');
+                setLevelReward(250);
+            } else {
+                // Défaut
+                setLevelTitle(`NIVEAU ${selectedSlot}`);
+                setLevelDesc('');
+                setLevelDifficulty('MOYEN');
+                setPrompt('A mysterious cyberpunk interior, high detail, portrait 9:16, neon lights, scattered tech items.');
+                setLevelReward(100);
+            }
         }
         setSuccess(null);
         setError(null);
@@ -73,40 +84,37 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     if (!hasKey) {
                         await win.aistudio.openSelectKey();
                     }
-                    // Tentative de relecture après sélection (l'injection peut être asynchrone ou gérée par le proxy)
-                    // Dans le doute, on continue, si l'appel échoue le catch le prendra.
-                    apiKey = process.env.API_KEY;
+                    apiKey = process.env.API_KEY; // Tentative de relecture
                 }
             }
 
-            // Si toujours pas de clé et pas dans AI Studio -> Erreur explicite
+            // Si toujours pas de clé et pas dans AI Studio -> Erreur explicite pour l'utilisateur local
             if (!apiKey && !(window as any).aistudio) {
-                throw new Error("Clé API manquante. Configurez la variable d'environnement ou utilisez Google AI Studio.");
+                throw new Error("Clé API manquante. Configurez la variable d'environnement API_KEY ou utilisez Google AI Studio.");
             }
 
-            // Initialisation du client (On passe apiKey uniquement s'il existe, sinon le SDK peut gérer via proxy interne AI Studio)
+            // Initialisation du client
             const ai = new GoogleGenAI({ apiKey: apiKey || '' });
             
             let base64Image = null;
             const modelConfig = GENERATION_MODELS.find(m => m.id === selectedModel);
 
-            if (modelConfig?.type === 'IMAGEN') {
-                const response = await ai.models.generateImages({
-                    model: selectedModel,
-                    prompt: prompt,
-                    config: { numberOfImages: 1, outputMimeType: 'image/png', aspectRatio: '9:16' },
-                });
-                base64Image = response.generatedImages?.[0]?.image?.imageBytes;
-            } else {
-                const response = await ai.models.generateContent({
-                    model: selectedModel,
-                    contents: { parts: [{ text: prompt }] },
-                    config: { imageConfig: { aspectRatio: "9:16", ...(selectedModel.includes('pro') ? { imageSize: "1K" } : {}) } },
-                });
-                if (response.candidates?.[0].content.parts) {
-                    for (const part of response.candidates[0].content.parts) {
-                        if (part.inlineData) { base64Image = part.inlineData.data; break; }
-                    }
+            // Logique de génération standardisée pour Gemini (Imagen retiré)
+            const response = await ai.models.generateContent({
+                model: selectedModel,
+                contents: { parts: [{ text: prompt }] },
+                config: { 
+                    imageConfig: { 
+                        aspectRatio: "9:16", 
+                        // On demande 1K pour le modèle Pro pour une meilleure qualité
+                        ...(selectedModel.includes('pro') ? { imageSize: "1K" } : {}) 
+                    } 
+                },
+            });
+            
+            if (response.candidates?.[0].content.parts) {
+                for (const part of response.candidates[0].content.parts) {
+                    if (part.inlineData) { base64Image = part.inlineData.data; break; }
                 }
             }
 
@@ -116,7 +124,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
             setStatus('ANALYZING_OBJECTS');
             
-            // Analyse pour trouver des objets
+            // Analyse pour trouver des objets (toujours avec Flash pour la rapidité)
             const analysisResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: {
@@ -151,7 +159,8 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
 
             if (analysisResponse.text) {
                 const result = JSON.parse(analysisResponse.text);
-                if (result.title) setLevelTitle(result.title.toUpperCase());
+                // On garde le titre manuel s'il a été défini spécifiquement (comme pour le niveau 3), sinon on prend l'auto
+                if (selectedSlot !== 3 && result.title) setLevelTitle(result.title.toUpperCase());
                 if (result.objects) setDetectedObjects(result.objects.map((o: any) => ({ ...o, found: false, radius: 7 })));
                 setStatus('READY');
             } else {
