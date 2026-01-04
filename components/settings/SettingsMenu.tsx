@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useSettings } from './hooks/useSettings';
 import { SettingsHeader } from './components/SettingsHeader';
@@ -31,7 +32,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onBack, onLogout, on
             {showPasswordModal && <PasswordModal onClose={() => setShowPasswordModal(false)} passwordState={passwordState} onSave={handleSavePassword} />}
             {legalTab && <LegalModal legalTab={legalTab} onClose={() => setLegalTab(null)} onSetLegalTab={setLegalTab} />}
 
-            <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pt-6 pb-24">
+            <div className="w-full max-w-lg mx-auto flex flex-col gap-6 pb-24" style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}>
                 <SettingsHeader onBack={onBack} />
                 <UserProfileCard />
                 <LanguageSelector />

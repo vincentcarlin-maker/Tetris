@@ -30,7 +30,7 @@ export const Shop: React.FC<ShopContainerProps> = ({ onBack }) => {
         <div className="flex flex-col h-full w-full bg-[#05050a] relative overflow-hidden font-sans text-white">
             <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-black to-transparent pointer-events-none"></div>
             
-            <div className="w-full max-w-4xl mx-auto z-20 shrink-0" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }}>
+            <div className="w-full max-w-4xl mx-auto z-20 shrink-0" style={{ paddingTop: 'calc(3rem + env(safe-area-inset-top))' }}>
                 <ShopHeader 
                     onBack={activeGroup ? () => setActiveGroup(null) : onBack}
                     coins={currency.coins}
