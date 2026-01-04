@@ -44,15 +44,16 @@ export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onRe
         const newObjects = state.objects.map((obj, idx) => {
             if (obj.found) return obj;
             
-            // CALCUL DE PRÉCISION CIRCULAIRE (Distance Euclidienne)
+            // CORRECTION DU RATIO 9:16
+            // On compense le fait que la hauteur est 1.77x plus grande que la largeur
             const dx = clickX - obj.x;
-            const dy = clickY - obj.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const dy = (clickY - obj.y) * (16 / 9);
+            const correctedDistance = Math.sqrt(dx * dx + dy * dy);
             
-            // On utilise le rayon exact défini par l'IA
-            const hitRadius = obj.radius || 7; 
+            // Rayon de détection avec une légère marge de confort (+20%)
+            const hitRadius = (obj.radius || 7) * 1.2; 
             
-            if (distance <= hitRadius) {
+            if (correctedDistance <= hitRadius) {
                 foundIdx = idx;
                 foundObjName = obj.name;
                 return { ...obj, found: true };
@@ -63,7 +64,6 @@ export const useNeonSeekLogic = (audio: any, addCoins: (a: number) => void, onRe
         if (foundIdx !== -1 && foundObjName) {
             audio.playVictory();
             
-            // Déclencher le feedback textuel géant
             setLastFoundName(foundObjName);
             if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
             feedbackTimeoutRef.current = setTimeout(() => setLastFoundName(null), 1500);

@@ -58,91 +58,100 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
     if (!currentLevelData) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] w-full h-[100dvh] bg-black font-sans text-white overflow-hidden select-none touch-none">
+        <div className="fixed inset-0 z-[100] w-full h-[100dvh] bg-black font-sans text-white overflow-hidden select-none touch-none flex items-center justify-center">
             
-            {/* L'IMAGE PREND TOUT L'ÉCRAN */}
-            <div className="absolute inset-0 z-0 bg-black">
+            {/* FOND IMMERSIF (Flou dynamique) */}
+            <div className="absolute inset-0 z-0">
+                <img 
+                    src={currentLevelData.image} 
+                    className="w-full h-full object-cover blur-2xl opacity-40 scale-110" 
+                    alt="Background blur"
+                />
+                <div className="absolute inset-0 bg-black/40"></div>
+            </div>
+
+            {/* ZONE DE JEU 9:16 CENTRÉE */}
+            <div className="relative z-10 h-full max-h-full aspect-[9/16] bg-black shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden border-x border-white/5">
                 <SearchGrid 
                     objects={state.objects} 
                     onGridClick={checkClick} 
                     imageSrc={currentLevelData.image}
                 />
-            </div>
-
-            {/* BARRE SUPÉRIEURE (OVERLAY) */}
-            <div 
-                className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-20 pointer-events-none"
-                style={{ 
-                    paddingTop: 'calc(0.5rem + env(safe-area-inset-top))',
-                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)'
-                }}
-            >
-                <div className="flex gap-2 pointer-events-auto">
-                    <button onClick={() => setInMenu(true)} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 transition-all shadow-xl">
-                        <ArrowLeft size={22} />
-                    </button>
-                </div>
                 
-                <div className="flex flex-col items-center pointer-events-none">
-                    <h1 className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] uppercase tracking-tighter">
-                        {currentLevelData.title}
-                    </h1>
-                    <span className="text-[8px] font-black text-yellow-500/80 tracking-[0.2em] uppercase">{currentLevelData.difficulty}</span>
-                </div>
+                {/* BARRE SUPÉRIEURE (OVERLAY) - Contrainte au conteneur 9:16 */}
+                <div 
+                    className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-30 pointer-events-none"
+                    style={{ 
+                        paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+                        background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)'
+                    }}
+                >
+                    <div className="flex gap-2 pointer-events-auto">
+                        <button onClick={() => setInMenu(true)} className="p-2.5 bg-black/60 backdrop-blur-md rounded-xl text-gray-300 border border-white/10 active:scale-95 transition-all shadow-xl">
+                            <ArrowLeft size={20} />
+                        </button>
+                    </div>
+                    
+                    <div className="flex flex-col items-center pointer-events-none">
+                        <h1 className="text-lg font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] uppercase tracking-tighter">
+                            {currentLevelData.title}
+                        </h1>
+                        <span className="text-[7px] font-black text-yellow-500/80 tracking-[0.2em] uppercase">{currentLevelData.difficulty}</span>
+                    </div>
 
-                <div className="flex gap-2 pointer-events-auto">
-                    <button onClick={resetGame} className="p-3 bg-black/40 backdrop-blur-md rounded-2xl text-gray-300 border border-white/10 active:scale-95 shadow-xl">
-                        <RefreshCw size={22} />
-                    </button>
-                </div>
-            </div>
-
-            {/* BARRE INFÉRIEURE (OVERLAY) */}
-            <div 
-                className="absolute bottom-0 left-0 w-full z-20 flex items-center px-4 md:px-8 shadow-[0_-15px_40px_rgba(0,0,0,0.5)] pointer-events-none"
-                style={{ 
-                    height: 'calc(6.5rem + env(safe-area-inset-bottom))',
-                    paddingBottom: 'env(safe-area-inset-bottom)',
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)'
-                }}
-            >
-                <div className="flex flex-col items-center justify-center border-r border-white/10 pr-5 mr-5 shrink-0 pointer-events-auto">
-                    <span className="text-[9px] font-black text-white/60 uppercase tracking-widest mb-1">Temps</span>
-                    <div className={`flex items-center gap-1.5 text-2xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
-                        {timeLeft}s
+                    <div className="flex gap-2 pointer-events-auto">
+                        <button onClick={resetGame} className="p-2.5 bg-black/60 backdrop-blur-md rounded-xl text-gray-300 border border-white/10 active:scale-95 shadow-xl">
+                            <RefreshCw size={20} />
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar py-2 pointer-events-auto">
-                    {state.objects.map(obj => (
-                        <div 
-                            key={obj.id} 
-                            className={`min-w-[110px] md:min-w-[150px] px-3 py-2.5 rounded-xl border transition-all flex items-center gap-2 shrink-0 ${
-                                obj.found 
-                                ? 'bg-green-500/10 border-green-500/40 opacity-30 grayscale' 
-                                : 'bg-black/60 border-white/10 shadow-lg backdrop-blur-sm'
-                            }`}
-                        >
-                            <div className={`w-2 h-2 rounded-full shrink-0 ${obj.found ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-yellow-500 animate-pulse shadow-[0_0_8px_#facc15]'}`}></div>
-                            <span className={`text-[10px] font-black uppercase tracking-tight truncate ${obj.found ? 'text-green-400 line-through' : 'text-white'}`}>
-                                {obj.name}
-                            </span>
-                            {obj.found && <Check size={12} className="text-green-500 ml-auto" />}
+                {/* BARRE INFÉRIEURE (OVERLAY) - Contrainte au conteneur 9:16 */}
+                <div 
+                    className="absolute bottom-0 left-0 w-full z-30 flex items-center px-4 shadow-[0_-15px_40px_rgba(0,0,0,0.5)] pointer-events-none"
+                    style={{ 
+                        height: 'calc(6rem + env(safe-area-inset-bottom))',
+                        paddingBottom: 'env(safe-area-inset-bottom)',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%)'
+                    }}
+                >
+                    <div className="flex flex-col items-center justify-center border-r border-white/10 pr-4 mr-4 shrink-0 pointer-events-auto">
+                        <span className="text-[8px] font-black text-white/60 uppercase tracking-widest mb-1">Scanner</span>
+                        <div className={`flex items-center gap-1.5 text-xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`}>
+                            {timeLeft}s
                         </div>
-                    ))}
+                    </div>
+
+                    <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar py-2 pointer-events-auto">
+                        {state.objects.map(obj => (
+                            <div 
+                                key={obj.id} 
+                                className={`min-w-[100px] px-3 py-2 rounded-xl border transition-all flex items-center gap-2 shrink-0 ${
+                                    obj.found 
+                                    ? 'bg-green-500/10 border-green-500/40 opacity-30 grayscale' 
+                                    : 'bg-black/80 border-white/10 shadow-lg backdrop-blur-sm'
+                                }`}
+                            >
+                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${obj.found ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-yellow-500 animate-pulse shadow-[0_0_8px_#facc15]'}`}></div>
+                                <span className={`text-[9px] font-black uppercase tracking-tight truncate ${obj.found ? 'text-green-400 line-through' : 'text-white'}`}>
+                                    {obj.name}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            {/* FEEDBACK DE DÉCOUVERTE */}
+            {/* FEEDBACK DE DÉCOUVERTE (Full Screen Overlay) */}
             {lastFoundName && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                <div className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none select-none overflow-hidden">
                     <div className="bg-black/20 backdrop-blur-[2px] w-full py-12 flex flex-col items-center animate-in zoom-in fade-in slide-in-from-bottom-8 duration-300">
                         <div className="flex items-center gap-4 mb-2">
-                            <Sparkles className="text-yellow-400 animate-pulse" size={32} />
-                            <span className="text-yellow-500 font-black tracking-[0.5em] text-sm uppercase">Fragment Identifié</span>
-                            <Sparkles className="text-yellow-400 animate-pulse" size={32} />
+                            <Sparkles className="text-yellow-400 animate-pulse" size={24} />
+                            <span className="text-yellow-500 font-black tracking-[0.5em] text-xs uppercase">Fragment Localisé</span>
+                            <Sparkles className="text-yellow-400 animate-pulse" size={24} />
                         </div>
-                        <h2 className="text-5xl md:text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-400 to-white drop-shadow-[0_0_30px_rgba(250,204,21,0.8)] uppercase tracking-tighter text-center px-6">
+                        <h2 className="text-4xl md:text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-400 to-white drop-shadow-[0_0_30px_rgba(250,204,21,0.8)] uppercase tracking-tighter text-center px-6">
                             {lastFoundName}
                         </h2>
                     </div>
@@ -151,34 +160,34 @@ export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addC
 
             {/* ÉCRAN DE FIN */}
             {state.status === 'gameOver' && (
-                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300 h-[100dvh]">
+                <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300 h-full w-full">
                     {state.foundCount === state.objects.length ? (
                         <>
                             <Trophy size={80} className="text-yellow-400 mb-6 drop-shadow-[0_0_25px_gold] animate-bounce" />
-                            <h2 className="text-5xl font-black italic text-white mb-2 uppercase tracking-tighter">Scan Réussi</h2>
-                            <p className="text-green-400 font-bold mb-8 tracking-widest uppercase">Tous les fragments récupérés</p>
+                            <h2 className="text-5xl font-black italic text-white mb-2 uppercase tracking-tighter">Secteur Purifié</h2>
+                            <p className="text-green-400 font-bold mb-8 tracking-widest uppercase">Intégrité des données : 100%</p>
                         </>
                     ) : (
                         <>
                             <Search size={80} className="text-red-500 mb-6 drop-shadow-[0_0_25px_red] animate-pulse" />
                             <h2 className="text-5xl font-black italic text-white mb-2 uppercase tracking-tighter">Échec du Scan</h2>
-                            <p className="text-red-400 font-bold mb-8 tracking-widest uppercase">Données perdues</p>
+                            <p className="text-red-400 font-bold mb-8 tracking-widest uppercase">Signal perdu dans la grille</p>
                         </>
                     )}
 
                     {earnedCoins > 0 && (
                         <div className="mb-8 flex items-center gap-3 bg-yellow-500/20 px-6 py-3 rounded-full border-2 border-yellow-500 animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.3)]">
                             <Coins className="text-yellow-400" size={24} />
-                            <span className="text-yellow-100 font-black text-xl">+{earnedCoins} PIÈCES</span>
+                            <span className="text-yellow-100 font-bold text-xl">+{earnedCoins} PIÈCES</span>
                         </div>
                     )}
 
                     <div className="flex flex-col gap-3 w-full max-w-[280px]">
-                        <button onClick={resetGame} className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-yellow-400 transition-all shadow-xl flex items-center justify-center gap-2 uppercase italic">
+                        <button onClick={resetGame} className="w-full py-4 bg-white text-black font-black tracking-widest rounded-2xl hover:bg-yellow-400 transition-all shadow-xl flex items-center justify-center gap-2 uppercase italic active:scale-95">
                             <RefreshCw size={20} /> Recommencer
                         </button>
                         <button onClick={() => setInMenu(true)} className="w-full py-4 bg-gray-800 border border-white/10 text-white font-black tracking-widest rounded-2xl active:scale-95 transition-all uppercase italic">
-                            Choix du Niveau
+                            Retour à la Carte
                         </button>
                     </div>
                 </div>

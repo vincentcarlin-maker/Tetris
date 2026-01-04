@@ -21,19 +21,17 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
         setImageError(false);
     }, [imageSrc]);
 
-    const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    const handlePointerDown = (e: React.PointerEvent) => {
         if (!containerRef.current || !isLoaded) return;
         const rect = containerRef.current.getBoundingClientRect();
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-        const x = ((clientX - rect.left) / rect.width) * 100;
-        const y = ((clientY - rect.top) / rect.height) * 100;
+        
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
         
         onGridClick(x, y);
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const handlePointerMove = (e: React.PointerEvent) => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         setMousePos({
@@ -50,22 +48,10 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
     return (
         <div 
             ref={containerRef}
-            onClick={handleClick}
-            onMouseMove={handleMouseMove}
-            className="w-full h-full relative cursor-none bg-black overflow-hidden flex items-center justify-center"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            className="w-full h-full relative cursor-none bg-black overflow-hidden flex items-center justify-center touch-none"
         >
-            {/* FOND DE RÉCURRENCE (BLUR) */}
-            {isLoaded && !imageError && (
-                <div className="absolute inset-0 z-0">
-                    <img 
-                        src={imageSrc} 
-                        alt="Blurred background" 
-                        className="w-full h-full object-cover blur-3xl opacity-50 scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black/40"></div>
-                </div>
-            )}
-
             {!isLoaded && !imageError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-yellow-500/50 z-10 bg-black">
                     <Loader2 size={64} className="animate-spin" />
@@ -77,13 +63,12 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-black z-20">
                     <ImageOff size={48} className="text-red-500 mb-4 animate-pulse" />
                     <h3 className="text-xl font-black text-white italic uppercase mb-2">Signal Interrompu</h3>
-                    <p className="text-gray-400 text-xs leading-relaxed max-w-xs mb-6">
+                    <p className="text-gray-400 text-xs leading-relaxed max-w-xs">
                         L'image du niveau est introuvable.
                     </p>
                 </div>
             )}
 
-            {/* IMAGE DE JEU PRINCIPALE - CHANGÉ EN object-cover POUR PRENDRE TOUT L'ÉCRAN */}
             <img 
                 src={imageSrc} 
                 alt="Arcade Scene" 
@@ -105,7 +90,7 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                         </div>
                     </div>
 
-                    {/* Target Found Markers - Positionnement absolu sur le conteneur couvrant */}
+                    {/* Target Found Markers - Correction du ratio visuel */}
                     {objects.filter(obj => obj.found).map((obj) => (
                         <div 
                             key={obj.id}
@@ -113,20 +98,17 @@ export const SearchGrid: React.FC<SearchGridProps> = ({ objects, onGridClick, im
                             style={{
                                 left: `${obj.x}%`,
                                 top: `${obj.y}%`,
-                                width: '28px',
-                                height: '28px',
+                                // On utilise le rayon pour dimensionner le marqueur
+                                width: `${(obj.radius || 7) * 2.2}%`,
+                                // Compensation de la hauteur pour garder le marqueur rond en CSS malgré le conteneur 9:16
+                                height: `${(obj.radius || 7) * 2.2 * (9/16)}%`, 
                                 transform: 'translate(-50%, -50%)'
                             }}
                         >
-                            {/* Anneau extérieur cible */}
-                            <div className="absolute inset-0 border-[1.5px] border-green-400 rounded-full shadow-[0_0_10px_#4ade80] opacity-80"></div>
-                            
-                            {/* Point central (Bullseye) */}
+                            <div className="absolute inset-0 border-[2px] border-green-400 rounded-full shadow-[0_0_15px_#4ade80] opacity-80 bg-green-500/10"></div>
                             <div className="relative z-10 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_white]"></div>
-                            
-                            {/* Lignes de visée optionnelles pour le look cible */}
-                            <div className="absolute h-[1px] w-full bg-green-400/30"></div>
-                            <div className="absolute w-[1px] h-full bg-green-400/30"></div>
+                            <div className="absolute h-[1px] w-full bg-green-400/50"></div>
+                            <div className="absolute w-[1px] h-full bg-green-400/50"></div>
                         </div>
                     ))}
                 </div>

@@ -93,7 +93,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     config: {
                         numberOfImages: 1,
                         outputMimeType: 'image/png',
-                        aspectRatio: '9:16', // Changé de 1:1 à 9:16
+                        aspectRatio: '9:16', 
                     },
                 });
                 base64Image = response.generatedImages?.[0]?.image?.imageBytes;
@@ -104,8 +104,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     contents: { parts: [{ text: prompt }] },
                     config: { 
                         imageConfig: { 
-                            aspectRatio: "9:16", // Changé de 1:1 à 9:16
-                            // imageSize n'est supporté que par les modèles Pro
+                            aspectRatio: "9:16", 
                             ...(selectedModel.includes('pro') ? { imageSize: "1K" } : {})
                         } 
                     },
@@ -134,7 +133,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 contents: {
                     parts: [
                         { inlineData: { mimeType: 'image/png', data: base64Image } },
-                        { text: "CRITICAL: Identify 5 small, distinct objects in this image. For each, give exact coordinates. Return JSON array. Properties: 'id' (slug), 'name' (French), 'x' (0-100 float), 'y' (0-100 float), 'radius' (6-8)." }
+                        { text: "INSTRUCTIONS CRITIQUES : Identifiez 5 petits objets distincts dans cette image. Pour chaque objet, déterminez son CENTRE GÉOMÉTRIQUE EXACT (pas un bord ou un détail excentré). Les coordonnées doivent être des pourcentages (0-100). Répondez uniquement en JSON. Propriétés : 'id' (slug), 'name' (Français), 'x' (0-100), 'y' (0-100), 'radius' (entre 5 et 8 selon la taille de l'objet)." }
                     ]
                 },
                 config: {
@@ -331,7 +330,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                                             left: `${obj.x}%`,
                                             top: `${obj.y}%`,
                                             width: `${obj.radius * 2}%`,
-                                            height: `${obj.radius * (2 * 16/9)}%`, // Compensation pour l'aspect ratio dans l'affichage
+                                            height: `${obj.radius * (2 * 16/9)}%`, 
                                             transform: 'translate(-50%, -50%)'
                                         }}
                                     >
