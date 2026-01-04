@@ -103,9 +103,16 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
             const ai = new GoogleGenAI({ apiKey: apiKey || '' });
             
             let base64Image = null;
+
+            // Construction du prompt avec directive de stricte adhésion
+            const userPrompt = prompt.trim();
+            const finalPrompt = userPrompt 
+                ? `STRICT INSTRUCTION: Generate an image that strictly follows this description to the letter. Do not add elements not requested. High quality, 8k resolution. Description: ${userPrompt}` 
+                : "A futuristic cyberpunk hidden object game scene, high detail, neon lights, 8k, portrait 9:16.";
+
             const response = await ai.models.generateContent({
                 model: selectedModel,
-                contents: { parts: [{ text: prompt }] },
+                contents: { parts: [{ text: finalPrompt }] },
                 config: { 
                     imageConfig: { 
                         aspectRatio: "9:16", 
