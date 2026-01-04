@@ -19,7 +19,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
     const [levelDifficulty, setLevelDifficulty] = useState<'FACILE' | 'MOYEN' | 'EXPERT'>('MOYEN');
     const [levelReward, setLevelReward] = useState<number>(100);
     
-    const [prompt, setPrompt] = useState('A mysterious cyberpunk interior, high detail, portrait 9:16, neon lights, scattered tech items.');
+    const [prompt, setPrompt] = useState('');
     const [selectedModel, setSelectedModel] = useState(GENERATION_MODELS[0].id);
     
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                 setLevelTitle(`NIVEAU ${selectedSlot}`);
                 setLevelDesc('');
                 setLevelDifficulty('MOYEN');
-                setPrompt('A mysterious cyberpunk interior, high detail, portrait 9:16, neon lights, scattered tech items.');
+                setPrompt('');
                 setLevelReward(100);
             }
         }
@@ -402,7 +402,7 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Prompt visuel</label>
-                        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} className="w-full h-12 bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white resize-none" />
+                        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Décrivez l'image à générer..." className="w-full h-12 bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white resize-none" />
                     </div>
                 </div>
                 
