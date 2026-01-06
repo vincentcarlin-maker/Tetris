@@ -1,11 +1,10 @@
+
 {
-  "name": "neon-arcade",
+  "name": "react-tetris",
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --loader:.js=jsx --define:process.env.API_KEY=\"${API_KEY}\" && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll",
-    "dev": "rm -rf dist && mkdir -p dist && cp index.html icon.svg manifest.json sw.js dist/ && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --servedir=dist --loader:.js=jsx --define:process.env.API_KEY=\"\"",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --define:process.env.API_KEY=\\\"${API_KEY}\\\" && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -13,12 +12,11 @@
     "lucide-react": "^0.395.0",
     "peerjs": "^1.5.2",
     "@supabase/supabase-js": "^2.39.7",
-    "@google/genai": "^1.34.0"
+    "@google/genai": "*"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "esbuild": "^0.23.0",
-    "wrangler": "^3.0.0"
+    "esbuild": "^0.23.0"
   }
 }

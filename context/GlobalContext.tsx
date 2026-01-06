@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useGameAudio } from '../hooks/useGameAudio';
 import { useCurrency } from '../hooks/useCurrency';
@@ -62,7 +63,6 @@ export const useGlobal = () => {
 };
 
 export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // Changement ici : 'tetris' devient 'menu'
     const [currentView, setCurrentView] = useState<ViewState>('menu');
     const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('neon-username'));
     const [showLoginModal, setShowLoginModal] = useState(false);
