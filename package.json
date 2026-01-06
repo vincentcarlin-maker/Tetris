@@ -3,8 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --loader:.js=jsx --define:process.env.API_KEY=\\\"${API_KEY}\\\" && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll",
-    "dev": "rm -rf dist && mkdir -p dist && cp index.html icon.svg manifest.json sw.js dist/ && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --servedir=dist --loader:.js=jsx --define:process.env.API_KEY=\\\"\\\""
+    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --loader:.js=jsx --define:process.env.API_KEY=\"${API_KEY}\" && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll",
+    "dev": "rm -rf dist && mkdir -p dist && cp index.html icon.svg manifest.json sw.js dist/ && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --servedir=dist --loader:.js=jsx --define:process.env.API_KEY=\"\"",
+    "deploy": "npm run build && wrangler pages deploy dist"
   },
   "dependencies": {
     "react": "^18.3.1",
