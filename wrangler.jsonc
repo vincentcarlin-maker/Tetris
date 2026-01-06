@@ -1,13 +1,34 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  
+  // Nom du projet sur Cloudflare Pages
   "name": "neon-arcade",
+  
+  // Date de compatibilité (utile pour Cloudflare Workers / Pages)
   "compatibility_date": "2024-05-01",
+  
+  // Dossier de sortie du build
   "pages_build_output_dir": "dist",
+  
+  // Commande de build pour ton projet (Google AI Studio / npm build)
   "build": {
     "command": "npm run build",
     "watch_dir": "."
   },
+  
+  // Variables d'environnement que tu peux utiliser dans ton code
   "vars": {
     "ENVIRONMENT": "production"
-  }
+  },
+  
+  // Configuration pour le dev local avec Pages
+  "dev": {
+    "port": 8787,
+    "local_protocol": "http"
+  },
+
+  // Optionnel : routes personnalisées si tu déploies sur ton domaine
+  // "routes": [
+  //   "https://neon-arcade.pages.dev/*"
+  // ]
 }
