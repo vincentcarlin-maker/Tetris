@@ -21,7 +21,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     const { featureFlags } = useGlobal();
 
     return (
-        <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-start p-3 pt-[calc(0.1rem+env(safe-area-inset-top))]">
+        <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-start p-3">
             {isAuthenticated ? (
                 featureFlags.economy_system ? (
                     <div ref={onCoinsRef} className="flex items-center gap-1.5 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full border border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
