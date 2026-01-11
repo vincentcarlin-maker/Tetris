@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
     LayoutGrid, Globe, Gamepad2, Puzzle, Trophy, Hexagon, 
@@ -206,6 +207,7 @@ export const CustomUltraLumenIcon = ({ size = "100%", className = "" }: { size?:
         ),
         React.createElement("linearGradient", { id: "lm-glassShine", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
           React.createElement("stop", { offset: "0%", stopColor: "white", stopOpacity: "0.4" }),
+          React.createElement("stop", { offset: "50%", stopColor: "white", stopOpacity: "0.1" }),
           React.createElement("stop", { offset: "100%", stopColor: "white", stopOpacity: "0" })
         )
       ),
@@ -1074,11 +1076,58 @@ export const CustomUltraMemoryIcon = ({ size = "100%", className = "" }: { size?
         React.createElement("circle", { cx: "412", cy: "150", r: "1.5", fill: "#00d2ff", filter: "url(#mem-neonBlue)" })
     );
 
+export const CustomNeonSeekIcon = ({ size = "100%", className = "" }: { size?: number | string, className?: string }) =>
+  React.createElement("svg", { width: size, height: size, viewBox: "0 0 512 512", fill: "none", xmlns: "http://www.w3.org/2000/svg", className },
+    React.createElement("defs", null,
+      React.createElement("filter", { id: "cyanGlow", x: "-40%", y: "-40%", width: "180%", height: "180%" },
+        React.createElement("feGaussianBlur", { stdDeviation: "12", result: "blur" }),
+        React.createElement("feFlood", { floodColor: "#00f2ff", floodOpacity: "0.6", result: "color" }),
+        React.createElement("feComposite", { in: "color", in2: "blur", operator: "in", result: "glow" }),
+        React.createElement("feMerge", null,
+          React.createElement("feMergeNode", { in: "glow" }),
+          React.createElement("feMergeNode", { in: "SourceGraphic" })
+        )
+      ),
+      React.createElement("filter", { id: "pinkGlow", x: "-40%", y: "-40%", width: "180%", height: "180%" },
+        React.createElement("feGaussianBlur", { stdDeviation: "15", result: "blur" }),
+        React.createElement("feFlood", { floodColor: "#ff0077", floodOpacity: "0.8", result: "color" }),
+        React.createElement("feComposite", { in: "color", in2: "blur", operator: "in", result: "glow" }),
+        React.createElement("feMerge", null,
+          React.createElement("feMergeNode", { in: "glow" }),
+          React.createElement("feMergeNode", { in: "SourceGraphic" })
+        )
+      ),
+      React.createElement("linearGradient", { id: "handleGrad", x1: "0%", y1: "0%", x2: "100%", y2: "100%" },
+        React.createElement("stop", { offset: "0%", stopColor: "#00f2ff" }),
+        React.createElement("stop", { offset: "100%", stopColor: "#006688" })
+      )
+    ),
+    React.createElement("rect", { width: "512", height: "512", rx: "120", fill: "#020205" }),
+
+    React.createElement("g", { filter: "url(#cyanGlow)" },
+      React.createElement("rect", { x: "340", y: "340", width: "120", height: "32", rx: "16", transform: "rotate(45 340 340)", fill: "url(#handleGrad)" }),
+      React.createElement("rect", { x: "382", y: "382", width: "40", height: "32", rx: "4", transform: "rotate(45 382 382)", fill: "#020205" })
+    ),
+
+    React.createElement("g", { filter: "url(#cyanGlow)" },
+      React.createElement("circle", { cx: "210", cy: "210", r: "140", stroke: "#00f2ff", strokeWidth: "20", fill: "none" }),
+      React.createElement("circle", { cx: "210", cy: "210", r: "120", stroke: "white", strokeWidth: "2", strokeOpacity: "0.3", fill: "none" })
+    ),
+
+    React.createElement("g", { filter: "url(#pinkGlow)" },
+      React.createElement("circle", { cx: "210", cy: "210", r: "40", stroke: "#ff0077", strokeWidth: "6", fill: "#ff0077", fillOpacity: "0.1" }),
+      React.createElement("path", { d: "M210 150 V185 M210 235 V270 M150 210 H185 M235 210 H270", stroke: "#ff0077", strokeWidth: "10", strokeLinecap: "round" }),
+      React.createElement("circle", { cx: "210", cy: "210", r: "10", fill: "white" })
+    ),
+
+    React.createElement("path", { d: "M120 140 C 150 100, 250 100, 300 140", stroke: "white", strokeWidth: "6", strokeLinecap: "round", strokeOpacity: "0.2" })
+  );
+
 // --- CONFIGURATIONS ---
 
 export const GAMES_CONFIG = [
     { id: 'slither', category: 'ARCADE', name: 'CYBER SERPENT', icon: CustomCyberSerpentIcon, color: 'text-indigo-400', bg: 'bg-indigo-900/20', border: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', shadow: 'hover:shadow-[0_0_20px_rgba(129,140,248,0.3)]', glow: 'rgba(129,140,248,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
-    { id: 'neon_seek', category: 'PUZZLE', name: 'NEON SEEK', icon: Search, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS', beta: false },
+    { id: 'neon_seek', category: 'PUZZLE', name: 'NEON SEEK', icon: CustomNeonSeekIcon, color: 'text-yellow-400', bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', hoverBorder: 'hover:border-yellow-400', shadow: 'hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]', glow: 'rgba(250,204,21,0.8)', badges: { solo: true, online: false, vs: false, new: true }, reward: 'GAINS', beta: false },
     { id: 'lumen', category: 'PUZZLE', name: 'LUMEN ORDER', icon: CustomUltraLumenIcon, color: 'text-cyan-400', bg: 'bg-cyan-900/20', border: 'border-cyan-500/30', hoverBorder: 'hover:border-cyan-400', shadow: 'hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]', glow: 'rgba(34,211,238,0.8)', badges: { solo: true, online: false, vs: false, new: false }, reward: 'GAINS', beta: true },
     { id: 'skyjo', category: 'STRATEGY', name: 'NEON SKYJO', icon: CustomUltraSkyjoIcon, color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', shadow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]', glow: 'rgba(168,85,247,0.8)', badges: { solo: true, online: true, vs: true, new: false }, reward: 'GAINS', beta: false },
     { id: 'arenaclash', category: 'ARCADE', name: 'ARENA CLASH', icon: CustomUltraArenaIcon, color: 'text-red-500', bg: 'bg-red-900/20', border: 'border-red-500/30', hoverBorder: 'hover:border-red-400', shadow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'rgba(239,68,68,0.8)', badges: { solo: true, online: true, vs: false, new: false }, reward: 'GAINS', beta: true },
