@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Home, RefreshCw, HelpCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
-import { useCurrency } from '../../hooks/useCurrency';
+import { useGlobal } from '../../context/GlobalContext';
 import { TutorialOverlay } from '../Tutorials';
 import { useWaterSortLogic } from './hooks/useWaterSortLogic';
 import { WaterSortMenu } from './views/WaterSortMenu';
@@ -19,7 +19,7 @@ interface WaterSortGameProps {
 
 export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {
     const { playLand, playPaddleHit, resumeAudio, playVictory } = audio;
-    const { coins, addCoins: currencyAddCoins } = useCurrency();
+    const { currency, recordTransaction, syncDataWithCloud } = useGlobal();
     
     // View State
     const [view, setView] = useState<'LEVEL_SELECT' | 'GAME'>('LEVEL_SELECT');
@@ -58,12 +58,22 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
         if (logic.undoMove()) playPaddleHit();
     };
 
-    const handleAddTube = () => {
-        if (coins >= 500) {
-            currencyAddCoins(-500);
+    const handleAddTube = async () => {
+        if (currency.coins >= 500) {
+            // Débit réel du solde global
+            currency.addCoins(-500);
+            
+            // Enregistrement de la transaction pour l'admin
+            recordTransaction('PURCHASE', -500, 'Tube supplémentaire (Neon Mix)', 'watersort');
+            
+            // Ajout visuel du tube
             logic.addExtraTube();
             playVictory();
+            
+            // Sync immédiate
+            await syncDataWithCloud();
         } else {
+            // Feedback erreur (son d'impact contre mur)
             playPaddleHit();
         }
     };
@@ -99,7 +109,7 @@ export const WaterSortGame: React.FC<WaterSortGameProps> = ({ onBack, audio, add
 
             {/* Header */}
             <div className="w-full max-w-lg flex items-center justify-between z-30 mb-6 shrink-0 relative">
-                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-transform shadow-lg"><Home size={20} /></button>
+                <button onClick={handleLocalBack} className="p-2 bg-gray-800 rounded-lg text-gray-400 hover:text-white border border-white/10 active:scale-95 transition-all shadow-lg"><Home size={20} /></button>
                 <div className="flex flex-col items-center pointer-events-none">
                     <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] pr-2 pb-1">NEON MIX</h1>
                     <div className="flex items-center gap-3 pointer-events-auto">
