@@ -8,6 +8,8 @@ import { useHighScores } from '../hooks/useHighScores';
 import { useSupabase } from '../hooks/useSupabase';
 import { DB, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { FriendRequest } from '../components/social/types';
+import { cloudAccounts, OnlineSession, CloudError } from '../lib/cloudAccounts';
+import { readLocalProfile, restoreGameProgress } from '../lib/localProfile';
 import { GUEST_MODE, GUEST_FLAGS } from '../lib/appMode';
 import { defaultProfile, loadOwnProfile, isAdmin, removeLegacyCredentials } from '../lib/auth';
 import { SeekLevel } from '../components/neon_seek/types';
@@ -19,6 +21,8 @@ interface GlobalContextType {
     currentView: ViewState;
     setCurrentView: (view: ViewState) => void;
     isAuthenticated: boolean;
+    cloudSyncStatus: 'local' | 'loading' | 'saving' | 'saved' | 'error' | 'conflict';
+    cloudSyncMessage: string;
     passwordRecovery: boolean;
     setIsAuthenticated: (val: boolean) => void;
     showLoginModal: boolean;
@@ -68,6 +72,10 @@ export const useGlobal = () => {
 export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [cloudSyncStatus, setCloudSyncStatus] = useState<GlobalContextType['cloudSyncStatus']>('local');
+    const [cloudSyncMessage, setCloudSyncMessage] = useState('');
+    const savedFingerprintRef = useRef('');
+    const cloudReadyRef = useRef(false);
     const [isAdministrator, setIsAdministrator] = useState(false);
     const [passwordRecovery, setPasswordRecovery] = useState(false);
     const recoveryRef = useRef(false);
@@ -227,6 +235,24 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, []);
 
     const syncDataWithCloud = useCallback(async () => {
+        if (GUEST_MODE) {
+            if (!isAuthenticated || !cloudReadyRef.current) return;
+            const snapshot = readLocalProfile();
+            const fingerprint = JSON.stringify(snapshot);
+            if (fingerprint === savedFingerprintRef.current) return;
+            setCloudSyncStatus('saving'); setCloudSyncMessage('');
+            try {
+                await cloudAccounts.save(snapshot);
+                if (!cloudReadyRef.current) return;
+                savedFingerprintRef.current = fingerprint;
+                setCloudSyncStatus('saved');
+            } catch (error) {
+                setCloudSyncStatus(error instanceof CloudError && error.status === 409 ? 'conflict' : 'error');
+                setCloudSyncMessage(error instanceof Error ? error.message : 'La sauvegarde sera réessayée lorsque la connexion sera rétablie.');
+                throw error;
+            }
+            return;
+        }
         if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon' || isAcceptingFriendRef.current) return;
 
         const fullData = {
@@ -266,8 +292,20 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         currency.currentTitleId, currency.currentMalletId, currency.currentSlitherSkinId,
         currency.currentSlitherAccessoryId, currency.currentTankId, currency.currentTankAccessoryId,
         JSON.stringify(highScoresHook.highScores),
-        JSON.stringify(daily.quests), daily.streak,
+        JSON.stringify(daily.quests), daily.streak, currency.accentColor, currency.reducedMotion, currency.voiceChatEnabled, currency.language,
     ]);
+
+    const cloudSyncRef = useRef(syncDataWithCloud);
+    cloudSyncRef.current = syncDataWithCloud;
+    useEffect(() => {
+        if (!GUEST_MODE || !isAuthenticated) return;
+        const timer = setInterval(() => { void cloudSyncRef.current().catch(() => {}); }, 15000);
+        const onOnline = () => { void cloudSyncRef.current().catch(() => {}); };
+        const onHide = () => {const snapshot=readLocalProfile();if(JSON.stringify(snapshot)!==savedFingerprintRef.current)cloudAccounts.stage(snapshot);};
+        window.addEventListener('online', onOnline);
+        window.addEventListener('pagehide', onHide);
+        return () => { clearInterval(timer); window.removeEventListener('online', onOnline); window.removeEventListener('pagehide',onHide); };
+    }, [isAuthenticated]);
 
     const recordTransaction = useCallback((type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => {
         if (GUEST_MODE || !currency.username || currency.username === 'Joueur Néon') return;
@@ -290,6 +328,48 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     const loginRef = useRef(handleLogin);
     loginRef.current = handleLogin;
+
+    useEffect(() => {
+        if (!GUEST_MODE) return;
+        let cancelled = false;
+        const apply = (session: OnlineSession | null) => {
+            if (cancelled) return;
+            cloudReadyRef.current = false;
+            if (!session) {
+                const hadAccount = !!loadedUserRef.current || !!localStorage.getItem('neon_cloud_owner');
+                loadedUserRef.current = null;
+                setIsAuthenticated(false); setIsAdministrator(false);
+                setCloudSyncStatus('local'); setCloudSyncMessage('');
+                if (hadAccount) {
+                    let guest = {};
+                    try { guest = JSON.parse(localStorage.getItem('neon_guest_backup') || '{}'); } catch {}
+                    const snapshot = { ...defaultProfile(), ...guest, email:'' };
+                    currency.importData(snapshot);
+                    highScoresHook.replaceScores(snapshot.highScores);
+                    daily.importData(snapshot.daily as any);
+                    restoreGameProgress(snapshot);
+                    currency.updateUsername('Joueur Néon');
+                    localStorage.removeItem('neon_cloud_owner');
+                }
+                return;
+            }
+            if (!localStorage.getItem('neon_cloud_owner')) localStorage.setItem('neon_guest_backup', JSON.stringify(readLocalProfile()));
+            loadedUserRef.current = session.user.id;
+            localStorage.setItem('neon_cloud_owner',session.user.id);
+            restoreGameProgress(session.profile.data);
+            loginRef.current(session.user.username, { ...session.profile.data, email:session.user.email });
+            savedFingerprintRef.current = cloudAccounts.hasPending() ? '' : JSON.stringify(session.profile.data);
+            cloudReadyRef.current = true;
+            setCloudSyncStatus(cloudAccounts.hasConflict() ? 'conflict' : cloudAccounts.hasPending() ? 'error' : 'saved'); setCloudSyncMessage(cloudAccounts.hasConflict() ? 'Une sauvegarde plus récente existe en ligne. Votre progression locale est conservée. Rechargez la sauvegarde pour continuer.' : '');
+            setShowLoginModal(!!cloudAccounts.pendingRecovery());
+        };
+        const unsubscribe = cloudAccounts.subscribe(apply);
+        setCloudSyncStatus('loading');
+        void cloudAccounts.load().then(apply).catch(error => {
+            if (!cancelled) { setCloudSyncStatus('error'); setCloudSyncMessage(error instanceof Error ? error.message : 'Connexion impossible. Vos données locales sont conservées.'); }
+        });
+        return () => { cancelled=true; cloudReadyRef.current=false; unsubscribe(); };
+    }, []);
 
     useEffect(() => {
         removeLegacyCredentials();
@@ -344,6 +424,13 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, []);
 
     const handleLogout = async () => {
+        if (GUEST_MODE) {
+            try { await syncDataWithCloud(); }
+            catch { throw new Error('La sauvegarde a échoué. Réessayez avant de vous déconnecter.'); }
+            await cloudAccounts.logout();
+            setCurrentView('menu');
+            return;
+        }
         try { await syncDataWithCloud(); }
         catch { setGlobalAlert({ message: 'Les dernières modifications n’ont pas pu être sauvegardées.', type: 'warning' }); }
         finally {
@@ -359,7 +446,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return (
         <GlobalContext.Provider value={{
-            currentView, setCurrentView, isAuthenticated, passwordRecovery, setIsAuthenticated, showLoginModal, setShowLoginModal,
+            currentView, setCurrentView, isAuthenticated, cloudSyncStatus, cloudSyncMessage, passwordRecovery, setIsAuthenticated, showLoginModal, setShowLoginModal,
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
             friendRequests, setFriendRequests, sentRequests, setSentRequests, refreshSocialData,
             disabledGames, setDisabledGames, featureFlags, setFeatureFlags, neonSeekConfig, globalEvents: [],

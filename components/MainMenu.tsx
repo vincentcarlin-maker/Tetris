@@ -1,4 +1,5 @@
 
+import { CloudAccountPanel } from './CloudAccountPanel';
 import { GUEST_MODE } from '../lib/appMode';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Coins, Zap, Trophy, Star, Users, Info } from 'lucide-react';
@@ -145,6 +146,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
              <div className="z-10 flex flex-col items-center max-w-md w-full gap-4 py-2 mt-10 pb-10">
                  
                  <ArcadeLogo />
+                 {GUEST_MODE && <CloudAccountPanel />}
 
                  {/* NOUVEAU: Guide d'installation intelligent */}
                  <InstallGuide />

@@ -35,6 +35,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install API dependencies
+        run: npm ci --prefix cloudflare
+
+      - name: Check API
+        run: npm --prefix cloudflare run check && npm --prefix cloudflare run build && npm --prefix cloudflare test
+
       - name: Check
         run: npm run typecheck && npm test
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "neon-arcade-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "vars": {
+    "APP_ORIGIN": "https://vincentcarlin-maker.github.io"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "neon-arcade-accounts",
+      "database_id": "c1ee18d9-14f0-48dd-ae1e-dab1e816f4ca",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "triggers": {
+    "crons": [
+      "0 3 * * *"
+    ]
+  }
+}

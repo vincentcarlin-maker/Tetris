@@ -3,6 +3,7 @@ import { GUEST_MODE } from './lib/appMode';
 import React, { useEffect } from 'react';
 import { GlobalProvider, useGlobal } from './context/GlobalContext';
 import { GameRouter } from './components/GameRouter';
+import { CloudLogin } from './components/CloudLogin';
 import { LoginScreen } from './components/LoginScreen';
 import { BottomNav } from './components/BottomNav';
 import { AlertTriangle, Info } from 'lucide-react';
@@ -77,6 +78,7 @@ const AppContent: React.FC = () => {
                 </div>
             )}
 
+            {GUEST_MODE && showLoginModal && <CloudLogin onClose={() => setShowLoginModal(false)} />}
             {!GUEST_MODE && showLoginModal && (
                 <LoginScreen 
                     onCancel={() => setShowLoginModal(false)}

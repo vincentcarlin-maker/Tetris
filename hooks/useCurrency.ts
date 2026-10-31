@@ -136,8 +136,8 @@ export const useCurrency = (isSuperUser = false) => {
         // Settings
         if (data.email !== undefined) { setEmail(data.email); localStorage.setItem('neon-email', data.email); }
         if (data.accentColor) { setAccentColor(data.accentColor); localStorage.setItem('neon-accent-color', data.accentColor); }
-        if (data.reducedMotion) { setReducedMotion(data.reducedMotion); localStorage.setItem('neon-reduced-motion', String(data.reducedMotion)); }
-        if (data.voiceChatEnabled) { setVoiceChatEnabled(data.voiceChatEnabled); localStorage.setItem('neon-voice-chat', String(data.voiceChatEnabled)); }
+        if (data.reducedMotion !== undefined) { setReducedMotion(data.reducedMotion); localStorage.setItem('neon-reduced-motion', String(data.reducedMotion)); }
+        if (data.voiceChatEnabled !== undefined) { setVoiceChatEnabled(data.voiceChatEnabled); localStorage.setItem('neon-voice-chat', String(data.voiceChatEnabled)); }
         if (data.language) { setLanguageState(data.language); localStorage.setItem('neon-language', data.language); }
     }, []);
 
@@ -146,7 +146,7 @@ export const useCurrency = (isSuperUser = false) => {
     return { 
         coins, inventory, ownedAvatars, ownedFrames, ownedWallpapers, ownedTitles, ownedMallets, ownedSlitherSkins, ownedSlitherAccessories, ownedTanks, ownedTankAccessories,
         accentColor, updateAccentColor: (c: string) => { setAccentColor(c); localStorage.setItem('neon-accent-color', c); },
-        voiceChatEnabled, toggleVoiceChat: () => setVoiceChatEnabled(v => !v),
+        voiceChatEnabled, toggleVoiceChat: () => setVoiceChatEnabled(v => { localStorage.setItem('neon-voice-chat', String(!v)); return !v; }),
         language, setLanguage: (l: string) => { setLanguageState(l); localStorage.setItem('neon-language', l); }, t,
         isSuperUser, adminModeActive, toggleAdminMode: () => setAdminModeActive(v => !v),
         addCoins, username, updateUsername: (n: string) => { setUsername(n); localStorage.setItem('neon-username', n); },
@@ -191,7 +191,7 @@ export const useCurrency = (isSuperUser = false) => {
         playerRank: { title: "VAGABOND", color: "text-gray-400" }, 
         inventoryCount: inventory.length,
         email, updateEmail: (e: string) => { setEmail(e); localStorage.setItem('neon-email', e); },
-        reducedMotion, toggleReducedMotion: () => setReducedMotion(v => !v),
+        reducedMotion, toggleReducedMotion: () => setReducedMotion(v => { localStorage.setItem('neon-reduced-motion', String(!v)); return !v; }),
         friends,
         addFriend: (f: Friend) => setFriends(p => p.some(pf => pf.name === f.name) ? p : [...p, f]),
         removeFriend: (name: string) => setFriends(p => p.filter(f => f.name !== name)),

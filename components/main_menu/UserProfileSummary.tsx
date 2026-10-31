@@ -1,5 +1,6 @@
 
 import { GUEST_MODE } from '../../lib/appMode';
+import { useGlobal } from '../../context/GlobalContext';
 import React, { useState, useRef, useEffect } from 'react';
 import { LogOut, Lock, Edit2, Check, Calendar } from 'lucide-react';
 
@@ -17,6 +18,7 @@ interface UserProfileSummaryProps {
 export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({ 
     currency, isAuthenticated, onLoginRequest, onLogout, onSelectGame, streak, t, language 
 }) => {
+    const { isAuthenticated: hasCloudAccount } = useGlobal();
     const { username, updateUsername, currentAvatarId, avatarsCatalog, currentFrameId, framesCatalog, currentTitleId, titlesCatalog, inventory, badgesCatalog, playerRank } = currency;
     const [isEditingName, setIsEditingName] = useState(false);
     const [tempName, setTempName] = useState(username);
@@ -40,7 +42,7 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
         <div className="w-full bg-black/60 border accent-border rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
             {!GUEST_MODE && isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title={t.logout}><LogOut size={14} /></button>}
-            {GUEST_MODE && <p className="text-[10px] text-neon-blue uppercase tracking-wider z-10">Mode invité · Sauvegarde sur cet appareil</p>}
+            {GUEST_MODE && <p className="text-[10px] text-neon-blue uppercase tracking-wider z-10">{hasCloudAccount ? 'Compte connecté · Sauvegarde en ligne' : 'Mode invité · Sauvegarde sur cet appareil'}</p>}
             <div className="flex items-center w-full gap-3 z-10">
                 <div onClick={() => isAuthenticated ? onSelectGame('shop') : onLoginRequest && onLoginRequest()} className="relative cursor-pointer hover:scale-105 transition-transform shrink-0">
                     {isAuthenticated ? (
@@ -66,7 +68,7 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
                                         <button type="submit" className="text-green-400"><Check size={16} /></button>
                                     </form>
                                 ) : (
-                                    <button onClick={() => { setTempName(username); setIsEditingName(true); }} className="flex items-center gap-2 group/edit truncate">
+                                    <button disabled={hasCloudAccount} onClick={() => { setTempName(username); setIsEditingName(true); }} className="flex items-center gap-2 group/edit truncate">
                                         <h2 className="text-lg font-black text-white italic tracking-wide truncate">{username}</h2>
                                         <Edit2 size={12} className="text-gray-500 group-hover/edit:text-white transition-colors opacity-0 group-hover/edit:opacity-100" />
                                     </button>
