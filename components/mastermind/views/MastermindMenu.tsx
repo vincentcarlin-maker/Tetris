@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../../lib/appMode';
 
 import React from 'react';
 import { Home, ArrowRight, User, Globe, BrainCircuit, Sparkles, Search, Lock } from 'lucide-react';
@@ -99,7 +100,7 @@ export const MastermindMenu: React.FC<MastermindMenuProps> = ({ onStart, onBack 
                     </button>
 
                     {/* ONLINE */}
-                    <button onClick={() => onStart('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
+                    {!GUEST_MODE && (<button onClick={() => onStart('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         
                         <div className="relative z-10">
@@ -117,7 +118,7 @@ export const MastermindMenu: React.FC<MastermindMenuProps> = ({ onStart, onBack 
                         <div className="relative z-10 flex items-center gap-2 text-purple-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">
                             REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
                         </div>
-                    </button>
+                    </button>)}
                 </div>
 
                 <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">

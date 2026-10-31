@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../../lib/appMode';
 import React from 'react';
 import { Home, Layers, Play, User, Globe, ArrowRight, Sparkles } from 'lucide-react';
 
@@ -79,7 +80,7 @@ export const UnoMenu: React.FC<UnoMenuProps> = ({ onInitGame, onBack }) => {
                         </div>
                     </button>
 
-                    <button onClick={() => onInitGame('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                    {!GUEST_MODE && (<button onClick={() => onInitGame('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-red-500/50 hover:shadow-[0_0_50px_rgba(239,68,68,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                         <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         
                         <div className="relative z-10">
@@ -98,7 +99,7 @@ export const UnoMenu: React.FC<UnoMenuProps> = ({ onInitGame, onBack }) => {
                         <div className="relative z-10 flex items-center gap-2 text-red-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">
                             REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
                         </div>
-                    </button>
+                    </button>)}
                 </div>
 
                 <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">

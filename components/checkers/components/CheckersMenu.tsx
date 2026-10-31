@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../../lib/appMode';
 
 import React from 'react';
 import { User, Globe, Users, ArrowRight, Play, Shield, Zap, Skull, Home, Crown } from 'lucide-react';
@@ -52,7 +53,7 @@ export const CheckersMenu: React.FC<CheckersMenuProps> = ({ phase, onSelectMode,
                         <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-widest group-hover:text-white transition-colors">Défier la grille <ArrowRight size={16} /></div>
                     </button>
 
-                    <button onClick={() => onSelectMode('ONLINE')} className="group relative h-48 md:h-64 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-pink-500/50 p-8 text-left flex flex-col justify-between shadow-2xl">
+                    {!GUEST_MODE && (<button onClick={() => onSelectMode('ONLINE')} className="group relative h-48 md:h-64 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-pink-500/50 p-8 text-left flex flex-col justify-between shadow-2xl">
                         <div className="absolute inset-0 bg-gradient-to-br from-pink-600/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <Globe size={32} className="text-pink-500" />
                         <div>
@@ -60,7 +61,7 @@ export const CheckersMenu: React.FC<CheckersMenuProps> = ({ phase, onSelectMode,
                             <p className="text-gray-400 text-xs">Duel stratégique contre un amiral distant.</p>
                         </div>
                         <div className="flex items-center gap-2 text-pink-500 font-bold text-xs uppercase tracking-widest group-hover:text-white transition-colors">Rejoindre le lobby <ArrowRight size={16} /></div>
-                    </button>
+                    </button>)}
                 </div>
                 
                 <button onClick={() => onSelectMode('LOCAL')} className="w-full max-w-sm py-4 bg-gray-800/50 rounded-2xl border border-white/5 text-gray-400 hover:text-white hover:bg-gray-700 transition-all font-bold text-xs tracking-widest flex items-center justify-center gap-2 mt-4"><Users size={16} /> DEUX JOUEURS LOCAL</button>

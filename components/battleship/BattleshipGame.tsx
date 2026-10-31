@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../lib/appMode';
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, RefreshCw, Trophy, Target, ShieldAlert, Coins, HelpCircle, ArrowLeft, Loader2, Cpu, Globe, MessageSquare, Send, Hand, Smile, Frown, ThumbsUp, Heart, Play, Wifi, Search, Ship, ArrowRight, X } from 'lucide-react';
 import { useGameAudio } from '../../hooks/useGameAudio';
@@ -267,14 +268,14 @@ export const BattleshipGame: React.FC<BattleshipGameProps> = ({ onBack, audio, a
                             </div>
                         </button>
 
-                        <button onClick={() => { logic.setGameMode('ONLINE'); logic.setPhase('LOBBY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
+                        {!GUEST_MODE && (<button onClick={() => { logic.setGameMode('ONLINE'); logic.setPhase('LOBBY'); }} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]"><Globe size={32} className="text-blue-400" /></div>
                                 <div className="flex items-center gap-3 mb-2"><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-purple-300 transition-colors uppercase">EN LIGNE</h2><span className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 text-[10px] font-black animate-pulse">LIVE</span></div>
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Défiez un autre amiral de la grille en temps réel.</p>
                             </div>
-                        </button>
+                        </button>)}
                     </div>
 
                     <div className="mt-8 md:mt-12 flex flex-col items-center gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200 flex-shrink-0 pb-safe">

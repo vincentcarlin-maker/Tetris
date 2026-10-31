@@ -1,4 +1,5 @@
 
+import { GUEST_MODE } from './lib/appMode';
 import React, { useEffect } from 'react';
 import { GlobalProvider, useGlobal } from './context/GlobalContext';
 import { GameRouter } from './components/GameRouter';
@@ -76,7 +77,7 @@ const AppContent: React.FC = () => {
                 </div>
             )}
 
-            {showLoginModal && (
+            {!GUEST_MODE && showLoginModal && (
                 <LoginScreen 
                     onCancel={() => setShowLoginModal(false)}
                     recoveryMode={passwordRecovery}
@@ -87,7 +88,7 @@ const AppContent: React.FC = () => {
                 <GameRouter />
             </div>
 
-            {isAuthenticated && shouldShowBottomNav && (
+            {(GUEST_MODE || isAuthenticated) && shouldShowBottomNav && (
                 <BottomNav 
                     currentView={currentView} onNavigate={(v) => setCurrentView(v)} 
                     onOpenSocial={handleOpenSocial} showSocial={currentView === 'social'}

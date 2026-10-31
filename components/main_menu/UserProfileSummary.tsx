@@ -1,4 +1,5 @@
 
+import { GUEST_MODE } from '../../lib/appMode';
 import React, { useState, useRef, useEffect } from 'react';
 import { LogOut, Lock, Edit2, Check, Calendar } from 'lucide-react';
 
@@ -38,7 +39,8 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
     return (
         <div className="w-full bg-black/60 border accent-border rounded-xl p-3 flex flex-col gap-2 backdrop-blur-md relative overflow-hidden group shadow-lg transition-all duration-300">
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
-            {isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title={t.logout}><LogOut size={14} /></button>}
+            {!GUEST_MODE && isAuthenticated && <button onClick={onLogout} className="absolute top-2 right-2 p-1.5 bg-black/40 hover:bg-red-500/20 rounded-full text-gray-500 hover:text-red-400 transition-colors z-30" title={t.logout}><LogOut size={14} /></button>}
+            {GUEST_MODE && <p className="text-[10px] text-neon-blue uppercase tracking-wider z-10">Mode invité · Sauvegarde sur cet appareil</p>}
             <div className="flex items-center w-full gap-3 z-10">
                 <div onClick={() => isAuthenticated ? onSelectGame('shop') : onLoginRequest && onLoginRequest()} className="relative cursor-pointer hover:scale-105 transition-transform shrink-0">
                     {isAuthenticated ? (

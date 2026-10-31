@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../../lib/appMode';
 
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { Home, Trophy, Crosshair, ChevronLeft, ChevronRight, User, Globe, Coins, RefreshCw, ArrowRight, Shield, Zap, Skull, Activity, Wifi, Play, Search, Loader2, Palette, LogOut, ArrowLeft, Skull as SkullIcon, HelpCircle, Target } from 'lucide-react';
@@ -267,7 +268,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                             </div>
                         </button>
 
-                        <button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-48 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        {!GUEST_MODE && (<button onClick={() => { onSetGameMode('ONLINE'); onSetGameState('LOBBY'); }} className="group relative h-48 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-orange-500/50 hover:shadow-[0_0_50px_rgba(249,115,22,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(249,115,22,0.3)]"><Globe size={32} className="text-orange-400" /></div>
@@ -277,7 +278,7 @@ export const ArenaUI: React.FC<ArenaUIProps> = ({
                                 </div>
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Confrontation directe mondiale en temps réel.</p>
                             </div>
-                        </button>
+                        </button>)}
                     </div>
 
                     <div className="mt-8 flex gap-4 w-full max-w-sm md:max-w-3xl">

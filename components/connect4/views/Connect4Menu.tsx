@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../../lib/appMode';
 
 import React from 'react';
 import { Cpu, Globe, ArrowRight, Users, Home, Sparkles } from 'lucide-react';
@@ -86,7 +87,7 @@ export const Connect4Menu: React.FC<Connect4MenuProps> = ({ phase, setPhase, onS
                             <div className="relative z-10 flex items-center gap-2 text-pink-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">LANCER LA SIMULATION <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
                         </button>
 
-                        <button onClick={() => onStart('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        {!GUEST_MODE && (<button onClick={() => onStart('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-purple-500/50 hover:shadow-[0_0_50px_rgba(168,85,247,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(168,85,247,0.3)]"><Globe size={32} className="text-purple-400" /></div>
@@ -94,7 +95,7 @@ export const Connect4Menu: React.FC<Connect4MenuProps> = ({ phase, setPhase, onS
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Rejoignez le lobby et affrontez d'autres joueurs.</p>
                             </div>
                             <div className="relative z-10 flex items-center gap-2 text-purple-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">REJOINDRE LE LOBBY <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" /></div>
-                        </button>
+                        </button>)}
                     </div>
                     
                     <div className="w-full max-w-sm md:max-w-3xl mt-6 flex-shrink-0">

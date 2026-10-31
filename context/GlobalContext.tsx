@@ -8,6 +8,7 @@ import { useHighScores } from '../hooks/useHighScores';
 import { useSupabase } from '../hooks/useSupabase';
 import { DB, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { FriendRequest } from '../components/social/types';
+import { GUEST_MODE, GUEST_FLAGS } from '../lib/appMode';
 import { defaultProfile, loadOwnProfile, isAdmin, removeLegacyCredentials } from '../lib/auth';
 import { SeekLevel } from '../components/neon_seek/types';
 
@@ -85,10 +86,12 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [neonSeekConfig, setNeonSeekConfig] = useState<{ currentImage?: string, customLevels?: Record<number, SeekLevel> } | null>(null);
     
     const [disabledGames, setDisabledGames] = useState<string[]>(() => {
+        if (GUEST_MODE) return [];
         try { return JSON.parse(localStorage.getItem('neon_disabled_games') || '[]'); } catch { return []; }
     });
     
     const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
+        if (GUEST_MODE) return { ...GUEST_FLAGS };
         try {
             return JSON.parse(localStorage.getItem('neon_feature_flags') || JSON.stringify({
                 maintenance_mode: false,
@@ -267,7 +270,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ]);
 
     const recordTransaction = useCallback((type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => {
-        if (!currency.username || currency.username === 'Joueur Néon') return;
+        if (GUEST_MODE || !currency.username || currency.username === 'Joueur Néon') return;
         DB.logTransaction(currency.username, type, amount, description, gameId);
     }, [currency.username]);
 

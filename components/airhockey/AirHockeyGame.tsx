@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../lib/appMode';
 
 import React, { useState, useEffect } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Play, HelpCircle, Users, Globe, Pause, Loader2, Wifi, Search, Palette, X } from 'lucide-react';
@@ -162,10 +163,10 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({ onBack, audio, add
                             <div className="relative z-10"><div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)]"><Users size={32} className="text-cyan-400" /></div><h2 className="text-3xl md:text-4xl font-black text-white italic mb-2 group-hover:text-cyan-300 transition-colors uppercase">Solo / VS</h2><p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Duel contre l'IA ou ami local.</p></div>
                             <div className="relative z-10 flex items-center gap-2 text-cyan-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase">Configurer</div>
                         </button>
-                        <button onClick={() => setGameMode('ONLINE')} className="group cursor-pointer relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
+                        {!GUEST_MODE && (<button onClick={() => setGameMode('ONLINE')} className="group cursor-pointer relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-blue-500/50 hover:shadow-[0_0_50px_rgba(59,130,246,0.2)] text-left p-6 md:p-8 flex flex-col justify-between">
                             <div className="relative z-10"><div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(59,130,246,0.3)]"><Globe size={32} className="text-blue-400" /></div><h2 className="text-3xl md:text-4xl font-black text-white italic group-hover:text-blue-300 transition-colors uppercase">En Ligne</h2><p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Affrontez le monde entier.</p></div>
                             <div className="relative z-10 flex items-center gap-2 text-blue-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase">Rejoindre</div>
-                        </button>
+                        </button>)}
                     </div>
                     <button onClick={() => setShowLocker(true)} className="mt-8 w-full max-w-sm md:max-w-3xl py-4 bg-gray-900/80 border border-white/10 rounded-2xl flex items-center justify-center gap-3 font-black text-xs tracking-widest hover:bg-white hover:text-black transition-all">
                         <Palette size={18}/> PERSONNALISER MAILLLET

@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { GUEST_MODE } from '../lib/appMode';
+import { GuestSettings } from './GuestSettings';
 import { useGlobal } from '../context/GlobalContext';
 import { MainMenu } from './MainMenu';
 import { TetrisGame } from './tetris/TetrisGame';
@@ -43,38 +45,20 @@ export const GameRouter: React.FC = () => {
     const handleBackToMenu = () => setCurrentView('menu');
     
     const addCoinsWithLog = (amount: number, gameId: string) => {
-        if (amount > 0 && isAuthenticated && featureFlags.economy_system) {
+        if (amount > 0 && (GUEST_MODE || isAuthenticated) && featureFlags.economy_system) {
             currency.addCoins(amount);
             audio.playCoin();
-            recordTransaction('EARN', amount, `Gain de jeu: ${gameId}`, gameId);
+            if (!GUEST_MODE) recordTransaction('EARN', amount, `Gain de jeu: ${gameId}`, gameId);
             daily.reportQuestProgress('any', 'coins', amount);
         }
     };
 
     const handleSelectGame = (game: string) => {
-        if (isAuthenticated) {
-            setCurrentView(game as any);
-            return;
-        }
-
-        if (guestPlayedGames.includes(game)) {
-            setGlobalAlert({ 
-                message: "Partie d'essai terminée ! Inscrivez-vous pour continuer à jouer.", 
-                type: 'warning' 
-            });
-            setShowLoginModal(true);
-        } else {
-            registerGuestPlay(game);
-            setCurrentView(game as any);
-            setGlobalAlert({ 
-                message: "MODE ESSAI : Profitez d'une partie gratuite !", 
-                type: 'info' 
-            });
-            setTimeout(() => {
-                setGlobalAlert(null);
-            }, 1500);
-        }
+        // Local play is unlimited, including games recorded by the old trial system.
+        setCurrentView(game as any);
     };
+
+    if (GUEST_MODE && currentView === 'settings') return <GuestSettings onBack={handleBackToMenu} />;
 
     if (featureFlags.maintenance_mode && !currency.isSuperUser) {
         return (
@@ -100,10 +84,10 @@ export const GameRouter: React.FC = () => {
     }
 
     if (currentView === 'menu') {
-        return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} mp={mp} onLogout={handleLogout} isAuthenticated={isAuthenticated} onLoginRequest={() => setShowLoginModal(true)} dailyData={{ ...daily }} onlineUsers={supabase.globalLeaderboard.length > 0 ? supabase.globalLeaderboard : supabase.onlineUsers} liveUsers={supabase.onlineUsers} onOpenSocial={(t) => { setActiveSocialTab(t); setCurrentView('social'); }} disabledGamesList={disabledGames} activeEvent={undefined} eventProgress={{}} highScores={highScores.highScores} />;
+        return <MainMenu onSelectGame={handleSelectGame} audio={audio} currency={currency} mp={mp} onLogout={handleLogout} isAuthenticated={isAuthenticated} onLoginRequest={() => setShowLoginModal(true)} dailyData={{ ...daily }} onlineUsers={GUEST_MODE ? [] : supabase.globalLeaderboard.length > 0 ? supabase.globalLeaderboard : supabase.onlineUsers} liveUsers={GUEST_MODE ? [] : supabase.onlineUsers} onOpenSocial={(t) => { setActiveSocialTab(t); setCurrentView('social'); }} disabledGamesList={disabledGames} activeEvent={undefined} eventProgress={{}} highScores={highScores.highScores} />;
     }
 
-    if (currentView === 'shop' && isAuthenticated) return <Shop onBack={handleBackToMenu} />;
+    if (currentView === 'shop' && (GUEST_MODE || isAuthenticated)) return <Shop onBack={handleBackToMenu} />;
     if (currentView === 'admin_dashboard' && isAuthenticated && currency.isSuperUser) return <AdminDashboard onBack={handleBackToMenu} mp={mp} onlineUsers={supabase.onlineUsers} />;
     if (currentView === 'social' && isAuthenticated) return <SocialOverlay audio={audio} currency={currency} mp={mp} onlineUsers={supabase.onlineUsers} isConnectedToSupabase={supabase.isConnectedToSupabase} isSupabaseConfigured={supabase.isSupabaseConfigured} onUnreadChange={setUnreadMessages} friendRequests={friendRequests} setFriendRequests={setFriendRequests} activeTabOverride={activeSocialTab} onTabChangeOverride={setActiveSocialTab} />;
     if (currentView === 'settings' && isAuthenticated) return <SettingsMenu onBack={handleBackToMenu} onLogout={handleLogout} onOpenDashboard={() => setCurrentView('admin_dashboard')} onOpenContact={() => setCurrentView('contact')} />;

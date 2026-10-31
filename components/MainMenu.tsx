@@ -1,4 +1,5 @@
 
+import { GUEST_MODE } from '../lib/appMode';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Coins, Zap, Trophy, Star, Users, Info } from 'lucide-react';
 import { useGameAudio } from '../hooks/useGameAudio';
@@ -128,10 +129,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             
             {flyingCoins.map(coin => <FlyingCoin key={coin.id} startX={coin.startX} startY={coin.startY} targetX={coin.targetX} targetY={coin.targetY} delay={coin.delay} onComplete={() => setFlyingCoins(prev => prev.filter(c => c.id !== coin.id))} />)}
             
-            {showDailyModal && isAuthenticated && <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />}
+            {showDailyModal && (GUEST_MODE || isAuthenticated) && <DailyBonusModal streak={streak} reward={todaysReward} onClaim={handleDailyBonusClaim} />}
             
             <TopBar 
-                isAuthenticated={isAuthenticated} 
+                isAuthenticated={GUEST_MODE || isAuthenticated}
                 coins={currency.coins} 
                 onLoginRequest={onLoginRequest} 
                 onOpenSocial={onOpenSocial}
@@ -178,7 +179,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
                  <UserProfileSummary 
                     currency={currency} 
-                    isAuthenticated={isAuthenticated} 
+                    isAuthenticated={GUEST_MODE || isAuthenticated}
                     onLoginRequest={onLoginRequest} 
                     onLogout={onLogout} 
                     onSelectGame={onSelectGame} 
@@ -190,7 +191,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                  {featureFlags.economy_system && (
                     <DailyQuestWidget 
                         quests={quests} 
-                        isAuthenticated={isAuthenticated} 
+                        isAuthenticated={GUEST_MODE || isAuthenticated}
                         language={language} 
                         onClaim={handleClaim} 
                         onGameStart={handleGameStart} 

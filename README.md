@@ -2,11 +2,17 @@
 
 Plateforme de mini-jeux React/TypeScript. Node.js 22 ou supérieur.
 
+## Mode invité permanent
+
+Le site fonctionne sans Supabase : parties illimitées, scores, pièces, boutique et préférences conservés dans le navigateur. Les comptes, le chat, les classements mondiaux, le multijoueur en ligne et le générateur Gemini sont désactivés. Les modes solo et les modes locaux disponibles restent jouables. Les anciennes limites de parties d’essai sont ignorées.
+
+La sauvegarde est propre à cet appareil et à ce navigateur : effacer ses données efface aussi la progression. Aucune synchronisation entre appareils. La constante `GUEST_MODE` dans `lib/appMode.ts` empêche toute initialisation du client Supabase, même si les variables publiques sont présentes. Les instructions de comptes ci-dessous sont conservées pour une éventuelle réactivation ultérieure.
+
+
 ## Développement
 
 ```sh
 npm ci
-cp .env.example .env.local
 npm run dev
 ```
 

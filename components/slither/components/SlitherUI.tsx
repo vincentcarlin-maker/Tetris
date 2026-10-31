@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../../lib/appMode';
 
 import React, { useState } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull, Server, Signal, Palette, ArrowRight, Circle } from 'lucide-react';
@@ -97,7 +98,7 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
                             <div className="relative z-10 flex items-center gap-2 text-indigo-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">Lancer la grille <ArrowRight size={18} /></div>
                         </button>
 
-                        <button onClick={() => onSetMode('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
+                        {!GUEST_MODE && (<button onClick={() => onSetMode('ONLINE')} className="group relative h-52 md:h-80 rounded-[32px] border border-white/10 bg-gray-900/40 backdrop-blur-md overflow-hidden transition-all hover:scale-[1.02] hover:border-green-500/50 hover:shadow-[0_0_50px_rgba(34,197,94,0.2)] text-left p-6 md:p-8 flex flex-col justify-between shadow-2xl">
                             <div className="absolute inset-0 bg-gradient-to-br from-green-600/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <div className="relative z-10">
                                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-green-500/20 flex items-center justify-center border border-green-500/30 mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(34,197,94,0.3)]"><Globe size={32} className="text-green-400" /></div>
@@ -108,7 +109,7 @@ export const SlitherUI: React.FC<SlitherUIProps> = ({
                                 <p className="text-gray-400 text-xs md:text-sm font-medium leading-relaxed max-w-[90%]">Duel de survie massif sur la grille mondiale en temps réel.</p>
                             </div>
                             <div className="relative z-10 flex items-center gap-2 text-green-400 font-bold text-xs md:text-sm tracking-widest group-hover:text-white transition-colors mt-4 uppercase italic">Accéder au serveur <ArrowRight size={18} /></div>
-                        </button>
+                        </button>)}
                     </div>
 
                     <div className="mt-8 flex gap-4 w-full max-w-sm md:max-w-3xl">

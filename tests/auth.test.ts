@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => {
     process.env.SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test';
     return { client: { auth: { getSession: vi.fn(), getUser: vi.fn() }, from: vi.fn(), rpc: vi.fn() } };
 });
+vi.mock('../lib/appMode', () => ({ GUEST_MODE: false }));
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => mocks.client }));
 import { loadOwnProfile } from '../lib/auth';
 import { DB } from '../lib/supabaseClient';

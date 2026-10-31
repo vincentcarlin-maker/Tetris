@@ -1,3 +1,4 @@
+import { GUEST_MODE } from '../../lib/appMode';
 import React, { useState, useMemo } from 'react';
 import { GAMES_CONFIG, CATEGORIES } from '../../constants/gamesConfig';
 import { Globe, Construction, Lock, Zap } from 'lucide-react';
@@ -24,7 +25,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
     });
 
     const categoriesLocalized = useMemo(() => {
-        return CATEGORIES.map(c => {
+        return CATEGORIES.filter(c => !GUEST_MODE || c.id !== 'ONLINE').map(c => {
             if (c.id === 'ALL') return { ...c, label: language === 'fr' ? 'TOUT' : 'ALL' };
             if (c.id === 'ONLINE') return { ...c, label: language === 'fr' ? 'EN LIGNE' : 'ONLINE' };
             if (c.id === 'PUZZLE') return { ...c, label: language === 'fr' ? 'RÉFLEXION' : 'PUZZLE' };
@@ -62,8 +63,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                     .map((game) => {
                         const isGloballyDisabled = disabledGames.includes(game.id);
                         const isPlayable = !isGloballyDisabled || isAdmin;
-                        const hasTried = !isAuthenticated && guestPlayedGames.includes(game.id);
-                        const canTry = !isAuthenticated && !hasTried;
+                        const hasTried = !GUEST_MODE && !isAuthenticated && guestPlayedGames.includes(game.id);
+                        const canTry = !GUEST_MODE && !isAuthenticated && !hasTried;
 
                         if (['airhockey', 'slither', 'snake', 'tetris', 'battleship', 'connect4', 'skyjo', 'checkers', 'pacman', 'invaders', 'breaker', 'lumen', 'sudoku', 'arenaclash', 'stack', 'runner', 'watersort', 'uno', 'mastermind', 'memory'].includes(game.id)) {
                             const ringColor = game.id === 'airhockey' ? 'focus:ring-sky-400' : 
@@ -103,7 +104,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                                     <div className="absolute top-0 right-0 w-full flex justify-end gap-1 p-5 z-20">
                                         {canTry && isPlayable && (<div className="px-1.5 py-0.5 rounded bg-green-600/90 text-white border border-green-500/50 text-[8px] font-black tracking-widest shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse flex items-center gap-1 uppercase"><Zap size={8} fill="white"/> Essai Libre</div>)}
                                         {game.badges.new && isPlayable && !canTry && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse uppercase">{language === 'fr' ? 'NOUVEAU' : 'NEW'}</div>}
-                                        {game.badges.online && isPlayable && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
+                                        {!GUEST_MODE && game.badges.online && isPlayable && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
                                     </div>
                                     
                                     {!isPlayable && (<div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center border-2 border-red-500/30 rounded-[60px]"><Construction className="text-red-500 mb-1 animate-pulse" size={24} /><span className="text-[10px] font-black text-red-500 tracking-widest bg-red-900/20 px-2 py-0.5 rounded border border-red-500/20">MAINTENANCE</span></div>)}
@@ -125,7 +126,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
                                 <div className="w-full flex justify-end gap-1 relative z-10">
                                     {canTry && isPlayable && (<div className="px-1.5 py-0.5 rounded bg-green-600/90 text-white border border-green-500/50 text-[8px] font-black tracking-widest shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse flex items-center gap-1 uppercase"><Zap size={8} fill="white"/> Essai Libre</div>)}
                                     {game.badges.new && isPlayable && !canTry && <div className="px-1.5 py-0.5 rounded bg-red-600/90 text-white border border-red-500/50 text-[9px] font-black tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)] animate-pulse uppercase">{language === 'fr' ? 'NOUVEAU' : 'NEW'}</div>}
-                                    {game.badges.online && isPlayable && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
+                                    {!GUEST_MODE && game.badges.online && isPlayable && <div className="p-1 rounded bg-black/40 text-green-400 border border-green-500/30" title={language === 'fr' ? 'En Ligne' : 'Online'}><Globe size={10} /></div>}
                                 </div>
                                 
                                 <div className={`p-2 rounded-lg bg-gray-900/50 ${isPlayable ? game.color : 'text-gray-500'} ${isPlayable && 'group-hover:scale-110'} transition-transform relative z-10 shadow-lg border border-white/5`}><game.icon size={32} /></div>

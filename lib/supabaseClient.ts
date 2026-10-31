@@ -1,10 +1,11 @@
 
+import { GUEST_MODE } from './appMode';
 import { createClient } from '@supabase/supabase-js';
 
 // Only public configuration belongs in this bundle. Secrets stay in Edge Functions.
 const url = process.env.SUPABASE_URL || '';
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || '';
-export const supabase = url && publishableKey ? createClient(url, publishableKey) : null;
+export const supabase = !GUEST_MODE && url && publishableKey ? createClient(url, publishableKey) : null;
 export const isSupabaseConfigured = !!supabase;
 
 const checked = async <T,>(request: PromiseLike<{ data: T; error: any }>): Promise<T> => {

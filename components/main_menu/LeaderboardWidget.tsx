@@ -1,4 +1,5 @@
 
+import { GUEST_MODE } from '../../lib/appMode';
 import React, { useState, useMemo } from 'react';
 import { Trophy, ChevronDown, X } from 'lucide-react';
 import { LEADERBOARD_GAMES } from '../../constants/gamesConfig';
@@ -91,12 +92,12 @@ export const LeaderboardWidget: React.FC<LeaderboardWidgetProps> = ({ highScores
                             >
                                 {language === 'fr' ? 'MES RECORDS' : 'MY RECORDS'}
                             </button>
-                            <button 
+                            {!GUEST_MODE && (<button
                                 onClick={(e) => { e.stopPropagation(); setScoreTab('GLOBAL'); }} 
                                 className={`flex-1 py-2 text-[10px] font-black rounded-md transition-all cursor-pointer ${scoreTab === 'GLOBAL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-gray-400 hover:text-white uppercase'}`}
                             >
                                 {language === 'fr' ? 'MONDE' : 'WORLD'}
-                            </button>
+                            </button>)}
                         </div>
                         
                         {scoreTab === 'LOCAL' ? (
