@@ -34,6 +34,8 @@ function install(result: OnlineSession & { token: string }) {
     version = result.profile.version;
     current = { user: result.user, profile: result.profile };
     conflict = false;
+    const pending=pendingSave();
+    if (pending?.userId===result.user.id) { conflict=pending.version!==version;current.profile.data=pending.data; }
 }
 function emit(session: OnlineSession | null) { for (const listener of listeners) listener(session); }
 export const cloudAccounts = {

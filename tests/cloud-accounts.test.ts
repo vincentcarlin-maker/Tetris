@@ -61,6 +61,10 @@ it('retains an unsent save after a network failure and restores it on reopening 
     const restored=await cloudAccounts.load();
     expect(restored?.profile.data.coins).toBe(42);
     expect(cloudAccounts.hasPending()).toBe(true);
+    const listener=vi.fn();cloudAccounts.subscribe(listener);
+    fetchMock.mockResolvedValueOnce(Response.json({...session,token:'b'.repeat(64)}));
+    await cloudAccounts.login('alice@example.org','secret-password');
+    expect(listener.mock.calls[0][0].profile.data.coins).toBe(42);
 });
 it('preserves the original revision when caching a conflicted save again',async()=>{
     fetchMock.mockResolvedValueOnce(Response.json({...session,token:'a'.repeat(64)}));
