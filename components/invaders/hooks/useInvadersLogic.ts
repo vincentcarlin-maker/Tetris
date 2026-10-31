@@ -145,7 +145,7 @@ export const useInvadersLogic = (audio: any, addCoins: any, updateHighScore: any
 
         bulletsRef.current = bulletsRef.current.filter(b => b.active);
         enemiesRef.current = enemiesRef.current.filter(e => e.active);
-        particlesRef.current.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
+        particlesRef.current.forEach(p => { p.x += p.dx; p.y += p.dy; p.life--; });
         particlesRef.current = particlesRef.current.filter(p => p.life > 0);
 
         if (enemiesRef.current.length === 0) {

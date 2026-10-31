@@ -76,7 +76,7 @@ export const GameRouter: React.FC = () => {
         }
     };
 
-    if (featureFlags.maintenance_mode && currency.username !== 'Vincent' && !currency.adminModeActive) {
+    if (featureFlags.maintenance_mode && !currency.isSuperUser) {
         return (
             <div className="flex flex-col items-center justify-center h-screen w-screen bg-black/90 p-4 text-center">
                 <div className="p-8 rounded-[40px] bg-gray-900 border-2 border-yellow-500/50 shadow-[0_0_60px_rgba(234,179,8,0.2)] max-w-md animate-in zoom-in duration-500">
@@ -114,7 +114,7 @@ export const GameRouter: React.FC = () => {
         connect4: <Connect4Game onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'connect4')} mp={mp} onReportProgress={(m, v) => handleGameEvent('connect4', m, v)} />,
         sudoku: <SudokuGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'sudoku')} onReportProgress={(m, v) => handleGameEvent('sudoku', m, v)} />,
         breaker: <BreakerGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'breaker')} onReportProgress={(m, v) => handleGameEvent('breaker', m, v)} />,
-        pacman: <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'pacman')} onReportProgress={(m, v) => handleGameEvent('pacman', m, v)} />,
+        pacman: <PacmanGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'pacman')} onReportProgress={(m, v) => handleGameEvent('pacman', m as 'score' | 'win' | 'action' | 'play', v)} />,
         memory: <MemoryGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'memory')} mp={mp} onReportProgress={(m, v) => handleGameEvent('memory', m, v)} />,
         battleship: <BattleshipGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'battleship')} mp={mp} onReportProgress={(m, v) => handleGameEvent('battleship', m, v)} />,
         snake: <SnakeGame onBack={handleBackToMenu} audio={audio} addCoins={(a) => addCoinsWithLog(a, 'snake')} onReportProgress={(m, v) => handleGameEvent('snake', m, v)} />,

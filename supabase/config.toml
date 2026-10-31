@@ -1,0 +1,3 @@
+[functions.neon-generate]
+# The function verifies the user's access token with getUser().
+verify_jwt = false

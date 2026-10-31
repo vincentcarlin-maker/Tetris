@@ -45,10 +45,10 @@ const BreakerBrandingLogo = () => (
     </div>
 );
 
-export const BreakerUI: React.FC<BreakerUIProps> = ({
+export const BreakerUI = ({
     gameState, score, lives, currentLevel, earnedCoins, maxUnlockedLevel, highScore,
     onBack, onRestart, onShowTutorial, onSelectLevel, onLevelContinue, showTutorial
-}) => {
+}: BreakerUIProps) => {
 
     // --- HUD (Heads-Up Display) ---
     const renderHUD = () => (

@@ -18,7 +18,7 @@ const hexToRgb = (hex: string) => {
     } : null;
 };
 
-export const useCurrency = () => {
+export const useCurrency = (isSuperUser = false) => {
     const [coins, setCoins] = useState(() => parseInt(localStorage.getItem('neon-coins') || '0', 10));
     const [inventory, setInventory] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('neon-inventory') || '[]'); } catch { return []; }
@@ -83,8 +83,7 @@ export const useCurrency = () => {
 
     const [adminModeActive, setAdminModeActive] = useState(() => localStorage.getItem('neon-admin-mode') === 'true');
     
-    // Déblocage pour la démo : tout le monde est admin pour accéder au générateur
-    const isSuperUser = true; 
+    // Le rôle provient de la session Auth vérifiée par GlobalProvider.
 
     useEffect(() => {
         const root = document.documentElement;
@@ -135,7 +134,7 @@ export const useCurrency = () => {
         if (data.friends) { setFriends(data.friends); }
         
         // Settings
-        if (data.email) { setEmail(data.email); localStorage.setItem('neon-email', data.email); }
+        if (data.email !== undefined) { setEmail(data.email); localStorage.setItem('neon-email', data.email); }
         if (data.accentColor) { setAccentColor(data.accentColor); localStorage.setItem('neon-accent-color', data.accentColor); }
         if (data.reducedMotion) { setReducedMotion(data.reducedMotion); localStorage.setItem('neon-reduced-motion', String(data.reducedMotion)); }
         if (data.voiceChatEnabled) { setVoiceChatEnabled(data.voiceChatEnabled); localStorage.setItem('neon-voice-chat', String(data.voiceChatEnabled)); }

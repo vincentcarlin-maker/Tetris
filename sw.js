@@ -1,53 +1,20 @@
-// sw.js - Service Worker
-
-const CACHE_NAME = 'neon-arcade-cache-v1';
-const urlsToCache = [
-  '/',
-  'index.html',
-  'index.js',
-  'icon.svg',
-  'manifest.json'
-];
-
-// Installation du Service Worker et mise en cache des ressources
+const CACHE_NAME = 'neon-arcade-cache-v2';
+const ASSETS = ['index.html', 'index.js', 'icon.svg', 'manifest.json', 'legal.html'];
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
 });
-
-// Interception des requêtes pour servir depuis le cache en priorité
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        // Pas dans le cache, on fait une requête réseau
-        return fetch(event.request);
-      }
-    )
-  );
-});
-
-// Nettoyage des anciens caches
 self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('neon-arcade-cache-') && key !== CACHE_NAME).map(key => caches.delete(key)))));
+});
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Network first: deployments are visible without changing the cache name.
+  event.respondWith(fetch(event.request).then(response => {
+    if (response.ok && ASSETS.some(asset => url.pathname === new URL(asset, self.registration.scope).pathname)) {
+      const copy = response.clone();
+      event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)));
+    }
+    return response;
+  }).catch(async () => (await caches.match(event.request)) || (event.request.mode === 'navigate' ? await caches.match('index.html') : undefined) || Response.error()));
 });

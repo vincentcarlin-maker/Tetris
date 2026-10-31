@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Image, RefreshCw, Save, Loader2, Search, ScanEye, Trash2, Layers, Zap, AlertTriangle, Check, Move, Plus, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
-import { DB, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { DB, isSupabaseConfigured, supabase } from '../../lib/supabaseClient';
 import { useGlobal } from '../../context/GlobalContext';
 import { HiddenObject } from '../neon_seek/types';
 
@@ -84,99 +83,16 @@ export const NeonSeekGenSection: React.FC<{ mp: any }> = ({ mp }) => {
         setSuccess(null);
 
         try {
-            let apiKey = process.env.API_KEY;
-            if (!apiKey) {
-                const win = window as any;
-                if (win.aistudio) {
-                    const hasKey = await win.aistudio.hasSelectedApiKey();
-                    if (!hasKey) {
-                        await win.aistudio.openSelectKey();
-                    }
-                    apiKey = process.env.API_KEY;
-                }
-            }
-
-            if (!apiKey && !(window as any).aistudio) {
-                throw new Error("Clé API manquante. Configurez la variable d'environnement API_KEY ou utilisez Google AI Studio.");
-            }
-
-            const ai = new GoogleGenAI({ apiKey: apiKey || '' });
-            
-            let base64Image = null;
-
-            // Construction du prompt avec directive de stricte adhésion
-            const userPrompt = prompt.trim();
-            const finalPrompt = userPrompt 
-                ? `STRICT INSTRUCTION: Generate an image that strictly follows this description to the letter. Do not add elements not requested. High quality, 8k resolution. Description: ${userPrompt}` 
-                : "A futuristic cyberpunk hidden object game scene, high detail, neon lights, 8k, portrait 9:16.";
-
-            const response = await ai.models.generateContent({
-                model: selectedModel,
-                contents: { parts: [{ text: finalPrompt }] },
-                config: { 
-                    imageConfig: { 
-                        aspectRatio: "9:16", 
-                        ...(selectedModel.includes('pro') ? { imageSize: "1K" } : {}) 
-                    } 
-                },
+            if (!supabase) throw new Error("Le serveur n'est pas configuré.");
+            const { data, error } = await supabase.functions.invoke('neon-generate', {
+                body: { prompt: prompt.trim(), model: selectedModel }
             });
-            
-            if (response.candidates?.[0].content.parts) {
-                for (const part of response.candidates[0].content.parts) {
-                    if (part.inlineData) { base64Image = part.inlineData.data; break; }
-                }
-            }
-
-            if (!base64Image) throw new Error("Aucune image générée. Vérifiez vos quotas ou votre clé.");
-            const fullImageStr = `data:image/png;base64,${base64Image}`;
-            setGeneratedImage(fullImageStr);
-
-            setStatus('ANALYZING_OBJECTS');
-            
-            // Construction du prompt d'analyse en incluant la description utilisateur
-            const analysisPrompt = `Analyze this image. 1. Generate a cool, short Cyberpunk title (in French) for this level based on the visual theme. 2. Identify 5 small objects suitable for a hidden object game. Provide their EXACT GEOMETRIC CENTER coordinates in percentages (0-100). ${userPrompt ? `IMPORTANT: The user described: "${userPrompt}". You MUST prioritize identifying specific objects mentioned in this description if they are visible.` : ''} JSON Response.`;
-
-            const analysisResponse = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: {
-                    parts: [
-                        { inlineData: { mimeType: 'image/png', data: base64Image } },
-                        { text: analysisPrompt }
-                    ]
-                },
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            title: { type: Type.STRING, description: "A short cyberpunk title in French." },
-                            objects: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        id: { type: Type.STRING },
-                                        name: { type: Type.STRING },
-                                        x: { type: Type.NUMBER },
-                                        y: { type: Type.NUMBER },
-                                        radius: { type: Type.NUMBER }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            if (analysisResponse.text) {
-                const result = JSON.parse(analysisResponse.text);
-                if (selectedSlot !== 3 && result.title) setLevelTitle(result.title.toUpperCase());
-                if (result.objects) setDetectedObjects(result.objects.map((o: any) => ({ ...o, found: false, radius: 7 })));
-                setStatus('READY');
-            } else {
-                setStatus('READY');
-                setDetectedObjects([]);
-            }
+            if (error) throw error;
+            if (!data?.image || !Array.isArray(data.objects)) throw new Error("Réponse de génération invalide.");
+            setGeneratedImage(data.image);
+            if (selectedSlot !== 3 && data.title) setLevelTitle(data.title.toUpperCase());
+            setDetectedObjects(data.objects.map((object: any) => ({ ...object, found: false, radius: 7 })));
+            setStatus('READY');
         } catch (err: any) {
             console.error(err);
             setError(err.message || "Une erreur est survenue lors de la génération.");

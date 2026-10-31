@@ -11,7 +11,7 @@ interface SnakeGameProps {
     onBack: () => void;
     audio: any;
     addCoins: (amount: number) => void;
-    onReportProgress?: (metric: string, value: number) => void;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 export const SnakeGame: React.FC<SnakeGameProps> = ({ onBack, audio, addCoins, onReportProgress }) => {

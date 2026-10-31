@@ -97,7 +97,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ onBack, audio, addCoins,
         if (logic.gameMode === 'ONLINE') {
             if (logic.onlineStep === 'game') {
                 mp.leaveGame();
-                logic.setPhase('LOBBY');
+                logic.setPhase('MENU');
                 logic.setOnlineStep('lobby');
             } else {
                 mp.disconnect();

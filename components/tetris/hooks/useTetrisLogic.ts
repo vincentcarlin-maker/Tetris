@@ -167,7 +167,10 @@ export const useTetrisLogic = (
         }
         let newY = player.pos.y;
         while (!checkCollision(player, board, { x: 0, y: newY - player.pos.y + 1 })) newY++;
-        setGhostPlayer({ ...player, pos: { x: player.pos.x, y: newY } });
+        setGhostPlayer(previous => {
+            if (previous && previous.pos.x === player.pos.x && previous.pos.y === newY && previous.tetromino === player.tetromino) return previous;
+            return { ...player, pos: { x: player.pos.x, y: newY } };
+        });
     }, [player, board, gameOver, isPaused, inMenu]);
 
     return {

@@ -10,7 +10,7 @@ import { AlertTriangle, Info } from 'lucide-react';
 const AppContent: React.FC = () => {
     const { 
         currentView, setCurrentView, showLoginModal, setShowLoginModal, 
-        globalAlert, handleLogin, isAuthenticated, setActiveSocialTab,
+        globalAlert, handleLogin, isAuthenticated, setActiveSocialTab, passwordRecovery,
         unreadMessages, friendRequests, currency, supabase
     } = useGlobal();
 
@@ -78,9 +78,8 @@ const AppContent: React.FC = () => {
 
             {showLoginModal && (
                 <LoginScreen 
-                    onLogin={handleLogin} 
                     onCancel={() => setShowLoginModal(false)}
-                    onAttemptLogin={supabase.loginAndFetchProfile}
+                    recoveryMode={passwordRecovery}
                 />
             )}
 

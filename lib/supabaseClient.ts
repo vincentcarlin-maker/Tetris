@@ -1,56 +1,36 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// --- CONFIGURATION SUPABASE ---
-const DEFAULT_SUPABASE_URL = 'https://taallvoewrojegodndtb.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_rCAQ6RFblfxvPsxnhTB1Mg_qPjwysb_';
+// Only public configuration belongs in this bundle. Secrets stay in Edge Functions.
+const url = process.env.SUPABASE_URL || '';
+const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || '';
+export const supabase = url && publishableKey ? createClient(url, publishableKey) : null;
+export const isSupabaseConfigured = !!supabase;
 
-const storedUrl = localStorage.getItem('neon_supabase_url');
-const storedKey = localStorage.getItem('neon_supabase_key');
+const checked = async <T,>(request: PromiseLike<{ data: T; error: any }>): Promise<T> => {
+    const { data, error } = await request;
+    if (error) throw error;
+    return data;
+};
 
-const SUPABASE_URL = storedUrl || DEFAULT_SUPABASE_URL;
-const SUPABASE_ANON_KEY = storedKey || DEFAULT_SUPABASE_ANON_KEY;
-
-let supabaseInstance = null;
-
-const isValidUrl = (url: string) => url && url.startsWith('http') && !url.includes('VOTRE_URL');
-const isValidKey = (key: string) => key && key.length > 10 && !key.includes('VOTRE_CLE');
-
-if (isValidUrl(SUPABASE_URL) && isValidKey(SUPABASE_ANON_KEY)) {
-    try {
-        supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            realtime: {
-                params: {
-                    eventsPerSecond: 10,
-                },
-            },
-        });
-    } catch (e) {
-        console.error("Supabase init failed:", e);
-    }
-}
-
-export const supabase = supabaseInstance;
-export const isSupabaseConfigured = !!supabaseInstance;
+export const publicProfileData = (data: Record<string, any>) => {
+    const { password, reset_code, reset_expiry, email, role, banned, ...safe } = data;
+    return safe;
+};
 
 export const DB = {
     getUserProfile: async (username: string) => {
         if (!supabase) return null;
-        try {
-            const { data, error } = await supabase.from('profiles').select('*').eq('username', username).single();
-            if (error) return null;
-            return data; 
-        } catch (e) { return null; }
+        const own = await checked(supabase.from('profiles').select('*').eq('username', username).maybeSingle());
+        if (own) return own;
+        return await checked(supabase.from('public_profiles').select('*').eq('username', username).maybeSingle());
     },
 
     saveUserProfile: async (username: string, profileData: any) => {
-        if (!supabase) return { success: false };
-        try {
-            const { data: existing } = await supabase.from('profiles').select('data').eq('username', username).single();
-            const mergedData = { ...(existing?.data || {}), ...profileData };
-            await supabase.from('profiles').upsert({ username, data: mergedData, updated_at: new Date().toISOString() }, { onConflict: 'username' });
-            return { success: true };
-        } catch (e) { return { success: false }; }
+        if (!supabase) throw new Error("Le serveur n'est pas configuré.");
+        // An atomic JSON merge in Postgres avoids losing concurrent profile updates.
+        await checked(supabase.rpc('save_my_profile', { p_username: username, p_patch: publicProfileData(profileData) }));
+        return { success: true };
     },
 
     // --- ECONOMY TRANSACTIONS ---
@@ -63,20 +43,12 @@ export const DB = {
             return;
         }
         try {
-            const { error } = await supabase.from('transactions').insert([{ 
-                username, type, amount, description, game_id: gameId, timestamp 
-            }]);
-            
-            const { data: sys } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
-            const logs = sys?.data?.transaction_logs || [];
-            const newLog = { username, type, amount, description, gameId, timestamp };
-            
-            await supabase.from('profiles').update({ 
-                data: { ...sys?.data, transaction_logs: [newLog, ...logs].slice(0, 300) } 
-            }).eq('username', 'SYSTEM_CONFIG');
+            await checked(supabase.from('transactions').insert([{
+                username, type, amount, description, game_id: gameId, timestamp
+            }]));
 
         } catch (e) {
-            console.error("Transaction logging failed:", e);
+            throw e;
         }
     },
 
@@ -121,28 +93,26 @@ export const DB = {
 
     getSystemConfig: async () => {
         if (!supabase) return null;
-        const { data } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
+        const { data } = await supabase.from('app_config').select('data').eq('id', 1).maybeSingle();
         return data?.data || null;
     },
 
     saveSystemConfig: async (config: any) => {
-        if (!supabase) return;
-        const { data: existing } = await supabase.from('profiles').select('data').eq('username', 'SYSTEM_CONFIG').single();
-        await supabase.from('profiles').upsert({ username: 'SYSTEM_CONFIG', data: { ...(existing?.data || {}), ...config }, updated_at: new Date().toISOString() }, { onConflict: 'username' });
+        if (!supabase) throw new Error("Le serveur n'est pas configuré.");
+        await checked(supabase.rpc('save_my_profile', { p_username: 'SYSTEM_CONFIG', p_patch: config }));
     },
 
     updateUserData: async (username: string, newData: any) => {
-        if (!supabase) return;
-        const { data: existing } = await supabase.from('profiles').select('data').eq('username', username).single();
-        await supabase.from('profiles').update({ data: { ...(existing?.data || {}), ...newData }, updated_at: new Date().toISOString() }).eq('username', username);
+        if (!supabase) throw new Error("Le serveur n'est pas configuré.");
+        await checked(supabase.rpc('save_my_profile', { p_username: username, p_patch: newData }));
     },
 
     getGlobalLeaderboard: async () => {
         if (!supabase) return [];
-        const { data } = await supabase.from('profiles').select('username, data, updated_at').neq('username', 'SYSTEM_CONFIG').limit(100);
+        const { data } = await supabase.from('public_profiles').select('username, data, updated_at').limit(100);
         return (data || []).map((row: any) => ({
             id: row.username, name: row.username, avatarId: row.data?.avatarId || 'av_bot', frameId: row.data?.frameId,
-            status: 'offline', lastSeen: new Date(row.updated_at).getTime(), stats: row.data?.highScores || {}
+            status: 'offline' as const, online_at: row.updated_at, lastSeen: new Date(row.updated_at).getTime(), stats: row.data?.highScores || {}
         }));
     },
 
@@ -281,155 +251,20 @@ export const DB = {
     },
 
     acceptFriendRequestDB: async (username: string, requesterName: string) => {
-        if (!supabase) return false;
-        try {
-            // 1. Mettre à jour le profil de l'utilisateur actuel
-            const { data: p1 } = await supabase.from('profiles').select('data').eq('username', username).single();
-            const p1Data = p1?.data || {};
-            const p1Friends = p1Data.friends || [];
-            
-            // On récupère les infos du demandeur pour l'ajouter proprement
-            const { data: p2 } = await supabase.from('profiles').select('username, data').eq('username', requesterName).single();
-            if (p2) {
-                const newFriendForP1 = {
-                    id: p2.username,
-                    name: p2.username,
-                    avatarId: p2.data?.avatarId || 'av_bot',
-                    frameId: p2.data?.frameId,
-                    status: 'offline',
-                    lastSeen: Date.now()
-                };
-
-                if (!p1Friends.some((f: any) => f.name === requesterName)) {
-                    await supabase.from('profiles').update({
-                        data: { ...p1Data, friends: [...p1Friends, newFriendForP1] }
-                    }).eq('username', username);
-                }
-
-                // 2. Mettre à jour le profil du demandeur
-                const p2Data = p2.data || {};
-                const p2Friends = p2Data.friends || [];
-                const newFriendForP2 = {
-                    id: username,
-                    name: username,
-                    avatarId: p1Data.avatarId || 'av_bot',
-                    frameId: p1Data.frameId,
-                    status: 'offline',
-                    lastSeen: Date.now()
-                };
-
-                if (!p2Friends.some((f: any) => f.name === username)) {
-                    await supabase.from('profiles').update({
-                        data: { ...p2Data, friends: [...p2Friends, newFriendForP2] }
-                    }).eq('username', requesterName);
-                }
-            }
-
-            // 3. Supprimer la notification (toujours le faire même si p2 est absent pour nettoyer)
-            await supabase
-                .from('messages')
-                .delete()
-                .match({ 
-                    sender_id: requesterName, 
-                    receiver_id: username, 
-                    text: 'CMD:FRIEND_REQUEST' 
-                });
-                
-            return true;
-        } catch (e) {
-            console.error("Accept friend error:", e);
-            return false;
-        }
+        if (!supabase) throw new Error("Le serveur n'est pas configuré.");
+        await checked(supabase.rpc('accept_friend_request', { p_requester: requesterName }));
+        return true;
     },
 
     searchUsers: async (query: string) => {
-        let results: any[] = [];
-        const queryLower = query.toLowerCase();
-
-        const localUsersStr = localStorage.getItem('neon_users_db');
-        if (localUsersStr) {
-            try {
-                const localUsers = JSON.parse(localUsersStr);
-                Object.keys(localUsers).forEach(username => {
-                    if (username.toLowerCase().includes(queryLower)) {
-                        const userDataStr = localStorage.getItem('neon_data_' + username);
-                        const userData = userDataStr ? JSON.parse(userDataStr) : {};
-                        results.push({
-                            id: username,
-                            name: username,
-                            avatarId: userData.avatarId || 'av_bot',
-                            frameId: userData.frameId
-                        });
-                    }
-                });
-            } catch (e) {}
-        }
-
-        if (supabase) {
-            try {
-                const { data, error } = await supabase.rpc('search_users_by_name', {
-                    p_username: query
-                });
-
-                if (error) {
-                    const { data: selData } = await supabase
-                        .from('profiles')
-                        .select('username, data')
-                        .ilike('username', `%${query}%`)
-                        .limit(20);
-                    
-                    if (selData) {
-                        selData.forEach((u: any) => {
-                            if (!results.find(r => r.name === u.username)) {
-                                results.push({
-                                    id: u.username,
-                                    name: u.username,
-                                    avatarId: u.data?.avatarId || 'av_bot',
-                                    frameId: u.data?.frameId
-                                });
-                            }
-                        });
-                    }
-                } else if (data) {
-                    data.forEach((u: any) => {
-                        if (!results.find(r => r.name === u.username)) {
-                            results.push({
-                                id: u.username,
-                                name: u.username,
-                                avatarId: u.data?.avatarId || 'av_bot',
-                                frameId: u.data?.frameId
-                            });
-                        }
-                    });
-                }
-            } catch (e) {
-                console.error('Exception lors de la recherche cloud:', e);
-            }
-        }
-
-        return results;
-    },
-
-    getUserByEmail: async (email: string) => {
-        if (!supabase) return null;
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('data->>email', email)
-                .maybeSingle();
-            if (error) return null;
-            return data;
-        } catch (e) { return null; }
+        if (!supabase || !query.trim()) return [];
+        const data = await checked(supabase.from('public_profiles').select('username, data').ilike('username', `%${query}%`).limit(20));
+        return (data || []).map((user: any) => ({ id: user.username, name: user.username, avatarId: user.data?.avatarId || 'av_bot', frameId: user.data?.frameId }));
     },
 
     deleteUser: async (username: string) => {
-        if (!supabase) return;
-        try {
-            await supabase.from('profiles').delete().eq('username', username);
-            await supabase.from('messages').delete().or(`sender_id.eq.${username},receiver_id.eq.${username}`);
-            await supabase.from('transactions').delete().eq('username', username);
-        } catch (e) {}
+        if (!supabase) throw new Error("Le serveur n'est pas configuré.");
+        await checked(supabase.rpc('delete_my_account', { p_username: username }));
     },
 
     getSupportMessages: async () => {

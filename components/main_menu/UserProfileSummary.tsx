@@ -59,7 +59,7 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
                         <>
                             <div className="flex items-center gap-2">
                                 {isEditingName ? (
-                                    <form handleNameSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
+                                    <form onSubmit={handleNameSubmit} className="flex items-center gap-2 w-full">
                                         <input ref={inputRef} type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} onBlur={() => handleNameSubmit()} maxLength={12} className="bg-black/50 border border-neon-blue rounded px-2 py-0.5 text-white font-bold text-base w-full outline-none focus:ring-1 ring-neon-blue/50" />
                                         <button type="submit" className="text-green-400"><Check size={16} /></button>
                                     </form>

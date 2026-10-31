@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Home, RefreshCw, Trophy, Coins, Zap, User, Globe, Skull, Server, Signal, Palette, ArrowRight, Circle } from 'lucide-react';
 import { SERVERS } from '../constants';
-import { OnlineUser } from '../../hooks/useSupabase';
+import { OnlineUser } from '../../../hooks/useSupabase';
 import { QuickLocker } from '../../common/QuickLocker';
 import { useCurrency } from '../../../hooks/useCurrency';
 import { useGlobal } from '../../../context/GlobalContext';

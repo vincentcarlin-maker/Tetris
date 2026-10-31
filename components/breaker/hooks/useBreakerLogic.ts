@@ -4,7 +4,7 @@ import { GameState, Block, Ball, Paddle, PowerUp, PowerUpType, Laser } from '../
 import { getLevelLayout } from '../levels';
 import { BLOCK_COLORS, INDESTRUCTIBLE_COLOR, createParticles } from '../helpers';
 import { GAME_WIDTH, GAME_HEIGHT, PADDLE_DEFAULT_WIDTH, PADDLE_HEIGHT, BALL_RADIUS, POWERUP_SIZE_W, POWERUP_SIZE_H, INITIAL_LIVES } from '../constants';
-import { useGameAudio } from '../../hooks/useGameAudio';
+import { useGameAudio } from '../../../hooks/useGameAudio';
 
 export const useBreakerLogic = (
     audio: ReturnType<typeof useGameAudio>,

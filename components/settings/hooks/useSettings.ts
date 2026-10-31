@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { useGlobal } from '../../../context/GlobalContext';
 import { DB, isSupabaseConfigured } from '../../../lib/supabaseClient';
+import { requireSupabase } from '../../../lib/auth';
 import { LegalTab } from '../types';
 
 export const useSettings = () => {
@@ -18,17 +19,19 @@ export const useSettings = () => {
     const emailInputRef = useRef<HTMLInputElement>(null);
 
     const handleSavePassword = async () => {
-        const currentStored = localStorage.getItem('neon_current_password');
-        if (oldPassword !== currentStored) { setMsg({ text: "L'ancien mot de passe est incorrect.", type: 'error' }); return; }
-        if (newPassword.length < 4) { setMsg({ text: "Le nouveau mot de passe est trop court.", type: 'error' }); return; }
-        if (newPassword !== confirmPassword) { setMsg({ text: "Les mots de passe ne correspondent pas.", type: 'error' }); return; }
-
+        if (newPassword.length < 12) { setMsg({ text: 'Utilisez au moins 12 caractères.', type: 'error' }); return; }
+        if (newPassword !== confirmPassword) { setMsg({ text: 'Les mots de passe ne correspondent pas.', type: 'error' }); return; }
         try {
-            localStorage.setItem('neon_current_password', newPassword);
-            if (isSupabaseConfigured) await DB.updateUserData(currency.username, { password: newPassword });
-            setMsg({ text: "Mot de passe modifié !", type: 'success' });
-            setTimeout(() => { setShowPasswordModal(false); setMsg(null); }, 1500);
-        } catch (e) { setMsg({ text: "Erreur lors de la sauvegarde.", type: 'error' }); }
+            const client = requireSupabase();
+            const { data: { user }, error: userError } = await client.auth.getUser();
+            if (userError || !user?.email) throw new Error('Session expirée.');
+            const { error: signInError } = await client.auth.signInWithPassword({ email: user.email, password: oldPassword });
+            if (signInError) throw new Error("L'ancien mot de passe est incorrect.");
+            const { error } = await client.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            setOldPassword(''); setNewPassword(''); setConfirmPassword('');
+            setMsg({ text: 'Mot de passe modifié !', type: 'success' });
+        } catch (error) { setMsg({ text: error instanceof Error ? error.message : 'Erreur lors de la sauvegarde.', type: 'error' }); }
     };
 
     const handleSaveEmail = async (e?: React.FormEvent) => {
@@ -38,23 +41,26 @@ export const useSettings = () => {
             alert("Veuillez entrer une adresse e-mail valide.");
             return;
         }
-        currency.updateEmail(trimmed);
-        if (isSupabaseConfigured) await DB.updateUserData(currency.username, { email: trimmed });
-        setIsEditingEmail(false);
-        audio.playVictory();
+        try {
+            const { error } = await requireSupabase().auth.updateUser({ email: trimmed });
+            if (error) throw error;
+            setIsEditingEmail(false);
+            alert('Vérifiez vos e-mails pour confirmer la modification.');
+        } catch (error) { alert(error instanceof Error ? error.message : 'Modification impossible.'); }
     };
 
     const handleDeleteAccount = async () => {
-        const confirmation = window.prompt("⚠️ ACTION IRRÉVERSIBLE ⚠️\nPour supprimer votre compte et TOUTES vos données (scores, achats, pièces), tapez votre pseudo ci-dessous :");
-        if (confirmation === currency.username) {
-            if (isSupabaseConfigured) await DB.deleteUser(currency.username);
-            alert("Compte supprimé. Au revoir !");
-            handleLogout();
-        } else if (confirmation !== null) {
-            alert("Pseudo incorrect. Annulation.");
-        }
+        const confirmation = window.prompt('Pour supprimer votre compte et ses données, tapez votre pseudo :');
+        if (confirmation !== currency.username) return;
+        try {
+            await DB.deleteUser(currency.username);
+            // Do not synchronize here: the account has just been removed.
+            await requireSupabase().auth.signOut({ scope: 'local' });
+            localStorage.removeItem('neon-username');
+            window.location.reload();
+        } catch (error) { alert(error instanceof Error ? error.message : 'Suppression impossible.'); }
     };
-    
+
     const handleHardReset = () => {
         if (window.confirm("Ceci va effacer vos préférences locales (audio, thème, vibration). Vos données de jeu sont en sécurité sur le cloud. Continuer ?")) {
             localStorage.removeItem('neon-accent-color');

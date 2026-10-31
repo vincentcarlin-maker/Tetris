@@ -3,6 +3,8 @@ import { useState, useCallback, useEffect } from 'react';
 
 export interface HighScores {
   tetris: number;
+  game2048: number;
+  rush: number;
   breaker: number;
   pacman: number;
   snake: number;
@@ -23,6 +25,8 @@ export interface HighScores {
 
 const initialHighScores: HighScores = {
   tetris: 0,
+  game2048: 0,
+  rush: 0,
   breaker: 0,
   pacman: 0,
   snake: 0,
@@ -69,7 +73,7 @@ export const useHighScores = () => {
     setHighScores(prev => {
       const newScores = JSON.parse(JSON.stringify(prev)); 
       let shouldUpdate = false;
-      if (['tetris', 'breaker', 'pacman', 'snake', 'invaders', 'watersort', 'runner', 'stack', 'arenaclash', 'lumen', 'slither', 'neonblocks'].includes(game)) {
+      if (['tetris', 'breaker', 'pacman', 'snake', 'invaders', 'watersort', 'runner', 'stack', 'arenaclash', 'lumen', 'slither', 'neonblocks', 'game2048', 'rush'].includes(game)) {
          const current = prev[game] || 0;
          if (value > (current as number)) {
              // @ts-ignore
@@ -141,5 +145,10 @@ export const useHighScores = () => {
           return prev;
       });
   }, []);
-  return { highScores, updateHighScore, importScores };
+  const replaceScores = useCallback((scores: Partial<HighScores>) => {
+      const next = { ...initialHighScores, ...scores, sudoku: scores?.sudoku || {} };
+      setHighScores(next);
+      localStorage.setItem(HIGHSCORES_KEY, JSON.stringify(next));
+  }, []);
+  return { highScores, updateHighScore, importScores, replaceScores };
 };

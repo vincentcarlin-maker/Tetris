@@ -73,7 +73,7 @@ export const SlitherGame: React.FC<SlitherGameProps> = ({ onBack, audio, addCoin
                 onInputEnd={handleInputEnd}
             />
 
-            <SlitherUI 
+            <SlitherUI mp={mp}
                 gameState={gameState}
                 gameMode={gameMode}
                 score={score}

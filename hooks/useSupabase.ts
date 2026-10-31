@@ -128,11 +128,6 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
         }
     }, [myName, myAvatar, myFrame, myStats, currentGame, isConnectedToSupabase]);
 
-    const loginAndFetchProfile = useCallback(async (username: string) => {
-        if (!isSupabaseConfigured) return null;
-        return await DB.getUserProfile(username);
-    }, []);
-
     const syncProfileToCloud = useCallback(async (username: string, fullData: any) => {
         if (!isSupabaseConfigured) return;
         await DB.saveUserProfile(username, fullData);
@@ -154,7 +149,6 @@ export const useSupabase = (myPeerId: string | null, myName: string, myAvatar: s
         globalLeaderboard,
         isConnectedToSupabase,
         isSupabaseConfigured,
-        loginAndFetchProfile,
         syncProfileToCloud,
         refreshLeaderboard: fetchLeaderboard
     };

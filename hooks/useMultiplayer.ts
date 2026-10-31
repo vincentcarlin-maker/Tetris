@@ -98,7 +98,8 @@ export const useMultiplayer = () => {
                 }
             })
             .on('broadcast', { event: 'admin_broadcast' }, ({ payload }) => {
-                window.dispatchEvent(new CustomEvent('neon_admin_event', { detail: payload }));
+                // Public lobby messages do not establish administrator authority.
+                if (payload.type === 'game_config') window.dispatchEvent(new CustomEvent('neon_admin_event', { detail: { type: 'game_config' } }));
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
@@ -278,6 +279,16 @@ export const useMultiplayer = () => {
         }
     }, []);
 
+    const sendGameMove = useCallback((move: Record<string, unknown>) => {
+        sendData({ ...move, type: 'GAME_MOVE' });
+    }, [sendData]);
+
+    const requestRematch = useCallback(() => {
+        const event = { type: 'REMATCH_START' };
+        sendData(event);
+        notifySubscribers(event, myIdRef.current || '');
+    }, [sendData]);
+
     const sendAdminBroadcast = useCallback((message: string, type: 'info' | 'warning' | 'reload' | 'game_config' = 'info', data?: any) => {
         if (lobbyChannelRef.current) {
             lobbyChannelRef.current.send({
@@ -345,6 +356,6 @@ export const useMultiplayer = () => {
         subscribe,
         cancelHosting,
         leaveGame,
-        sendAdminBroadcast
+        sendAdminBroadcast, sendGameMove, requestRematch
     };
 };

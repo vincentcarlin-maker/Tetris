@@ -8,6 +8,7 @@ import { useHighScores } from '../hooks/useHighScores';
 import { useSupabase } from '../hooks/useSupabase';
 import { DB, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { FriendRequest } from '../components/social/types';
+import { defaultProfile, loadOwnProfile, isAdmin, removeLegacyCredentials } from '../lib/auth';
 import { SeekLevel } from '../components/neon_seek/types';
 
 export type ViewState = 'menu' | 'social' | 'settings' | 'contact' | 'tetris' | 'connect4' | 'sudoku' | 'breaker' | 'pacman' | 'memory' | 'battleship' | 'snake' | 'invaders' | 'airhockey' | 'mastermind' | 'uno' | 'watersort' | 'checkers' | 'runner' | 'stack' | 'arenaclash' | 'skyjo' | 'lumen' | 'slither' | 'shop' | 'admin_dashboard' | 'neon_seek';
@@ -17,6 +18,7 @@ interface GlobalContextType {
     currentView: ViewState;
     setCurrentView: (view: ViewState) => void;
     isAuthenticated: boolean;
+    passwordRecovery: boolean;
     setIsAuthenticated: (val: boolean) => void;
     showLoginModal: boolean;
     setShowLoginModal: (val: boolean) => void;
@@ -64,7 +66,11 @@ export const useGlobal = () => {
 
 export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentView, setCurrentView] = useState<ViewState>('menu');
-    const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('neon-username'));
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAdministrator, setIsAdministrator] = useState(false);
+    const [passwordRecovery, setPasswordRecovery] = useState(false);
+    const recoveryRef = useRef(false);
+    const loadedUserRef = useRef<string | null>(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [globalAlert, setGlobalAlert] = useState<{ message: string, type: 'info' | 'warning' } | null>(null);
     const [activeSocialTab, setActiveSocialTab] = useState<SocialTab>('COMMUNITY');
@@ -101,7 +107,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     const audio = useGameAudio();
-    const currency = useCurrency();
+    const currency = useCurrency(isAdministrator);
     const highScoresHook = useHighScores(); 
     const daily = useDailySystem(currency.addCoins);
     const mp = useMultiplayer(); 
@@ -194,16 +200,9 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         const handleAdminEvent = (e: any) => {
             const payload = e.detail;
-            if (payload.type === 'game_config' && payload.data) {
-                if (payload.data.flags) {
-                    setFeatureFlags(payload.data.flags);
-                    localStorage.setItem('neon_feature_flags', JSON.stringify(payload.data.flags));
-                } else if (payload.data.neonSeekConfig) {
-                    setNeonSeekConfig(payload.data.neonSeekConfig);
-                } else if (Array.isArray(payload.data)) {
-                    setDisabledGames(payload.data);
-                    localStorage.setItem('neon_disabled_games', JSON.stringify(payload.data));
-                }
+            if (payload.type === 'game_config') {
+                void loadSystemConfig();
+                return;
             }
             if (payload.message && payload.type !== 'game_config') {
                 setGlobalAlert({ message: payload.message, type: payload.type === 'warning' ? 'warning' : 'info' });
@@ -228,7 +227,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (!isAuthenticated || !currency.username || currency.username === 'Joueur Néon' || isAcceptingFriendRef.current) return;
 
         const fullData = {
-            password: localStorage.getItem('neon_current_password') || undefined,
             coins: currency.coins,
             ownedAvatars: currency.ownedAvatars, ownedFrames: currency.ownedFrames, ownedWallpapers: currency.ownedWallpapers,
             ownedTitles: currency.ownedTitles, ownedMallets: currency.ownedMallets, ownedSlitherSkins: currency.ownedSlitherSkins,
@@ -253,31 +251,8 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [isAuthenticated, currency, highScoresHook, daily, supabaseHook]);
 
     useEffect(() => {
-        const attemptAutoLogin = async () => {
-            const storedUser = localStorage.getItem('neon-username');
-            const storedPass = localStorage.getItem('neon_current_password');
-            
-            if (storedUser && storedPass && storedUser !== "Joueur Néon") {
-                try {
-                    const profile = await DB.getUserProfile(storedUser);
-                    if (profile) {
-                        const cloudData = profile.data || {};
-                        const cloudPass = cloudData.password;
-                        if (cloudPass === storedPass || storedUser === 'Vincent') {
-                            handleLogin(storedUser, cloudData);
-                        } else {
-                            handleLogout();
-                        }
-                    }
-                } catch (e) { console.error("Auto-login failed:", e); }
-            }
-        };
-        attemptAutoLogin();
-    }, []);
-
-    useEffect(() => {
         if (!isAuthenticated || !currency.username || !syncDataWithCloud || currentView.includes('admin')) return;
-        const timer = setTimeout(() => { syncDataWithCloud(); }, 3000); 
+        const timer = setTimeout(() => { syncDataWithCloud().catch(() => setGlobalAlert({ message: 'La sauvegarde a échoué. Réessayez lorsque la connexion sera rétablie.', type: 'warning' })); }, 3000);
         return () => clearTimeout(timer);
     }, [
         isAuthenticated, currency.username, currency.coins, currency.friends,
@@ -289,7 +264,6 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         currency.currentSlitherAccessoryId, currency.currentTankId, currency.currentTankAccessoryId,
         JSON.stringify(highScoresHook.highScores),
         JSON.stringify(daily.quests), daily.streak,
-        syncDataWithCloud
     ]);
 
     const recordTransaction = useCallback((type: 'EARN' | 'PURCHASE' | 'ADMIN_ADJUST', amount: number, description: string, gameId?: string) => {
@@ -304,40 +278,88 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const handleLogin = (username: string, cloudData?: any) => {
         currency.updateUsername(username);
-        if (cloudData) {
-            currency.importData(cloudData);
-            if (cloudData.password) {
-                localStorage.setItem('neon_current_password', cloudData.password);
-            }
-            if (cloudData.highScores) {
-                highScoresHook.importScores(cloudData.highScores);
-            }
-            if (cloudData.daily) {
-                daily.importData(cloudData.daily);
-            }
-        }
+        const profile = { ...defaultProfile(), ...cloudData };
+        currency.importData(profile);
+        highScoresHook.replaceScores(profile.highScores);
+        daily.importData(profile.daily);
         setIsAuthenticated(true);
-        setShowLoginModal(false);
-        audio.playVictory();
+        if (!recoveryRef.current) setShowLoginModal(false);
     };
+    const loginRef = useRef(handleLogin);
+    loginRef.current = handleLogin;
 
-    const handleLogout = () => { 
-        syncDataWithCloud().then(() => {
-            setIsAuthenticated(false); 
-            mp.disconnect(); 
-            setCurrentView('menu'); 
-            localStorage.removeItem('neon-username'); 
-            localStorage.removeItem('neon_current_password');
-            window.location.reload(); 
+    useEffect(() => {
+        removeLegacyCredentials();
+        if (!supabase) return;
+        let cancelled = false;
+        let generation = 0;
+        const restore = async () => {
+            const request = ++generation;
+            try {
+                const result = await loadOwnProfile();
+                if (cancelled || request !== generation) return;
+                if (!result) {
+                    loadedUserRef.current = null;
+                    setIsAuthenticated(false);
+                    setIsAdministrator(false);
+                    return;
+                }
+                setIsAdministrator(isAdmin(result.user));
+                if (loadedUserRef.current !== result.user.id) {
+                    loadedUserRef.current = result.user.id;
+                    loginRef.current(result.profile.username, { ...result.profile.data, email: result.user.email || '' });
+                }
+            } catch (error) {
+                if (cancelled || request !== generation) return;
+                setIsAuthenticated(false);
+                setIsAdministrator(false);
+                loadedUserRef.current = null;
+                setGlobalAlert({ message: error instanceof Error ? error.message : 'Connexion impossible.', type: 'warning' });
+            }
+        };
+        // Never await another Supabase call inside the Auth callback (auth lock).
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                recoveryRef.current = true;
+                setPasswordRecovery(true);
+                setShowLoginModal(true);
+            }
+            if (event === 'SIGNED_OUT') {
+                generation++;
+                loadedUserRef.current = null;
+                recoveryRef.current = false;
+                setPasswordRecovery(false);
+                setIsAuthenticated(false);
+                setIsAdministrator(false);
+                setCurrentView('menu');
+                return;
+            }
+            setTimeout(() => { if (!cancelled) void restore(); }, 0);
         });
+        void restore();
+        return () => { cancelled = true; generation++; subscription.unsubscribe(); };
+    }, []);
+
+    const handleLogout = async () => {
+        try { await syncDataWithCloud(); }
+        catch { setGlobalAlert({ message: 'Les dernières modifications n’ont pas pu être sauvegardées.', type: 'warning' }); }
+        finally {
+            await supabase?.auth.signOut();
+            setIsAuthenticated(false);
+            setIsAdministrator(false);
+            mp.disconnect();
+            setCurrentView('menu');
+            localStorage.removeItem('neon-username');
+            window.location.reload();
+        }
     };
 
     return (
         <GlobalContext.Provider value={{
-            currentView, setCurrentView, isAuthenticated, setIsAuthenticated, showLoginModal, setShowLoginModal,
+            currentView, setCurrentView, isAuthenticated, passwordRecovery, setIsAuthenticated, showLoginModal, setShowLoginModal,
             globalAlert, setGlobalAlert, activeSocialTab, setActiveSocialTab, unreadMessages, setUnreadMessages,
             friendRequests, setFriendRequests, sentRequests, setSentRequests, refreshSocialData,
-            disabledGames, setDisabledGames, featureFlags, setFeatureFlags, neonSeekConfig,
+            disabledGames, setDisabledGames, featureFlags, setFeatureFlags, neonSeekConfig, globalEvents: [],
             handleGameEvent, handleLogin, handleLogout, recordTransaction,
             syncDataWithCloud,
             audio, currency, mp, highScores: highScoresHook, daily, supabase: supabaseHook,

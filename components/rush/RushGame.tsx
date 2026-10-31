@@ -232,7 +232,7 @@ const CarVisual: React.FC<{ car: CarData, isSelected: boolean }> = ({ car, isSel
 
 
 export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) => {
-  const { addCoins, unlockedSolutions } = currency;
+  const { addCoins, inventory: unlockedSolutions } = currency;
   
   // Helper pour initialiser l'état avec la valeur sauvegardée
   const getSavedLevel = () => {
@@ -483,7 +483,7 @@ export const RushGame: React.FC<RushGameProps> = ({ onBack, audio, currency }) =
 
   const selectedCar = cars.find(c => c.id === selectedCarId);
   const bestScore = highScores.rush?.[currentLevelId];
-  const hasBoughtSolution = unlockedSolutions.includes(currentLevelId);
+  const hasBoughtSolution = unlockedSolutions.includes('rush_solution_' + currentLevelId);
 
   return (
     <div 

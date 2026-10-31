@@ -4,7 +4,7 @@ import { Direction, Position, FoodItem, Particle } from '../types';
 import { GRID_SIZE, INITIAL_SPEED, MIN_SPEED, FOOD_TYPES } from '../constants';
 import { useGameLoop } from '../../../hooks/useGameLoop';
 
-export const useSnakeLogic = (audio: any, addCoins: (amount: number) => void, onReportProgress?: (metric: string, value: number) => void) => {
+export const useSnakeLogic = (audio: any, addCoins: (amount: number) => void, onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void) => {
     const [snake, setSnake] = useState<Position[]>([{ x: 10, y: 10 }, { x: 10, y: 11 }, { x: 10, y: 12 }]);
     const [food, setFood] = useState<FoodItem>({ x: 15, y: 10, type: 'NORMAL' });
     const [score, setScore] = useState(0);

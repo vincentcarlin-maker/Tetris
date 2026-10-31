@@ -12,7 +12,7 @@ interface GameGridProps {
 }
 
 export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames, username, adminModeActive, language }) => {
-    const { isAuthenticated, guestPlayedGames, featureFlags } = useGlobal();
+    const { isAuthenticated, guestPlayedGames, featureFlags, currency } = useGlobal();
     const [activeCategory, setActiveCategory] = useState('ALL');
     const [activeGlow, setActiveGlow] = useState<string | null>(null);
 
@@ -33,7 +33,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ onSelectGame, disabledGames,
         });
     }, [language]);
 
-    const isAdmin = username === 'Vincent' || adminModeActive;
+    const isAdmin = currency.isSuperUser;
 
     return (
         <div className="w-full">

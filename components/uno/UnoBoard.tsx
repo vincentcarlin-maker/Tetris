@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Layers, ArrowRight, ArrowLeft, Megaphone, AlertTriangle, MessageSquare, Send, Frown, Hand, Smile, Heart, ThumbsUp } from 'lucide-react';
-import { Card as CardType, Color, Turn, FlyingCardData } from '../types';
+import { Card as CardType, Color, Turn, FlyingCardData } from './types';
 import { Card } from './common/Card';
 
 interface UnoBoardProps {

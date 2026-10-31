@@ -12,7 +12,7 @@ interface NeonSeekProps {
     onBack: () => void;
     audio: any;
     addCoins: (amount: number) => void;
-    onReportProgress?: (metric: string, value: number) => void;
+    onReportProgress?: (metric: 'score' | 'win' | 'action' | 'play', value: number) => void;
 }
 
 export const NeonSeekContainer: React.FC<NeonSeekProps> = ({ onBack, audio, addCoins, onReportProgress }) => {

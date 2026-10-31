@@ -1,22 +1,33 @@
-
 {
   "name": "react-tetris",
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && esbuild index.tsx --bundle --outfile=dist/index.js --jsx=automatic --minify --define:process.env.API_KEY=\\\"${API_KEY}\\\" && cp index.html icon.svg manifest.json sw.js dist/ && touch dist/.nojekyll"
+    "dev": "node scripts/build.mjs --dev",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/preview.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "lucide-react": "^0.395.0",
-    "peerjs": "^1.5.2",
-    "@supabase/supabase-js": "^2.39.7",
-    "@google/genai": "*"
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "lucide-react": "0.395.0",
+    "peerjs": "1.5.5",
+    "@supabase/supabase-js": "2.118.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "esbuild": "^0.23.0"
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "esbuild": "0.23.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "react-test-renderer": "18.3.1",
+    "@types/react-test-renderer": "18.3.1",
+    "@types/node": "22.18.6",
+    "@electric-sql/pglite": "0.3.14"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
