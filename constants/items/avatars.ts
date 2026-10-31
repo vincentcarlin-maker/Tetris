@@ -1,10 +1,13 @@
 
 import { Bot, User, Cat, Sparkles, Flower, Heart, Gem, ShoppingBag, Rainbow, Sun, Moon, Snowflake, Droplets, Music, Anchor, Smile, Zap, Gamepad2, Headphones, Skull, Ghost, Rocket, Crown } from 'lucide-react';
+import { characterIcon } from '../../components/AvatarPortrait';
 import { Avatar } from '../types';
 
 export const AVATARS_CATALOG: Avatar[] = [
-    { id: 'av_bot', name: 'Néon Bot', price: 0, icon: Bot, color: 'text-cyan-400', bgGradient: 'from-cyan-900/50 to-blue-900/50' },
-    { id: 'av_human', name: 'Humain', price: 0, icon: User, color: 'text-gray-200', bgGradient: 'from-gray-800/50 to-slate-800/50' },
+    { id: 'av_neo', name: 'Néo', price: 0, icon: characterIcon('av_neo'), color: 'text-cyan-300', bgGradient: 'from-cyan-900/50 to-purple-900/50' },
+    { id: 'av_fox', name: 'Foxy', price: 0, icon: characterIcon('av_fox'), color: 'text-orange-300', bgGradient: 'from-orange-900/50 to-purple-900/50' },
+    { id: 'av_bot', name: 'Pixel', price: 0, icon: characterIcon('av_bot'), color: 'text-cyan-400', bgGradient: 'from-cyan-900/50 to-blue-900/50' },
+    { id: 'av_human', name: 'Nova', price: 0, icon: characterIcon('av_human'), color: 'text-gray-200', bgGradient: 'from-gray-800/50 to-slate-800/50' },
     { id: 'av_cat', name: 'Néon Cat', price: 1000, icon: Cat, color: 'text-pink-400', bgGradient: 'from-pink-900/50 to-purple-900/50' },
     { id: 'av_unicorn', name: 'Licorne', price: 5000, icon: Sparkles, color: 'text-white', bgGradient: 'from-pink-300 via-purple-300 to-indigo-300 shadow-[inset_0_0_20px_rgba(255,255,255,0.5)]' },
     { id: 'av_flower', name: 'Fleur', price: 1500, icon: Flower, color: 'text-fuchsia-400', bgGradient: 'from-fuchsia-900/50 to-pink-900/50' },

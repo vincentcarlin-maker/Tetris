@@ -57,11 +57,16 @@ async function body(request: Request, max = 262144): Promise<Record<string, unkn
         return parsed as Record<string, unknown>;
     } catch { throw new ApiError(400, 'JSON invalide.'); }
 }
-const profileKeys = new Set(['coins','inventory','avatarId','ownedAvatars','frameId','ownedFrames','wallpaperId','ownedWallpapers','titleId','ownedTitles','malletId','ownedMallets','tankId','ownedTanks','tankAccessoryId','ownedTankAccessories','slitherSkinId','ownedSlitherSkins','slitherAccessoryId','ownedSlitherAccessories','accentColor','reducedMotion','voiceChatEnabled','language','highScores','daily','gameProgress']);
+const profileKeys = new Set(['avatarEquipment','coins','inventory','avatarId','ownedAvatars','frameId','ownedFrames','wallpaperId','ownedWallpapers','titleId','ownedTitles','malletId','ownedMallets','tankId','ownedTanks','tankAccessoryId','ownedTankAccessories','slitherSkinId','ownedSlitherSkins','slitherAccessoryId','ownedSlitherAccessories','accentColor','reducedMotion','voiceChatEnabled','language','highScores','daily','gameProgress']);
 function profileData(value: unknown) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ApiError(400, 'Profil invalide.');
     const data = value as Record<string, unknown>;
     if (Object.keys(data).some(key => !profileKeys.has(key))) throw new ApiError(400, 'Champ de profil non autorisé.');
+    if (data.avatarEquipment !== undefined) {
+        const slots: Record<string,string[]> = {head:['aa_cap','aa_headphones','aa_crown'],eyes:['aa_glasses'],neck:['aa_chain','aa_scarf']};
+        const equipment=data.avatarEquipment;
+        if (!equipment || typeof equipment!=='object' || Array.isArray(equipment) || Object.entries(equipment).some(([slot,id])=>!Object.hasOwn(slots,slot) || (id!==null && (typeof id!=='string' || !slots[slot].includes(id))))) throw new ApiError(400,'Accessoire d’avatar invalide.');
+    }
     let nodes = 0;
     const visit = (item: unknown, depth: number) => {
         if (++nodes > 20000 || depth > 12) throw new ApiError(400, 'Profil trop complexe.');
@@ -161,7 +166,13 @@ async function route(request: Request, env: Env) {
         await rateLimit(env, `save:${user.id}`, 30, 60);
         const input = await body(request);
         if (!Number.isSafeInteger(input.version) || Number(input.version) < 1) throw new ApiError(400,'Version de sauvegarde requise.');
-        const data = profileData(input.data);
+        const snapshot=JSON.parse(profileData(input.data)) as Record<string,unknown>;
+        // Older open tabs do not know this new field; keep the saved style when omitted.
+        if (!Object.hasOwn(snapshot,'avatarEquipment')) {
+            const previous=await env.DB.prepare("SELECT json_extract(data,'$.avatarEquipment') AS equipment FROM profiles WHERE user_id=?").bind(user.id).first<{equipment:string|null}>();
+            if (previous?.equipment) snapshot.avatarEquipment=JSON.parse(previous.equipment);
+        }
+        const data = profileData(snapshot);
         const changed = await env.DB.prepare('UPDATE profiles SET data=?,version=version+1,updated_at=? WHERE user_id=? AND version=? RETURNING version,updated_at').bind(data,now(),user.id,input.version as number).first<{version:number;updated_at:number}>();
         if (!changed) throw new ApiError(409,'La sauvegarde a changé sur un autre appareil. Rechargez-la avant de continuer.');
         return changed;

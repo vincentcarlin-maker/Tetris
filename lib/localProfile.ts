@@ -1,5 +1,6 @@
 import { defaultProfile } from './auth';
 const mapping: Record<string, string> = {
+    avatarEquipment:'neon-avatar-equipment',
     coins:'neon-coins',inventory:'neon-inventory',avatarId:'neon-avatar',ownedAvatars:'neon_owned_avatars',
     frameId:'neon-frame',ownedFrames:'neon-owned-frames',wallpaperId:'neon-wallpaper',ownedWallpapers:'neon-owned-wallpapers',
     titleId:'neon-title',ownedTitles:'neon-owned-titles',malletId:'neon-mallet',ownedMallets:'neon-owned-mallets',

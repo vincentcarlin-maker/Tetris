@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { AvatarStudio } from './AvatarStudio';
+import { CHARACTER_SPRITES } from '../../../lib/avatarCustomization';
 import { Type, User, Palette, Map, Pipette, Glasses, Crosshair, Flag, Disc, Award } from 'lucide-react';
 import { useGlobal } from '../../../context/GlobalContext';
 import { ShopCategory, ShopItem } from '../types';
@@ -26,13 +28,14 @@ export const ItemGroups: React.FC<ItemGroupsProps> = ({ group }) => {
         switch (group) {
             case 'PLAYER':
                 return <>
+                    <AvatarStudio />
                     <SectionHeader title="Titres de Prestige" icon={Type} color="text-yellow-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {currency.titlesCatalog.map((item: ShopItem) => <ItemCard key={item.id} item={item} category="TITLES" isOwned={currency.ownedTitles.includes(item.id)} isSelected={currency.currentTitleId === item.id} onBuy={() => handleBuyItem(item, 'Titre', currency.buyTitle)} onSelect={() => currency.selectTitle(item.id)} colorClass="yellow" coins={coins}/>)}
                     </div>
-                    <SectionHeader title="Avatars Néon" icon={User} color="text-cyan-400" />
+                    <SectionHeader title="Icônes classiques" icon={User} color="text-cyan-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {currency.avatarsCatalog.map((item: ShopItem) => <ItemCard key={item.id} item={item} category="AVATARS" isOwned={currency.ownedAvatars.includes(item.id)} isSelected={currency.currentAvatarId === item.id} onBuy={() => handleBuyItem(item, 'Avatar', currency.buyAvatar)} onSelect={() => currency.selectAvatar(item.id)} colorClass="cyan" coins={coins}/>)}
+                        {currency.avatarsCatalog.filter(item => !CHARACTER_SPRITES[item.id]).map((item: ShopItem) => <ItemCard key={item.id} item={item} category="AVATARS" isOwned={currency.ownedAvatars.includes(item.id)} isSelected={currency.currentAvatarId === item.id} onBuy={() => handleBuyItem(item, 'Avatar', currency.buyAvatar)} onSelect={() => currency.selectAvatar(item.id)} colorClass="cyan" coins={coins}/>)}
                     </div>
                     <SectionHeader title="Badges de Succès" icon={Award} color="text-green-400" />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

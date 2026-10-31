@@ -15,6 +15,12 @@ Les changements sont sauvegardés après un délai de trois secondes, avec une v
 
 Le chat, le classement mondial, le multijoueur en ligne et le générateur Gemini restent désactivés. Les scores et pièces sont calculés dans le navigateur et ne constituent pas une preuve anti-triche.
 
+## Avatars personnalisables
+
+Dans **Boutique → Identité**, choisissez Nova, Néo, Foxy ou Pixel. Le premier pack propose gratuitement une casquette, un casque audio ou une couronne pour la tête, des lunettes et une chaîne ou un foulard pour le cou. Les trois emplacements sont indépendants et les changements sont affichés dans l’aperçu ainsi que sur le profil.
+
+Les choix sont conservés localement et inclus dans la sauvegarde Cloudflare du compte. Les anciennes icônes sont conservées dans la section « Icônes classiques ». Les illustrations et les accessoires utilisent deux atlas WebP transparents dans `assets/avatars/` ; les positions et les combinaisons sont définies dans `lib/avatarCustomization.ts`.
+
 ## Développement
 
 Node.js 22 ou supérieur.

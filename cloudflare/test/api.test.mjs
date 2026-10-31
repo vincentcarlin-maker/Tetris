@@ -78,3 +78,15 @@ test('password changes revoke sessions and renewed recovery codes replace the ol
     assert.equal((await request('/me','GET',undefined,a.token)).status,401);
     assert.equal((await request('/auth/login','POST',{email:'changepass@example.org',password:pass+'changed'})).status,200);
 });
+test('saves avatar layers privately and rejects accessories assigned to the wrong slots',async()=>{
+    const a=await register('AvatarUser'),b=await register('AvatarOther');
+    const equipment={head:'aa_crown',eyes:'aa_glasses',neck:'aa_scarf'};
+    assert.equal((await request('/profile','PUT',{version:1,data:{avatarId:'av_fox',avatarEquipment:equipment}},a.token)).status,200);
+    assert.deepEqual((await request('/me','GET',undefined,a.token)).body.profile.data.avatarEquipment,equipment);
+    assert.equal((await request('/me','GET',undefined,b.token)).body.profile.data.avatarEquipment,undefined);
+    assert.equal((await request('/profile','PUT',{version:2,data:{coins:20}},a.token)).status,200);
+    assert.deepEqual((await request('/me','GET',undefined,a.token)).body.profile.data.avatarEquipment,equipment);
+    assert.equal((await request('/profile','PUT',{version:2,data:{avatarEquipment:{head:'aa_scarf'}}},a.token)).status,400);
+    assert.equal((await request('/profile','PUT',{version:2,data:{avatarEquipment:{url:'https://invalid.example'}}},a.token)).status,400);
+    assert.equal((await request('/profile','PUT',{version:3,data:{avatarEquipment:{toString:null}}},a.token)).status,400);
+});

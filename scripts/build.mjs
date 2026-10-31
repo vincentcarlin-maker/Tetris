@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild';
-import { mkdir, rm, copyFile, writeFile } from 'node:fs/promises';
+import { mkdir, rm, copyFile, writeFile, cp } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 const dev = process.argv.includes('--dev');
@@ -7,6 +7,7 @@ await rm('dist', { recursive: true, force: true });
 await mkdir('dist');
 for (const file of ['index.html', 'icon.svg', 'manifest.json', 'sw.js', 'legal.html']) await copyFile(file, `dist/${file}`);
 await writeFile('dist/.nojekyll', '');
+await cp('assets', 'dist/assets', { recursive:true });
 const options = {
     entryPoints: ['index.tsx'], bundle: true, outfile: 'dist/index.js', jsx: 'automatic', minify: !dev,
     define: {

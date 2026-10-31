@@ -1,3 +1,4 @@
+import { AvatarPortrait } from '../AvatarPortrait';
 
 import { GUEST_MODE } from '../../lib/appMode';
 import { useGlobal } from '../../context/GlobalContext';
@@ -47,8 +48,8 @@ export const UserProfileSummary: React.FC<UserProfileSummaryProps> = ({
                 <div onClick={() => isAuthenticated ? onSelectGame('shop') : onLoginRequest && onLoginRequest()} className="relative cursor-pointer hover:scale-105 transition-transform shrink-0">
                     {isAuthenticated ? (
                         <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${currentAvatar.bgGradient} p-0.5 flex items-center justify-center relative z-10 border-2 ${currentFrame.cssClass}`}>
-                            <div className="w-full h-full bg-black/40 rounded-[8px] flex items-center justify-center backdrop-blur-sm">
-                                <AvatarIcon size={32} className={currentAvatar.color} />
+                            <div className="w-full h-full bg-black/40 rounded-[8px] overflow-hidden flex items-center justify-center backdrop-blur-sm">
+                                <AvatarPortrait avatarId={currency.currentAvatarId} equipment={currency.avatarEquipment} size="100%" fallback={AvatarIcon} className={currentAvatar.color} />
                             </div>
                         </div>
                     ) : (

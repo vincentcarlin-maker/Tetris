@@ -1,5 +1,5 @@
 const CACHE_NAME = 'neon-arcade-cache-v2';
-const ASSETS = ['index.html', 'index.js', 'icon.svg', 'manifest.json', 'legal.html'];
+const ASSETS = ['index.html', 'index.js', 'icon.svg', 'manifest.json', 'legal.html', 'assets/avatars/characters.webp', 'assets/avatars/accessories.webp'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
 });

@@ -1,4 +1,5 @@
 
+import { normalizeAvatarEquipment, withStarterAvatars, type AvatarSlot, type AvatarEquipment } from '../lib/avatarCustomization';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Badge, Avatar, Frame, SlitherSkin, SlitherAccessory, Wallpaper, Title, Mallet, TankSkin, TankAccessory, Friend,
@@ -28,9 +29,12 @@ export const useCurrency = (isSuperUser = false) => {
     const [username, setUsername] = useState(() => localStorage.getItem('neon-username') || "Joueur Néon");
     const [email, setEmail] = useState(() => localStorage.getItem('neon-email') || "");
     
+    const [avatarEquipment, setAvatarEquipmentState] = useState<AvatarEquipment>(() => { try { return normalizeAvatarEquipment(JSON.parse(localStorage.getItem('neon-avatar-equipment') || '{}')); } catch { return normalizeAvatarEquipment(null); } });
+    const setAvatarEquipment = useCallback((value: unknown) => { const next=normalizeAvatarEquipment(value);setAvatarEquipmentState(next);localStorage.setItem('neon-avatar-equipment',JSON.stringify(next)); }, []);
+    const equipAvatarAccessory = useCallback((slot: AvatarSlot, id: string|null) => { setAvatarEquipmentState(previous => { const next=normalizeAvatarEquipment({...previous,[slot]:id});localStorage.setItem('neon-avatar-equipment',JSON.stringify(next));return next; }); }, []);
     const [currentAvatarId, setCurrentAvatarId] = useState(() => localStorage.getItem('neon-avatar') || "av_bot");
     const [ownedAvatars, setOwnedAvatars] = useState<string[]>(() => {
-        try { return JSON.parse(localStorage.getItem('neon_owned_avatars') || '["av_bot", "av_human"]'); } catch { return ["av_bot", "av_human"]; }
+        try { return withStarterAvatars(JSON.parse(localStorage.getItem('neon_owned_avatars') || '[]')); } catch { return withStarterAvatars([]); }
     });
     
     const [currentFrameId, setCurrentFrameId] = useState(() => localStorage.getItem('neon-frame') || "fr_none");
@@ -111,8 +115,9 @@ export const useCurrency = (isSuperUser = false) => {
         if (data.inventory) { setInventory(data.inventory); localStorage.setItem('neon-inventory', JSON.stringify(data.inventory)); }
         
         // Items & Selections
+        if (data.avatarEquipment !== undefined) setAvatarEquipment(data.avatarEquipment);
         if (data.avatarId) { setCurrentAvatarId(data.avatarId); localStorage.setItem('neon-avatar', data.avatarId); }
-        if (data.ownedAvatars) { setOwnedAvatars(data.ownedAvatars); localStorage.setItem('neon_owned_avatars', JSON.stringify(data.ownedAvatars)); }
+        if (data.ownedAvatars) { const owned=withStarterAvatars(data.ownedAvatars);setOwnedAvatars(owned);localStorage.setItem('neon_owned_avatars',JSON.stringify(owned)); }
         if (data.frameId) { setCurrentFrameId(data.frameId); localStorage.setItem('neon-frame', data.frameId); }
         if (data.ownedFrames) { setOwnedFrames(data.ownedFrames); localStorage.setItem('neon-owned-frames', JSON.stringify(data.ownedFrames)); }
         if (data.malletId) { setCurrentMalletId(data.malletId); localStorage.setItem('neon-mallet', data.malletId); }
@@ -150,6 +155,7 @@ export const useCurrency = (isSuperUser = false) => {
         language, setLanguage: (l: string) => { setLanguageState(l); localStorage.setItem('neon-language', l); }, t,
         isSuperUser, adminModeActive, toggleAdminMode: () => setAdminModeActive(v => !v),
         addCoins, username, updateUsername: (n: string) => { setUsername(n); localStorage.setItem('neon-username', n); },
+        avatarEquipment, setAvatarEquipment, equipAvatarAccessory,
         currentAvatarId, selectAvatar: (id: string) => { setCurrentAvatarId(id); localStorage.setItem('neon-avatar', id); },
         buyAvatar: (id: string, cost: number) => { if (coins >= cost) { addCoins(-cost); setOwnedAvatars(p => [...p, id]); localStorage.setItem('neon_owned_avatars', JSON.stringify([...ownedAvatars, id])); } },
         avatarsCatalog: AVATARS_CATALOG,

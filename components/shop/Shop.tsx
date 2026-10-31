@@ -23,7 +23,7 @@ const getGroupLabel = (group: ShopGroup) => {
 };
 
 export const Shop: React.FC<ShopContainerProps> = ({ onBack }) => {
-    const [activeGroup, setActiveGroup] = useState<ShopGroup>(null);
+    const [activeGroup, setActiveGroup] = useState<ShopGroup>('PLAYER');
     const { currency } = useGlobal();
 
     return (
@@ -36,6 +36,7 @@ export const Shop: React.FC<ShopContainerProps> = ({ onBack }) => {
                     coins={currency.coins}
                     activeGroupLabel={getGroupLabel(activeGroup)}
                 />
+                {activeGroup && <button onClick={() => setActiveGroup(null)} className="mx-4 mb-3 text-xs text-cyan-300 flex items-center gap-2"><LayoutGrid size={14}/>Toutes les catégories</button>}
             </div>
 
             <div className="flex-1 w-full max-w-4xl mx-auto px-4 pb-24 overflow-y-auto custom-scrollbar z-10">
@@ -46,13 +47,7 @@ export const Shop: React.FC<ShopContainerProps> = ({ onBack }) => {
                 )}
             </div>
             
-            {activeGroup && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 animate-in slide-in-from-bottom-2 duration-300">
-                    <button onClick={() => setActiveGroup(null)} className="px-6 py-3 bg-gray-900 border border-white/20 rounded-full text-[10px] font-black tracking-widest text-white shadow-2xl hover:bg-white hover:text-black transition-all flex items-center gap-2 backdrop-blur-md">
-                        <LayoutGrid size={14} /> TOUTES LES CATÉGORIES
-                    </button>
-                </div>
-            )}
+
         </div>
     );
 };

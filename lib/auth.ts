@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase, publicProfileData } from './supabaseClient';
 
 export const defaultProfile = () => ({
+    avatarEquipment: { head:null, eyes:null, neck:null },
     coins: 0, inventory: [], avatarId: 'av_bot', ownedAvatars: ['av_bot', 'av_human'],
     frameId: 'fr_none', ownedFrames: ['fr_none'], wallpaperId: 'bg_brick', ownedWallpapers: ['bg_brick'],
     titleId: 't_none', ownedTitles: ['t_none'], malletId: 'm_classic', ownedMallets: ['m_classic'],
